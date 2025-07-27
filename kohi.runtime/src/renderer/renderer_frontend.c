@@ -847,75 +847,75 @@ void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, 
     KERROR("renderer_texture_prepare_for_sampling requires a valid handle to a texture. Nothing was done.");
 }
 
-b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
+b8 renderer_shader_create(struct renderer_system_state* state, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
     return state->backend->shader_create(state->backend, shader, name, flags, topology_types, cull_mode, stage_count, stages, stage_names, stage_sources, max_groups, max_draw_ids, attribute_count, attributes, uniform_count, d_uniforms);
 }
 
-void renderer_shader_destroy(struct renderer_system_state* state, khandle shader) {
+void renderer_shader_destroy(struct renderer_system_state* state, kshader shader) {
     state->backend->shader_destroy(state->backend, shader);
 }
 
-b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
+b8 renderer_shader_reload(struct renderer_system_state* state, kshader shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
     return state->backend->shader_reload(state->backend, shader, stage_count, stages, names, sources);
 }
 
-b8 renderer_shader_use(struct renderer_system_state* state, khandle shader) {
+b8 renderer_shader_use(struct renderer_system_state* state, kshader shader) {
     return state->backend->shader_use(state->backend, shader);
 }
 
-b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, khandle shader) {
+b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, kshader shader) {
     return state->backend->shader_supports_wireframe(state->backend, shader);
 }
 
-b8 renderer_shader_flag_get(struct renderer_system_state* state, khandle shader, shader_flags flag) {
+b8 renderer_shader_flag_get(struct renderer_system_state* state, kshader shader, shader_flags flag) {
     return state->backend->shader_flag_get(state->backend, shader, flag);
 }
 
-void renderer_shader_flag_set(struct renderer_system_state* state, khandle shader, shader_flags flag, b8 enabled) {
+void renderer_shader_flag_set(struct renderer_system_state* state, kshader shader, shader_flags flag, b8 enabled) {
     state->backend->shader_flag_set(state->backend, shader, flag, enabled);
 }
 
-b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, khandle shader) {
+b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, kshader shader) {
     return state->backend->shader_bind_per_frame(state->backend, shader);
 }
 
-b8 renderer_shader_bind_per_group(struct renderer_system_state* state, khandle shader, u32 group_id) {
+b8 renderer_shader_bind_per_group(struct renderer_system_state* state, kshader shader, u32 group_id) {
     return state->backend->shader_bind_per_group(state->backend, shader, group_id);
 }
 
-b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khandle shader, u32 draw_id) {
+b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, kshader shader, u32 draw_id) {
     return state->backend->shader_bind_per_draw(state->backend, shader, draw_id);
 }
 
-b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader) {
+b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kshader shader) {
     return state->backend->shader_apply_per_frame(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader) {
+b8 renderer_shader_apply_per_group(struct renderer_system_state* state, kshader shader) {
     return state->backend->shader_apply_per_group(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader) {
+b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, kshader shader) {
     return state->backend->shader_apply_per_draw(state->backend, shader, state->frame_number);
 }
 
-b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_group_id) {
+b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_group_id) {
     return state->backend->shader_per_group_resources_acquire(state->backend, shader, out_group_id);
 }
 
-b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, khandle shader, u32 group_id) {
+b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, kshader shader, u32 group_id) {
     return state->backend->shader_per_group_resources_release(state->backend, shader, group_id);
 }
 
-b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_draw_id) {
+b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_draw_id) {
     return state->backend->shader_per_draw_resources_acquire(state->backend, shader, out_draw_id);
 }
 
-b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, khandle shader, u32 draw_id) {
+b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, kshader shader, u32 draw_id) {
     return state->backend->shader_per_draw_resources_release(state->backend, shader, draw_id);
 }
 
-b8 renderer_shader_uniform_set(struct renderer_system_state* state, khandle shader, shader_uniform* uniform, u32 array_index, const void* value) {
+b8 renderer_shader_uniform_set(struct renderer_system_state* state, kshader shader, shader_uniform* uniform, u32 array_index, const void* value) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->shader_uniform_set(state_ptr->backend, shader, uniform, array_index, value);
 }

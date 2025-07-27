@@ -167,6 +167,9 @@ typedef enum shader_generic_sampler {
     SHADER_GENERIC_SAMPLER_COUNT,
 } shader_generic_sampler;
 
+typedef u16 kshader;
+#define KSHADER_INVALID INVALID_ID_U16
+
 typedef enum renderer_default_texture {
     // Used as a default for material base colours
     RENDERER_DEFAULT_TEXTURE_BASE_COLOUR = 0,
@@ -268,6 +271,8 @@ typedef struct shader_frequency_data {
  * @brief Represents the current state of a given shader.
  */
 typedef enum shader_state {
+    /** @brief The shader is "free", and is thus unusable.*/
+    SHADER_STATE_FREE,
     /** @brief The shader has not yet gone through the creation process, and is unusable.*/
     SHADER_STATE_NOT_CREATED,
     /** @brief The shader has gone through the creation process, but not initialization. It is unusable.*/

@@ -5,7 +5,6 @@
 #include <core_render_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
-#include <identifiers/khandle.h>
 #include <logger.h>
 #include <math/kmath.h>
 #include <memory/kmemory.h>
@@ -344,9 +343,9 @@ typedef struct kmaterial_water_shader_locations {
 typedef struct kmaterial_system_state {
     kmaterial_system_config config;
 
-    // collection of materials, indexed by material khandle resource index.
+    // collection of materials, indexed by material resource index.
     kmaterial_data* materials;
-    // darray of material instances, indexed first by material khandle index, then by instance khandle index.
+    // darray of material instances, indexed first by material index, then by instance index.
     kmaterial_instance_data** instances;
 
     // A default material for each type of material.
@@ -355,13 +354,13 @@ typedef struct kmaterial_system_state {
     kmaterial_data* default_blended_material;
 
     // Cached handles for various material types' shaders.
-    khandle material_standard_shader;
+    kshader material_standard_shader;
     kmaterial_standard_shader_locations standard_material_locations;
 
-    khandle material_water_shader;
+    kshader material_water_shader;
     kmaterial_water_shader_locations water_material_locations;
 
-    khandle material_blended_shader;
+    kshader material_blended_shader;
 
     // Pointer to use for material texture inputs _not_ using a texture map (because something has to be bound).
     ktexture default_texture;
@@ -395,7 +394,7 @@ static b8 create_default_standard_material(kmaterial_system_state* state);
 static b8 create_default_water_material(kmaterial_system_state* state);
 static b8 create_default_blended_material(kmaterial_system_state* state);
 static void on_material_system_dump(console_command_context context);
-static khandle get_shader_for_material_type(const kmaterial_system_state* state, kmaterial_type type);
+static kshader get_shader_for_material_type(const kmaterial_system_state* state, kmaterial_type type);
 static kmaterial material_handle_create(kmaterial_system_state* state, kname name);
 static u16 kmaterial_instance_handle_create(kmaterial_system_state* state, kmaterial material_handle);
 static b8 material_create(kmaterial_system_state* state, kmaterial material_handle, const kasset_material* asset);
@@ -1001,7 +1000,7 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
 
     // Standard shader type
     {
-        khandle shader = state->material_standard_shader;
+        kshader shader = state->material_standard_shader;
         shader_system_use(shader);
 
         // Ensure wireframe mode is (un)set.
@@ -1074,7 +1073,7 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
 
     // Water shader type
     {
-        khandle shader = state->material_water_shader;
+        kshader shader = state->material_water_shader;
         shader_system_use(shader);
 
         // Ensure wireframe mode is (un)set.
@@ -1154,7 +1153,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
 
     kmaterial_data* base_material = &state->materials[material];
 
-    khandle shader;
+    kshader shader;
 
     switch (base_material->type) {
     default:
@@ -1439,7 +1438,7 @@ b8 kmaterial_system_apply_instance(kmaterial_system_state* state, const kmateria
     }
     kmaterial_data* base_material = &state->materials[instance->base_material];
 
-    khandle shader;
+    kshader shader;
 
     switch (base_material->type) {
     default:
@@ -1752,12 +1751,12 @@ static void on_material_system_dump(console_command_context context) {
     kmaterial_system_dump(engine_systems_get()->material_system);
 }
 
-static khandle get_shader_for_material_type(const kmaterial_system_state* state, kmaterial_type type) {
+static kshader get_shader_for_material_type(const kmaterial_system_state* state, kmaterial_type type) {
     switch (type) {
     default:
     case KMATERIAL_TYPE_UNKNOWN:
         KERROR("Cannot get shader for a material using an 'unknown' material type.");
-        return khandle_invalid();
+        return KSHADER_INVALID;
     case KMATERIAL_TYPE_STANDARD:
         return state->material_standard_shader;
         break;
@@ -1769,7 +1768,7 @@ static khandle get_shader_for_material_type(const kmaterial_system_state* state,
         break;
     case KMATERIAL_TYPE_CUSTOM:
         KASSERT_MSG(false, "Not yet implemented!");
-        return khandle_invalid();
+        return KSHADER_INVALID;
     }
 }
 
@@ -1829,8 +1828,8 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
     material->model = asset->model;
 
     // Select shader.
-    khandle material_shader = get_shader_for_material_type(state, material->type);
-    if (khandle_is_invalid(material_shader)) {
+    kshader material_shader = get_shader_for_material_type(state, material->type);
+    if (material_shader == KSHADER_INVALID) {
         // TODO: invalidate handle/entry?
         return false;
     }
@@ -2064,8 +2063,8 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
     material->state = KMATERIAL_STATE_UNINITIALIZED;
 
     // Select shader.
-    khandle material_shader = get_shader_for_material_type(state, material->type);
-    if (khandle_is_invalid(material_shader)) {
+    kshader material_shader = get_shader_for_material_type(state, material->type);
+    if (material_shader == KSHADER_INVALID) {
         KWARN("Attempting to release material that had an invalid shader.");
         return;
     }

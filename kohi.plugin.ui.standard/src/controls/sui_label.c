@@ -73,7 +73,7 @@ b8 sui_label_control_create(standard_ui_state* state, const char* name, font_typ
         sui_label_text_set(state, out_control, "");
     }
 
-    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
     // Acquire group resources for this control.
     if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
         KFATAL("Unable to acquire shader group resources for button.");
@@ -146,7 +146,7 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
     }
 
     // Release group/draw resources.
-    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
     if (!shader_system_shader_group_release(sui_shader, typed_data->group_id)) {
         KFATAL("Unable to release group shader resources.");
     }

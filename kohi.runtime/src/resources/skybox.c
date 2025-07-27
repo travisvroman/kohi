@@ -51,7 +51,7 @@ b8 skybox_load(skybox* sb) {
 
     sb->cubemap = texture_cubemap_acquire_sync(sb->cubemap_name);
 
-    khandle skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
+    kshader skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
     if (!renderer_shader_per_group_resources_acquire(engine_systems_get()->renderer_system, skybox_shader, &sb->group_id)) {
         KFATAL("Unable to acquire shader per-group resources for skybox.");
         return false;
@@ -72,7 +72,7 @@ b8 skybox_unload(skybox* sb) {
     }
     sb->state = SKYBOX_STATE_UNDEFINED;
 
-    khandle skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
+    kshader skybox_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_SKYBOX), kname_create(PACKAGE_NAME_RUNTIME)); // TODO: allow configurable shader.
     if (!renderer_shader_per_group_resources_release(engine_systems_get()->renderer_system, skybox_shader, sb->group_id)) {
         KWARN("Unable to release shader group resources for skybox.");
         return false;

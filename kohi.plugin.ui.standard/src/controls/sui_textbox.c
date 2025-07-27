@@ -258,7 +258,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
     typed_data->clip_mask.clip_xform = xform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
 
     // Acquire group resources for this control.
-    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
 
     if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
         KFATAL("Unable to acquire shader group resources for textbox.");

@@ -90,7 +90,7 @@ b8 sui_button_control_load(standard_ui_state* state, struct sui_control* self) {
     self->bounds.width = typed_data->size.x;
     self->bounds.height = typed_data->size.y;
 
-    khandle sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
     // Acquire group resources for this control.
     if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
         KFATAL("Unable to acquire shader group resources for button.");

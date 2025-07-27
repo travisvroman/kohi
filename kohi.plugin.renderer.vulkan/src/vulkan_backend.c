@@ -2098,7 +2098,7 @@ static void calculate_sorted_indices(vulkan_shader_frequency_info* frequency_inf
     kquick_sort(sizeof(u32), frequency_info->sorted_indices, 0, count - 1, kquicksort_compare_u32);
 }
 
-b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
+b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms) {
     // Verify stage support before anything else.
     for (u8 i = 0; i < stage_count; ++i) {
         switch (stages[i]) {
@@ -2121,7 +2121,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     krhi_vulkan* rhi = &context->rhi;
     VkDevice logical_device = context->device.logical_device;
     VkAllocationCallbacks* vk_allocator = context->allocator;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
 
     // Setup the internal shader.
     internal_shader->per_draw_push_constant_block = kallocate(128, MEMORY_TAG_RENDERER);
@@ -2544,13 +2544,13 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, khandle sh
     return setup_frequency_state(backend, internal_shader, SHADER_UPDATE_FREQUENCY_PER_FRAME, 0);
 }
 
-void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, khandle shader) {
-    if (!khandle_is_invalid(shader)) {
+void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader shader) {
+    if (shader == KSHADER_INVALID) {
         vulkan_context* context = (vulkan_context*)backend->internal_context;
         krhi_vulkan* rhi = &context->rhi;
         VkDevice logical_device = context->device.logical_device;
         VkAllocationCallbacks* vk_allocator = context->allocator;
-        vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+        vulkan_shader* internal_shader = &context->shaders[shader];
         if (!internal_shader) {
             KERROR("vulkan_renderer_shader_destroy requires a valid pointer to a shader.");
             return;
@@ -2664,15 +2664,15 @@ void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, khandle
     }
 }
 
-b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
+b8 vulkan_renderer_shader_reload(renderer_backend_interface* backend, kshader shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return shader_create_modules_and_pipelines(backend, &context->shaders[shader.handle_index], stage_count, stages, names, sources);
+    return shader_create_modules_and_pipelines(backend, &context->shaders[shader], stage_count, stages, names, sources);
 }
 
-b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, khandle shader) {
+b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, kshader shader) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
     vulkan_command_buffer* command_buffer = get_current_command_buffer(context);
 
     // Pick the correct pipeline.
@@ -2690,9 +2690,9 @@ b8 vulkan_renderer_shader_use(renderer_backend_interface* backend, khandle shade
     return true;
 }
 
-b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* backend, khandle shader) {
+b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* backend, kshader shader) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal = &context->shaders[shader.handle_index];
+    vulkan_shader* internal = &context->shaders[shader];
 
     // If the array exists, this is supported.
     if (internal->wireframe_pipelines) {
@@ -2702,44 +2702,44 @@ b8 vulkan_renderer_shader_supports_wireframe(const renderer_backend_interface* b
     return false;
 }
 
-b8 vulkan_renderer_shader_flag_get(const renderer_backend_interface* backend, khandle shader, shader_flags flag) {
+b8 vulkan_renderer_shader_flag_get(const renderer_backend_interface* backend, kshader shader, shader_flags flag) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
 
     return FLAG_GET(internal_shader->flags, flag);
 }
 
-void vulkan_renderer_shader_flag_set(renderer_backend_interface* backend, khandle shader, shader_flags flag, b8 enabled) {
+void vulkan_renderer_shader_flag_set(renderer_backend_interface* backend, kshader shader, shader_flags flag, b8 enabled) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
 
     internal_shader->flags = FLAG_SET(internal_shader->flags, flag, enabled);
 }
 
-b8 vulkan_renderer_shader_bind_per_frame(renderer_backend_interface* backend, khandle shader) {
+b8 vulkan_renderer_shader_bind_per_frame(renderer_backend_interface* backend, kshader shader) {
     // NOTE: For Vulkan, this is a no-op.
     return true;
 }
 
-b8 vulkan_renderer_shader_bind_per_group(renderer_backend_interface* backend, khandle shader, u32 group_id) {
+b8 vulkan_renderer_shader_bind_per_group(renderer_backend_interface* backend, kshader shader, u32 group_id) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
     vulkan_shader_frequency_info* frequency_info = &internal_shader->per_group_info;
     frequency_info->bound_id = group_id;
     return true;
 }
 
-b8 vulkan_renderer_shader_bind_per_draw(renderer_backend_interface* backend, khandle shader, u32 draw_id) {
+b8 vulkan_renderer_shader_bind_per_draw(renderer_backend_interface* backend, kshader shader, u32 draw_id) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
     vulkan_shader_frequency_info* frequency_info = &internal_shader->per_draw_info;
     frequency_info->bound_id = draw_id;
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, khandle shader, u16 renderer_frame_number) {
+b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
     vulkan_shader_frequency_info* frequency_info = &internal_shader->per_frame_info;
 
     // Don't do anything if there are no updatable per-frame uniforms.
@@ -2767,9 +2767,9 @@ b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, k
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_per_group(renderer_backend_interface* backend, khandle shader, u16 renderer_frame_number) {
+b8 vulkan_renderer_shader_apply_per_group(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
     vulkan_shader_frequency_info* frequency_info = &internal_shader->per_group_info;
 
     if (frequency_info->bound_id == INVALID_ID) {
@@ -2805,10 +2805,10 @@ b8 vulkan_renderer_shader_apply_per_group(renderer_backend_interface* backend, k
     return true;
 }
 
-b8 vulkan_renderer_shader_apply_per_draw(renderer_backend_interface* backend, khandle shader, u16 renderer_frame_number) {
+b8 vulkan_renderer_shader_apply_per_draw(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
-    vulkan_shader* internal_shader = &context->shaders[shader.handle_index];
+    vulkan_shader* internal_shader = &context->shaders[shader];
     vulkan_shader_frequency_info* frequency_info = &internal_shader->per_draw_info;
 
     if (frequency_info->bound_id == INVALID_ID) {
@@ -3017,29 +3017,29 @@ kname vulkan_renderer_sampler_name_get(renderer_backend_interface* backend, khan
     return data->name;
 }
 
-b8 vulkan_renderer_shader_per_group_resources_acquire(renderer_backend_interface* backend, khandle shader, u32* out_group_id) {
+b8 vulkan_renderer_shader_per_group_resources_acquire(renderer_backend_interface* backend, kshader shader, u32* out_group_id) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return setup_frequency_state(backend, &context->shaders[shader.handle_index], SHADER_UPDATE_FREQUENCY_PER_GROUP, out_group_id);
+    return setup_frequency_state(backend, &context->shaders[shader], SHADER_UPDATE_FREQUENCY_PER_GROUP, out_group_id);
 }
 
-b8 vulkan_renderer_shader_per_draw_resources_acquire(renderer_backend_interface* backend, khandle shader, u32* out_per_draw_id) {
+b8 vulkan_renderer_shader_per_draw_resources_acquire(renderer_backend_interface* backend, kshader shader, u32* out_per_draw_id) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return setup_frequency_state(backend, &context->shaders[shader.handle_index], SHADER_UPDATE_FREQUENCY_PER_DRAW, out_per_draw_id);
+    return setup_frequency_state(backend, &context->shaders[shader], SHADER_UPDATE_FREQUENCY_PER_DRAW, out_per_draw_id);
 }
 
-b8 vulkan_renderer_shader_per_group_resources_release(renderer_backend_interface* backend, khandle shader, u32 per_group_id) {
+b8 vulkan_renderer_shader_per_group_resources_release(renderer_backend_interface* backend, kshader shader, u32 per_group_id) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return release_shader_frequency_state(context, &context->shaders[shader.handle_index], SHADER_UPDATE_FREQUENCY_PER_GROUP, per_group_id);
+    return release_shader_frequency_state(context, &context->shaders[shader], SHADER_UPDATE_FREQUENCY_PER_GROUP, per_group_id);
 }
 
-b8 vulkan_renderer_shader_per_draw_resources_release(renderer_backend_interface* backend, khandle shader, u32 per_draw_id) {
+b8 vulkan_renderer_shader_per_draw_resources_release(renderer_backend_interface* backend, kshader shader, u32 per_draw_id) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    return release_shader_frequency_state(context, &context->shaders[shader.handle_index], SHADER_UPDATE_FREQUENCY_PER_DRAW, per_draw_id);
+    return release_shader_frequency_state(context, &context->shaders[shader], SHADER_UPDATE_FREQUENCY_PER_DRAW, per_draw_id);
 }
 
-b8 vulkan_renderer_shader_uniform_set(renderer_backend_interface* backend, khandle shader, shader_uniform* uniform, u32 array_index, const void* value) {
+b8 vulkan_renderer_shader_uniform_set(renderer_backend_interface* backend, kshader shader, shader_uniform* uniform, u32 array_index, const void* value) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
-    vulkan_shader* internal = &context->shaders[shader.handle_index];
+    vulkan_shader* internal = &context->shaders[shader];
     vulkan_shader_frequency_info* frequency_info = 0;
     vulkan_shader_frequency_state* frequency_state = 0;
     u32 image_index = get_current_image_index(context);

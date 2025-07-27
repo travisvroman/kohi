@@ -457,7 +457,7 @@ KAPI void renderer_texture_prepare_for_sampling(struct renderer_system_state* st
  * @param shader_asset A constant pointer to the shader asset.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
+KAPI b8 renderer_shader_create(struct renderer_system_state* state, kshader shader, kname name, shader_flags flags, u32 topology_types, face_cull_mode cull_mode, u32 stage_count, shader_stage* stages, kname* stage_names, const char** stage_sources, u32 max_groups, u32 max_draw_ids, u32 attribute_count, const shader_attribute* attributes, u32 uniform_count, const shader_uniform* d_uniforms);
 
 /**
  * @brief Destroys the given shader and releases any resources held by it.
@@ -465,7 +465,7 @@ KAPI b8 renderer_shader_create(struct renderer_system_state* state, khandle shad
  * @param state A pointer to the renderer state.
  * @param shader A handle to the shader to be destroyed.
  */
-KAPI void renderer_shader_destroy(struct renderer_system_state* state, khandle shader);
+KAPI void renderer_shader_destroy(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Reloads the internals of the given shader.
@@ -476,7 +476,7 @@ KAPI void renderer_shader_destroy(struct renderer_system_state* state, khandle s
  * @param shader_stages An array of shader stages configs.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
+KAPI b8 renderer_shader_reload(struct renderer_system_state* state, kshader shader, u32 stage_count, shader_stage* stages, kname* names, const char** sources);
 
 /**
  * @brief Uses the given shader, activating it for updates to attributes, uniforms and such,
@@ -486,7 +486,7 @@ KAPI b8 renderer_shader_reload(struct renderer_system_state* state, khandle shad
  * @param shader A handle to the shader to be used.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_use(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_use(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Determines if the given shader supports wireframe mode.
@@ -495,7 +495,7 @@ KAPI b8 renderer_shader_use(struct renderer_system_state* state, khandle shader)
  * @param shader A handle to the shader to be used.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Indicates if the given shader flag is set.
@@ -505,7 +505,7 @@ KAPI b8 renderer_shader_supports_wireframe(struct renderer_system_state* state, 
  * @param flag The flag to check.
  * @return True if set; otherwise false.
  */
-KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, khandle shader, shader_flags flag);
+KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, kshader shader, shader_flags flag);
 
 /**
  * @brief Sets the given shader flag.
@@ -515,7 +515,7 @@ KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, khandle sh
  * @param flag The flag to set.
  * @param enabled Indicates whether the flag should be set or unset.
  */
-KAPI void renderer_shader_flag_set(struct renderer_system_state* state, khandle shader, shader_flags flag, b8 enabled);
+KAPI void renderer_shader_flag_set(struct renderer_system_state* state, kshader shader, shader_flags flag, b8 enabled);
 
 /**
  * @brief Binds the per-frame frequency.
@@ -524,7 +524,7 @@ KAPI void renderer_shader_flag_set(struct renderer_system_state* state, khandle 
  * @param shader A handle to the shader to be used.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Binds the given per-group frequency id.
@@ -534,7 +534,7 @@ KAPI b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, khan
  * @param group_id The per-group frequency id.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_shader_bind_per_group(struct renderer_system_state* state, khandle shader, u32 group_id);
+KAPI b8 renderer_shader_bind_per_group(struct renderer_system_state* state, kshader shader, u32 group_id);
 
 /**
  * @brief Binds the given per-draw frequency id.
@@ -544,7 +544,7 @@ KAPI b8 renderer_shader_bind_per_group(struct renderer_system_state* state, khan
  * @param draw_id The per-draw frequency id.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khandle shader, u32 draw_id);
+KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, kshader shader, u32 draw_id);
 
 /**
  * @brief Applies per-frame data to the uniform buffer.
@@ -553,7 +553,7 @@ KAPI b8 renderer_shader_bind_per_draw(struct renderer_system_state* state, khand
  * @param shader A handle to the shader to apply the global data for.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Applies data for the currently bound group.
@@ -562,7 +562,7 @@ KAPI b8 renderer_shader_apply_per_frame(struct renderer_system_state* state, kha
  * @param shader A handle to the shader to apply the instance data for.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Triggers the upload of per-draw uniform data to the GPU.
@@ -571,7 +571,7 @@ KAPI b8 renderer_shader_apply_per_group(struct renderer_system_state* state, kha
  * @param shader A handle to the shader.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khandle shader);
+KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, kshader shader);
 
 /**
  * @brief Acquires internal per-group resources and provides a group id.
@@ -582,7 +582,7 @@ KAPI b8 renderer_shader_apply_per_draw(struct renderer_system_state* state, khan
  * @param out_group_id A pointer to hold the new per-group identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_group_id);
+KAPI b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_group_id);
 
 /**
  * @brief Releases internal per-group resources for the given group id.
@@ -592,7 +592,7 @@ KAPI b8 renderer_shader_per_group_resources_acquire(struct renderer_system_state
  * @param group_id The per-group identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, khandle shader, u32 group_id);
+KAPI b8 renderer_shader_per_group_resources_release(struct renderer_system_state* state, kshader shader, u32 group_id);
 
 /**
  * @brief Acquires internal per-draw resources and provides a per-draw id.
@@ -604,7 +604,7 @@ KAPI b8 renderer_shader_per_group_resources_release(struct renderer_system_state
  * @param out_draw_id A pointer to hold the new per-draw identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, khandle shader, u32* out_draw_id);
+KAPI b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state* state, kshader shader, u32* out_draw_id);
 
 /**
  * @brief Releases internal per-draw resources for the given per-draw id.
@@ -614,7 +614,7 @@ KAPI b8 renderer_shader_per_draw_resources_acquire(struct renderer_system_state*
  * @param draw_id The per-draw identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, khandle shader, u32 draw_id);
+KAPI b8 renderer_shader_per_draw_resources_release(struct renderer_system_state* state, kshader shader, u32 draw_id);
 
 /**
  * @brief Sets the uniform of the given shader to the provided value.
@@ -626,7 +626,7 @@ KAPI b8 renderer_shader_per_draw_resources_release(struct renderer_system_state*
  * @param value A pointer to the value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_shader_uniform_set(struct renderer_system_state* state, khandle shader, struct shader_uniform* uniform, u32 array_index, const void* value);
+KAPI b8 renderer_shader_uniform_set(struct renderer_system_state* state, kshader shader, struct shader_uniform* uniform, u32 array_index, const void* value);
 
 /**
  * @brief Gets a handle to a generic sampler of the given type.
