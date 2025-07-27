@@ -98,12 +98,31 @@ KAPI void report_assertion_failure(const char* expression, const char* message, 
                     kdebug_break();                                          \
                 }                                                            \
             }
+
+/**
+ * @brief Asserts the provided expression to be true, and logs a failure if not.
+ * Allows the user to specify a message to accompany the failure.
+ * Also triggers a breakpoint if debugging.
+ * NOTE: Only included in debug builds; otherwise this is preprocessed out.
+ * @param expr The expression to be evaluated.
+ * @param message The message to be reported along with the assertion failure.
+ */
+#        define KASSERT_DEBUG_MSG(expr, message)                                  \
+            {                                                                     \
+                if (expr) {                                                       \
+                } else {                                                          \
+                    report_assertion_failure(#expr, message, __FILE__, __LINE__); \
+                    kdebug_break();                                               \
+                }                                                                 \
+            }
 #    else
-#        define KASSERT_DEBUG(expr) // Does nothing at all
+#        define KASSERT_DEBUG(expr)              // Does nothing at all
+#        define KASSERT_DEBUG_MSG(expr, message) // Does nothing at all
 #    endif
 
 #else
-#    define KASSERT(expr)              // Does nothing at all
-#    define KASSERT_MSG(expr, message) // Does nothing at all
-#    define KASSERT_DEBUG(expr)        // Does nothing at all
+#    define KASSERT(expr)                    // Does nothing at all
+#    define KASSERT_MSG(expr, message)       // Does nothing at all
+#    define KASSERT_DEBUG(expr)              // Does nothing at all
+#    define KASSERT_DEBUG_MSG(expr, message) // Does nothing at all
 #endif

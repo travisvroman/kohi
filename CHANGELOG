@@ -8,6 +8,8 @@ Changelog
     - Renamed *material* to kmaterial (i.e. material_instance -> kmaterial_instance)
   - Reworked shader system to replace khandles with typedefed u16s (kshader).
     - Renamed shader_system to kshader_system and updated all references.
+  - Added KASSERT_DEBUG_MSG, which is an assertion that is only included in debug builds and also takes in a string message for context.
+  - Removed khandles from the renderer and renderer backends.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

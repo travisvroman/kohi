@@ -17,7 +17,6 @@
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
-#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "math/math_types.h"
 #include "platform/vulkan_platform.h"
@@ -214,7 +213,7 @@ typedef struct vulkan_swapchain {
     /** @brief Supports being used as a blit source. */
     b8 supports_blit_src;
 
-    khandle swapchain_colour_texture;
+    ktexture_backend swapchain_colour_texture;
 
     /** @brief The swapchain image index (i.e. the swapchain image index that will be blitted to). */
     u32 image_index;
@@ -396,7 +395,7 @@ typedef struct vulkan_uniform_sampler_state {
     /**
      * @brief An array of sampler handles. Count matches uniform array_count.
      */
-    khandle* sampler_handles;
+    ksampler_backend* sampler_handles;
 
     /**
      * @brief A descriptor state per sampler. Count matches uniform array_count.
@@ -410,7 +409,7 @@ typedef struct vulkan_uniform_texture_state {
     /**
      * @brief An array of handles to texture resources.
      */
-    khandle* texture_handles;
+    ktexture_backend* texture_handles;
 
     /**
      * @brief A descriptor state per descriptor, which in turn handles frames.
@@ -635,7 +634,7 @@ typedef struct kwindow_renderer_backend_state {
      * @brief Array of darrays of handles to textures that were updated as part of a frame's workload.
      * One list per frame in flight.
      */
-    khandle** frame_texture_updated_list;
+    ktexture_backend** frame_texture_updated_list;
 
     u64 framebuffer_size_generation;
     u64 framebuffer_previous_size_generation;
@@ -644,10 +643,6 @@ typedef struct kwindow_renderer_backend_state {
 } kwindow_renderer_backend_state;
 
 typedef struct vulkan_sampler_handle_data {
-    // Used for handle validation.
-    u64 handle_uniqueid;
-    // The generation of the internal sampler. Incremented every time the sampler is changed.
-    u16 generation;
     // Sampler name for named lookups and serialization.
     kname name;
     // The underlying sampler handle.
@@ -658,8 +653,6 @@ typedef struct vulkan_sampler_handle_data {
  * @brief Represents Vulkan-specific texture data.
  */
 typedef struct vulkan_texture_handle_data {
-    // Unique identifier for this texture.
-    u64 uniqueid;
 
     // The generation of the internal texture. Incremented every time the texture is changed.
     u16 generation;

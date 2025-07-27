@@ -9,7 +9,6 @@
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
-#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 #include "math/geometry.h"
@@ -82,10 +81,10 @@ typedef struct renderer_system_state {
     renderer_dynamic_state frame_default_dynamic_state;
 
     /** @brief Generic samplers. */
-    khandle generic_samplers[SHADER_GENERIC_SAMPLER_COUNT];
+    ksampler_backend generic_samplers[SHADER_GENERIC_SAMPLER_COUNT];
 
     /** @brief Default textures. Registered from the texture system. */
-    khandle default_textures[RENDERER_DEFAULT_TEXTURE_COUNT];
+    ktexture_backend default_textures[RENDERER_DEFAULT_TEXTURE_COUNT];
 } renderer_system_state;
 
 static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state);
@@ -235,7 +234,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
 
     // Invalidate default texture handles, the should be registered from the texture system via renderer_default_texture_register().
     for (u32 i = 0; i < RENDERER_DEFAULT_TEXTURE_COUNT; ++i) {
-        state->default_textures[i] = khandle_invalid();
+        state->default_textures[i] = KTEXTURE_BACKEND_INVALID;
     }
 
     // Default dynamic state settings.
@@ -560,7 +559,7 @@ void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pa
     state_ptr->backend->set_stencil_op(state_ptr->backend, fail_op, pass_op, depth_fail_op, compare_op);
 }
 
-void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer) {
+void renderer_begin_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, ktexture_backend* colour_targets, ktexture_backend depth_stencil_target, u32 depth_stencil_layer) {
     KASSERT_MSG(render_area.width != 0 && render_area.height != 0, "renderer_begin_rendering must have a width and height.");
 
 // Verify handles in debug builds, but not release.
@@ -568,7 +567,7 @@ void renderer_begin_rendering(struct renderer_system_state* state, struct frame_
     // If colour targets are used, none should be invalid.
     if (colour_target_count) {
         for (u32 i = 0; i < colour_target_count; ++i) {
-            if (khandle_is_invalid(colour_targets[i])) {
+            if (colour_targets[i] == KTEXTURE_BACKEND_INVALID) {
                 KFATAL("Passed invalid handle to texture target (index=%u) when beginning rendering. Null is used, and will likely cause a failure.", i);
             }
         }
@@ -598,7 +597,7 @@ void renderer_set_stencil_write_mask(u32 write_mask) {
     state_ptr->backend->set_stencil_write_mask(state_ptr->backend, write_mask);
 }
 
-b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle) {
+b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, ktexture_backend* out_renderer_texture_handle) {
     if (!state) {
         return false;
     }
@@ -613,7 +612,7 @@ b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname
         return false;
     }
 
-    *out_renderer_texture_handle = khandle_invalid();
+    *out_renderer_texture_handle = KTEXTURE_BACKEND_INVALID;
 
     if (!state->backend->texture_resources_acquire(state->backend, kname_string_get(name), type, width, height, channel_count, mip_levels, array_size, flags, out_renderer_texture_handle)) {
         KERROR("Failed to acquire texture resources. See logs for details.");
@@ -622,14 +621,14 @@ b8 renderer_texture_resources_acquire(struct renderer_system_state* state, kname
     return true;
 }
 
-void renderer_texture_resources_release(struct renderer_system_state* state, khandle* renderer_texture_handle) {
-    if (state && !khandle_is_invalid(*renderer_texture_handle)) {
+void renderer_texture_resources_release(struct renderer_system_state* state, ktexture_backend* renderer_texture_handle) {
+    if (state && *renderer_texture_handle != KTEXTURE_BACKEND_INVALID) {
         state->backend->texture_resources_release(state->backend, renderer_texture_handle);
     }
 }
 
-b8 renderer_texture_write_data(struct renderer_system_state* state, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels) {
-    if (state && !khandle_is_invalid(renderer_texture_handle)) {
+b8 renderer_texture_write_data(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 offset, u32 size, const u8* pixels) {
+    if (state && renderer_texture_handle != KTEXTURE_BACKEND_INVALID) {
         b8 include_in_frame_workload = (state->frame_number > 0); // FIXME: Perhaps it's time to move this to its own queue.
         b8 result = state->backend->texture_write_data(state->backend, renderer_texture_handle, offset, size, pixels, include_in_frame_workload);
         if (!include_in_frame_workload) {
@@ -640,36 +639,36 @@ b8 renderer_texture_write_data(struct renderer_system_state* state, khandle rend
     return false;
 }
 
-b8 renderer_texture_read_data(struct renderer_system_state* state, khandle renderer_texture_handle, u32 offset, u32 size, u8** out_pixels) {
-    if (state && !khandle_is_invalid(renderer_texture_handle)) {
+b8 renderer_texture_read_data(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 offset, u32 size, u8** out_pixels) {
+    if (state && renderer_texture_handle != KTEXTURE_BACKEND_INVALID) {
         return state->backend->texture_read_data(state->backend, renderer_texture_handle, offset, size, out_pixels);
     }
     return false;
 }
 
-b8 renderer_texture_read_pixel(struct renderer_system_state* state, khandle renderer_texture_handle, u32 x, u32 y, u8** out_rgba) {
-    if (state && !khandle_is_invalid(renderer_texture_handle)) {
+b8 renderer_texture_read_pixel(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 x, u32 y, u8** out_rgba) {
+    if (state && renderer_texture_handle != KTEXTURE_BACKEND_INVALID) {
         return state->backend->texture_read_pixel(state->backend, renderer_texture_handle, x, y, out_rgba);
     }
     return false;
 }
 
-void renderer_default_texture_register(struct renderer_system_state* state, renderer_default_texture default_texture, khandle renderer_texture_handle) {
-    if (state && !khandle_is_invalid(renderer_texture_handle)) {
+void renderer_default_texture_register(struct renderer_system_state* state, renderer_default_texture default_texture, ktexture_backend renderer_texture_handle) {
+    if (state && renderer_texture_handle != KTEXTURE_BACKEND_INVALID) {
         state->default_textures[default_texture] = renderer_texture_handle;
     }
 }
 
-khandle renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture) {
+ktexture_backend renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture) {
     if (state) {
         return state->default_textures[default_texture];
     }
 
-    return khandle_invalid();
+    return KTEXTURE_BACKEND_INVALID;
 }
 
-b8 renderer_texture_resize(struct renderer_system_state* state, khandle renderer_texture_handle, u32 new_width, u32 new_height) {
-    if (state && !khandle_is_invalid(renderer_texture_handle)) {
+b8 renderer_texture_resize(struct renderer_system_state* state, ktexture_backend renderer_texture_handle, u32 new_width, u32 new_height) {
+    if (state && renderer_texture_handle != KTEXTURE_BACKEND_INVALID) {
         return state->backend->texture_resize(state->backend, renderer_texture_handle, new_width, new_height);
     }
     return false;
@@ -809,8 +808,8 @@ void renderer_clear_stencil_set(struct renderer_system_state* state, u32 stencil
     }
 }
 
-b8 renderer_clear_colour(struct renderer_system_state* state, khandle texture_handle) {
-    if (state && !khandle_is_invalid(texture_handle)) {
+b8 renderer_clear_colour(struct renderer_system_state* state, ktexture_backend texture_handle) {
+    if (state && texture_handle != KTEXTURE_BACKEND_INVALID) {
         state->backend->clear_colour(state->backend, texture_handle);
         return true;
     }
@@ -819,8 +818,8 @@ b8 renderer_clear_colour(struct renderer_system_state* state, khandle texture_ha
     return false;
 }
 
-b8 renderer_clear_depth_stencil(struct renderer_system_state* state, khandle texture_handle) {
-    if (state && !khandle_is_invalid(texture_handle)) {
+b8 renderer_clear_depth_stencil(struct renderer_system_state* state, ktexture_backend texture_handle) {
+    if (state && texture_handle != KTEXTURE_BACKEND_INVALID) {
         state->backend->clear_depth_stencil(state->backend, texture_handle);
         return true;
     }
@@ -829,8 +828,8 @@ b8 renderer_clear_depth_stencil(struct renderer_system_state* state, khandle tex
     return false;
 }
 
-void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, khandle texture_handle) {
-    if (state && !khandle_is_invalid(texture_handle)) {
+void renderer_colour_texture_prepare_for_present(struct renderer_system_state* state, ktexture_backend texture_handle) {
+    if (state && texture_handle != KTEXTURE_BACKEND_INVALID) {
         state->backend->colour_texture_prepare_for_present(state->backend, texture_handle);
         return;
     }
@@ -838,8 +837,8 @@ void renderer_colour_texture_prepare_for_present(struct renderer_system_state* s
     KERROR("renderer_colour_texture_prepare_for_present requires a valid handle to a texture. Nothing was done.");
 }
 
-void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, khandle texture_handle, ktexture_flag_bits flags) {
-    if (state && !khandle_is_invalid(texture_handle)) {
+void renderer_texture_prepare_for_sampling(struct renderer_system_state* state, ktexture_backend texture_handle, ktexture_flag_bits flags) {
+    if (state && texture_handle != KTEXTURE_BACKEND_INVALID) {
         state->backend->texture_prepare_for_sampling(state->backend, texture_handle, flags);
         return;
     }
@@ -920,27 +919,27 @@ b8 renderer_shader_uniform_set(struct renderer_system_state* state, kshader shad
     return state_ptr->backend->shader_uniform_set(state_ptr->backend, shader, uniform, array_index, value);
 }
 
-khandle renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler) {
+ksampler_backend renderer_generic_sampler_get(struct renderer_system_state* state, shader_generic_sampler sampler) {
     if (!state || sampler == SHADER_GENERIC_SAMPLER_COUNT) {
         KERROR("No state or invalid sampler passed, ya dingus!");
-        return khandle_invalid();
+        return KSAMPLER_BACKEND_INVALID;
     }
     return state->generic_samplers[sampler];
 }
 
-khandle renderer_sampler_acquire(struct renderer_system_state* state, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy) {
+ksampler_backend renderer_sampler_acquire(struct renderer_system_state* state, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy) {
     return state->backend->sampler_acquire(state->backend, name, filter, repeat, anisotropy);
 }
 
-void renderer_sampler_release(struct renderer_system_state* state, khandle* sampler) {
+void renderer_sampler_release(struct renderer_system_state* state, ksampler_backend* sampler) {
     state->backend->sampler_release(state->backend, sampler);
 }
 
-b8 renderer_sampler_refresh(struct renderer_system_state* state, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels) {
+b8 renderer_sampler_refresh(struct renderer_system_state* state, ksampler_backend* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels) {
     return state->backend->sampler_refresh(state->backend, sampler, filter, repeat, anisotropy, mip_levels);
 }
 
-kname renderer_sampler_name_get(struct renderer_system_state* state, khandle sampler) {
+kname renderer_sampler_name_get(struct renderer_system_state* state, ksampler_backend sampler) {
     return state->backend->sampler_name_get(state->backend, sampler);
 }
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "identifiers/khandle.h"
 #include <containers/freelist.h>
 #include <core_render_types.h>
 #include <defines.h>
@@ -259,6 +258,14 @@ typedef struct kwindow_renderer_state {
     struct kwindow_renderer_backend_state* backend_state;
 } kwindow_renderer_state;
 
+// Handle to a renderer backend texture.
+typedef u16 ktexture_backend;
+#define KTEXTURE_BACKEND_INVALID INVALID_ID_U16
+
+// Handle to a renderer backend sampler.
+typedef u16 ksampler_backend;
+#define KSAMPLER_BACKEND_INVALID INVALID_ID_U16
+
 /**
  * @brief A generic "interface" for the renderer backend. The renderer backend
  * is what is responsible for making calls to the graphics API such as
@@ -423,7 +430,7 @@ typedef struct renderer_backend_interface {
      */
     void (*set_stencil_op)(struct renderer_backend_interface* backend, renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op);
 
-    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, khandle* colour_targets, khandle depth_stencil_target, u32 depth_stencil_layer);
+    void (*begin_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data, rect_2di render_area, u32 colour_target_count, ktexture_backend* colour_targets, ktexture_backend depth_stencil_target, u32 depth_stencil_layer);
     void (*end_rendering)(struct renderer_backend_interface* backend, struct frame_data* p_frame_data);
 
     /**
@@ -445,13 +452,13 @@ typedef struct renderer_backend_interface {
     void (*clear_colour_set)(struct renderer_backend_interface* backend, vec4 clear_colour);
     void (*clear_depth_set)(struct renderer_backend_interface* backend, f32 depth);
     void (*clear_stencil_set)(struct renderer_backend_interface* backend, u32 stencil);
-    void (*clear_colour)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
-    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
-    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, khandle renderer_texture_handle);
-    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, ktexture_flag_bits flags);
+    void (*clear_colour)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle);
+    void (*clear_depth_stencil)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle);
+    void (*colour_texture_prepare_for_present)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle);
+    void (*texture_prepare_for_sampling)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, ktexture_flag_bits flags);
 
-    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, khandle* out_renderer_texture_handle);
-    void (*texture_resources_release)(struct renderer_backend_interface* backend, khandle* renderer_texture_handle);
+    b8 (*texture_resources_acquire)(struct renderer_backend_interface* backend, const char* name, ktexture_type type, u32 width, u32 height, u8 channel_count, u8 mip_levels, u16 array_size, ktexture_flag_bits flags, ktexture_backend* out_renderer_texture_handle);
+    void (*texture_resources_release)(struct renderer_backend_interface* backend, ktexture_backend* renderer_texture_handle);
 
     /**
      * @brief Resizes a texture. There is no check at this level to see if the
@@ -464,7 +471,7 @@ typedef struct renderer_backend_interface {
      * @param new_height The new height in pixels.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_resize)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 new_width, u32 new_height);
+    b8 (*texture_resize)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 new_width, u32 new_height);
 
     /**
      * @brief Writes the given data to the provided texture.
@@ -479,7 +486,7 @@ typedef struct renderer_backend_interface {
      * @param pixels The raw image data to be written.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_write_data)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
+    b8 (*texture_write_data)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 offset, u32 size, const u8* pixels, b8 include_in_frame_workload);
 
     /**
      * @brief Reads the given data from the provided texture.
@@ -491,7 +498,7 @@ typedef struct renderer_backend_interface {
      * @param out_pixels A pointer to a block of memory to write the read data to.
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_data)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 offset, u32 size, u8** out_pixels);
+    b8 (*texture_read_data)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 offset, u32 size, u8** out_pixels);
 
     /**
      * @brief Reads a pixel from the provided texture at the given x/y coordinate.
@@ -503,7 +510,7 @@ typedef struct renderer_backend_interface {
      * @param out_rgba A pointer to an array of u8s to hold the pixel data (should be sizeof(u8) * 4)
      * @returns True on success; otherwise false.
      */
-    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, khandle renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
+    b8 (*texture_read_pixel)(struct renderer_backend_interface* backend, ktexture_backend renderer_texture_handle, u32 x, u32 y, u8** out_rgba);
 
     /**
      * @brief Creates internal shader resources using the provided parameters.
@@ -696,14 +703,14 @@ typedef struct renderer_backend_interface {
      * @param anisotropy The anisotropy level, if needed; otherwise 0.
      * @return A handle to the sampler on success; otherwise an invalid handle.
      */
-    khandle (*sampler_acquire)(struct renderer_backend_interface* backend, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy);
+    ksampler_backend (*sampler_acquire)(struct renderer_backend_interface* backend, kname name, texture_filter filter, texture_repeat repeat, f32 anisotropy);
     /**
      * @brief Releases the internal sampler for the given handle.
      *
      * @param backend A pointer to the renderer backend interface.
      * @param map A pointer to the handle whose sampler is to be released. Handle is invalidated upon release.
      */
-    void (*sampler_release)(struct renderer_backend_interface* backend, khandle* sampler);
+    void (*sampler_release)(struct renderer_backend_interface* backend, ksampler_backend* sampler);
     /**
      * @brief Recreates the internal sampler pointed to by the given handle. Modifies the handle.
      *
@@ -715,7 +722,7 @@ typedef struct renderer_backend_interface {
      * @param mip_levels The mip levels, if used; otherwise 0.
      * @return True on success; otherwise false.
      */
-    b8 (*sampler_refresh)(struct renderer_backend_interface* backend, khandle* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
+    b8 (*sampler_refresh)(struct renderer_backend_interface* backend, ksampler_backend* sampler, texture_filter filter, texture_repeat repeat, f32 anisotropy, u32 mip_levels);
 
     /**
      * @brief Attempts to obtain the name of a sampler with the given handle. Returns INVALID_KNAME if not found.
@@ -724,7 +731,7 @@ typedef struct renderer_backend_interface {
      * @param sampler A handle to the sampler whose name to get.
      * @return The name of the sampler on success; otherwise INVALID_KNAME.
      */
-    kname (*sampler_name_get)(struct renderer_backend_interface* backend, khandle sampler);
+    kname (*sampler_name_get)(struct renderer_backend_interface* backend, ksampler_backend sampler);
 
     /**
      * @brief Indicates if the renderer is capable of multi-threading.

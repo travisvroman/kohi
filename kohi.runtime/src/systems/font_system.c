@@ -4,7 +4,6 @@
 #include <containers/darray.h>
 #include <debug/kassert.h>
 #include <defines.h>
-#include <identifiers/khandle.h>
 #include <logger.h>
 #include <math/kmath.h>
 #include <memory/kmemory.h>
@@ -16,6 +15,7 @@
 #include "core_render_types.h"
 #include "kresources/kresource_types.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "systems/asset_system.h"
 #include "systems/texture_system.h"
 
@@ -1001,7 +1001,7 @@ static b8 rebuild_system_font_variant_atlas(system_font_lookup* lookup, system_f
     }
 
     // Write texture data to atlas.
-    khandle variant_atlas_handle = texture_renderer_handle_get(variant->atlas);
+    ktexture_backend variant_atlas_handle = texture_renderer_handle_get(variant->atlas);
     if (!renderer_texture_write_data(engine_systems_get()->renderer_system, variant_atlas_handle, 0, pack_image_size * 4, rgba_pixels)) {
         KERROR("Failed to write data to system font variant texture");
         return false;

@@ -19,6 +19,7 @@
 
 #include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
+#include "renderer/renderer_types.h"
 
 struct texture_system_state;
 
@@ -325,7 +326,7 @@ KAPI u32 texture_width_get(ktexture t);
 KAPI u32 texture_height_get(ktexture t);
 KAPI b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height);
 
-KAPI khandle texture_renderer_handle_get(ktexture t);
+KAPI ktexture_backend texture_renderer_handle_get(ktexture t);
 
 KAPI ktexture_flag_bits texture_flags_get(ktexture t);
 

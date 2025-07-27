@@ -5,11 +5,11 @@
 #include "core/engine.h"
 #include "core_render_types.h"
 #include "defines.h"
-#include "identifiers/khandle.h"
 #include "kresources/kresource_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
+#include "renderer/renderer_types.h"
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
@@ -28,7 +28,7 @@ typedef struct texture_system_state {
     // All registered textures. format=KPIXEL_FORMAT_UNKNOWN means slot is "free"
 
     /** @brief The the handle to renderer-specific texture data. */
-    khandle* renderer_texture_handles;
+    ktexture_backend* renderer_texture_handles;
     /** @brief The texture type. */
     ktexture_type* types;
     /** @brief The texture width. */
@@ -111,7 +111,7 @@ b8 texture_system_initialize(u64* memory_requirement, void* state, void* config)
     state_ptr->config = *typed_config;
 
     // Setup texture cache.
-    state_ptr->renderer_texture_handles = KALLOC_TYPE_CARRAY(khandle, typed_config->max_texture_count);
+    state_ptr->renderer_texture_handles = KALLOC_TYPE_CARRAY(ktexture_backend, typed_config->max_texture_count);
     state_ptr->types = KALLOC_TYPE_CARRAY(ktexture_type, typed_config->max_texture_count);
     state_ptr->widths = KALLOC_TYPE_CARRAY(u32, typed_config->max_texture_count);
     state_ptr->heights = KALLOC_TYPE_CARRAY(u32, typed_config->max_texture_count);
@@ -142,7 +142,7 @@ void texture_system_shutdown(void* state) {
 
         texture_system_config* typed_config = &state_ptr->config;
 
-        KFREE_TYPE_CARRAY(state_ptr->renderer_texture_handles, khandle, typed_config->max_texture_count);
+        KFREE_TYPE_CARRAY(state_ptr->renderer_texture_handles, ktexture_backend, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->types, ktexture_type, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->widths, u32, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->heights, u32, typed_config->max_texture_count);
@@ -687,9 +687,9 @@ b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height) {
     return true;
 }
 
-khandle texture_renderer_handle_get(ktexture t) {
+ktexture_backend texture_renderer_handle_get(ktexture t) {
     if (t == INVALID_KTEXTURE) {
-        return khandle_invalid();
+        return KTEXTURE_BACKEND_INVALID;
     }
 
     return state_ptr->renderer_texture_handles[t];
@@ -1044,7 +1044,7 @@ static ktexture texture_get_new(kname name) {
             state_ptr->texture_reference_counts[i] = 1;
 
             // Invalidate the renderer handle.
-            state_ptr->renderer_texture_handles[i] = khandle_invalid();
+            state_ptr->renderer_texture_handles[i] = KTEXTURE_BACKEND_INVALID;
 
             return i;
         }
@@ -1077,7 +1077,7 @@ static void texture_cleanup(ktexture t, b8 clear_references) {
             state_ptr->auto_releases[t] = false;
         }
 
-        state_ptr->renderer_texture_handles[t] = khandle_invalid();
+        state_ptr->renderer_texture_handles[t] = KTEXTURE_BACKEND_INVALID;
         state_ptr->types[t] = 0;
         state_ptr->widths[t] = 0;
         state_ptr->heights[t] = 0;
