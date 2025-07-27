@@ -21,7 +21,6 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
-#include <systems/shader_system.h>
 #include <systems/texture_system.h>
 #include <systems/xform_system.h>
 

@@ -1,4 +1,4 @@
-#include "shader_system.h"
+#include "kshader_system.h"
 
 #include <assets/kasset_types.h>
 #include <containers/darray.h>
@@ -73,7 +73,7 @@ typedef struct kshader_data {
 } kshader_data;
 
 // The internal shader system state.
-typedef struct shader_system_state {
+typedef struct kshader_system_state {
     // A pointer to the renderer system state.
     struct renderer_system_state* renderer;
     struct texture_system_state* texture_system;
@@ -84,17 +84,17 @@ typedef struct shader_system_state {
     u16 max_bound_sampler_count;
 
     // This system's configuration.
-    shader_system_config config;
+    kshader_system_config config;
     // A collection of created shaders.
     kshader_data* shaders;
 
     // Convenience pointer to resource system state.
     struct kresource_system_state* resource_state;
-} shader_system_state;
+} kshader_system_state;
 
 // A pointer to hold the internal system state.
 // FIXME: Get rid of this and all references to it and use the engine_systems_get() instead where needed.
-static shader_system_state* state_ptr = 0;
+static kshader_system_state* state_ptr = 0;
 
 static b8 internal_attribute_add(kshader_data* shader, const shader_attribute_config* config);
 static b8 internal_texture_add(kshader_data* shader, shader_uniform_config* config);
@@ -112,7 +112,7 @@ static void internal_shader_destroy(kshader* shader);
 
 #if KOHI_HOT_RELOAD
 static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
-    shader_system_state* typed_state = (shader_system_state*)listener_inst;
+    kshader_system_state* typed_state = (kshader_system_state*)listener_inst;
 
     u32 watch_id = context.data.u32[0];
     if (code == EVENT_CODE_ASSET_HOT_RELOADED) {
@@ -156,20 +156,20 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
 }
 #endif
 
-b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config) {
-    shader_system_config* typed_config = (shader_system_config*)config;
+b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config) {
+    kshader_system_config* typed_config = (kshader_system_config*)config;
     // Verify configuration.
     if (typed_config->max_shader_count < 512) {
         if (typed_config->max_shader_count == 0) {
-            KERROR("shader_system_initialize - config.max_shader_count must be greater than 0. Defaulting to 512.");
+            KERROR("kshader_system_initialize - config.max_shader_count must be greater than 0. Defaulting to 512.");
             typed_config->max_shader_count = 512;
         } else {
-            KWARN("shader_system_initialize - config.max_shader_count is recommended to be at least 512.");
+            KWARN("kshader_system_initialize - config.max_shader_count is recommended to be at least 512.");
         }
     }
 
     // Block of memory will contain state structure then the block for the shader array.
-    u64 struct_requirement = sizeof(shader_system_state);
+    u64 struct_requirement = sizeof(kshader_system_state);
     u64 shader_array_requirement = sizeof(kshader) * typed_config->max_shader_count;
     *memory_requirement = struct_requirement + shader_array_requirement;
 
@@ -206,10 +206,10 @@ b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config)
     return true;
 }
 
-void shader_system_shutdown(void* state) {
+void kshader_system_shutdown(void* state) {
     if (state) {
         // Destroy any shaders still in existence.
-        shader_system_state* st = (shader_system_state*)state;
+        kshader_system_state* st = (kshader_system_state*)state;
         for (u32 i = 0; i < st->config.max_shader_count; ++i) {
             kshader_data* s = &st->shaders[i];
             if (s->state != SHADER_STATE_FREE) {
@@ -217,13 +217,13 @@ void shader_system_shutdown(void* state) {
                 internal_shader_destroy(&temp_handle);
             }
         }
-        kzero_memory(st, sizeof(shader_system_state));
+        kzero_memory(st, sizeof(kshader_system_state));
     }
 
     state_ptr = 0;
 }
 
-kshader shader_system_get(kname name, kname package_name) {
+kshader kshader_system_get(kname name, kname package_name) {
     if (name == INVALID_KNAME) {
         return KSHADER_INVALID;
     }
@@ -254,7 +254,7 @@ kshader shader_system_get(kname name, kname package_name) {
     return shader_handle;
 }
 
-kshader shader_system_get_from_source(kname name, const char* shader_config_source) {
+kshader kshader_system_get_from_source(kname name, const char* shader_config_source) {
     if (name == INVALID_KNAME) {
         return KSHADER_INVALID;
     }
@@ -296,7 +296,7 @@ static void internal_shader_destroy(kshader* shader) {
     *shader = KSHADER_INVALID;
 }
 
-void shader_system_destroy(kshader* shader) {
+void kshader_system_destroy(kshader* shader) {
     if (*shader == KSHADER_INVALID) {
         return;
     }
@@ -304,7 +304,7 @@ void shader_system_destroy(kshader* shader) {
     internal_shader_destroy(shader);
 }
 
-b8 shader_system_set_wireframe(kshader shader, b8 wireframe_enabled) {
+b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled) {
     if (shader == KSHADER_INVALID) {
         KERROR("Invalid shader passed.");
         return false;
@@ -321,7 +321,7 @@ b8 shader_system_set_wireframe(kshader shader, b8 wireframe_enabled) {
     return true;
 }
 
-b8 shader_system_use(kshader shader) {
+b8 kshader_system_use(kshader shader) {
     if (shader == KSHADER_INVALID) {
         KERROR("Invalid shader passed.");
         return false;
@@ -334,7 +334,7 @@ b8 shader_system_use(kshader shader) {
     return true;
 }
 
-u16 shader_system_uniform_location(kshader shader, kname uniform_name) {
+u16 kshader_system_uniform_location(kshader shader, kname uniform_name) {
     if (shader == KSHADER_INVALID) {
         KERROR("Invalid shader passed.");
         return INVALID_ID_U16;
@@ -352,47 +352,47 @@ u16 shader_system_uniform_location(kshader shader, kname uniform_name) {
     return INVALID_ID_U16;
 }
 
-b8 shader_system_uniform_set(kshader shader, kname uniform_name, const void* value) {
-    return shader_system_uniform_set_arrayed(shader, uniform_name, 0, value);
+b8 kshader_system_uniform_set(kshader shader, kname uniform_name, const void* value) {
+    return kshader_system_uniform_set_arrayed(shader, uniform_name, 0, value);
 }
 
-b8 shader_system_uniform_set_arrayed(kshader shader, kname uniform_name, u32 array_index, const void* value) {
+b8 kshader_system_uniform_set_arrayed(kshader shader, kname uniform_name, u32 array_index, const void* value) {
     if (shader == KSHADER_INVALID) {
-        KERROR("shader_system_uniform_set_arrayed called with invalid shader handle.");
+        KERROR("kshader_system_uniform_set_arrayed called with invalid shader handle.");
         return false;
     }
 
-    u16 index = shader_system_uniform_location(shader, uniform_name);
-    return shader_system_uniform_set_by_location_arrayed(shader, index, array_index, value);
+    u16 index = kshader_system_uniform_location(shader, uniform_name);
+    return kshader_system_uniform_set_by_location_arrayed(shader, index, array_index, value);
 }
 
-b8 shader_system_texture_set(kshader shader, kname sampler_name, ktexture t) {
-    return shader_system_texture_set_arrayed(shader, sampler_name, 0, t);
+b8 kshader_system_texture_set(kshader shader, kname sampler_name, ktexture t) {
+    return kshader_system_texture_set_arrayed(shader, sampler_name, 0, t);
 }
 
-b8 shader_system_texture_set_arrayed(kshader shader, kname uniform_name, u32 array_index, ktexture t) {
-    return shader_system_uniform_set_arrayed(shader, uniform_name, array_index, &t);
+b8 kshader_system_texture_set_arrayed(kshader shader, kname uniform_name, u32 array_index, ktexture t) {
+    return kshader_system_uniform_set_arrayed(shader, uniform_name, array_index, &t);
 }
 
-b8 shader_system_texture_set_by_location(kshader shader, u16 location, ktexture t) {
-    return shader_system_uniform_set_by_location_arrayed(shader, location, 0, &t);
+b8 kshader_system_texture_set_by_location(kshader shader, u16 location, ktexture t) {
+    return kshader_system_uniform_set_by_location_arrayed(shader, location, 0, &t);
 }
 
-b8 shader_system_texture_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, ktexture t) {
-    return shader_system_uniform_set_by_location_arrayed(shader, location, array_index, &t);
+b8 kshader_system_texture_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, ktexture t) {
+    return kshader_system_uniform_set_by_location_arrayed(shader, location, array_index, &t);
 }
 
-b8 shader_system_uniform_set_by_location(kshader shader, u16 location, const void* value) {
-    return shader_system_uniform_set_by_location_arrayed(shader, location, 0, value);
+b8 kshader_system_uniform_set_by_location(kshader shader, u16 location, const void* value) {
+    return kshader_system_uniform_set_by_location_arrayed(shader, location, 0, value);
 }
 
-b8 shader_system_uniform_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, const void* value) {
+b8 kshader_system_uniform_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, const void* value) {
     kshader_data* s = &state_ptr->shaders[shader];
     shader_uniform* uniform = &s->uniforms[location];
     return renderer_shader_uniform_set(state_ptr->renderer, shader, uniform, array_index, value);
 }
 
-b8 shader_system_bind_frame(kshader shader) {
+b8 kshader_system_bind_frame(kshader shader) {
     if (shader == KSHADER_INVALID) {
         KERROR("Tried to bind_frame on a shader using an invalid or stale handle. Nothing to be done.");
         return false;
@@ -400,7 +400,7 @@ b8 shader_system_bind_frame(kshader shader) {
     return renderer_shader_bind_per_frame(state_ptr->renderer, shader);
 }
 
-b8 shader_system_bind_group(kshader shader, u32 group_id) {
+b8 kshader_system_bind_group(kshader shader, u32 group_id) {
     if (group_id == INVALID_ID) {
         KERROR("Cannot bind shader instance INVALID_ID.");
         return false;
@@ -409,7 +409,7 @@ b8 shader_system_bind_group(kshader shader, u32 group_id) {
     return renderer_shader_bind_per_group(state_ptr->renderer, shader, group_id);
 }
 
-b8 shader_system_bind_draw_id(kshader shader, u32 draw_id) {
+b8 kshader_system_bind_draw_id(kshader shader, u32 draw_id) {
     if (draw_id == INVALID_ID) {
         KERROR("Cannot bind shader local id INVALID_ID.");
         return false;
@@ -418,31 +418,31 @@ b8 shader_system_bind_draw_id(kshader shader, u32 draw_id) {
     return renderer_shader_bind_per_draw(state_ptr->renderer, shader, draw_id);
 }
 
-b8 shader_system_apply_per_frame(kshader shader) {
+b8 kshader_system_apply_per_frame(kshader shader) {
     return renderer_shader_apply_per_frame(state_ptr->renderer, shader);
 }
 
-b8 shader_system_apply_per_group(kshader shader) {
+b8 kshader_system_apply_per_group(kshader shader) {
     return renderer_shader_apply_per_group(state_ptr->renderer, shader);
 }
 
-b8 shader_system_apply_per_draw(kshader shader) {
+b8 kshader_system_apply_per_draw(kshader shader) {
     return renderer_shader_apply_per_draw(state_ptr->renderer, shader);
 }
 
-b8 shader_system_shader_group_acquire(kshader shader, u32* out_group_id) {
+b8 kshader_system_shader_group_acquire(kshader shader, u32* out_group_id) {
     return renderer_shader_per_group_resources_acquire(state_ptr->renderer, shader, out_group_id);
 }
 
-b8 shader_system_shader_per_draw_acquire(kshader shader, u32* out_per_draw_id) {
+b8 kshader_system_shader_per_draw_acquire(kshader shader, u32* out_per_draw_id) {
     return renderer_shader_per_draw_resources_acquire(state_ptr->renderer, shader, out_per_draw_id);
 }
 
-b8 shader_system_shader_group_release(kshader shader, u32 group_id) {
+b8 kshader_system_shader_group_release(kshader shader, u32 group_id) {
     return renderer_shader_per_group_resources_release(state_ptr->renderer, shader, group_id);
 }
 
-b8 shader_system_shader_per_draw_release(kshader shader, u32 per_draw_id) {
+b8 kshader_system_shader_per_draw_release(kshader shader, u32 per_draw_id) {
     return renderer_shader_per_draw_resources_release(state_ptr->renderer, shader, per_draw_id);
 }
 

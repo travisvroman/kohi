@@ -23,8 +23,8 @@
 #include "runtime_defines.h"
 #include "strings/kstring.h"
 #include "systems/asset_system.h"
+#include "systems/kshader_system.h"
 #include "systems/light_system.h"
-#include "systems/shader_system.h"
 #include "systems/texture_system.h"
 
 #define MATERIAL_STANDARD_NAME_FRAG "Shader.MaterialStandard_frag"
@@ -555,24 +555,24 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
         kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 
         // Create/load the shader from the serialized source.
-        state->material_standard_shader = shader_system_get_from_source(mat_std_shader_name, config_source);
+        state->material_standard_shader = kshader_system_get_from_source(mat_std_shader_name, config_source);
 
         // Save off the shader's uniform locations.
         {
             // Per frame
-            state->standard_material_locations.material_frame_ubo = shader_system_uniform_location(state->material_standard_shader, kname_create("material_frame_ubo"));
-            state->standard_material_locations.shadow_texture = shader_system_uniform_location(state->material_standard_shader, kname_create("shadow_texture"));
-            state->standard_material_locations.irradiance_cube_textures = shader_system_uniform_location(state->material_standard_shader, kname_create("irradiance_cube_textures"));
-            state->standard_material_locations.shadow_sampler = shader_system_uniform_location(state->material_standard_shader, kname_create("shadow_sampler"));
-            state->standard_material_locations.irradiance_sampler = shader_system_uniform_location(state->material_standard_shader, kname_create("irradiance_sampler"));
+            state->standard_material_locations.material_frame_ubo = kshader_system_uniform_location(state->material_standard_shader, kname_create("material_frame_ubo"));
+            state->standard_material_locations.shadow_texture = kshader_system_uniform_location(state->material_standard_shader, kname_create("shadow_texture"));
+            state->standard_material_locations.irradiance_cube_textures = kshader_system_uniform_location(state->material_standard_shader, kname_create("irradiance_cube_textures"));
+            state->standard_material_locations.shadow_sampler = kshader_system_uniform_location(state->material_standard_shader, kname_create("shadow_sampler"));
+            state->standard_material_locations.irradiance_sampler = kshader_system_uniform_location(state->material_standard_shader, kname_create("irradiance_sampler"));
 
             // Per group
-            state->standard_material_locations.material_textures = shader_system_uniform_location(state->material_standard_shader, kname_create("material_textures"));
-            state->standard_material_locations.material_samplers = shader_system_uniform_location(state->material_standard_shader, kname_create("material_samplers"));
-            state->standard_material_locations.material_group_ubo = shader_system_uniform_location(state->material_standard_shader, kname_create("material_group_ubo"));
+            state->standard_material_locations.material_textures = kshader_system_uniform_location(state->material_standard_shader, kname_create("material_textures"));
+            state->standard_material_locations.material_samplers = kshader_system_uniform_location(state->material_standard_shader, kname_create("material_samplers"));
+            state->standard_material_locations.material_group_ubo = kshader_system_uniform_location(state->material_standard_shader, kname_create("material_group_ubo"));
 
             // Per draw.
-            state->standard_material_locations.material_draw_ubo = shader_system_uniform_location(state->material_standard_shader, kname_create("material_draw_ubo"));
+            state->standard_material_locations.material_draw_ubo = kshader_system_uniform_location(state->material_standard_shader, kname_create("material_draw_ubo"));
         }
     }
 
@@ -674,24 +674,24 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
         kzero_memory(&mat_water_shader, sizeof(kasset_shader));
 
         // Create/load the shader from the serialized source.
-        state->material_water_shader = shader_system_get_from_source(mat_water_shader_name, config_source);
+        state->material_water_shader = kshader_system_get_from_source(mat_water_shader_name, config_source);
 
         // Save off the shader's uniform locations.
         {
             // Per frame
-            state->water_material_locations.material_frame_ubo = shader_system_uniform_location(state->material_water_shader, kname_create("material_frame_ubo"));
-            state->water_material_locations.shadow_texture = shader_system_uniform_location(state->material_water_shader, kname_create("shadow_texture"));
-            state->water_material_locations.irradiance_cube_textures = shader_system_uniform_location(state->material_water_shader, kname_create("irradiance_cube_textures"));
-            state->water_material_locations.shadow_sampler = shader_system_uniform_location(state->material_water_shader, kname_create("shadow_sampler"));
-            state->water_material_locations.irradiance_sampler = shader_system_uniform_location(state->material_water_shader, kname_create("irradiance_sampler"));
+            state->water_material_locations.material_frame_ubo = kshader_system_uniform_location(state->material_water_shader, kname_create("material_frame_ubo"));
+            state->water_material_locations.shadow_texture = kshader_system_uniform_location(state->material_water_shader, kname_create("shadow_texture"));
+            state->water_material_locations.irradiance_cube_textures = kshader_system_uniform_location(state->material_water_shader, kname_create("irradiance_cube_textures"));
+            state->water_material_locations.shadow_sampler = kshader_system_uniform_location(state->material_water_shader, kname_create("shadow_sampler"));
+            state->water_material_locations.irradiance_sampler = kshader_system_uniform_location(state->material_water_shader, kname_create("irradiance_sampler"));
 
             // Per group
-            state->water_material_locations.material_textures = shader_system_uniform_location(state->material_water_shader, kname_create("material_textures"));
-            state->water_material_locations.material_samplers = shader_system_uniform_location(state->material_water_shader, kname_create("material_samplers"));
-            state->water_material_locations.material_group_ubo = shader_system_uniform_location(state->material_water_shader, kname_create("material_group_ubo"));
+            state->water_material_locations.material_textures = kshader_system_uniform_location(state->material_water_shader, kname_create("material_textures"));
+            state->water_material_locations.material_samplers = kshader_system_uniform_location(state->material_water_shader, kname_create("material_samplers"));
+            state->water_material_locations.material_group_ubo = kshader_system_uniform_location(state->material_water_shader, kname_create("material_group_ubo"));
 
             // Per draw.
-            state->water_material_locations.material_draw_ubo = shader_system_uniform_location(state->material_standard_shader, kname_create("material_draw_ubo"));
+            state->water_material_locations.material_draw_ubo = kshader_system_uniform_location(state->material_standard_shader, kname_create("material_draw_ubo"));
         }
     }
 
@@ -1001,11 +1001,11 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
     // Standard shader type
     {
         kshader shader = state->material_standard_shader;
-        shader_system_use(shader);
+        kshader_system_use(shader);
 
         // Ensure wireframe mode is (un)set.
         b8 is_wireframe = (mat_frame_data.render_mode == RENDERER_VIEW_MODE_WIREFRAME);
-        shader_system_set_wireframe(shader, is_wireframe);
+        kshader_system_set_wireframe(shader, is_wireframe);
 
         // Setup frame data UBO structure to send over.
         kmaterial_standard_frame_uniform_data frame_ubo = {0};
@@ -1038,18 +1038,18 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
             frame_ubo.params.elements[MAT_PARAM_IDX_SHADOW_BIAS] = mat_frame_data.shadow_bias;
         }
 
-        if (!shader_system_bind_frame(shader)) {
+        if (!kshader_system_bind_frame(shader)) {
             KERROR("Failed to bind frame frequency for standard material shader.");
             return false;
         }
 
         // Set the whole UBO at once.
-        shader_system_uniform_set_by_location(shader, state->standard_material_locations.material_frame_ubo, &frame_ubo);
+        kshader_system_uniform_set_by_location(shader, state->standard_material_locations.material_frame_ubo, &frame_ubo);
 
         // Texture maps
         // Shadow map - arrayed texture.
         if (mat_frame_data.shadow_map_texture) {
-            shader_system_texture_set_by_location(shader, state->standard_material_locations.shadow_texture, mat_frame_data.shadow_map_texture);
+            kshader_system_texture_set_by_location(shader, state->standard_material_locations.shadow_texture, mat_frame_data.shadow_map_texture);
         }
 
         // Irradience textures provided by probes around in the world.
@@ -1059,13 +1059,13 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
             if (!texture_is_loaded(t)) {
                 t = state->default_ibl_cubemap;
             }
-            if (!shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.irradiance_cube_textures, i, t)) {
+            if (!kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.irradiance_cube_textures, i, t)) {
                 KERROR("Failed to set ibl cubemap at index %i", i);
             }
         }
 
         // Apply/upload everything to the GPU
-        if (!shader_system_apply_per_frame(shader)) {
+        if (!kshader_system_apply_per_frame(shader)) {
             KERROR("Failed to apply per-frame uniforms.");
             return false;
         }
@@ -1074,11 +1074,11 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
     // Water shader type
     {
         kshader shader = state->material_water_shader;
-        shader_system_use(shader);
+        kshader_system_use(shader);
 
         // Ensure wireframe mode is (un)set.
         b8 is_wireframe = (mat_frame_data.render_mode == RENDERER_VIEW_MODE_WIREFRAME);
-        shader_system_set_wireframe(shader, is_wireframe);
+        kshader_system_set_wireframe(shader, is_wireframe);
 
         // Setup frame data UBO structure to send over.
         kmaterial_water_frame_uniform_data frame_ubo = {0};
@@ -1110,18 +1110,18 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
             frame_ubo.params.elements[MAT_PARAM_IDX_SHADOW_BIAS] = mat_frame_data.shadow_bias;
         }
 
-        if (!shader_system_bind_frame(shader)) {
+        if (!kshader_system_bind_frame(shader)) {
             KERROR("Failed to bind frame frequency for water material shader.");
             return false;
         }
 
         // Set the whole UBO at once.
-        shader_system_uniform_set_by_location(shader, state->water_material_locations.material_frame_ubo, &frame_ubo);
+        kshader_system_uniform_set_by_location(shader, state->water_material_locations.material_frame_ubo, &frame_ubo);
 
         // Texture maps
         // Shadow map - arrayed texture.
         if (mat_frame_data.shadow_map_texture) {
-            shader_system_texture_set_by_location(shader, state->water_material_locations.shadow_texture, mat_frame_data.shadow_map_texture);
+            kshader_system_texture_set_by_location(shader, state->water_material_locations.shadow_texture, mat_frame_data.shadow_map_texture);
         }
 
         // Irradiance textures provided by probes around in the world.
@@ -1131,11 +1131,11 @@ b8 kmaterial_system_prepare_frame(kmaterial_system_state* state, kmaterial_frame
             if (!texture_is_loaded(t)) {
                 t = state->default_ibl_cubemap;
             }
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.irradiance_cube_textures, i, t);
+            kshader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.irradiance_cube_textures, i, t);
         }
 
         // Apply/upload everything to the GPU
-        if (!shader_system_apply_per_frame(shader)) {
+        if (!kshader_system_apply_per_frame(shader)) {
             KERROR("Failed to apply per-frame uniforms.");
             return false;
         }
@@ -1162,9 +1162,9 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
         return false;
     case KMATERIAL_TYPE_STANDARD: {
         shader = state->material_standard_shader;
-        shader_system_use(shader);
+        kshader_system_use(shader);
 
-        if (!shader_system_apply_per_frame(shader)) {
+        if (!kshader_system_apply_per_frame(shader)) {
             KERROR("Failed to apply per-frame uniforms.");
             return false;
         }
@@ -1172,7 +1172,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
         // per-group - ensure this is done once per frame per material
 
         // bind per-group
-        if (!shader_system_bind_group(shader, base_material->group_id)) {
+        if (!kshader_system_bind_group(shader, base_material->group_id)) {
             KERROR("Failed to bind material shader group.");
             return false;
         }
@@ -1219,25 +1219,25 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
         // Base colour
         if (texture_is_loaded(base_material->base_colour_texture)) {
             group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX, true);
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_BASE_COLOUR, base_material->base_colour_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_BASE_COLOUR, base_material->base_colour_texture);
         } else {
             group_ubo.base_colour = base_material->base_colour;
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_BASE_COLOUR, state->default_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_BASE_COLOUR, state->default_texture);
         }
 
         // Normal
         if (FLAG_GET(base_material->flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)) {
             if (texture_is_loaded(base_material->normal_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX, true);
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, base_material->normal_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, base_material->normal_texture);
             } else {
                 group_ubo.normal = base_material->normal;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_normal_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_normal_texture);
             }
         } else {
             group_ubo.normal = vec3_up();
             // Still need this set.
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_normal_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_NORMAL, state->default_normal_texture);
         }
 
         // MRA
@@ -1245,53 +1245,53 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
         if (mra_enabled) {
             if (texture_is_loaded(base_material->mra_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_MRA_TEX, true);
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, base_material->mra_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, base_material->mra_texture);
             } else {
                 group_ubo.mra = base_material->mra;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_mra_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_mra_texture);
             }
 
             // Even though MRA is being used, still need to bind something for these.
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, state->default_texture);
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, state->default_texture);
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, state->default_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, state->default_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
         } else {
 
             // Still have to bind something to MRA.
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_mra_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_MRA, state->default_mra_texture);
 
             // If not using MRA, then do these:
 
             // Metallic
             if (texture_is_loaded(base_material->metallic_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_METALLIC_TEX, true);
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, base_material->metallic_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, base_material->metallic_texture);
             } else {
                 group_ubo.metallic = base_material->metallic;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, state->default_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_METALLIC, state->default_texture);
             }
 
             // Roughness
             if (texture_is_loaded(base_material->roughness_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_ROUGHNESS_TEX, true);
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, base_material->roughness_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, base_material->roughness_texture);
             } else {
                 group_ubo.roughness = base_material->roughness;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, state->default_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_ROUGHNESS, state->default_texture);
             }
 
             // AO
             if (FLAG_GET(base_material->flags, KMATERIAL_FLAG_AO_ENABLED_BIT)) {
                 if (texture_is_loaded(base_material->ao_texture)) {
                     group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_AO_TEX, true);
-                    shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, base_material->ao_texture);
+                    kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, base_material->ao_texture);
                 } else {
                     group_ubo.ao = base_material->ao;
-                    shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
+                    kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
                 }
             } else {
                 group_ubo.ao = 1.0f;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_AO, state->default_texture);
             }
 
             // Pack source channels. [Metallic, roughness, ao, unused].
@@ -1302,28 +1302,28 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
         if (FLAG_GET(base_material->flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT)) {
             if (texture_is_loaded(base_material->emissive_texture)) {
                 group_ubo.tex_flags = FLAG_SET(group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX, true);
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, base_material->emissive_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, base_material->emissive_texture);
             } else {
                 group_ubo.emissive = base_material->emissive;
-                shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, state->default_texture);
+                kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, state->default_texture);
             }
         } else {
             group_ubo.emissive = vec4_zero();
-            shader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, state->default_texture);
+            kshader_system_texture_set_by_location_arrayed(shader, state->standard_material_locations.material_textures, MAT_STANDARD_IDX_EMISSIVE, state->default_texture);
         }
 
         // Set the whole thing at once.
-        shader_system_uniform_set_by_location(shader, state->standard_material_locations.material_group_ubo, &group_ubo);
+        kshader_system_uniform_set_by_location(shader, state->standard_material_locations.material_group_ubo, &group_ubo);
 
         // Apply/upload them to the GPU
-        return shader_system_apply_per_group(shader);
+        return kshader_system_apply_per_group(shader);
     }
     case KMATERIAL_TYPE_WATER: {
         shader = state->material_water_shader;
-        shader_system_use(shader);
+        kshader_system_use(shader);
 
         // Need to reapply per-frame so descriptors are bound, etc.
-        if (!shader_system_apply_per_frame(shader)) {
+        if (!kshader_system_apply_per_frame(shader)) {
             KERROR("Failed to apply per-frame uniforms.");
             return false;
         }
@@ -1331,7 +1331,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
         // per-group - ensure this is done once per frame per material
 
         // bind per-group
-        if (!shader_system_bind_group(shader, base_material->group_id)) {
+        if (!kshader_system_bind_group(shader, base_material->group_id)) {
             KERROR("Failed to bind water material shader group.");
             return false;
         }
@@ -1374,7 +1374,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
             if (!texture_is_loaded(t)) {
                 t = state->default_texture;
             }
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFLECTION, t);
+            kshader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFLECTION, t);
         }
 
         // Refraction texture.
@@ -1383,7 +1383,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
             if (!texture_is_loaded(t)) {
                 t = state->default_texture;
             }
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION, t);
+            kshader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION, t);
         }
 
         // Refraction depth texture.
@@ -1391,7 +1391,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
             ktexture t = base_material->refraction_depth_texture;
             if (texture_is_loaded(t)) {
             }
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION_DEPTH, t);
+            kshader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_REFRACTION_DEPTH, t);
         }
 
         // DUDV texture.
@@ -1400,7 +1400,7 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
             if (!texture_is_loaded(t)) {
                 t = state->default_normal_texture; // default_water_dudv_texture;
             }
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_DUDV, t);
+            kshader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_DUDV, t);
         }
 
         // Water Normal texture.
@@ -1409,14 +1409,14 @@ b8 kmaterial_system_apply(kmaterial_system_state* state, kmaterial material, fra
             if (!texture_is_loaded(t)) {
                 t = state->default_normal_texture; // default_water_normal_texture;
             }
-            shader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_NORMAL, t);
+            kshader_system_texture_set_by_location_arrayed(shader, state->water_material_locations.material_textures, MAT_WATER_IDX_NORMAL, t);
         }
 
         // Set the whole thing at once.
-        shader_system_uniform_set_by_location(shader, state->water_material_locations.material_group_ubo, &group_ubo);
+        kshader_system_uniform_set_by_location(shader, state->water_material_locations.material_group_ubo, &group_ubo);
 
         // Apply/upload them to the GPU
-        return shader_system_apply_per_group(shader);
+        return kshader_system_apply_per_group(shader);
     }
     case KMATERIAL_TYPE_BLENDED:
         shader = state->material_blended_shader;
@@ -1447,11 +1447,11 @@ b8 kmaterial_system_apply_instance(kmaterial_system_state* state, const kmateria
         return false;
     case KMATERIAL_TYPE_STANDARD: {
         shader = state->material_standard_shader;
-        shader_system_use(shader);
+        kshader_system_use(shader);
 
         // per-draw - this gets run every time apply is called
         // bind per-draw
-        if (!shader_system_bind_draw_id(shader, mat_inst_data->per_draw_id)) {
+        if (!kshader_system_bind_draw_id(shader, mat_inst_data->per_draw_id)) {
             KERROR("Failed to bind standard material shader draw id.");
             return false;
         }
@@ -1464,18 +1464,18 @@ b8 kmaterial_system_apply_instance(kmaterial_system_state* state, const kmateria
         draw_ubo.view_index = draw_data.view_index;
 
         // Set the whole thing at once.
-        shader_system_uniform_set_by_location(shader, state->standard_material_locations.material_draw_ubo, &draw_ubo);
+        kshader_system_uniform_set_by_location(shader, state->standard_material_locations.material_draw_ubo, &draw_ubo);
 
         // apply per-draw
-        return shader_system_apply_per_draw(shader);
+        return kshader_system_apply_per_draw(shader);
     }
     case KMATERIAL_TYPE_WATER: {
         shader = state->material_water_shader;
-        shader_system_use(shader);
+        kshader_system_use(shader);
 
         // per-draw - this gets run every time apply is called
         // bind per-draw
-        if (!shader_system_bind_draw_id(shader, mat_inst_data->per_draw_id)) {
+        if (!kshader_system_bind_draw_id(shader, mat_inst_data->per_draw_id)) {
             KERROR("Failed to bind water material shader draw id.");
             return false;
         }
@@ -1491,10 +1491,10 @@ b8 kmaterial_system_apply_instance(kmaterial_system_state* state, const kmateria
         draw_ubo.wave_strength = base_material->wave_strength;
 
         // Set the whole thing at once.
-        shader_system_uniform_set_by_location(shader, state->water_material_locations.material_draw_ubo, &draw_ubo);
+        kshader_system_uniform_set_by_location(shader, state->water_material_locations.material_draw_ubo, &draw_ubo);
 
         // apply per-draw
-        return shader_system_apply_per_draw(shader);
+        return kshader_system_apply_per_draw(shader);
     }
     case KMATERIAL_TYPE_BLENDED:
         shader = state->material_blended_shader;
@@ -2043,7 +2043,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
     FLAG_SET(material->flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT, asset->use_vertex_colour_as_base_colour);
 
     // Create a group for the material.
-    if (!shader_system_shader_group_acquire(material_shader, &material->group_id)) {
+    if (!kshader_system_shader_group_acquire(material_shader, &material->group_id)) {
         KERROR("Failed to acquire shader group while creating material. See logs for details.");
         // TODO: destroy/release
         return false;
@@ -2116,7 +2116,7 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
     }
 
     // Release the group for the material.
-    if (!shader_system_shader_group_release(material_shader, material->group_id)) {
+    if (!kshader_system_shader_group_release(material_shader, material->group_id)) {
         KWARN("Failed to release shader group while creating material. See logs for details.");
     }
 

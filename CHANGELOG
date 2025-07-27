@@ -6,7 +6,8 @@ Changelog
   - Renamed frustum->kfrustum
   - Reworked material system to replace khandles with typedefed u16s (kmaterial). This results in a far lighter data structure being passed around for material instances.
     - Renamed *material* to kmaterial (i.e. material_instance -> kmaterial_instance)
-  - Reworked material system to replace khandles with typedefed u16s (kshader).
+  - Reworked shader system to replace khandles with typedefed u16s (kshader).
+    - Renamed shader_system to kshader_system and updated all references.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

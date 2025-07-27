@@ -34,9 +34,9 @@
 #include "systems/job_system.h"
 #include "systems/kcamera_system.h"
 #include "systems/kmaterial_system.h"
+#include "systems/kshader_system.h"
 #include "systems/light_system.h"
 #include "systems/plugin_system.h"
-#include "systems/shader_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
 #include "systems/timeline_system.h"
@@ -428,12 +428,12 @@ b8 engine_create(application* app) {
 
     // Shader system
     {
-        shader_system_config shader_sys_config;
+        kshader_system_config shader_sys_config;
         shader_sys_config.max_shader_count = 1024;
         shader_sys_config.max_uniform_count = 128;
-        shader_system_initialize(&systems->shader_system_memory_requirement, 0, &shader_sys_config);
+        kshader_system_initialize(&systems->shader_system_memory_requirement, 0, &shader_sys_config);
         systems->shader_system = kallocate(systems->shader_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!shader_system_initialize(&systems->shader_system_memory_requirement, systems->shader_system, &shader_sys_config)) {
+        if (!kshader_system_initialize(&systems->shader_system_memory_requirement, systems->shader_system, &shader_sys_config)) {
             KERROR("Failed to initialize shader system.");
             return false;
         }
@@ -813,7 +813,7 @@ b8 engine_run(application* app) {
         xform_system_shutdown(systems->xform_system);
         kaudio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);
-        shader_system_shutdown(systems->shader_system);
+        kshader_system_shutdown(systems->shader_system);
         renderer_system_shutdown(systems->renderer_system);
         job_system_shutdown(systems->job_system);
         input_system_shutdown(systems->input_system);

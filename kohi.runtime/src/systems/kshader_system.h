@@ -18,12 +18,12 @@
 #include <kresources/kresource_types.h>
 
 /** @brief Configuration for the shader system. */
-typedef struct shader_system_config {
+typedef struct kshader_system_config {
     /** @brief The maximum number of shaders held in the system. NOTE: Should be at least 512. */
     u16 max_shader_count;
     /** @brief The maximum number of uniforms allowed in a single shader. */
     u8 max_uniform_count;
-} shader_system_config;
+} kshader_system_config;
 
 /**
  * @brief Initializes the shader system using the supplied configuration.
@@ -32,17 +32,17 @@ typedef struct shader_system_config {
  *
  * @param memory_requirement A pointer to hold the memory requirement of this system in bytes.
  * @param memory A memory block to be used to hold the state of this system. Pass 0 on the first call to get memory requirement.
- * @param config The configuration (shader_system_config) to be used when initializing the system.
+ * @param config The configuration (kshader_system_config) to be used when initializing the system.
  * @return b8 True on success; otherwise false.
  */
-b8 shader_system_initialize(u64* memory_requirement, void* memory, void* config);
+b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config);
 
 /**
  * @brief Shuts down the shader system.
  *
  * @param state A pointer to the system state.
  */
-void shader_system_shutdown(void* state);
+void kshader_system_shutdown(void* state);
 
 /**
  * @brief Returns a handle to a shader with the given name.
@@ -52,7 +52,7 @@ void shader_system_shutdown(void* state);
  * @param package_name The package to get the shader from if not already loaded. Pass INVALID_KNAME to search all packages.
  * @return A handle to a shader, if found/loaded; otherwise KSHADER_INVALID.
  */
-KAPI kshader shader_system_get(kname name, kname package_name);
+KAPI kshader kshader_system_get(kname name, kname package_name);
 
 /**
  * @brief Returns a handle to a shader with the given name based on the provided config source.
@@ -62,14 +62,14 @@ KAPI kshader shader_system_get(kname name, kname package_name);
  * @param shader_config_source A string containing the shader's configuration source as if it were loaded from an asset.
  * @return A handle to a shader, if loaded; otherwise KSHADER_INVALID.
  */
-KAPI kshader shader_system_get_from_source(kname name, const char* shader_config_source);
+KAPI kshader kshader_system_get_from_source(kname name, const char* shader_config_source);
 
 /**
  * @brief Attempts to destroy the shader with the given handle. Handle will be invalidated.
  *
  * @param shader_name A pointer to a handle to the shader to destroy. Handle will be invalidated.
  */
-KAPI void shader_system_destroy(kshader* shader);
+KAPI void kshader_system_destroy(kshader* shader);
 
 /**
  * @brief Attempts to set wireframe mode on the given shader. If the renderer backend, or the shader
@@ -79,7 +79,7 @@ KAPI void shader_system_destroy(kshader* shader);
  * @param wireframe_enabled Indicates if wireframe mode should be enabled.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_set_wireframe(kshader shader, b8 wireframe_enabled);
+KAPI b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled);
 
 /**
  * @brief Uses the shader with the given handle.
@@ -87,7 +87,7 @@ KAPI b8 shader_system_set_wireframe(kshader shader, b8 wireframe_enabled);
  * @param shader A handle to the shader to be used.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_use(kshader shader);
+KAPI b8 kshader_system_use(kshader shader);
 
 /**
  * @brief Returns the uniform location for a uniform with the given name, if found.
@@ -96,7 +96,7 @@ KAPI b8 shader_system_use(kshader shader);
  * @param uniform_name The name of the uniform to search for.
  * @return The uniform location, if found; otherwise INVALID_ID_U16.
  */
-KAPI u16 shader_system_uniform_location(kshader shader, kname uniform_name);
+KAPI u16 kshader_system_uniform_location(kshader shader, kname uniform_name);
 
 /**
  * @brief Sets the value of a uniform with the given name to the supplied value.
@@ -106,7 +106,7 @@ KAPI u16 shader_system_uniform_location(kshader shader, kname uniform_name);
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set(kshader shader, kname uniform_name, const void* value);
+KAPI b8 kshader_system_uniform_set(kshader shader, kname uniform_name, const void* value);
 
 /**
  * @brief Sets the value of an arrayed uniform with the given name to the supplied value.
@@ -117,7 +117,7 @@ KAPI b8 shader_system_uniform_set(kshader shader, kname uniform_name, const void
  * @param value The value to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_arrayed(kshader shader, kname uniform_name, u32 array_index, const void* value);
+KAPI b8 kshader_system_uniform_set_arrayed(kshader shader, kname uniform_name, u32 array_index, const void* value);
 
 /**
  * @brief Sets the texture uniform with the given name to the supplied texture.
@@ -127,7 +127,7 @@ KAPI b8 shader_system_uniform_set_arrayed(kshader shader, kname uniform_name, u3
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set(kshader shader, kname sampler_name, ktexture t);
+KAPI b8 kshader_system_texture_set(kshader shader, kname sampler_name, ktexture t);
 
 /**
  * @brief Sets the arrayed texture uniform with the given name to the supplied texture at the given index.
@@ -138,7 +138,7 @@ KAPI b8 shader_system_texture_set(kshader shader, kname sampler_name, ktexture t
  * @param t A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_arrayed(kshader shader, kname uniform_name, u32 array_index, ktexture t);
+KAPI b8 kshader_system_texture_set_arrayed(kshader shader, kname uniform_name, u32 array_index, ktexture t);
 
 /**
  * @brief Sets a uniform value by location.
@@ -148,7 +148,7 @@ KAPI b8 shader_system_texture_set_arrayed(kshader shader, kname uniform_name, u3
  * @param value The value of the uniform.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_by_location(kshader shader, u16 location, const void* value);
+KAPI b8 kshader_system_uniform_set_by_location(kshader shader, u16 location, const void* value);
 
 /**
  * @brief Sets a uniform value by location.
@@ -159,7 +159,7 @@ KAPI b8 shader_system_uniform_set_by_location(kshader shader, u16 location, cons
  * @param value The value of the uniform.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_uniform_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, const void* value);
+KAPI b8 kshader_system_uniform_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, const void* value);
 
 /**
  * @brief Sets a texture value by location.
@@ -169,7 +169,7 @@ KAPI b8 shader_system_uniform_set_by_location_arrayed(kshader shader, u16 locati
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_by_location(kshader shader, u16 location, ktexture t);
+KAPI b8 kshader_system_texture_set_by_location(kshader shader, u16 location, ktexture t);
 
 /**
  * @brief Sets a texture value by location.
@@ -180,7 +180,7 @@ KAPI b8 shader_system_texture_set_by_location(kshader shader, u16 location, ktex
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_texture_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, ktexture value);
+KAPI b8 kshader_system_texture_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, ktexture value);
 
 /**
  * @brief Sets a sampler value by location.
@@ -191,7 +191,7 @@ KAPI b8 shader_system_texture_set_by_location_arrayed(kshader shader, u16 locati
  * @param value A pointer to the texture to be set.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_sampler_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, ktexture t);
+KAPI b8 kshader_system_sampler_set_by_location_arrayed(kshader shader, u16 location, u32 array_index, ktexture t);
 
 /**
  * @brief Binds the shader at per-frame frequency for use. Must be done before setting
@@ -201,7 +201,7 @@ KAPI b8 shader_system_sampler_set_by_location_arrayed(kshader shader, u16 locati
  * @param instance_id The identifier of the instance to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_frame(kshader shader);
+KAPI b8 kshader_system_bind_frame(kshader shader);
 /**
  * @brief Binds the instance with the given id for use. Must be done before setting
  * instance-scoped uniforms.
@@ -210,7 +210,7 @@ KAPI b8 shader_system_bind_frame(kshader shader);
  * @param group_id The identifier of the group to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_group(kshader shader, u32 group_id);
+KAPI b8 kshader_system_bind_group(kshader shader, u32 group_id);
 
 /**
  * @brief Binds the local with the given id for use. Must be done before setting
@@ -220,7 +220,7 @@ KAPI b8 shader_system_bind_group(kshader shader, u32 group_id);
  * @param draw_id The identifier of the per-draw resources to bind.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_bind_draw_id(kshader shader, u32 draw_id);
+KAPI b8 kshader_system_bind_draw_id(kshader shader, u32 draw_id);
 
 /**
  * @brief Applies per-frame uniforms.
@@ -228,7 +228,7 @@ KAPI b8 shader_system_bind_draw_id(kshader shader, u32 draw_id);
  * @param shader A handle to the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_frame(kshader shader);
+KAPI b8 kshader_system_apply_per_frame(kshader shader);
 
 /**
  * @brief Applies per-group uniforms.
@@ -236,7 +236,7 @@ KAPI b8 shader_system_apply_per_frame(kshader shader);
  * @param shader A handle to the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_group(kshader shader);
+KAPI b8 kshader_system_apply_per_group(kshader shader);
 
 /**
  * @brief Applies per-draw uniforms. Updates the generation pointed to.
@@ -244,7 +244,7 @@ KAPI b8 shader_system_apply_per_group(kshader shader);
  * @param shader A handle to the shader to update.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_apply_per_draw(kshader shader);
+KAPI b8 kshader_system_apply_per_draw(kshader shader);
 
 /**
  * @brief Attempts to acquire new group resources from the given shader using the
@@ -254,7 +254,7 @@ KAPI b8 shader_system_apply_per_draw(kshader shader);
  * @param out_group_id A pointer to hold the group id once resources are acquired.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_group_acquire(kshader shader, u32* out_group_id);
+KAPI b8 kshader_system_shader_group_acquire(kshader shader, u32* out_group_id);
 
 /**
  * @brief Releases group resources and texture map resources from the provided shader.
@@ -263,7 +263,7 @@ KAPI b8 shader_system_shader_group_acquire(kshader shader, u32* out_group_id);
  * @param instance_id The identifier of the group to release.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_group_release(kshader shader, u32 instance_id);
+KAPI b8 kshader_system_shader_group_release(kshader shader, u32 instance_id);
 
 /**
  * @brief Attempts to acquire new per-draw resources from the given shader using the
@@ -273,7 +273,7 @@ KAPI b8 shader_system_shader_group_release(kshader shader, u32 instance_id);
  * @param out_per_draw_id A pointer to hold the per-draw id once resources are acquired.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_per_draw_acquire(kshader shader, u32* out_per_draw_id);
+KAPI b8 kshader_system_shader_per_draw_acquire(kshader shader, u32* out_per_draw_id);
 
 /**
  * @brief Releases per-draw resources and texture map resources from the provided shader.
@@ -282,4 +282,4 @@ KAPI b8 shader_system_shader_per_draw_acquire(kshader shader, u32* out_per_draw_
  * @param per_draw_id The identifier of the per-draw to release.
  * @return True on success; otherwise false.
  */
-KAPI b8 shader_system_shader_per_draw_release(kshader shader, u32 per_draw_id);
+KAPI b8 kshader_system_shader_per_draw_release(kshader shader, u32 per_draw_id);

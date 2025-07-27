@@ -8,7 +8,7 @@
 #include <renderer/renderer_frontend.h>
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
-#include <systems/shader_system.h>
+#include <systems/kshader_system.h>
 
 static void sui_panel_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
 
@@ -61,16 +61,16 @@ b8 sui_panel_control_load(standard_ui_state* state, struct sui_control* self) {
         return false;
     }
 
-    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
     // Acquire group resources for this control.
-    if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
+    if (!kshader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
         KFATAL("Unable to acquire shader group resources for button.");
         return false;
     }
     typed_data->group_generation = INVALID_ID_U16;
 
     // Also acquire per-draw resources.
-    if (!shader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
+    if (!kshader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
         KFATAL("Unable to acquire shader per-draw resources for button.");
         return false;
     }

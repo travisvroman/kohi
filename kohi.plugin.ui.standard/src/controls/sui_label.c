@@ -12,7 +12,7 @@
 #include <resources/resource_types.h>
 #include <strings/kstring.h>
 #include <systems/font_system.h>
-#include <systems/shader_system.h>
+#include <systems/kshader_system.h>
 
 static void sui_label_control_render_frame_prepare(standard_ui_state* state, struct sui_control* self, const struct frame_data* p_frame_data);
 
@@ -73,16 +73,16 @@ b8 sui_label_control_create(standard_ui_state* state, const char* name, font_typ
         sui_label_text_set(state, out_control, "");
     }
 
-    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
     // Acquire group resources for this control.
-    if (!shader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
+    if (!kshader_system_shader_group_acquire(sui_shader, &typed_data->group_id)) {
         KFATAL("Unable to acquire shader group resources for button.");
         return false;
     }
     typed_data->group_generation = INVALID_ID_U16;
 
     // Also acquire per-draw resources.
-    if (!shader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
+    if (!kshader_system_shader_per_draw_acquire(sui_shader, &typed_data->draw_id)) {
         KFATAL("Unable to acquire shader per-draw resources for button.");
         return false;
     }
@@ -146,12 +146,12 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
     }
 
     // Release group/draw resources.
-    kshader sui_shader = shader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
-    if (!shader_system_shader_group_release(sui_shader, typed_data->group_id)) {
+    kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
+    if (!kshader_system_shader_group_release(sui_shader, typed_data->group_id)) {
         KFATAL("Unable to release group shader resources.");
     }
     typed_data->group_id = INVALID_ID;
-    if (!shader_system_shader_per_draw_release(sui_shader, typed_data->draw_id)) {
+    if (!kshader_system_shader_per_draw_release(sui_shader, typed_data->draw_id)) {
         KFATAL("Unable to release group shader resources.");
     }
     typed_data->draw_id = INVALID_ID;
