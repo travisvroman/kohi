@@ -35,11 +35,11 @@
 #include "systems/kcamera_system.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
+#include "systems/ktimeline_system.h"
 #include "systems/light_system.h"
 #include "systems/plugin_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
-#include "systems/timeline_system.h"
 #include "systems/xform_system.h"
 
 struct kwindow;
@@ -418,9 +418,9 @@ b8 engine_create(application* app) {
     {
         timeline_system_config timeline_config = {0};
         timeline_config.dummy = 1;
-        timeline_system_initialize(&systems->timeline_system_memory_requirement, 0, 0);
+        ktimeline_system_initialize(&systems->timeline_system_memory_requirement, 0, 0);
         systems->timeline_system = kallocate(systems->timeline_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!timeline_system_initialize(&systems->timeline_system_memory_requirement, systems->timeline_system, &timeline_config)) {
+        if (!ktimeline_system_initialize(&systems->timeline_system_memory_requirement, systems->timeline_system, &timeline_config)) {
             KERROR("Failed to initialize timeline system.");
             return false;
         }
@@ -643,7 +643,7 @@ b8 engine_run(application* app) {
 
             // Update timelines. Note that this is not done by the systems manager
             // because we don't want or have timeline data in the frame_data struct any longer.
-            timeline_system_update(engine_state->systems.timeline_system, delta);
+            ktimeline_system_update(engine_state->systems.timeline_system, delta);
 
             // update metrics
             metrics_update(frame_elapsed_time);
@@ -809,7 +809,7 @@ b8 engine_run(application* app) {
         kmaterial_system_shutdown(systems->material_system);
         font_system_shutdown(systems->font_system);
         texture_system_shutdown(systems->texture_system);
-        timeline_system_shutdown(systems->timeline_system);
+        ktimeline_system_shutdown(systems->timeline_system);
         xform_system_shutdown(systems->xform_system);
         kaudio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);

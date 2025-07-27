@@ -1,11 +1,13 @@
 #pragma once
 
-#include "identifiers/khandle.h"
 #include "defines.h"
 
 typedef struct timeline_system_config {
     u32 dummy;
 } timeline_system_config;
+
+typedef u16 ktimeline;
+#define KTIMELINE_INVALID INVALID_ID_U16
 
 /**
  * @brief Initializes the timeline system using the supplied configuration.
@@ -17,32 +19,32 @@ typedef struct timeline_system_config {
  * @param config The configuration (timeline_system_config) to be used when initializing the system.
  * @return b8 True on success; otherwise false.
  */
-b8 timeline_system_initialize(u64* memory_requirement, void* memory, void* config);
+b8 ktimeline_system_initialize(u64* memory_requirement, void* memory, void* config);
 
 /**
  * @brief Updates the job system. Should happen once an update cycle.
  */
-b8 timeline_system_update(void* state, f32 engine_delta_time);
+b8 ktimeline_system_update(void* state, f32 engine_delta_time);
 
 /**
  * @brief Shuts down the timeline system.
  *
  * @param state A pointer to the system state.
  */
-void timeline_system_shutdown(void* state);
+void ktimeline_system_shutdown(void* state);
 
-KAPI khandle timeline_system_create(f32 scale);
+KAPI ktimeline ktimeline_system_create(f32 scale);
 
-KAPI void timeline_system_destroy(khandle timeline);
+KAPI void ktimeline_system_destroy(ktimeline timeline);
 
-KAPI f32 timeline_system_scale_get(khandle timeline);
-KAPI void timeline_system_scale_set(khandle timeline, f32 scale);
+KAPI f32 ktimeline_system_scale_get(ktimeline timeline);
+KAPI void ktimeline_system_scale_set(ktimeline timeline, f32 scale);
 
 // Total time since timeline start.
-KAPI f32 timeline_system_total_get(khandle timeline);
+KAPI f32 ktimeline_system_total_get(ktimeline timeline);
 
 // Time in seconds since the last frame.
-KAPI f32 timeline_system_delta_get(khandle timeline);
+KAPI f32 ktimeline_system_delta_get(ktimeline timeline);
 
-KAPI khandle timeline_system_get_engine(void);
-KAPI khandle timeline_system_get_game(void);
+KAPI ktimeline ktimeline_system_get_engine(void);
+KAPI ktimeline ktimeline_system_get_game(void);

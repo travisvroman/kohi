@@ -8,6 +8,7 @@ The items in this list are not in any particular order. This list will be update
 
 - [x] Remove rendergraph - have application drive render process directly.
 - [ ] Rework hierarchy system to use typedefed u16s instead of khandles.
+- [x] Rework timeline system to use typedefed u16s instead of khandles.
 - [x] Rework renderer backend to use u16 indices for internal texture ids and samplers instead of khandles.
 - [x] Rework Material system to replace khandles with typedefed u16s.
   - [x] Renamed material_system -> kmaterial_system, along with all associated types.
