@@ -8,7 +8,7 @@
     --bgfont: #ffffff;
     --bgfont2: #f3c60a;
     --bgfont-hover: #f3c60a;
-    --bgfont-hover-text-decoration: none;
+    --bgfont-hover-text-decoration: underline;
     --bgborder: #7d7d7d;
     --bgborder2: #f6f6f6;
     /* Main Header */
@@ -32,7 +32,7 @@
     --code-preprocessor: #d73a49;
     --code-keywordtype: #d73a49;
     --code-text: #303030;
-    --code-code: #6f42c1;
+    --code-code: #f3c60a;
     --code-line: #7D7D7D;
     --code-line-bg: #303030;
     /* Namespace List, Class List icon */
@@ -547,6 +547,11 @@ hr.footer {
 
 .mdescRight {
     padding: 0px 30px 10px 30px;
+    color: #ccc;
+}
+
+.mdescRight a {
+    font-weight: bold;
 }
 
 .memberdecls * {
@@ -559,6 +564,10 @@ hr.footer {
 
 .memTemplParams {
     color: var(--bgfont);
+}
+
+.paramname {
+    color: #f0a000;
 }
 
 /***********************************/
@@ -635,4 +644,55 @@ hr.footer {
 
 .plantumlgraph > img {
     width: 80%;
+}
+
+/**
+ * Other stuff 
+ */
+.memdoc, dl.reflist dd, dl.reflist dt {
+	border-bottom: 1px solid #7d7d7d;
+	border-left: 1px solid #7d7d7d;
+	border-right: 1px solid #7d7d7d;
+	background-color: #303030;
+	text-shadow:none;
+	box-shadow:none;
+	-webkit-box-shadow:none;
+	-moz-box-shadow:none;
+}
+
+.memdoc {
+	background-color: #303030;
+}
+
+dl.deprecated {
+	border-color: #F80;
+	background-color:#FB3;
+	color:#303030;
+	border-radius:5px;
+}
+
+.deprecated a {
+	color:#303030
+}
+
+.memproto .paramname {
+	color:black;
+}
+
+dl.reflist dt {
+	color: #303030;
+	background-color:#f3c60a;
+	font-weight: normal;
+}
+
+dl.reflist dt a, dl.reflist dt a:visited, dl.reflist dt a:hover {
+	color:#303030;
+}
+
+.alphachar a {
+	color:#f3c60a;
+}
+
+.classindex dl.odd {
+	background-color:#444;
 }
