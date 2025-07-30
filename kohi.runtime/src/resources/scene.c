@@ -39,7 +39,7 @@
 #include "utils/ksort.h"
 
 static void scene_actual_unload(scene* scene);
-static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index);
+static void scene_node_metadata_ensure_allocated(scene* s, khierarchy_node node);
 
 static u32 global_scene_id = 0;
 static kmaterial_instance default_material;
@@ -831,9 +831,16 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                 if (init_result) {
 
                     // Commands
-                    new_volume.on_enter_command = string_duplicate(typed_attachment_config->on_enter_command);
-                    new_volume.on_leave_command = string_duplicate(typed_attachment_config->on_leave_command);
-                    new_volume.on_update_command = string_duplicate(typed_attachment_config->on_update_command);
+
+                    if (typed_attachment_config->on_enter_command) {
+                        new_volume.on_enter_command = string_duplicate(typed_attachment_config->on_enter_command);
+                    }
+                    if (typed_attachment_config->on_leave_command) {
+                        new_volume.on_leave_command = string_duplicate(typed_attachment_config->on_leave_command);
+                    }
+                    if (typed_attachment_config->on_update_command) {
+                        new_volume.on_update_command = string_duplicate(typed_attachment_config->on_update_command);
+                    }
 
                     // Find a free slot and take it, or push a new one.
                     u32 volume_count = darray_length(s->volumes);
@@ -935,7 +942,7 @@ b8 scene_initialize(scene* scene) {
             u32 node_count = config->node_count;
             // An invalid handle means there is no parent, which is true for root nodes.
             for (u32 i = 0; i < node_count; ++i) {
-                scene_node_initialize(scene, KTRANSFORM_INVALID, &config->nodes[i]);
+                scene_node_initialize(scene, KHIERARCHY_NODE_INVALID, &config->nodes[i]);
             }
         }
 
@@ -1555,11 +1562,21 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                         ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                         // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
                         // the xform here, using the node's world xform as the parent.
-                        xform_calculate_local(debug->box.xform);
-                        mat4 local = xform_local_get(debug->box.xform);
+                        ktransform d_xform;
+                        switch (scene->volumes[i].shape_type) {
+                        case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
+                        default:
+                            d_xform = debug->sphere.xform;
+                            break;
+                        case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
+                            d_xform = debug->box.xform;
+                            break;
+                        }
+                        xform_calculate_local(d_xform);
+                        mat4 local = xform_local_get(d_xform);
                         mat4 parent_world = xform_world_get(xform_handle);
                         mat4 model = mat4_mul(local, parent_world);
-                        xform_world_set(debug->box.xform, model);
+                        xform_world_set(d_xform, model);
 
                         switch (scene->volumes[i].shape_type) {
                         case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
@@ -2915,9 +2932,9 @@ b8 scene_save(scene* s) {
     return result;
 }
 
-static void scene_node_metadata_ensure_allocated(scene* s, u64 handle_index) {
-    if (s && handle_index != INVALID_ID_U64) {
-        u64 new_count = handle_index + 1;
+static void scene_node_metadata_ensure_allocated(scene* s, khierarchy_node node) {
+    if (s && node != KHIERARCHY_NODE_INVALID) {
+        u64 new_count = node + 1;
         if (s->node_metadata_count < new_count) {
             scene_node_metadata* new_array = kallocate(sizeof(scene_node_metadata) * new_count, MEMORY_TAG_SCENE);
             if (s->node_metadata) {

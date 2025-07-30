@@ -12,7 +12,6 @@
 #include "systems/xform_system.h"
 
 struct frame_data;
-struct render_packet;
 struct directional_light;
 struct point_light;
 struct skybox;

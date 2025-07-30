@@ -536,7 +536,7 @@ static void ensure_allocated(xform_system_state* state, u32 slot_count) {
         // Identifiers don't *need* to be aligned, but do it anyways since everything else is.
         ktransform_flag_bits* new_flags = kallocate_aligned(sizeof(ktransform_flag_bits) * slot_count, 16, MEMORY_TAG_TRANSFORM);
         if (state->flags) {
-            KCOPY_TYPE_CARRAY(new_flags, state->flags, ktransform_flag_bits, state->allocated);
+            kcopy_memory(new_flags, state->flags, sizeof(ktransform_flag_bits) * state->allocated);
             kfree_aligned(state->flags, sizeof(ktransform_flag_bits) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
         }
         state->flags = new_flags;

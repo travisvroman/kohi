@@ -10,7 +10,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Rework xform system:
   - [ ] Rename xform->ktransform
   - [x] Change to use typedefed u32s instead of khandles.
-- [ ] Rework hierarchy system to use typedefed u16s instead of khandles.
+- [x] Rework hierarchy graph to use typedefed u16s instead of khandles.
 - [ ] Rework audio system to use typedefed u16s instead of khandles.
 - [x] Rework timeline system to use typedefed u16s instead of khandles.
 - [x] Rework renderer backend to use u16 indices for internal texture ids and samplers instead of khandles.

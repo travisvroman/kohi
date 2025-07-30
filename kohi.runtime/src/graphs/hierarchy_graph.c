@@ -2,6 +2,7 @@
 
 #include "containers/darray.h"
 #include "containers/stack.h"
+#include "core_resource_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
@@ -23,6 +24,9 @@ b8 hierarchy_graph_create(hierarchy_graph* out_graph) {
         KERROR("hierarchy_graph_create requires a valid pointer to hold the created graph.");
         return false;
     }
+
+    // Start with a reasonably large count of nodes.
+    ensure_allocated(out_graph, 128);
 
     return true;
 }
@@ -94,15 +98,15 @@ b8 hierarchy_graph_xform_local_matrix_get(const hierarchy_graph* graph, khierarc
 
 khierarchy_node hierarchy_graph_parent_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle) {
     u32 parent_index = hierarchy_graph_parent_index_get(graph, node_handle);
-    if (parent_index == INVALID_ID) {
+    if (parent_index == KHIERARCHY_NODE_INVALID) {
         return KHIERARCHY_NODE_INVALID;
     }
     return graph->node_handles[parent_index];
 }
 
-khierarchy_node hierarchy_graph_parent_xform_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle) {
+ktransform hierarchy_graph_parent_xform_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle) {
     u32 parent_index = hierarchy_graph_parent_index_get(graph, node_handle);
-    if (parent_index == INVALID_ID) {
+    if (parent_index == KHIERARCHY_NODE_INVALID) {
         return KHIERARCHY_NODE_INVALID;
     }
     return graph->xform_handles[parent_index];
@@ -130,7 +134,7 @@ u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khierarchy_nod
     }
 
     u32 count = 0;
-    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+    for (u32 i = 1; i < graph->nodes_allocated; ++i) {
         if (graph->parent_indices[i] == parent_node_handle) {
             count++;
         }
@@ -147,7 +151,7 @@ b8 hierarchy_graph_child_get_by_index(const hierarchy_graph* graph, khierarchy_n
     u32 child_index = 0;
 
     // Search for children with the given parent index.
-    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+    for (u32 i = 1; i < graph->nodes_allocated; ++i) {
         if (graph->parent_indices[i] == parent_node_handle) {
             if (child_index == index) {
                 *out_handle = graph->node_handles[i];
@@ -180,7 +184,7 @@ quat hierarchy_graph_world_rotation_get(const hierarchy_graph* graph, khierarchy
     // Push the current "local" rotation onto the stack first.
     quat rot = xform_rotation_get(graph->xform_handles[handle_index]);
     stack_push(&rot_stack, &rot);
-    while (parent_index != INVALID_ID) {
+    while (parent_index != KHIERARCHY_NODE_INVALID) {
         // Get the parent transform's rotation and push onto the stack.
         ktransform xform_handle = graph->xform_handles[parent_index];
         rot = xform_rotation_get(xform_handle);
@@ -234,7 +238,7 @@ vec3 hierarchy_graph_world_scale_get(const hierarchy_graph* graph, khierarchy_no
     // Push the current "local" scale onto the stack first.
     vec3 scale = xform_scale_get(graph->xform_handles[node_handle]);
     stack_push(&scale_stack, &scale);
-    while (parent_index != INVALID_ID) {
+    while (parent_index != KHIERARCHY_NODE_INVALID) {
         // Get the parent transform's scale and push onto the stack.
         ktransform xform_handle = graph->xform_handles[parent_index];
         scale = xform_scale_get(xform_handle);
@@ -261,36 +265,32 @@ vec3 hierarchy_graph_world_scale_get(const hierarchy_graph* graph, khierarchy_no
 
 static khierarchy_node node_acquire(hierarchy_graph* graph, u32 parent_index, ktransform xform_handle) {
     KASSERT(graph);
-    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+    khierarchy_node node = KHIERARCHY_NODE_INVALID;
+    for (u32 i = 1; i < graph->nodes_allocated; ++i) {
         if (graph->node_handles[i] == KHIERARCHY_NODE_INVALID) {
-            // Found a free slot. Setup the handle and id.
-            graph->node_handles[i] = i;
-            // If parent is INVALID_ID, then it is a root node. Otherwise,
-            // nest it below the parent in the hierarchy.
-            graph->levels[i] = parent_index == INVALID_ID ? 0 : graph->levels[parent_index] + 1;
-            graph->parent_indices[i] = parent_index;
-            graph->dirty_flags[i] = false;
-            graph->xform_handles[i] = xform_handle;
-
-            return graph->node_handles[i];
+            // Found a free slot.
+            node = i;
+            break;
         }
     }
 
-    // Reaching this point means there is no more space in the table. Realloc everything,
-    // and move to a larger list. Doubling the size should be sufficient.
-    u32 new_index = graph->nodes_allocated;
-    ensure_allocated(graph, graph->nodes_allocated ? (graph->nodes_allocated * 2) : 1);
+    if (node == KHIERARCHY_NODE_INVALID) {
+        // Invalid means there is no more space in the table. Realloc everything,
+        // and move to a larger list. Doubling the size should be sufficient.
+        // The first free slot will be in the newly allocated block, at the end of the existing block.
+        node = graph->nodes_allocated;
+        ensure_allocated(graph, graph->nodes_allocated ? (graph->nodes_allocated * 2) : 1);
+    }
 
-    // The first free slot will be in the newly allocated block, at the end of the existing block.
-    graph->node_handles[new_index] = new_index;
-    // If parent is INVALID_ID, then it is a root node. Otherwise,
+    graph->node_handles[node] = node;
+    // If parent is KHIERARCHY_NODE_INVALID, then it is a root node. Otherwise,
     // nest it below the parent in the hierarchy.
-    graph->levels[new_index] = parent_index == INVALID_ID ? 0 : graph->levels[parent_index] + 1;
-    graph->parent_indices[new_index] = parent_index;
-    graph->dirty_flags[new_index] = false;
-    graph->xform_handles[new_index] = xform_handle;
+    graph->levels[node] = parent_index == KHIERARCHY_NODE_INVALID ? 0 : graph->levels[parent_index] + 1;
+    graph->parent_indices[node] = parent_index;
+    graph->dirty_flags[node] = false;
+    graph->xform_handles[node] = xform_handle;
 
-    return graph->node_handles[new_index];
+    return node;
 }
 
 static void node_release(hierarchy_graph* graph, khierarchy_node* node_handle, b8 release_transform) {
@@ -304,8 +304,8 @@ static void node_release(hierarchy_graph* graph, khierarchy_node* node_handle, b
         child_levels_update(graph, graph->parent_indices[*node_handle]);
 
         // Release the node entry back into the list by invalidating all the fields.
-        graph->parent_indices[*node_handle] = INVALID_ID;
-        graph->levels[*node_handle] = INVALID_ID_U8;
+        graph->parent_indices[*node_handle] = KHIERARCHY_NODE_INVALID;
+        graph->levels[*node_handle] = 0;
         graph->dirty_flags[*node_handle] = false;
 
         // Release the xform (if needed) and invalidate the handle.
@@ -323,8 +323,8 @@ static void node_release(hierarchy_graph* graph, khierarchy_node* node_handle, b
 
 static void child_levels_update(hierarchy_graph* graph, u32 parent_index) {
     // If there is no parent, node becomes a root. Otherwise, nest below the parent.
-    u32 new_level = parent_index == INVALID_ID ? 0 : graph->levels[parent_index] + 1;
-    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+    u32 new_level = parent_index == KHIERARCHY_NODE_INVALID ? 0 : graph->levels[parent_index] + 1;
+    for (u32 i = 1; i < graph->nodes_allocated; ++i) {
         if (graph->parent_indices[i] == parent_index) {
             graph->levels[i] = new_level;
             // Recurse down the tree.
@@ -356,7 +356,7 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
         graph->parent_indices = new_parent_indices;
         // Invalidate all new entries in the array.
         for (u32 parent_index = graph->nodes_allocated; parent_index < new_node_count; ++parent_index) {
-            graph->parent_indices[parent_index] = INVALID_ID;
+            graph->parent_indices[parent_index] = KHIERARCHY_NODE_INVALID;
         }
 
         u8* new_levels = kallocate(sizeof(u8) * new_node_count, MEMORY_TAG_ARRAY);
@@ -402,7 +402,7 @@ static u32 hierarchy_node_create(hierarchy_graph_view* view, khierarchy_node nod
 }
 
 static void build_view_tree_node_children(hierarchy_graph* graph, u32 parent_index) {
-    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+    for (u32 i = 1; i < graph->nodes_allocated; ++i) {
         hierarchy_graph_view_node* parent = &graph->view.nodes[parent_index];
         if (graph->parent_indices[i] == parent->node_handle) {
             // Found a child.
@@ -425,7 +425,7 @@ static void build_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_vi
     out_view->nodes = darray_create(hierarchy_graph_view_node);
     out_view->root_indices = darray_create(u32);
 
-    for (u32 i = 0; i < graph->nodes_allocated; ++i) {
+    for (u32 i = 1; i < graph->nodes_allocated; ++i) {
         // Only work on root nodes.
         if (graph->node_handles[i] != KHIERARCHY_NODE_INVALID && graph->parent_indices[i] == KHIERARCHY_NODE_INVALID) {
             u32 root_index = hierarchy_node_create(out_view, graph->node_handles[i], graph->xform_handles[i], KTRANSFORM_INVALID);
@@ -470,7 +470,7 @@ static void destroy_view_tree(hierarchy_graph* graph, hierarchy_graph_view* view
 }
 
 static void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, u32 node_index) {
-    if (node_index == INVALID_ID) {
+    if (node_index == KHIERARCHY_NODE_INVALID) {
         return;
     }
 
