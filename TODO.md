@@ -17,6 +17,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Rework Material system to replace khandles with typedefed u16s.
   - [x] Renamed material_system -> kmaterial_system, along with all associated types.
 - [x] Rework Shader system to replace khandles with typedefed u16s.
+- [ ] Move renderer code out of kmaterial_system and into a kmaterial_renderer (or maybe just move to the bespoke renderer?)
 - [ ] Move scene to game code, game-specific.
   - [ ] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
   - [ ] Replace "node" config with "entity". Remove concept of attachments.
