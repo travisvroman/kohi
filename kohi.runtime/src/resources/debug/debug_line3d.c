@@ -1,7 +1,6 @@
 #include "debug_line3d.h"
 
-#include "identifiers/identifier.h"
-#include "identifiers/khandle.h"
+#include "core_resource_types.h"
 #include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
@@ -13,7 +12,7 @@
 static void recalculate_points(debug_line3d* line);
 static void update_vert_colour(debug_line3d* line);
 
-b8 debug_line3d_create(vec3 point_0, vec3 point_1, khandle parent_xform, debug_line3d* out_line) {
+b8 debug_line3d_create(vec3 point_0, vec3 point_1, ktransform parent_xform, debug_line3d* out_line) {
     if (!out_line) {
         return false;
     }
@@ -22,7 +21,6 @@ b8 debug_line3d_create(vec3 point_0, vec3 point_1, khandle parent_xform, debug_l
     // out_line->name // TODO: name?
     out_line->point_0 = point_0;
     out_line->point_1 = point_1;
-    out_line->id = identifier_create();
     out_line->colour = vec4_one(); // Default to white.
 
     out_line->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
@@ -36,11 +34,10 @@ void debug_line3d_destroy(debug_line3d* line) {
     if (line) {
         geometry_destroy(&line->geometry);
         kzero_memory(line, sizeof(debug_line3d));
-        line->id.uniqueid = INVALID_ID_U64;
     }
 }
 
-void debug_line3d_parent_set(debug_line3d* line, khandle parent_xform) {
+void debug_line3d_parent_set(debug_line3d* line, ktransform parent_xform) {
     if (line) {
         line->xform_parent = parent_xform;
     }
@@ -118,7 +115,8 @@ b8 debug_line3d_update(debug_line3d* line) {
 
 static void recalculate_points(debug_line3d* line) {
     if (line) {
-        colour_vertex_3d* verts = (colour_vertex_3d*)line->geometry.vertices;;
+        colour_vertex_3d* verts = (colour_vertex_3d*)line->geometry.vertices;
+        ;
         verts[0].position = vec4_from_vec3(line->point_0, 1.0f);
         verts[1].position = vec4_from_vec3(line->point_1, 1.0f);
     }

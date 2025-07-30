@@ -1,8 +1,7 @@
 #include "debug_box3d.h"
 
+#include "core_resource_types.h"
 #include "defines.h"
-#include "identifiers/identifier.h"
-#include "identifiers/khandle.h"
 #include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
@@ -11,7 +10,7 @@
 
 static void update_vert_colour(debug_box3d* box);
 
-b8 debug_box3d_create(vec3 size, khandle parent_xform, debug_box3d* out_box) {
+b8 debug_box3d_create(vec3 size, ktransform parent_xform, debug_box3d* out_box) {
     if (!out_box) {
         return false;
     }
@@ -19,7 +18,6 @@ b8 debug_box3d_create(vec3 size, khandle parent_xform, debug_box3d* out_box) {
     out_box->parent_xform = parent_xform;
     // out_box->name // TODO: name?
     out_box->size = size;
-    out_box->id = identifier_create();
     out_box->colour = vec4_one(); // Default to white.
 
     out_box->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
@@ -31,10 +29,9 @@ b8 debug_box3d_create(vec3 size, khandle parent_xform, debug_box3d* out_box) {
 
 void debug_box3d_destroy(debug_box3d* box) {
     // TODO: zero out, etc.
-    box->id.uniqueid = INVALID_ID_U64;
 }
 
-void debug_box3d_parent_set(debug_box3d* box, khandle parent_xform) {
+void debug_box3d_parent_set(debug_box3d* box, ktransform parent_xform) {
     if (box) {
         box->parent_xform = parent_xform;
     }

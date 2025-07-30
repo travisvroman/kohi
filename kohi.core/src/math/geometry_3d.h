@@ -1,4 +1,6 @@
-#include "identifiers/khandle.h"
+#pragma once
+
+#include "core_resource_types.h"
 #include "math_types.h"
 
 /**
@@ -18,9 +20,9 @@ typedef enum raycast_hit_type {
 
 typedef struct raycast_hit {
     raycast_hit_type type;
-    khandle xform_handle;
-    khandle node_handle;
-    khandle xform_parent_handle;
+    ktransform xform_handle;
+    khierarchy_node node_handle;
+    ktransform xform_parent_handle;
     vec3 position;
     f32 distance;
 } raycast_hit;

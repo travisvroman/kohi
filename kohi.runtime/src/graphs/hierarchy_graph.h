@@ -18,14 +18,15 @@
 #ifndef _XFORM_GRAPH_H_
 #define _XFORM_GRAPH_H_
 
-#include <identifiers/khandle.h>
+#include <core_resource_types.h>
 #include <math/math_types.h>
+#include <systems/xform_system.h>
 
 struct frame_data;
 
 typedef struct hierarchy_graph_view_node {
-    khandle node_handle;
-    khandle xform_handle;
+    khierarchy_node node_handle;
+    ktransform xform_handle;
 
     // An index into the view's nodes array. INVALID_ID if no parent.
     u32 parent_index;
@@ -50,7 +51,7 @@ typedef struct hierarchy_graph_view {
 typedef struct hierarchy_graph {
     u32 nodes_allocated;
     // Node indices. Populated nodes will match index in the array. Invalid handle = empty slot.
-    khandle* node_handles;
+    khierarchy_node* node_handles;
     // Parent indices in the internal node array.
     u32* parent_indices;
     // Levels within the hierarchy. 0 = a root node.
@@ -64,7 +65,7 @@ typedef struct hierarchy_graph {
     // NOTE: This can be an invalid handle, meaning that this node
     // does not have a transform. This allows nodes to exist in the hierarchy
     // which do not have transforms (i.e. a skybox doesn't need one).
-    khandle* xform_handles;
+    ktransform* xform_handles;
 
     // A view of the tree.
     hierarchy_graph_view view;
@@ -103,7 +104,7 @@ KAPI void hierarchy_graph_update(hierarchy_graph* graph);
  * @param node_handle The handle to the node to examine.
  * @returns Either a handle to an xform, or an invalid handle if the node (or an xform for it) doesn't exist.
  */
-KAPI khandle hierarchy_graph_xform_handle_get(const hierarchy_graph* graph, khandle node_handle);
+KAPI ktransform hierarchy_graph_xform_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
 /**
  * @brief Attempts to get the local transformation matrix for the given hierarchy node, if it exists and has a transform.
@@ -113,7 +114,7 @@ KAPI khandle hierarchy_graph_xform_handle_get(const hierarchy_graph* graph, khan
  * @param out_matrix A constant pointer to hold the matrix. Required.
  * @returns True if the node exists and has an existing xform; otherwise false.
  */
-KAPI b8 hierarchy_graph_xform_local_matrix_get(const hierarchy_graph* graph, khandle node_handle, mat4* out_matrix);
+KAPI b8 hierarchy_graph_xform_local_matrix_get(const hierarchy_graph* graph, khierarchy_node node_handle, mat4* out_matrix);
 
 /**
  * @brief Obtains the handle of the parent of the node provided. Will return an invalid handle if the
@@ -123,7 +124,7 @@ KAPI b8 hierarchy_graph_xform_local_matrix_get(const hierarchy_graph* graph, kha
  * @param node_handle The handle to the node to examine.
  * @returns Either a handle to a node, or an invalid handle if the node (or it's parent) doesn't exist.
  */
-KAPI khandle hierarchy_graph_parent_handle_get(const hierarchy_graph* graph, khandle node_handle);
+KAPI khierarchy_node hierarchy_graph_parent_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
 /**
  * @brief Obtains the xform handle of the parent of node provided. Will return an invalid handle if the
@@ -133,7 +134,7 @@ KAPI khandle hierarchy_graph_parent_handle_get(const hierarchy_graph* graph, kha
  * @param node_handle The handle to the node to examine.
  * @returns Either a handle to an xform, or an invalid handle if the node, its parent, or an xform for the parent doesn't exist.
  */
-KAPI khandle hierarchy_graph_parent_xform_handle_get(const hierarchy_graph* graph, khandle node_handle);
+KAPI ktransform hierarchy_graph_parent_xform_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
 /**
  * @brief Adds a new node to the root of the graph. Returns the handle to the new node.
@@ -141,7 +142,7 @@ KAPI khandle hierarchy_graph_parent_xform_handle_get(const hierarchy_graph* grap
  * @param graph A pointer to the graph to add the node to.
  * @returns A copy of the handle to the new node.
  */
-KAPI khandle hierarchy_graph_root_add(hierarchy_graph* graph);
+KAPI khierarchy_node hierarchy_graph_root_add(hierarchy_graph* graph);
 
 /**
  * @brief Adds a new node to the root of the graph and assigns the given xform handle to it. Returns the handle to the new node.
@@ -150,7 +151,7 @@ KAPI khandle hierarchy_graph_root_add(hierarchy_graph* graph);
  * @param xform_handle The handle to the xform to use when adding the node.
  * @returns A copy of the handle to the new node.
  */
-KAPI khandle hierarchy_graph_root_add_with_xform(hierarchy_graph* graph, khandle xform_handle);
+KAPI khierarchy_node hierarchy_graph_root_add_with_xform(hierarchy_graph* graph, ktransform xform_handle);
 
 /**
  * @brief Adds a new node to the given parent node within the graph. Returns the handle to the new node.
@@ -159,7 +160,7 @@ KAPI khandle hierarchy_graph_root_add_with_xform(hierarchy_graph* graph, khandle
  * @param parent_node_handle The handle to the node to add the new child node to.
  * @returns A copy of the handle to the new node.
  */
-KAPI khandle hierarchy_graph_child_add(hierarchy_graph* graph, khandle parent_node_handle);
+KAPI khierarchy_node hierarchy_graph_child_add(hierarchy_graph* graph, khierarchy_node parent_node_handle);
 
 /**
  * @brief Adds a new node to the given parent node within the graph and assigns the given xform handle to it.
@@ -170,7 +171,7 @@ KAPI khandle hierarchy_graph_child_add(hierarchy_graph* graph, khandle parent_no
  * @param xform_handle The handle to the xform to use when adding the node.
  * @returns A copy of the handle to the new node.
  */
-KAPI khandle hierarchy_graph_child_add_with_xform(hierarchy_graph* graph, khandle parent_node_handle, khandle xform_handle);
+KAPI khierarchy_node hierarchy_graph_child_add_with_xform(hierarchy_graph* graph, khierarchy_node parent_node_handle, ktransform xform_handle);
 
 /**
  * @brief Attempts to get the number of child nodes of the given parent node.
@@ -179,7 +180,7 @@ KAPI khandle hierarchy_graph_child_add_with_xform(hierarchy_graph* graph, khandl
  * @param parent_node_handle The handle to the parent node.
  * @returns The number of children under the parent. Can also return 0 if the parent was not found.
  */
-KAPI u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khandle parent_node_handle);
+KAPI u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khierarchy_node parent_node_handle);
 
 /**
  * @brief Attempts to get a handle to a child node of the given parent node, at the provided index.
@@ -189,7 +190,7 @@ KAPI u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khandle p
  * @param out_handle A pointer to hold the found handle if successful.
  * @returns True if a handle was found at the index; otherwise false.
  */
-KAPI b8 hierarchy_graph_child_get_by_index(const hierarchy_graph* graph, khandle parent_node_handle, u32 index, khandle* out_handle);
+KAPI b8 hierarchy_graph_child_get_by_index(const hierarchy_graph* graph, khierarchy_node parent_node_handle, u32 index, khierarchy_node* out_handle);
 
 /**
  * @brief Removes the given node from the hierarchy. This automatically handles reorganization of the
@@ -200,7 +201,7 @@ KAPI b8 hierarchy_graph_child_get_by_index(const hierarchy_graph* graph, khandle
  * @param node_handle A pointer to the handle of the node to be removed. Handle is invalidated upon completion.
  * @param release_xform Indicates if the associated xform (assuming there is one) should also be released.
  */
-KAPI void hierarchy_graph_node_remove(hierarchy_graph* graph, khandle* node_handle, b8 release_xform);
+KAPI void hierarchy_graph_node_remove(hierarchy_graph* graph, khierarchy_node* node_handle, b8 release_xform);
 
 /**
  * @brief Obtains the world rotation for the given node. Returns identity quaternion if xform (or node itself) does not exist.
@@ -209,7 +210,7 @@ KAPI void hierarchy_graph_node_remove(hierarchy_graph* graph, khandle* node_hand
  * @param node_handle The handle to the node to examine.
  * @returns The world rotation.
  */
-KAPI quat hierarchy_graph_world_rotation_get(const hierarchy_graph* graph, khandle node_handle);
+KAPI quat hierarchy_graph_world_rotation_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
 /**
  * @brief Obtains the world position for the given node. Returns a zero vector if xform (or node itself) does not exist.
@@ -218,7 +219,7 @@ KAPI quat hierarchy_graph_world_rotation_get(const hierarchy_graph* graph, khand
  * @param node_handle The handle to the node to examine.
  * @returns The world position.
  */
-KAPI vec3 hierarchy_graph_world_position_get(const hierarchy_graph* graph, khandle node_handle);
+KAPI vec3 hierarchy_graph_world_position_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
 /**
  * @brief Obtains the world scale for the given node. Returns {1, 1, 1} if xform (or node itself) does not exist.
@@ -227,6 +228,6 @@ KAPI vec3 hierarchy_graph_world_position_get(const hierarchy_graph* graph, khand
  * @param node_handle The handle to the node to examine.
  * @returns The world scale.
  */
-KAPI vec3 hierarchy_graph_world_scale_get(const hierarchy_graph* graph, khandle node_handle);
+KAPI vec3 hierarchy_graph_world_scale_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
 #endif

@@ -1,8 +1,14 @@
 #pragma once
 
-#include "containers/array.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
+
+typedef u32 ktransform;
+
+#define KTRANSFORM_INVALID 0
+
+typedef u32 khierarchy_node;
+#define KHIERARCHY_NODE_INVALID 0
 
 typedef struct kresource_info {
     kname resource_name;

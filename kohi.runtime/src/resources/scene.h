@@ -9,6 +9,7 @@
 #include "math/math_types.h"
 #include "resources/debug/debug_grid.h"
 #include "systems/static_mesh_system.h"
+#include "systems/xform_system.h"
 
 struct frame_data;
 struct render_packet;
@@ -43,7 +44,7 @@ typedef enum scene_state {
 typedef struct scene_attachment {
     scene_node_attachment_type attachment_type;
     // Handle into the hierarchy graph.
-    khandle hierarchy_node_handle;
+    khierarchy_node hierarchy_node_handle;
     // A handle indexing into the resource array of the given type (i.e. meshes).
     khandle resource_handle;
 
@@ -65,8 +66,6 @@ typedef u32 scene_flags;
 
 typedef struct scene_node_metadata {
     u32 index;
-    // Metadata considered stale/non-existant if INVALID_ID_U64
-    u64 uniqueid;
 
     // The name of the node.
     kname name;
@@ -257,9 +256,9 @@ KAPI b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direc
 
 KAPI b8 scene_water_plane_query(const scene* scene, const kfrustum* f, vec3 center, struct frame_data* p_frame_data, u32* out_count, struct water_plane*** out_water_planes);
 
-KAPI b8 scene_node_xform_get_by_name(const scene* scene, kname name, khandle* out_xform_handle);
-KAPI b8 scene_node_xform_get(const scene* scene, khandle node_handle, khandle* out_xform_handle);
-KAPI b8 scene_node_local_matrix_get(const scene* scene, khandle node_handle, mat4* out_matrix);
+KAPI b8 scene_node_xform_get_by_name(const scene* scene, kname name, ktransform* out_xform_handle);
+KAPI b8 scene_node_xform_get(const scene* scene, khierarchy_node node_handle, ktransform* out_xform_handle);
+KAPI b8 scene_node_local_matrix_get(const scene* scene, khierarchy_node node_handle, mat4* out_matrix);
 KAPI b8 scene_node_local_matrix_get_by_name(const scene* scene, kname name, mat4* out_matrix);
 
 KAPI b8 scene_node_exists(const scene* s, kname name);

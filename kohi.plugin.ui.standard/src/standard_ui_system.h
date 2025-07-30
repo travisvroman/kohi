@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "core_resource_types.h"
 #include <defines.h>
 #include <identifiers/identifier.h>
 #include <input_types.h>
@@ -62,14 +63,14 @@ typedef struct sui_keyboard_event {
 
 typedef struct sui_clip_mask {
     u32 reference_id;
-    khandle clip_xform;
+    ktransform clip_xform;
     kgeometry clip_geometry;
     geometry_render_data render_data;
 } sui_clip_mask;
 
 typedef struct sui_control {
     identifier id;
-    khandle xform;
+    ktransform xform;
     char* name;
     // TODO: Convert to flags.
     b8 is_active;

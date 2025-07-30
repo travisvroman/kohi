@@ -6,7 +6,7 @@
 #include <resources/resource_types.h>
 #include <systems/kcamera_system.h>
 
-#include "identifiers/khandle.h"
+#include "core_resource_types.h"
 
 #if KOHI_DEBUG
 #    include <resources/debug/debug_line3d.h>
@@ -64,11 +64,11 @@ typedef enum editor_gizmo_orientation {
 
 typedef struct editor_gizmo {
     /** @brief The transform of the gizmo. */
-    khandle xform_handle;
+    ktransform xform_handle;
     /** @brief A handle to the currently selected object's transform. Invalid handle if nothing is selected. */
-    khandle selected_xform_handle;
+    ktransform selected_xform_handle;
     /** @brief A handle to the parent of the currently selected object's transform, if one exists. Otherwise invalid handle. */
-    khandle selected_xform_parent_handle;
+    ktransform selected_xform_parent_handle;
     /** @brief The current mode of the gizmo. */
     editor_gizmo_mode mode;
 
@@ -100,7 +100,7 @@ KAPI b8 editor_gizmo_unload(editor_gizmo* gizmo);
 KAPI void editor_gizmo_refresh(editor_gizmo* gizmo);
 KAPI editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo);
 KAPI void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation);
-KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, khandle xform_handle, khandle parent_xform_handle);
+KAPI void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, ktransform xform_handle, ktransform parent_xform_handle);
 
 KAPI void editor_gizmo_update(editor_gizmo* gizmo);
 KAPI void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct frame_data* p_frame_data);

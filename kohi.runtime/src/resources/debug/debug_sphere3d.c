@@ -1,8 +1,7 @@
 #include "debug_sphere3d.h"
 
+#include "core_resource_types.h"
 #include "defines.h"
-#include "identifiers/identifier.h"
-#include "identifiers/khandle.h"
 #include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
@@ -11,7 +10,7 @@
 
 static void update_vert_colour(debug_sphere3d* sphere);
 
-b8 debug_sphere3d_create(f32 radius, vec4 colour, khandle parent_xform, debug_sphere3d* out_sphere) {
+b8 debug_sphere3d_create(f32 radius, vec4 colour, ktransform parent_xform, debug_sphere3d* out_sphere) {
     if (!out_sphere) {
         return false;
     }
@@ -20,7 +19,6 @@ b8 debug_sphere3d_create(f32 radius, vec4 colour, khandle parent_xform, debug_sp
     // out_sphere->name // TODO: name?
     out_sphere->radius = radius;
     out_sphere->colour = colour;
-    out_sphere->id = identifier_create();
 
     out_sphere->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
     out_sphere->geometry.generation = INVALID_ID_U16;
@@ -31,10 +29,9 @@ b8 debug_sphere3d_create(f32 radius, vec4 colour, khandle parent_xform, debug_sp
 
 void debug_sphere3d_destroy(debug_sphere3d* sphere) {
     // TODO: zero out, etc.
-    sphere->id.uniqueid = INVALID_ID_U64;
 }
 
-void debug_sphere3d_parent_set(debug_sphere3d* sphere, khandle parent_xform) {
+void debug_sphere3d_parent_set(debug_sphere3d* sphere, ktransform parent_xform) {
     if (sphere) {
         sphere->parent_xform = parent_xform;
     }
