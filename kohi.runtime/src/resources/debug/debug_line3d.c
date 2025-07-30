@@ -7,17 +7,17 @@
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "strings/kname.h"
-#include "systems/xform_system.h"
+#include "systems/ktransform_system.h"
 
 static void recalculate_points(debug_line3d* line);
 static void update_vert_colour(debug_line3d* line);
 
-b8 debug_line3d_create(vec3 point_0, vec3 point_1, ktransform parent_xform, debug_line3d* out_line) {
+b8 debug_line3d_create(vec3 point_0, vec3 point_1, ktransform parent_ktransform, debug_line3d* out_line) {
     if (!out_line) {
         return false;
     }
-    out_line->xform = xform_create();
-    out_line->xform_parent = parent_xform;
+    out_line->ktransform = ktransform_create();
+    out_line->ktransform_parent = parent_ktransform;
     // out_line->name // TODO: name?
     out_line->point_0 = point_0;
     out_line->point_1 = point_1;
@@ -37,9 +37,9 @@ void debug_line3d_destroy(debug_line3d* line) {
     }
 }
 
-void debug_line3d_parent_set(debug_line3d* line, ktransform parent_xform) {
+void debug_line3d_parent_set(debug_line3d* line, ktransform parent_ktransform) {
     if (line) {
-        line->xform_parent = parent_xform;
+        line->ktransform_parent = parent_ktransform;
     }
 }
 

@@ -11,6 +11,9 @@ Changelog
   - Added KASSERT_DEBUG_MSG, which is an assertion that is only included in debug builds and also takes in a string message for context.
   - Removed khandles from the renderer and renderer backends.
   - Reworked timeline system to use typedefed u16s (ktimeline) in place of khandles.
+  - Renamed xform -> ktransform. All code reference updated.
+  - Reworked ktransform system to use typedefed u32s(ktransform) in place of khandles.
+  - Reworked hierarchy graph to use typedefed u32s(khierarchy_node) in place of khandles.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

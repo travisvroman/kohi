@@ -32,9 +32,9 @@ struct debug_box3d;
 struct kaudio_system_state;
 
 typedef struct selected_object {
-    khandle xform_handle;
+    khandle ktransform_handle;
     khandle node_handle;
-    khandle xform_parent_handle;
+    khandle ktransform_parent_handle;
 } selected_object;
 
 typedef struct application_state {

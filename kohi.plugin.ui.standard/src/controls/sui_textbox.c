@@ -3,7 +3,6 @@
 #include <containers/darray.h>
 #include <core/event.h>
 #include <core/input.h>
-#include <core/systems_manager.h>
 #include <defines.h>
 #include <logger.h>
 #include <math/geometry.h>
@@ -14,7 +13,7 @@
 #include <strings/kstring.h>
 #include <systems/font_system.h>
 #include <systems/kshader_system.h>
-#include <systems/xform_system.h>
+#include <systems/ktransform_system.h>
 
 #include "../standard_ui_system.h"
 #include "controls/sui_label.h"
@@ -67,10 +66,10 @@ static void sui_textbox_update_highlight_box(standard_ui_state* state, sui_contr
     f32 width = offset_end - offset_start;
     /* f32 padding = typed_data->nslice.corner_size.x; */
 
-    vec3 initial_pos = xform_position_get(typed_data->highlight_box.xform);
+    vec3 initial_pos = ktransform_position_get(typed_data->highlight_box.ktransform);
     initial_pos.y = -typed_data->label_line_height + 10.0f;
-    xform_position_set(typed_data->highlight_box.xform, (vec3){offset_start, initial_pos.y, initial_pos.z});
-    xform_scale_set(typed_data->highlight_box.xform, (vec3){width, 1.0f, 1.0f});
+    ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){offset_start, initial_pos.y, initial_pos.z});
+    ktransform_scale_set(typed_data->highlight_box.ktransform, (vec3){width, 1.0f, 1.0f});
 }
 
 static void sui_textbox_update_cursor_position(standard_ui_state* state, sui_control* self) {
@@ -107,11 +106,11 @@ static void sui_textbox_update_cursor_position(standard_ui_state* state, sui_con
     // Save the view offset.
     typed_data->text_view_offset += diff;
     // Translate the label forward/backward to line up with the cursor, taking padding into account.
-    vec3 label_pos = xform_position_get(typed_data->content_label.xform);
-    xform_position_set(typed_data->content_label.xform, (vec3){padding + typed_data->text_view_offset, label_pos.y, label_pos.z});
+    vec3 label_pos = ktransform_position_get(typed_data->content_label.ktransform);
+    ktransform_position_set(typed_data->content_label.ktransform, (vec3){padding + typed_data->text_view_offset, label_pos.y, label_pos.z});
 
     // Translate the cursor to it's new position.
-    xform_position_set(typed_data->cursor.xform, cursor_pos);
+    ktransform_position_set(typed_data->cursor.ktransform, cursor_pos);
 }
 
 b8 sui_textbox_control_create(standard_ui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, struct sui_control* out_control) {
@@ -255,7 +254,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 
     typed_data->clip_mask.render_data.diffuse_colour = vec4_zero(); // transparent;
 
-    typed_data->clip_mask.clip_xform = xform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
+    typed_data->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
 
     // Acquire group resources for this control.
     kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));
@@ -286,7 +285,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
         // clipping mask is attached and drawn. See the render function for the other half of this.
         // TODO: Adjustable padding
         typed_data->content_label.parent = self;
-        xform_position_set(typed_data->content_label.xform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 5.0f, 0.0f}); // padding/2 for y
+        ktransform_position_set(typed_data->content_label.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 5.0f, 0.0f}); // padding/2 for y
         typed_data->content_label.is_active = true;
         if (!standard_ui_system_update_active(state, &typed_data->content_label)) {
             KERROR("Unable to update active state for textbox system text.");
@@ -307,7 +306,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
             KERROR("Failed to parent textbox system text.");
         } else {
             // Set an initial position.
-            xform_position_set(typed_data->cursor.xform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
+            ktransform_position_set(typed_data->cursor.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
             typed_data->cursor.is_active = true;
             if (!standard_ui_system_update_active(state, &typed_data->cursor)) {
                 KERROR("Unable to update active state for textbox cursor.");
@@ -332,7 +331,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
         // clipping mask is attached and drawn. See the render function for the other half of this.
 
         // Set an initial position.
-        xform_position_set(typed_data->highlight_box.xform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
+        ktransform_position_set(typed_data->highlight_box.ktransform, (vec3){typed_data->nslice.corner_size.x, typed_data->label_line_height - 4.0f, 0.0f});
         typed_data->highlight_box.is_active = true;
         typed_data->highlight_box.is_visible = false;
         /* typed_data->highlight_box.parent = self; */
@@ -362,20 +361,20 @@ b8 sui_textbox_control_update(standard_ui_state* state, struct sui_control* self
     }
 
     sui_textbox_internal_data* typed_data = self->internal_data;
-    mat4 parent_world = xform_world_get(self->xform);
+    mat4 parent_world = ktransform_world_get(self->ktransform);
 
-    // Update clip mask xform
-    xform_calculate_local(typed_data->clip_mask.clip_xform);
-    mat4 local = xform_local_get(typed_data->clip_mask.clip_xform);
+    // Update clip mask ktransform
+    ktransform_calculate_local(typed_data->clip_mask.clip_ktransform);
+    mat4 local = ktransform_local_get(typed_data->clip_mask.clip_ktransform);
     mat4 self_world = mat4_mul(local, parent_world);
-    xform_world_set(typed_data->clip_mask.clip_xform, self_world);
+    ktransform_world_set(typed_data->clip_mask.clip_ktransform, self_world);
 
-    // Update highlight box xform
+    // Update highlight box ktransform
     // FIXME: The transform of this highlight box is wrong.
-    xform_calculate_local(typed_data->highlight_box.xform);
-    mat4 hb_local = xform_local_get(typed_data->highlight_box.xform);
+    ktransform_calculate_local(typed_data->highlight_box.ktransform);
+    mat4 hb_local = ktransform_local_get(typed_data->highlight_box.ktransform);
     mat4 hb_world = mat4_mul(hb_local, parent_world);
-    xform_world_set(typed_data->highlight_box.xform, hb_world);
+    ktransform_world_set(typed_data->highlight_box.ktransform, hb_world);
     return true;
 }
 
@@ -395,7 +394,7 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
         renderable.render_data.index_count = typed_data->nslice.index_data.element_count;
         renderable.render_data.index_element_size = typed_data->nslice.index_data.element_size;
         renderable.render_data.index_buffer_offset = typed_data->nslice.index_data.buffer_offset;
-        renderable.render_data.model = xform_world_get(self->xform);
+        renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.group_id = &typed_data->group_id;
@@ -416,7 +415,7 @@ b8 sui_textbox_control_render(standard_ui_state* state, struct sui_control* self
     if (string_utf8_length(sui_label_text_get(state, &typed_data->content_label))) {
         // Attach clipping mask to text, which would be the last element added.
         u32 renderable_count = darray_length(render_data->renderables);
-        typed_data->clip_mask.render_data.model = xform_world_get(typed_data->clip_mask.clip_xform);
+        typed_data->clip_mask.render_data.model = ktransform_world_get(typed_data->clip_mask.clip_ktransform);
         render_data->renderables[renderable_count - 1].clip_mask_render_data = &typed_data->clip_mask.render_data;
     }
 

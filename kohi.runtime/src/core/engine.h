@@ -32,7 +32,7 @@ struct shader_system_state;
 struct renderer_system_state;
 struct job_system_state;
 struct kaudio_system_state;
-struct xform_system_state;
+struct ktransform_system_state;
 struct texture_system_state;
 struct font_system_state;
 struct kmaterial_system_state;
@@ -76,8 +76,8 @@ typedef struct engine_system_states {
     u64 kaudio_system_memory_requirement;
     struct kaudio_system_state* audio_system;
 
-    u64 xform_system_memory_requirement;
-    struct xform_system_state* xform_system;
+    u64 ktransform_system_memory_requirement;
+    struct ktransform_system_state* ktransform_system;
 
     u64 texture_system_memory_requirement;
     struct texture_system_state* texture_system;

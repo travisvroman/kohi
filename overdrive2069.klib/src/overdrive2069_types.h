@@ -66,8 +66,8 @@ typedef struct game_state {
     f32 editor_camera_backward_move_speed;
 
     // HACK: Gameplay stuff
-    khandle test_vehicle_xform;
-    khandle test_vehicle_mesh_xform;
+    khandle test_vehicle_ktransform;
+    khandle test_vehicle_mesh_ktransform;
 } game_state;
 
 typedef struct overdrive_2069_frame_data {

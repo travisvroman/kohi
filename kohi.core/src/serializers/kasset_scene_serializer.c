@@ -218,10 +218,10 @@ static b8 serialize_node(scene_node_config* node, kson_object* node_obj) {
         }
     }
 
-    // Xform as a string, if it exists.
-    if (node->xform_source) {
-        if (!kson_object_value_add_string(node_obj, "xform", node->xform_source)) {
-            KERROR("Failed to add 'xform' property for node '%s'.", node_name);
+    // ktransform as a string, if it exists.
+    if (node->ktransform_source) {
+        if (!kson_object_value_add_string(node_obj, "ktransform", node->ktransform_source)) {
+            KERROR("Failed to add 'ktransform' property for node '%s'.", node_name);
             return false;
         }
     }
@@ -650,8 +650,8 @@ static b8 deserialize_node(kasset_scene* asset, scene_node_config* node, kson_ob
     // Get name, if defined. Not required.
     kson_object_property_value_get_string_as_kname(node_obj, "name", &node->name);
 
-    // Get Xform as a string, if it exists. Optional.
-    kson_object_property_value_get_string(node_obj, "xform", &node->xform_source);
+    // Get ktransform as a string, if it exists. Optional.
+    kson_object_property_value_get_string(node_obj, "ktransform", &node->ktransform_source);
 
     // Process attachments if there are any. These are optional.
     kson_array attachment_obj_array = {0};

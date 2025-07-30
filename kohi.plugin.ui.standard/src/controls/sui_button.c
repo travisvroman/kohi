@@ -1,7 +1,6 @@
 #include "sui_button.h"
 
 #include <containers/darray.h>
-#include <core/systems_manager.h>
 #include <logger.h>
 #include <math/kmath.h>
 #include <memory/kmemory.h>
@@ -144,7 +143,7 @@ b8 sui_button_control_render(standard_ui_state* state, struct sui_control* self,
         renderable.render_data.index_count = typed_data->nslice.index_data.element_count;
         renderable.render_data.index_element_size = typed_data->nslice.index_data.element_size;
         renderable.render_data.index_buffer_offset = typed_data->nslice.index_data.buffer_offset;
-        renderable.render_data.model = xform_world_get(self->xform);
+        renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = vec4_one(); // white. TODO: pull from object properties.
 
         renderable.group_id = &typed_data->group_id;

@@ -60,7 +60,7 @@
 #include <editor/editor_gizmo.h>
 
 // Game files
-#include "systems/xform_system.h"
+#include "systems/ktransform_system.h"
 #include "track.h"
 
 struct kaudio_system_state;
@@ -363,12 +363,12 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
 
         editor_gizmo_update(&state->gizmo);
 
-        if (khandle_is_valid(state->test_vehicle_xform)) {
+        if (khandle_is_valid(state->test_vehicle_ktransform)) {
 
-            mat4 vehicle_xform = xform_local_get(state->test_vehicle_xform);
-            vec3 vehicle_position = mat4_position(vehicle_xform);
-            vec3 forward = mat4_forward(vehicle_xform);
-            vec3 right = mat4_right(vehicle_xform);
+            mat4 vehicle_ktransform = ktransform_local_get(state->test_vehicle_ktransform);
+            vec3 vehicle_position = mat4_position(vehicle_ktransform);
+            vec3 forward = mat4_forward(vehicle_ktransform);
+            vec3 right = mat4_right(vehicle_ktransform);
             f32 delta = get_engine_delta_time();
 
             // HACK: Should be stored elsewhere
@@ -380,48 +380,48 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
                 // Move the vehicle
                 if (input_is_key_down(KEY_W)) {
                     velocity = vec3_add(velocity, vec3_mul_scalar(forward, delta * vehicle_speed));
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * vehicle_speed));
+                    // ktransform_translate(state->test_vehicle_ktransform, vec3_mul_scalar(forward, delta * vehicle_speed));
                 }
                 if (input_is_key_down(KEY_S)) {
                     velocity = vec3_add(velocity, vec3_mul_scalar(forward, delta * -vehicle_speed));
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(forward, delta * -vehicle_speed));
+                    // ktransform_translate(state->test_vehicle_ktransform, vec3_mul_scalar(forward, delta * -vehicle_speed));
                 }
                 if (input_is_key_down(KEY_Q)) {
                     velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * -vehicle_speed));
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * -vehicle_speed));
+                    // ktransform_translate(state->test_vehicle_ktransform, vec3_mul_scalar(right, delta * -vehicle_speed));
                 }
                 if (input_is_key_down(KEY_E)) {
                     velocity = vec3_add(velocity, vec3_mul_scalar(right, delta * vehicle_speed));
-                    // xform_translate(state->test_vehicle_xform, vec3_mul_scalar(right, delta * vehicle_speed));
+                    // ktransform_translate(state->test_vehicle_ktransform, vec3_mul_scalar(right, delta * vehicle_speed));
                 }
                 if (input_is_key_down(KEY_A)) {
                     quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, -vehicle_turn_speed * delta, false);
-                    xform_rotate(state->test_vehicle_xform, rotation);
+                    ktransform_rotate(state->test_vehicle_ktransform, rotation);
                 }
                 if (input_is_key_down(KEY_D)) {
                     quat rotation = quat_from_axis_angle((vec3){0, 1, 0}, vehicle_turn_speed * delta, false);
-                    xform_rotate(state->test_vehicle_xform, rotation);
+                    ktransform_rotate(state->test_vehicle_ktransform, rotation);
                 }
             }
 
             // Constrain to the track.
-            vehicle_xform = xform_local_get(state->test_vehicle_xform);
-            vehicle_position = mat4_position(vehicle_xform);
+            vehicle_ktransform = ktransform_local_get(state->test_vehicle_ktransform);
+            vehicle_position = mat4_position(vehicle_ktransform);
 
             vec3 surface_normal = vec3_up();
             vehicle_position = constrain_to_track(vehicle_position, velocity, &state->collision_track, &surface_normal);
-            // xform_position_set(state->test_vehicle_xform, vec3_add(vehicle_position, velocity));
-            xform_position_set(state->test_vehicle_xform, vehicle_position);
+            // ktransform_position_set(state->test_vehicle_ktransform, vec3_add(vehicle_position, velocity));
+            ktransform_position_set(state->test_vehicle_ktransform, vehicle_position);
             // KTRACE("surface normal: %.2f, %.2f, %.2f", surface_normal.x, surface_normal.y, surface_normal.z);
 
             // TODO: This doesn't seem to be working correctly...
             quat vehicle_rotation_from_normal = quat_from_surface_normal(surface_normal, vec3_up());
-            xform_rotation_set(state->test_vehicle_mesh_xform, vehicle_rotation_from_normal);
-            xform_calculate_local(state->test_vehicle_mesh_xform);
+            ktransform_rotation_set(state->test_vehicle_mesh_ktransform, vehicle_rotation_from_normal);
+            ktransform_calculate_local(state->test_vehicle_mesh_ktransform);
 
-            xform_calculate_local(state->test_vehicle_xform);
+            ktransform_calculate_local(state->test_vehicle_ktransform);
 
-            vehicle_xform = xform_local_get(state->test_vehicle_xform);
+            vehicle_ktransform = ktransform_local_get(state->test_vehicle_ktransform);
 
             // Update vehicle camera to follow.
             f32 chase_distance = 10.0;
@@ -578,10 +578,10 @@ VSync: %s Drawn: %-5u (%-5u shadow pass), Mode: %s, Run time: %s",
         sound_up = camera_up(state->current_camera);
     } else if (state->mode == GAME_MODE_WORLD) {
         // In world mode, the sound follows the vehicle.
-        mat4 vehicle_xform = xform_local_get(state->test_vehicle_xform);
-        sound_pos = mat4_position(vehicle_xform);
-        sound_forward = mat4_forward(vehicle_xform);
-        sound_up = mat4_up(vehicle_xform);
+        mat4 vehicle_ktransform = ktransform_local_get(state->test_vehicle_ktransform);
+        sound_pos = mat4_position(vehicle_ktransform);
+        sound_forward = mat4_forward(vehicle_ktransform);
+        sound_up = mat4_up(vehicle_ktransform);
     } else {
         // The fallback case acts like editor mode, where the sound follows the camera.
         sound_pos = pos;
@@ -999,7 +999,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                 debug_line3d* line = &state->test_lines[i];
                 debug_line3d_render_frame_prepare(line, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(line->xform);
+                rd.model = ktransform_world_get(line->ktransform);
                 kgeometry* g = &line->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
@@ -1016,7 +1016,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
                 debug_box3d* box = &state->test_boxes[i];
                 debug_box3d_render_frame_prepare(box, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(box->xform);
+                rd.model = ktransform_world_get(box->ktransform);
                 kgeometry* g = &box->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
@@ -1457,11 +1457,11 @@ static void game_on_load_scene(keys key, keymap_entry_bind_type type, keymap_mod
             return;
         }
 
-        if (!scene_node_xform_get_by_name(&state->track_scene, kname_create("test_vehicle"), &state->test_vehicle_xform)) {
+        if (!scene_node_ktransform_get_by_name(&state->track_scene, kname_create("test_vehicle"), &state->test_vehicle_ktransform)) {
             KERROR("Unable to get test vehicle.");
         }
 
-        if (!scene_node_xform_get_by_name(&state->track_scene, kname_create("vehicle_mesh"), &state->test_vehicle_mesh_xform)) {
+        if (!scene_node_ktransform_get_by_name(&state->track_scene, kname_create("vehicle_mesh"), &state->test_vehicle_mesh_ktransform)) {
             KERROR("Unable to get test vehicle mesh.");
         }
 

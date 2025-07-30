@@ -20,7 +20,7 @@
 #include <math/geometry.h>
 #include <math/math_types.h>
 #include <renderer/renderer_types.h>
-#include <systems/xform_system.h>
+#include <systems/ktransform_system.h>
 
 struct frame_data;
 struct standard_ui_state;
@@ -63,14 +63,14 @@ typedef struct sui_keyboard_event {
 
 typedef struct sui_clip_mask {
     u32 reference_id;
-    ktransform clip_xform;
+    ktransform clip_ktransform;
     kgeometry clip_geometry;
     geometry_render_data render_data;
 } sui_clip_mask;
 
 typedef struct sui_control {
     identifier id;
-    ktransform xform;
+    ktransform ktransform;
     char* name;
     // TODO: Convert to flags.
     b8 is_active;

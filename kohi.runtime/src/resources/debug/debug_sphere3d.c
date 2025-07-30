@@ -6,16 +6,16 @@
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "renderer/renderer_frontend.h"
-#include "systems/xform_system.h"
+#include "systems/ktransform_system.h"
 
 static void update_vert_colour(debug_sphere3d* sphere);
 
-b8 debug_sphere3d_create(f32 radius, vec4 colour, ktransform parent_xform, debug_sphere3d* out_sphere) {
+b8 debug_sphere3d_create(f32 radius, vec4 colour, ktransform parent_ktransform, debug_sphere3d* out_sphere) {
     if (!out_sphere) {
         return false;
     }
-    out_sphere->xform = xform_create();
-    out_sphere->parent_xform = parent_xform;
+    out_sphere->ktransform = ktransform_create();
+    out_sphere->parent_ktransform = parent_ktransform;
     // out_sphere->name // TODO: name?
     out_sphere->radius = radius;
     out_sphere->colour = colour;
@@ -31,9 +31,9 @@ void debug_sphere3d_destroy(debug_sphere3d* sphere) {
     // TODO: zero out, etc.
 }
 
-void debug_sphere3d_parent_set(debug_sphere3d* sphere, ktransform parent_xform) {
+void debug_sphere3d_parent_set(debug_sphere3d* sphere, ktransform parent_ktransform) {
     if (sphere) {
-        sphere->parent_xform = parent_xform;
+        sphere->parent_ktransform = parent_ktransform;
     }
 }
 

@@ -172,6 +172,6 @@ typedef struct scene_node_config {
     u32 child_count;
     /** @brief An array of of children within this node. */
     struct scene_node_config* children;
-    // String representation of xform, processed by the scene when needed.
-    const char* xform_source;
+    // String representation of ktransform, processed by the scene when needed.
+    const char* ktransform_source;
 } scene_node_config;

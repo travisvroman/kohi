@@ -33,9 +33,9 @@
 #include "strings/kstring_id.h"
 #include "systems/asset_system.h"
 #include "systems/kmaterial_system.h"
+#include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/static_mesh_system.h"
-#include "systems/xform_system.h"
 #include "utils/ksort.h"
 
 static void scene_actual_unload(scene* scene);
@@ -285,18 +285,18 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
     if (node_config) {
         b8 is_readonly = ((s->flags & SCENE_FLAG_READONLY) != 0);
 
-        // Obtain the xform if one is configured.
-        ktransform xform_handle = {0};
-        if (node_config->xform_source) {
-            if (!xform_from_string(node_config->xform_source, &xform_handle)) {
-                KWARN("Failed to create xform. See logs for details.");
+        // Obtain the ktransform if one is configured.
+        ktransform ktransform_handle = {0};
+        if (node_config->ktransform_source) {
+            if (!ktransform_from_string(node_config->ktransform_source, &ktransform_handle)) {
+                KWARN("Failed to create ktransform. See logs for details.");
             }
         } else {
-            xform_handle = KTRANSFORM_INVALID;
+            ktransform_handle = KTRANSFORM_INVALID;
         }
 
         // Add a node in the heirarchy.
-        khierarchy_node hierarchy_node_handle = hierarchy_graph_child_add_with_xform(&s->hierarchy, parent_handle, xform_handle);
+        khierarchy_node hierarchy_node_handle = hierarchy_graph_child_add_with_ktransform(&s->hierarchy, parent_handle, ktransform_handle);
 
         if (!is_readonly) {
             scene_node_metadata_ensure_allocated(s, hierarchy_node_handle);
@@ -460,7 +460,7 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                 if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, KTRANSFORM_INVALID, &debug->box)) {
                     KERROR("Failed to create debug box for point light.");
                 } else {
-                    xform_position_set(debug->box.xform, vec3_from_vec4(new_light.data.position));
+                    ktransform_position_set(debug->box.ktransform, vec3_from_vec4(new_light.data.position));
                 }
                 if (!debug_box3d_initialize(&debug->box)) {
                     KERROR("Failed to create debug box for point light.");
@@ -509,8 +509,8 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                 scene_node_attachment_audio_emitter_config* typed_attachment_config = &node_config->audio_emitter_configs[i];
 
                 /* vec3 pos = vec3_zero();
-                if (khandle_is_valid(xform_handle)) {
-                    pos = xform_position_get(xform_handle);
+                if (khandle_is_valid(ktransform_handle)) {
+                    pos = ktransform_position_get(ktransform_handle);
                 } */
 
                 scene_audio_emitter new_emitter = {0};
@@ -536,7 +536,7 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                 if (!debug_sphere3d_create(typed_attachment_config->outer_radius, (vec4){1.0f, 0.5f, 0.0f, 1.0f}, KTRANSFORM_INVALID, &debug->sphere)) {
                     KERROR("Failed to create debug sphere for audio emitter.");
                 } else {
-                    // xform_position_set(debug->sphere.xform, new_emitter.data.position);
+                    // ktransform_position_set(debug->sphere.ktransform, new_emitter.data.position);
                 }
                 if (!debug_sphere3d_initialize(&debug->sphere)) {
                     KERROR("Failed to create debug sphere for audio emitter.");
@@ -805,19 +805,19 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                 case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
                     new_volume.shape_config.radius = typed_attachment_config->shape_config.radius;
                     // Create debug sphere TODO: colour?
-                    if (!debug_sphere3d_create(typed_attachment_config->shape_config.radius, (vec4){1.0f, 0.0f, 1.0f, 1.0f}, xform_handle, &debug->sphere)) {
+                    if (!debug_sphere3d_create(typed_attachment_config->shape_config.radius, (vec4){1.0f, 0.0f, 1.0f, 1.0f}, ktransform_handle, &debug->sphere)) {
                         KERROR("Failed to create debug sphere for sphere volume.");
                     } else {
-                        // xform_position_set(debug->sphere.xform, new_emitter.data.position);
+                        // ktransform_position_set(debug->sphere.ktransform, new_emitter.data.position);
                     }
                     init_result = debug_sphere3d_initialize(&debug->sphere);
                     break;
                 case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
                     new_volume.shape_config.extents = typed_attachment_config->shape_config.extents;
-                    if (!debug_box3d_create(typed_attachment_config->shape_config.extents, xform_handle, &debug->box)) {
+                    if (!debug_box3d_create(typed_attachment_config->shape_config.extents, ktransform_handle, &debug->box)) {
                         KERROR("Failed to create debug box for rectangle volume.");
                     } else {
-                        /* xform_position_set(debug->box.xform, vec3_from_vec4(new_volume.data.position)); */
+                        /* ktransform_position_set(debug->box.ktransform, vec3_from_vec4(new_volume.data.position)); */
                     }
                     init_result = debug_box3d_initialize(&debug->box);
 
@@ -882,7 +882,7 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                 if (!debug_sphere3d_create(typed_attachment_config->radius, (vec4){0.0f, 0.5f, 1.0f, 1.0f}, KTRANSFORM_INVALID, &debug->sphere)) {
                     KERROR("Failed to create debug sphere for hit sphere.");
                 } else {
-                    // xform_position_set(debug->sphere.xform, new_emitter.data.position);
+                    // ktransform_position_set(debug->sphere.ktransform, new_emitter.data.position);
                 }
 
                 if (debug_sphere3d_initialize(&debug->sphere)) {
@@ -1058,17 +1058,17 @@ b8 scene_load(scene* scene) {
             scene_audio_emitter* emitter = &scene->audio_emitters[i];
 
             scene_attachment* emitter_attachment = &scene->audio_emitter_attachments[i];
-            ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, emitter_attachment->hierarchy_node_handle);
+            ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, emitter_attachment->hierarchy_node_handle);
 
             mat4 world;
-            if (xform_handle != KTRANSFORM_INVALID) {
-                world = xform_world_get(xform_handle);
+            if (ktransform_handle != KTRANSFORM_INVALID) {
+                world = ktransform_world_get(ktransform_handle);
             } else {
                 // TODO: traverse tree to try and find a ancestor node with a transform.
                 world = mat4_identity();
             }
 
-            // Get world position for the audio emitter based on it's owning node's xform.
+            // Get world position for the audio emitter based on it's owning node's ktransform.
             vec3 emitter_world_pos = mat4_position(world);
             kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
 
@@ -1187,18 +1187,18 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                 // Get world position of the volume.
 
                 scene_attachment* vol_attachment = &scene->volume_attachments[i];
-                /* khandle vol_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, vol_attachment->hierarchy_node_handle); */
+                /* khandle vol_ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, vol_attachment->hierarchy_node_handle); */
 
                 // World position and rotation.
-                /* vec3 vol_world_pos = hierarchy_graph_world_position_get(&scene->hierarchy, vol_xform_handle); */
-                /* quat vol_world_rot = hierarchy_graph_world_rotation_get(&scene->hierarchy, vol_xform_handle); */
+                /* vec3 vol_world_pos = hierarchy_graph_world_position_get(&scene->hierarchy, vol_ktransform_handle); */
+                /* quat vol_world_rot = hierarchy_graph_world_rotation_get(&scene->hierarchy, vol_ktransform_handle); */
 
                 // HACK:
-                ktransform vol_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, vol_attachment->hierarchy_node_handle);
+                ktransform vol_ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, vol_attachment->hierarchy_node_handle);
 
                 mat4 world;
-                if (vol_xform_handle != KTRANSFORM_INVALID) {
-                    world = xform_world_get(vol_xform_handle);
+                if (vol_ktransform_handle != KTRANSFORM_INVALID) {
+                    world = ktransform_world_get(vol_ktransform_handle);
                 } else {
                     // TODO: traverse tree to try and find a ancestor node with a transform.
                     world = mat4_identity();
@@ -1219,18 +1219,18 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                         // Get world position of the current hit sphere.
                         /* scene_attachment* hs_attachment = &scene->hit_sphere_attachments[j];
                         khandle hs_hierarchy_node_handle = hs_attachment->hierarchy_node_handle;
-                        khandle hs_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, hs_hierarchy_node_handle);
+                        khandle hs_ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, hs_hierarchy_node_handle);
 
                         // NOTE: Ignoring rotation and scale.
-                        vec3 hit_sphere_world_pos = hierarchy_graph_world_position_get(&scene->hierarchy, hs_xform_handle); */
+                        vec3 hit_sphere_world_pos = hierarchy_graph_world_position_get(&scene->hierarchy, hs_ktransform_handle); */
 
                         // HACK: see if this works
                         scene_attachment* hs_attachment = &scene->hit_sphere_attachments[j];
-                        ktransform hs_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, hs_attachment->hierarchy_node_handle);
+                        ktransform hs_ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, hs_attachment->hierarchy_node_handle);
 
                         mat4 world;
-                        if (hs_xform_handle != KTRANSFORM_INVALID) {
-                            world = xform_world_get(hs_xform_handle);
+                        if (hs_ktransform_handle != KTRANSFORM_INVALID) {
+                            world = ktransform_world_get(hs_ktransform_handle);
                         } else {
                             // TODO: traverse tree to try and find a ancestor node with a transform.
                             world = mat4_identity();
@@ -1313,11 +1313,11 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                 // Update the point light's data position (world position) to take into account
                 // the owning node's transform.
                 scene_attachment* point_light_attachment = &scene->point_light_attachments[i];
-                ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, point_light_attachment->hierarchy_node_handle);
+                ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, point_light_attachment->hierarchy_node_handle);
 
                 mat4 world;
-                if (xform_handle != KTRANSFORM_INVALID) {
-                    world = xform_world_get(xform_handle);
+                if (ktransform_handle != KTRANSFORM_INVALID) {
+                    world = ktransform_world_get(ktransform_handle);
                 } else {
                     // TODO: traverse tree to try and find a ancestor node with a transform.
                     world = mat4_identity();
@@ -1335,7 +1335,7 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                     scene_debug_data* debug = (scene_debug_data*)scene->point_lights[i].debug_data;
                     if (debug->box.geometry.generation != INVALID_ID_U16) {
                         // Update transform.
-                        xform_position_set(debug->box.xform, vec3_from_vec4(scene->point_lights[i].data.position));
+                        ktransform_position_set(debug->box.ktransform, vec3_from_vec4(scene->point_lights[i].data.position));
 
                         // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
                         // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
@@ -1354,17 +1354,17 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                 // Update the audio emitter's data position (world position) to take into account
                 // the owning node's transform.
                 scene_attachment* emitter_attachment = &scene->audio_emitter_attachments[i];
-                ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, emitter_attachment->hierarchy_node_handle);
+                ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, emitter_attachment->hierarchy_node_handle);
 
                 mat4 world;
-                if (xform_handle != KTRANSFORM_INVALID) {
-                    world = xform_world_get(xform_handle);
+                if (ktransform_handle != KTRANSFORM_INVALID) {
+                    world = ktransform_world_get(ktransform_handle);
                 } else {
                     // TODO: traverse tree to try and find a ancestor node with a transform.
                     world = mat4_identity();
                 }
 
-                // Get world position for the audio emitter based on it's owning node's xform and set it.
+                // Get world position for the audio emitter based on it's owning node's ktransform and set it.
                 vec3 emitter_world_pos = mat4_position(world);
                 kaudio_emitter_world_position_set(audio_state, emitter->emitter, emitter_world_pos);
             }
@@ -1387,16 +1387,16 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                 if (!debug_box3d_create((vec3){0.2f, 0.2f, 0.2f}, khandle_invalid(), &debug->box)) {
                     KERROR("Failed to create debug box for mesh '%s'.", m->name);
                 } else {
-                    // Lookup the attachment to get the xform handle to set as the parent.
+                    // Lookup the attachment to get the ktransform handle to set as the parent.
                     scene_attachment* attachment = &scene->mesh_attachments[i];
-                    ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                    ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                     // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
-                    // the xform here, using the node's world xform as the parent.
-                    xform_calculate_local(debug->box.xform);
-                    mat4 local = xform_local_get(debug->box.xform);
-                    mat4 parent_world = xform_world_get(xform_handle);
+                    // the ktransform here, using the node's world ktransform as the parent.
+                    ktransform_calculate_local(debug->box.ktransform);
+                    mat4 local = ktransform_local_get(debug->box.ktransform);
+                    mat4 parent_world = ktransform_world_get(ktransform_handle);
                     mat4 model = mat4_mul(local, parent_world);
-                    xform_world_set(debug->box.xform, model);
+                    ktransform_world_set(debug->box.ktransform, model);
 
                     if (!debug_box3d_initialize(&debug->box)) {
                         KERROR("debug box failed to initialize.");
@@ -1425,11 +1425,11 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                 // Update the point light's data position (world position) to take into account
                 // the owning node's transform.
                 scene_attachment* volume_attachment = &scene->volume_attachments[i];
-                ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, volume_attachment->hierarchy_node_handle);
+                ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, volume_attachment->hierarchy_node_handle);
 
                 mat4 world;
-                if (xform_handle != KTRANSFORM_INVALID) {
-                    world = xform_world_get(xform_handle);
+                if (ktransform_handle != KTRANSFORM_INVALID) {
+                    world = ktransform_world_get(ktransform_handle);
                 } else {
                     // TODO: traverse tree to try and find a ancestor node with a transform.
                     world = mat4_identity();
@@ -1445,7 +1445,7 @@ b8 scene_update(scene* scene, const struct frame_data* p_frame_data) {
                     scene_debug_data* debug = (scene_debug_data*)scene->point_lights[i].debug_data;
                     if (debug->box.geometry.generation != INVALID_ID_U16) {
                         // Update transform.
-                        xform_position_set(debug->box.xform, vec3_from_vec4(scene->point_lights[i].data.position));
+                        ktransform_position_set(debug->box.ktransform, vec3_from_vec4(scene->point_lights[i].data.position));
 
                         // Update colour. NOTE: doing this every frame might be expensive if we have to reload the geometry all the time.
                         // TODO: Perhaps there is another way to accomplish this, like a shader that uses a uniform for colour?
@@ -1482,16 +1482,16 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                 if (scene->point_lights[i].debug_data) {
                     scene_debug_data* debug = (scene_debug_data*)scene->point_lights[i].debug_data;
 
-                    // Lookup the attachment to get the xform handle to set as the parent.
+                    // Lookup the attachment to get the ktransform handle to set as the parent.
                     scene_attachment* attachment = &scene->point_light_attachments[i];
-                    ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                    ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                     // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
-                    // the xform here, using the node's world xform as the parent.
-                    xform_calculate_local(debug->box.xform);
-                    mat4 local = xform_local_get(debug->box.xform);
-                    mat4 parent_world = xform_world_get(xform_handle);
+                    // the ktransform here, using the node's world ktransform as the parent.
+                    ktransform_calculate_local(debug->box.ktransform);
+                    mat4 local = ktransform_local_get(debug->box.ktransform);
+                    mat4 parent_world = ktransform_world_get(ktransform_handle);
                     mat4 model = mat4_mul(local, parent_world);
-                    xform_world_set(debug->box.xform, model);
+                    ktransform_world_set(debug->box.ktransform, model);
 
                     debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
                 }
@@ -1505,16 +1505,16 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                 if (scene->audio_emitters[i].debug_data) {
                     scene_debug_data* debug = (scene_debug_data*)scene->audio_emitters[i].debug_data;
 
-                    // Lookup the attachment to get the xform handle to set as the parent.
+                    // Lookup the attachment to get the ktransform handle to set as the parent.
                     scene_attachment* attachment = &scene->audio_emitter_attachments[i];
-                    ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                    ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                     // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
-                    // the xform here, using the node's world xform as the parent.
-                    xform_calculate_local(debug->sphere.xform);
-                    mat4 local = xform_local_get(debug->sphere.xform);
-                    mat4 parent_world = xform_world_get(xform_handle);
+                    // the ktransform here, using the node's world ktransform as the parent.
+                    ktransform_calculate_local(debug->sphere.ktransform);
+                    mat4 local = ktransform_local_get(debug->sphere.ktransform);
+                    mat4 parent_world = ktransform_world_get(ktransform_handle);
                     mat4 model = mat4_mul(local, parent_world);
-                    xform_world_set(debug->sphere.xform, model);
+                    ktransform_world_set(debug->sphere.ktransform, model);
 
                     debug_sphere3d_render_frame_prepare(&debug->sphere, p_frame_data);
                 }
@@ -1533,16 +1533,16 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                 if (m->debug_data) {
                     scene_debug_data* debug = m->debug_data;
 
-                    // Lookup the attachment to get the xform handle to set as the parent.
+                    // Lookup the attachment to get the ktransform handle to set as the parent.
                     scene_attachment* attachment = &scene->mesh_attachments[i];
-                    ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                    ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                     // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
-                    // the xform here, using the node's world xform as the parent.
-                    xform_calculate_local(debug->box.xform);
-                    mat4 local = xform_local_get(debug->box.xform);
-                    mat4 parent_world = xform_world_get(xform_handle);
+                    // the ktransform here, using the node's world ktransform as the parent.
+                    ktransform_calculate_local(debug->box.ktransform);
+                    mat4 local = ktransform_local_get(debug->box.ktransform);
+                    mat4 parent_world = ktransform_world_get(ktransform_handle);
                     mat4 model = mat4_mul(local, parent_world);
-                    xform_world_set(debug->box.xform, model);
+                    ktransform_world_set(debug->box.ktransform, model);
 
                     debug_box3d_render_frame_prepare(&debug->box, p_frame_data);
                 } */
@@ -1557,26 +1557,26 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                     if (scene->volumes[i].debug_data) {
                         scene_debug_data* debug = (scene_debug_data*)scene->volumes[i].debug_data;
 
-                        // Lookup the attachment to get the xform handle to set as the parent.
+                        // Lookup the attachment to get the ktransform handle to set as the parent.
                         scene_attachment* attachment = &scene->volume_attachments[i];
-                        ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                         // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
-                        // the xform here, using the node's world xform as the parent.
-                        ktransform d_xform;
+                        // the ktransform here, using the node's world ktransform as the parent.
+                        ktransform d_ktransform;
                         switch (scene->volumes[i].shape_type) {
                         case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
                         default:
-                            d_xform = debug->sphere.xform;
+                            d_ktransform = debug->sphere.ktransform;
                             break;
                         case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
-                            d_xform = debug->box.xform;
+                            d_ktransform = debug->box.ktransform;
                             break;
                         }
-                        xform_calculate_local(d_xform);
-                        mat4 local = xform_local_get(d_xform);
-                        mat4 parent_world = xform_world_get(xform_handle);
+                        ktransform_calculate_local(d_ktransform);
+                        mat4 local = ktransform_local_get(d_ktransform);
+                        mat4 parent_world = ktransform_world_get(ktransform_handle);
                         mat4 model = mat4_mul(local, parent_world);
-                        xform_world_set(d_xform, model);
+                        ktransform_world_set(d_ktransform, model);
 
                         switch (scene->volumes[i].shape_type) {
                         case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
@@ -1598,16 +1598,16 @@ void scene_render_frame_prepare(scene* scene, const struct frame_data* p_frame_d
                 if (scene->audio_emitters[i].debug_data) {
                     scene_debug_data* debug = (scene_debug_data*)scene->audio_emitters[i].debug_data;
 
-                    // Lookup the attachment to get the xform handle to set as the parent.
+                    // Lookup the attachment to get the ktransform handle to set as the parent.
                     scene_attachment* attachment = &scene->audio_emitter_attachments[i];
-                    ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                    ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                     // Since debug objects aren't actually added to the hierarchy or as attachments, need to manually update
-                    // the xform here, using the node's world xform as the parent.
-                    xform_calculate_local(debug->sphere.xform);
-                    mat4 local = xform_local_get(debug->sphere.xform);
-                    mat4 parent_world = xform_world_get(xform_handle);
+                    // the ktransform here, using the node's world ktransform as the parent.
+                    ktransform_calculate_local(debug->sphere.ktransform);
+                    mat4 local = ktransform_local_get(debug->sphere.ktransform);
+                    mat4 parent_world = ktransform_world_get(ktransform_handle);
                     mat4 model = mat4_mul(local, parent_world);
-                    xform_world_set(debug->sphere.xform, model);
+                    ktransform_world_set(debug->sphere.ktransform, model);
 
                     debug_sphere3d_render_frame_prepare(&debug->sphere, p_frame_data);
                 }
@@ -1629,8 +1629,8 @@ void scene_update_lod_from_view_position(scene* scene, const frame_data* p_frame
 
             // Perform a lookup into the attachments array to get the hierarchy node.
             scene_attachment* attachment = &scene->terrain_attachments[i];
-            ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-            mat4 model = xform_world_get(xform_handle);
+            ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+            mat4 model = ktransform_world_get(ktransform_handle);
 
             // Calculate LOD splits based on clip range.
             f32 range = far_clip - near_clip;
@@ -1693,8 +1693,8 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
         }
         // Perform a lookup into the attachments array to get the hierarchy node.
         scene_attachment* attachment = &scene->mesh_attachments[i];
-        ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-        mat4 model = xform_world_get(xform_handle);
+        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+        mat4 model = ktransform_world_get(ktransform_handle);
         f32 dist;
 
         extents_3d sm_extents = {0};
@@ -1710,11 +1710,11 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
                 hit.type = RAYCAST_HIT_TYPE_OBB;
                 hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
 
-                hit.xform_handle = xform_handle;
+                hit.ktransform_handle = ktransform_handle;
                 hit.node_handle = attachment->hierarchy_node_handle;
 
-                // Get parent xform handle if one exists.
-                hit.xform_parent_handle = hierarchy_graph_parent_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                // Get parent ktransform handle if one exists.
+                hit.ktransform_parent_handle = hierarchy_graph_parent_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                 // TODO: Indicate selection node attachment type somehow?
 
                 darray_push(out_result->hits, hit);
@@ -1787,7 +1787,7 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
 
                         // Debug line 3d
                         geometry_render_data data = {0};
-                        data.model = xform_world_get(debug->line.xform);
+                        data.model = ktransform_world_get(debug->line.ktransform);
                         kgeometry* g = &debug->line.geometry;
                         data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
                         data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
@@ -1815,7 +1815,7 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
 
                         // Debug box 3d
                         geometry_render_data data = {0};
-                        data.model = xform_world_get(debug->box.xform);
+                        data.model = ktransform_world_get(debug->box.ktransform);
                         kgeometry* g = &debug->box.geometry;
                         data.material.base_material = KMATERIAL_INVALID;        // debug geometries don't need a material.
                         data.material.instance_id = KMATERIAL_INSTANCE_INVALID; // debug geometries don't need a material.
@@ -1845,7 +1845,7 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         geometry_render_data data = {0};
                         // Only want the ultimate position of this, since we don't want the debug data
                         // to scale or rotate along with any parent it may be under.
-                        mat4 sphere_world = xform_world_get(debug->sphere.xform);
+                        mat4 sphere_world = ktransform_world_get(debug->sphere.ktransform);
                         vec3 world_pos = mat4_position(sphere_world);
                         data.model = mat4_translation(world_pos);
 
@@ -1877,7 +1877,7 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
 
                         // Debug box 3d
                         geometry_render_data data = {0};
-                        data.model = xform_world_get(debug->box.xform);
+                        data.model = ktransform_world_get(debug->box.ktransform);
                         geometry* g = &debug->box.geo;
                         data.material = g->material;
                         data.vertex_count = g->vertex_count;
@@ -1909,11 +1909,11 @@ b8 scene_debug_render_data_query(scene* scene, u32* data_count, geometry_render_
                         kgeometry* g = 0;
                         switch (scene->volumes[i].shape_type) {
                         case SCENE_VOLUME_SHAPE_TYPE_SPHERE:
-                            data.model = xform_world_get(debug->sphere.xform);
+                            data.model = ktransform_world_get(debug->sphere.ktransform);
                             g = &debug->sphere.geometry;
                             break;
                         case SCENE_VOLUME_SHAPE_TYPE_RECTANGLE:
-                            data.model = xform_world_get(debug->box.xform);
+                            data.model = ktransform_world_get(debug->box.ktransform);
                             g = &debug->box.geometry;
                             break;
                         }
@@ -1957,8 +1957,8 @@ b8 scene_mesh_render_data_query_from_line(const scene* scene, vec3 direction, ve
         }
 
         scene_attachment* attachment = &scene->mesh_attachments[i];
-        ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-        mat4 model = xform_world_get(xform_handle);
+        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+        mat4 model = ktransform_world_get(ktransform_handle);
 
         // TODO: Cache this somewhere instead of calculating all the time.
         f32 determinant = mat4_determinant(model);
@@ -2050,8 +2050,8 @@ b8 scene_terrain_render_data_query_from_line(const scene* scene, vec3 direction,
     for (u32 i = 0; i < terrain_count; ++i) {
         terrain* t = &scene->terrains[i];
         scene_attachment* attachment = &scene->terrain_attachments[i];
-        ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-        mat4 model = xform_world_get(xform_handle);
+        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+        mat4 model = ktransform_world_get(ktransform_handle);
 
         // TODO: Cache this somewhere instead of calculating all the time.
         f32 determinant = mat4_determinant(model);
@@ -2123,8 +2123,8 @@ b8 scene_mesh_render_data_query(const scene* scene, const kfrustum* f, vec3 cent
         }
         // Attachment lookup - by resource index.
         scene_attachment* attachment = &scene->mesh_attachments[resource_index];
-        ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-        mat4 model = xform_world_get(xform_handle);
+        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+        mat4 model = ktransform_world_get(ktransform_handle);
 
         // TODO: Cache this somewhere instead of calculating all the time.
         f32 determinant = mat4_determinant(model);
@@ -2247,8 +2247,8 @@ b8 scene_terrain_render_data_query(const scene* scene, const kfrustum* f, vec3 c
     for (u32 i = 0; i < terrain_count; ++i) {
         terrain* t = &scene->terrains[i];
         scene_attachment* attachment = &scene->terrain_attachments[i];
-        ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-        mat4 model = xform_world_get(xform_handle);
+        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+        mat4 model = ktransform_world_get(ktransform_handle);
 
         // TODO: Cache this somewhere instead of calculating all the time.
         f32 determinant = mat4_determinant(model);
@@ -2329,14 +2329,14 @@ b8 scene_water_plane_query(const scene* scene, const kfrustum* f, vec3 center, f
     for (u32 i = 0; i < water_plane_count; ++i) {
         if (out_water_planes) {
             // scene_attachment* attachment = &scene->mesh_attachments[i];
-            // ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-            // mat4 model = xform_world_get(xform_handle);
+            // ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+            // mat4 model = ktransform_world_get(ktransform_handle);
 
             water_plane* wp = &scene->water_planes[i];
             scene_attachment* attachment = &scene->water_plane_attachments[i];
-            ktransform xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+            ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
             // FIXME: World should work here, but for some reason isn't being updated...
-            wp->model = xform_local_get(xform_handle);
+            wp->model = ktransform_local_get(ktransform_handle);
             darray_push(*out_water_planes, wp);
         }
         count++;
@@ -2347,8 +2347,8 @@ b8 scene_water_plane_query(const scene* scene, const kfrustum* f, vec3 center, f
     return true;
 }
 
-b8 scene_node_xform_get_by_name(const scene* scene, kname name, ktransform* out_xform_handle) {
-    if (!scene || !name || !out_xform_handle) {
+b8 scene_node_ktransform_get_by_name(const scene* scene, kname name, ktransform* out_ktransform_handle) {
+    if (!scene || !name || !out_ktransform_handle) {
         return false;
     }
 
@@ -2356,7 +2356,7 @@ b8 scene_node_xform_get_by_name(const scene* scene, kname name, ktransform* out_
         scene_node_metadata* node_meta = &scene->node_metadata[i];
         if (node_meta->name == name) {
             khierarchy_node hierarchy_node_handle = node_meta->index;
-            *out_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, hierarchy_node_handle);
+            *out_ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, hierarchy_node_handle);
             return true;
         }
     }
@@ -2364,12 +2364,12 @@ b8 scene_node_xform_get_by_name(const scene* scene, kname name, ktransform* out_
     return false;
 }
 
-b8 scene_node_xform_get(const scene* scene, khierarchy_node node_handle, ktransform* out_xform_handle) {
-    if (!scene || node_handle == KHIERARCHY_NODE_INVALID || !out_xform_handle) {
+b8 scene_node_ktransform_get(const scene* scene, khierarchy_node node_handle, ktransform* out_ktransform_handle) {
+    if (!scene || node_handle == KHIERARCHY_NODE_INVALID || !out_ktransform_handle) {
         return false;
     }
 
-    *out_xform_handle = hierarchy_graph_xform_handle_get(&scene->hierarchy, node_handle);
+    *out_ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, node_handle);
     return true;
 }
 
@@ -2380,7 +2380,7 @@ b8 scene_node_local_matrix_get(const scene* scene, khierarchy_node node_handle, 
 
     scene_node_metadata* node_meta = &scene->node_metadata[node_handle];
     khierarchy_node hierarchy_node_handle = node_meta->index;
-    return hierarchy_graph_xform_local_matrix_get(&scene->hierarchy, hierarchy_node_handle, out_matrix);
+    return hierarchy_graph_ktransform_local_matrix_get(&scene->hierarchy, hierarchy_node_handle, out_matrix);
 }
 
 b8 scene_node_local_matrix_get_by_name(const scene* scene, kname name, mat4* out_matrix) {
@@ -2599,9 +2599,9 @@ static b8 scene_serialize_node(const scene* s, const hierarchy_graph_view* view,
     // Node name
     kson_object_value_add_kname_as_string(&node->value.o, "name", node_meta->name);
 
-    // xform is optional, so make sure there is a valid handle to one before serializing.
-    if (view_node->xform_handle != KTRANSFORM_INVALID) {
-        kson_object_value_add_string(&node->value.o, "xform", xform_to_string(view_node->xform_handle));
+    // ktransform is optional, so make sure there is a valid handle to one before serializing.
+    if (view_node->ktransform_handle != KTRANSFORM_INVALID) {
+        kson_object_value_add_string(&node->value.o, "ktransform", ktransform_to_string(view_node->ktransform_handle));
     }
 
     // Attachments

@@ -201,7 +201,7 @@ b8 sui_label_control_render(standard_ui_state* state, struct sui_control* self, 
             // TODO: bleat
         }
 
-        renderable.render_data.model = xform_world_get(self->xform);
+        renderable.render_data.model = ktransform_world_get(self->ktransform);
         renderable.render_data.diffuse_colour = typed_data->colour;
 
         renderable.group_id = &typed_data->group_id;

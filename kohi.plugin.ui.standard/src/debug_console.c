@@ -104,7 +104,7 @@ b8 debug_console_create(standard_ui_state* sui_state, debug_console_state* out_c
             KERROR("Unable to register control.");
             return false;
         }
-        /* transform_translate(&state->bg_panel.xform, (vec3){500, 100}); */
+        /* transform_translate(&state->bg_panel.ktransform, (vec3){500, 100}); */
         if (!standard_ui_system_control_add_child(sui_state, 0, &out_console_state->bg_panel)) {
             KERROR("Failed to parent background panel.");
             return false;

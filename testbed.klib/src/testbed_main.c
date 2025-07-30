@@ -320,24 +320,24 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                         // These aren't parented to anything, so the local transform _is_ the world transform.
                         // TODO: Need to think of a way to make this more automatic.
-                        test_box.xform = xform_from_position(hit->position);
-                        test_box.parent_xform = khandle_invalid();
-                        xform_calculate_local(test_box.xform);
-                        xform_world_set(test_box.xform, xform_local_get(test_box.xform));
+                        test_box.ktransform = ktransform_from_position(hit->position);
+                        test_box.parent_ktransform = khandle_invalid();
+                        ktransform_calculate_local(test_box.ktransform);
+                        ktransform_world_set(test_box.ktransform, ktransform_local_get(test_box.ktransform));
 
                         darray_push(state->test_boxes, test_box);
 
                         // Object selection
                         if (i == 0) {
                             state->selection.node_handle = hit->node_handle;
-                            state->selection.xform_handle = hit->xform_handle; //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
-                            state->selection.xform_parent_handle = hit->xform_parent_handle;
-                            if (!khandle_is_invalid(state->selection.xform_handle)) {
+                            state->selection.ktransform_handle = hit->ktransform_handle; //  scene_transform_get_by_id(&state->main_scene, hit->unique_id);
+                            state->selection.ktransform_parent_handle = hit->ktransform_parent_handle;
+                            if (!khandle_is_invalid(state->selection.ktransform_handle)) {
                                 // NOTE: is handle index what we should identify by?
                                 KINFO("Selected object id %u", hit->node_handle.handle_index);
-                                // state->gizmo.selected_xform = state->selection.xform;
-                                editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
-                                // transform_parent_set(&state->gizmo.xform, state->selection.xform);
+                                // state->gizmo.selected_ktransform = state->selection.ktransform;
+                                editor_gizmo_selected_transform_set(&state->gizmo, state->selection.ktransform_handle, state->selection.ktransform_parent_handle);
+                                // transform_parent_set(&state->gizmo.ktransform, state->selection.ktransform);
                             }
                         }
                     }
@@ -354,13 +354,13 @@ b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context con
 
                     darray_push(state->test_lines, test_line);
 
-                    if (khandle_is_invalid(state->selection.xform_handle)) {
+                    if (khandle_is_invalid(state->selection.ktransform_handle)) {
                         KINFO("Object deselected.");
-                        state->selection.xform_handle = khandle_invalid();
+                        state->selection.ktransform_handle = khandle_invalid();
                         state->selection.node_handle = khandle_invalid();
-                        state->selection.xform_parent_handle = khandle_invalid();
+                        state->selection.ktransform_parent_handle = khandle_invalid();
 
-                        editor_gizmo_selected_transform_set(&state->gizmo, state->selection.xform_handle, state->selection.xform_parent_handle);
+                        editor_gizmo_selected_transform_set(&state->gizmo, state->selection.ktransform_handle, state->selection.ktransform_parent_handle);
                     }
 
                     // TODO: hide gizmo, disable input, etc.
@@ -498,7 +498,7 @@ b8 application_initialize(struct application* game_inst) {
     }
 
     // Invalid handle = no selection.
-    state->selection.xform_handle = khandle_invalid();
+    state->selection.ktransform_handle = khandle_invalid();
 
 #ifdef KOHI_DEBUG
     debug_console_load(&state->debug_console);
@@ -610,7 +610,7 @@ b8 application_initialize(struct application* game_inst) {
         if (!sui_panel_control_load(sui_state, &state->test_panel)) {
             KERROR("Failed to load test panel.");
         } else {
-            xform_translate(state->test_panel.xform, (vec3){950, 350});
+            ktransform_translate(state->test_panel.ktransform, (vec3){950, 350});
             if (!standard_ui_system_register_control(sui_state, &state->test_panel)) {
                 KERROR("Unable to register control.");
             } else {
@@ -634,7 +634,7 @@ b8 application_initialize(struct application* game_inst) {
 
         // Move and rotate it some.
         // quat rotation = quat_from_axis_angle((vec3){0, 0, 1}, deg_to_rad(-45.0f), false);
-        // transform_translate_rotate(&state->test_button.xform, (vec3){50, 50, 0}, rotation);
+        // transform_translate_rotate(&state->test_button.ktransform, (vec3){50, 50, 0}, rotation);
 
         if (!sui_button_control_load(sui_state, &state->test_button)) {
             KERROR("Failed to load test button.");
@@ -1286,7 +1286,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 debug_line3d* line = &state->test_lines[i];
                 debug_line3d_render_frame_prepare(line, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(line->xform);
+                rd.model = ktransform_world_get(line->ktransform);
                 kgeometry* g = &line->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;
@@ -1303,7 +1303,7 @@ b8 application_prepare_frame(struct application* app_inst, struct frame_data* p_
                 debug_box3d* box = &state->test_boxes[i];
                 debug_box3d_render_frame_prepare(box, p_frame_data);
                 geometry_render_data rd = {0};
-                rd.model = xform_world_get(box->xform);
+                rd.model = ktransform_world_get(box->ktransform);
                 kgeometry* g = &box->geometry;
                 rd.vertex_count = g->vertex_count;
                 rd.vertex_buffer_offset = g->vertex_buffer_offset;

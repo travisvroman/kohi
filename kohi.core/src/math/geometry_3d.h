@@ -20,9 +20,9 @@ typedef enum raycast_hit_type {
 
 typedef struct raycast_hit {
     raycast_hit_type type;
-    ktransform xform_handle;
+    ktransform ktransform_handle;
     khierarchy_node node_handle;
-    ktransform xform_parent_handle;
+    ktransform ktransform_parent_handle;
     vec3 position;
     f32 distance;
 } raycast_hit;

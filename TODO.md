@@ -7,8 +7,8 @@ The items in this list are not in any particular order. This list will be update
 ## 0.11.0 Release
 
 - [x] Remove rendergraph - have application drive render process directly.
-- [ ] Rework xform system:
-  - [ ] Rename xform->ktransform
+- [x] Rework xform system:
+  - [x] Rename xform->ktransform
   - [x] Change to use typedefed u32s instead of khandles.
 - [x] Rework hierarchy graph to use typedefed u16s instead of khandles.
 - [ ] Rework audio system to use typedefed u16s instead of khandles.
@@ -17,8 +17,6 @@ The items in this list are not in any particular order. This list will be update
 - [x] Rework Material system to replace khandles with typedefed u16s.
   - [x] Renamed material_system -> kmaterial_system, along with all associated types.
 - [x] Rework Shader system to replace khandles with typedefed u16s.
-- [ ] Rework transform system:
-  - [ ] Replace khandle representation with typedefed u16 and go by index.
 - [ ] Move scene to game code, game-specific.
   - [ ] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
   - [ ] Replace "node" config with "entity". Remove concept of attachments.

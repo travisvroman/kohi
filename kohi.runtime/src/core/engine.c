@@ -36,11 +36,11 @@
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
 #include "systems/ktimeline_system.h"
+#include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/plugin_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
-#include "systems/xform_system.h"
 
 struct kwindow;
 
@@ -402,14 +402,14 @@ b8 engine_create(application* app) {
         }
     }
 
-    // xform
+    // ktransform
     {
-        xform_system_config xform_sys_config = {0};
-        xform_sys_config.initial_slot_count = 128;
-        xform_system_initialize(&systems->xform_system_memory_requirement, 0, &xform_sys_config);
-        systems->xform_system = kallocate(systems->xform_system_memory_requirement, MEMORY_TAG_ENGINE);
-        if (!xform_system_initialize(&systems->xform_system_memory_requirement, systems->xform_system, &xform_sys_config)) {
-            KERROR("Failed to intialize xform system.");
+        ktransform_system_config ktransform_sys_config = {0};
+        ktransform_sys_config.initial_slot_count = 128;
+        ktransform_system_initialize(&systems->ktransform_system_memory_requirement, 0, &ktransform_sys_config);
+        systems->ktransform_system = kallocate(systems->ktransform_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!ktransform_system_initialize(&systems->ktransform_system_memory_requirement, systems->ktransform_system, &ktransform_sys_config)) {
+            KERROR("Failed to intialize ktransform system.");
             return false;
         }
     }
@@ -810,7 +810,7 @@ b8 engine_run(application* app) {
         font_system_shutdown(systems->font_system);
         texture_system_shutdown(systems->texture_system);
         ktimeline_system_shutdown(systems->timeline_system);
-        xform_system_shutdown(systems->xform_system);
+        ktransform_system_shutdown(systems->ktransform_system);
         kaudio_system_shutdown(systems->audio_system);
         plugin_system_shutdown(systems->plugin_system);
         kshader_system_shutdown(systems->shader_system);
