@@ -3,7 +3,6 @@
 #include <containers/darray.h>
 #include <core_audio_types.h>
 #include <defines.h>
-#include <identifiers/khandle.h>
 #include <logger.h>
 #include <math/kmath.h>
 #include <memory/kmemory.h>
@@ -59,7 +58,6 @@ typedef struct kaudio_system_config {
 } kaudio_system_config;
 
 typedef struct kaudio_emitter_handle_data {
-    u64 uniqueid;
 
     // Handle to underlying resource instance.
     kaudio_instance instance;
@@ -330,7 +328,7 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
         // Update the registered emitters.
         u32 emitter_count = darray_length(state->emitters);
         for (u32 i = 0; i < emitter_count; ++i) {
-            if (state->emitters[i].uniqueid != INVALID_ID_U64) {
+            if (kaudio_is_valid(state, state->emitters[i].instance)) {
                 kaudio_emitter_update(state, &state->emitters[i]);
             }
         }
@@ -856,33 +854,31 @@ b8 kaudio_channel_volume_set(struct kaudio_system_state* state, u8 channel_index
     return true;
 }
 
-b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, khandle* out_emitter) {
+b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, kaudio_emitter* out_emitter) {
     if (!state || !out_emitter) {
         return false;
     }
 
-    *out_emitter = khandle_invalid();
+    *out_emitter = KAUDIO_EMITTER_INVALID;
 
     // Look for a free slot, or push a new one if needed.
     kaudio_emitter_handle_data* emitter = 0;
-    u32 length = darray_length(state->emitters);
-    for (u32 i = 0; i < length; ++i) {
-        if (state->emitters[i].uniqueid == INVALID_ID_U64) {
+    u16 length = darray_length(state->emitters);
+    for (u16 i = 0; i < length; ++i) {
+        if (kaudio_is_valid(state, state->emitters[i].instance)) {
             emitter = &state->emitters[i];
-            *out_emitter = khandle_create(i);
+            *out_emitter = i;
             break;
         }
     }
 
     if (!emitter) {
         kaudio_emitter_handle_data new_emitter = {0};
-        new_emitter.uniqueid = INVALID_ID_U64;
         darray_push(state->emitters, new_emitter);
         emitter = &state->emitters[length];
-        *out_emitter = khandle_create(length);
+        *out_emitter = length;
     }
 
-    emitter->uniqueid = out_emitter->unique_id.uniqueid;
     emitter->volume = volume;
     emitter->inner_radius = inner_radius;
     emitter->outer_radius = outer_radius;
@@ -895,13 +891,13 @@ b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f3
     return true;
 }
 
-b8 kaudio_emitter_load(struct kaudio_system_state* state, khandle emitter_handle) {
+b8 kaudio_emitter_load(struct kaudio_system_state* state, kaudio_emitter emitter_handle) {
     if (!state) {
         return false;
     }
 
-    if (khandle_is_valid(emitter_handle) && khandle_is_pristine(emitter_handle, state->emitters[emitter_handle.handle_index].uniqueid)) {
-        kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle.handle_index];
+    if (emitter_handle != KAUDIO_EMITTER_INVALID) {
+        kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle];
         // NOTE: always use 3d space for emitters.
         emitter->instance = kaudio_acquire_from_package(state, emitter->resource_name, emitter->package_name, emitter->is_streaming, KAUDIO_SPACE_3D);
         if (emitter->instance.base == INVALID_KAUDIO || emitter->instance.instance_id == INVALID_ID_U16) {
@@ -922,13 +918,13 @@ b8 kaudio_emitter_load(struct kaudio_system_state* state, khandle emitter_handle
     return false;
 }
 
-b8 kaudio_emitter_unload(struct kaudio_system_state* state, khandle emitter_handle) {
+b8 kaudio_emitter_unload(struct kaudio_system_state* state, kaudio_emitter emitter_handle) {
     if (!state) {
         return false;
     }
 
-    if (khandle_is_valid(emitter_handle) && khandle_is_pristine(emitter_handle, state->emitters[emitter_handle.handle_index].uniqueid)) {
-        kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle.handle_index];
+    if (emitter_handle != KAUDIO_EMITTER_INVALID) {
+        kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle];
         if (emitter->playing_in_range) {
             // Stop playing
             kaudio_stop(state, emitter->instance);
@@ -943,7 +939,6 @@ b8 kaudio_emitter_unload(struct kaudio_system_state* state, khandle emitter_hand
         kzero_memory(&emitter->instance, sizeof(kaudio_emitter_handle_data));
 
         // Invalidate the handle data.
-        emitter->uniqueid = INVALID_ID_U64;
         emitter->instance = invalid_inst;
 
         return true;
@@ -952,13 +947,13 @@ b8 kaudio_emitter_unload(struct kaudio_system_state* state, khandle emitter_hand
     return false;
 }
 
-b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, khandle emitter_handle, vec3 world_position) {
+b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, kaudio_emitter emitter_handle, vec3 world_position) {
     if (!state) {
         return false;
     }
 
-    if (khandle_is_valid(emitter_handle) && khandle_is_pristine(emitter_handle, state->emitters[emitter_handle.handle_index].uniqueid)) {
-        kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle.handle_index];
+    if (emitter_handle != KAUDIO_EMITTER_INVALID) {
+        kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle];
         emitter->world_position = world_position;
         kaudio_position_set(state, emitter->instance, emitter->world_position);
         return true;

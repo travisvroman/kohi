@@ -54,7 +54,7 @@ typedef struct scene_audio_emitter {
     kname name;
 
     // Handle to the emitter within the audio system.
-    khandle emitter;
+    kaudio_emitter emitter;
 
     // debug rendering data.
     scene_debug_data* debug_data;
