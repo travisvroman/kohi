@@ -10,7 +10,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Rework xform system:
   - [x] Rename xform->ktransform
   - [x] Change to use typedefed u32s instead of khandles.
-- [x] Rework hierarchy graph to use typedefed u16s instead of khandles.
+- [x] Rework hierarchy graph to use typedefed u32s instead of khandles.
 - [x] Rework audio system to use typedefed u16s instead of khandles.
 - [x] Rework timeline system to use typedefed u16s instead of khandles.
 - [x] Rework renderer backend to use u16 indices for internal texture ids and samplers instead of khandles.
@@ -20,7 +20,6 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Move renderer code out of kmaterial_system and into a kmaterial_renderer (or maybe just move to the bespoke renderer?)
 - [ ] Move scene to game code, game-specific.
   - [ ] Change scenes to use single level of 'inheritance', i.e. have a base_entity that has props, then a static_mesh_entity that has `base_entity base` member.
-  - [ ] Replace "node" config with "entity". Remove concept of attachments.
   - [ ] Remove all references to scenes in engine core/runtime.
 - [ ] Refactor Testbed project for the above changes.
 - [x] Remove viewports, enhance camera system to include this instead.

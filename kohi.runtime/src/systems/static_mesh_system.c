@@ -80,7 +80,9 @@ typedef struct static_mesh_system_state {
 
 typedef struct kstatic_mesh_asset_load_listener {
     static_mesh_system_state* state;
-    kstatic_mesh m;
+    kstatic_mesh_instance m_inst;
+    PFN_static_mesh_loaded callback;
+    void* context;
 } kstatic_mesh_asset_load_listener;
 
 static void ensure_arrays_allocated(static_mesh_system_state* state, u32 new_count);
@@ -120,8 +122,8 @@ void static_mesh_system_shutdown(struct static_mesh_system_state* state) {
     }
 }
 
-kstatic_mesh_instance static_mesh_instance_acquire(struct static_mesh_system_state* state, kname asset_name) {
-    return static_mesh_instance_acquire_from_package(state, asset_name, state->application_package_name);
+kstatic_mesh_instance static_mesh_instance_acquire(struct static_mesh_system_state* state, kname asset_name, PFN_static_mesh_loaded callback, void* context) {
+    return static_mesh_instance_acquire_from_package(state, asset_name, state->application_package_name, callback, context);
 }
 
 static kstatic_mesh_instance issue_new_instance(static_mesh_system_state* state, kstatic_mesh m) {
@@ -167,7 +169,7 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
     }
 
     kstatic_mesh_asset_load_listener* typed_listener = listener;
-    kstatic_mesh m = typed_listener->m;
+    kstatic_mesh m = typed_listener->m_inst.mesh;
     static_mesh_system_state* state = typed_listener->state;
 
     const engine_system_states* systems = engine_systems_get();
@@ -275,11 +277,15 @@ static void mesh_asset_loaded(void* listener, kasset_static_mesh* asset) {
     // Release the asset.
     asset_system_release_static_mesh(systems->asset_state, asset);
 
+    if (typed_listener->callback) {
+        typed_listener->callback(typed_listener->m_inst, typed_listener->context);
+    }
+
     // Cleanup listener.
     KFREE_TYPE(typed_listener, kstatic_mesh_asset_load_listener, MEMORY_TAG_RESOURCE);
 }
 
-kstatic_mesh_instance static_mesh_instance_acquire_from_package(struct static_mesh_system_state* state, kname asset_name, kname package_name) {
+kstatic_mesh_instance static_mesh_instance_acquire_from_package(struct static_mesh_system_state* state, kname asset_name, kname package_name, PFN_static_mesh_loaded callback, void* context) {
     KASSERT_MSG(state, "State is required, ya dingus");
 
     const engine_system_states* systems = engine_systems_get();
@@ -336,7 +342,9 @@ kstatic_mesh_instance static_mesh_instance_acquire_from_package(struct static_me
     // Setup a listener.
     kstatic_mesh_asset_load_listener* listener = KALLOC_TYPE(kstatic_mesh_asset_load_listener, MEMORY_TAG_RESOURCE);
     listener->state = state;
-    listener->m = m;
+    listener->m_inst = new_inst;
+    listener->callback = callback;
+    listener->context = context;
 
     // Request asset.
     kasset_static_mesh* asset = asset_system_request_static_mesh_from_package(

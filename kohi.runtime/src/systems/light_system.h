@@ -42,6 +42,9 @@ typedef struct directional_light {
     void* debug_data;
 } directional_light;
 
+// FIXME: colour.a is not used, roll one of the floats below into it. (linear?)
+// FIXME: position.w is also not used, roll one of the floats below into it. (quadratic?)
+// Also remove the floats from below, and assume constant_f is always 1.0
 typedef struct point_light_data {
     /** @brief The light colour. */
     vec4 colour;
