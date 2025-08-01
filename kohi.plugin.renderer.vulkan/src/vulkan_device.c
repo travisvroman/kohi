@@ -440,11 +440,8 @@ static b8 select_physical_device(vulkan_context* context) {
     // NOTE: Enable this if compute will be required.
     // requirements.compute = true;
     requirements.sampler_anisotropy = true;
-#if KPLATFORM_APPLE
+    //TODO: Make this configurable
     requirements.discrete_gpu = false;
-#else
-    requirements.discrete_gpu = true;
-#endif
     requirements.device_extension_names = darray_create(const char*);
     darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
