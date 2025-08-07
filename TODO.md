@@ -25,6 +25,14 @@ The items in this list are not in any particular order. This list will be update
 - [x] Remove viewports, enhance camera system to include this instead.
 - [ ] Remove legacy systems (i.e. lighting, etc.)
 - [ ] Hoist Overdrive project to it's own repo, refactor similar to Testbed.
+- [ ] Bugfix: #274 Fix validation issues regarding window resize.
+- [ ] Bugfix: #268 Add app config renderer option for "require_discrete_gpu". Default to false and pass down to Vulkan
+- [ ] Bugfix: #264 Address window closing issue on i3wm.
+- [ ] Bugfix: #252 Fix/ensure macOS build script works as intended.
+- [ ] Bugfix: #237 Fix/ensure Windows build script works as intended. Perhaps remove Powershell requirement?
+- [ ] Build: Make a setup script that creates the clangd 'compile_flags.txt'
+      files that is independent of the build process and can be run separately
+      when the project is first cloned.
 
 ## 0.12.0 Release
 

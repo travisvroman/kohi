@@ -30,6 +30,7 @@ KAPI void static_mesh_system_shutdown(struct static_mesh_system_state* state);
 
 KAPI kstatic_mesh_instance static_mesh_instance_acquire(struct static_mesh_system_state* state, kname asset_name, PFN_static_mesh_loaded callback, void* context);
 KAPI kstatic_mesh_instance static_mesh_instance_acquire_from_package(struct static_mesh_system_state* state, kname asset_name, kname package_name, PFN_static_mesh_loaded callback, void* context);
+// NOTE: Also releases held material instances.
 KAPI void static_mesh_instance_release(struct static_mesh_system_state* state, kstatic_mesh_instance* instance);
 
 KAPI b8 static_mesh_is_loaded(struct static_mesh_system_state* state, kstatic_mesh m);

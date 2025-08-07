@@ -589,7 +589,7 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
                     return;
                 }
 
-                kstatic_mesh_instance new_static_mesh = static_mesh_instance_acquire(engine_systems_get()->static_mesh_system, typed_attachment_config->asset_name);
+                kstatic_mesh_instance new_static_mesh = static_mesh_instance_acquire(engine_systems_get()->static_mesh_system, typed_attachment_config->asset_name, 0, 0);
                 // Find a free slot and take it, or push a new one.
                 u32 index = INVALID_ID;
                 u32 static_mesh_count = darray_length(s->static_meshes);
@@ -1081,11 +1081,6 @@ b8 scene_load(scene* scene) {
                     KERROR("debug sphere failed to load.");
                     kfree(scene->audio_emitters[i].debug_data, sizeof(scene_debug_data), MEMORY_TAG_RESOURCE);
                     scene->audio_emitters[i].debug_data = 0;
-                }
-
-                // Load the emitter.
-                if (!kaudio_emitter_load(audio_state, scene->audio_emitters[i].emitter)) {
-                    KERROR("Failed to load audio for emitter.");
                 }
             }
         }

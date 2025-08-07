@@ -261,6 +261,8 @@ KAPI b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignmen
  */
 KAPI void* kzero_memory(void* block, u64 size);
 
+#define KZERO_TYPE(block, type) kzero_memory(block, sizeof(type));
+
 /**
  * @brief Performs a copy of the memory at source to dest of the given size.
  * @param dest A pointer to the destination block of memory to copy to.
