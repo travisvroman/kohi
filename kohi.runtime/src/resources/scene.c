@@ -169,7 +169,7 @@ b8 scene_create(kasset_scene* config, scene_flags flags, scene* out_scene) {
         out_scene->water_plane_metadata = darray_create(scene_water_plane_metadata);
     }
 
-    if (!hierarchy_graph_create(&out_scene->hierarchy)) {
+    if (!hierarchy_graph_create(&out_scene->hierarchy, 0)) {
         KERROR("Failed to create hierarchy graph");
         return false;
     }

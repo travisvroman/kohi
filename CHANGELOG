@@ -14,7 +14,8 @@ Changelog
   - Renamed xform -> ktransform. All code reference updated.
   - Reworked ktransform system to use typedefed u32s(ktransform) in place of khandles.
   - Reworked hierarchy graph to use typedefed u32s(khierarchy_node) in place of khandles.
-  - Reworked audio frontent to use typedefed u16s(kaudio_emitter) in place of khandles.
+  - Reworked audio frontendThe metadata for the given node, or INVALID_ID_U64 on error. to use typedefed u16s(kaudio_emitter) in place of khandles.
+  - Added metadata to the hierarchy_graph, to be set by user code as a way to include context with a node.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

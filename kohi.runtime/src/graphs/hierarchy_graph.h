@@ -42,12 +42,6 @@ typedef struct hierarchy_graph_view {
     u32* root_indices;
 } hierarchy_graph_view;
 
-// LEFTOFF: This node structure and the graph below should
-// likely be opaque to the outside. External references should
-// only deal with handles and nothing more.
-// A separate, read-only external "view" tree structure could be
-// provided to anything that needs to know about the heirachy (i.e. an editor).
-
 typedef struct hierarchy_graph {
     u32 nodes_allocated;
     // Node indices. Populated nodes will match index in the array. Invalid handle = empty slot.
@@ -67,6 +61,11 @@ typedef struct hierarchy_graph {
     // which do not have transforms (i.e. a skybox doesn't need one).
     ktransform* ktransform_handles;
 
+    // Metadata associated with each node.
+    u64* meta;
+    // Default value to be used for metadata
+    u64 default_meta_value;
+
     // A view of the tree.
     hierarchy_graph_view view;
 } hierarchy_graph;
@@ -76,9 +75,10 @@ typedef struct hierarchy_graph {
  * with any kind of resource via the use of handles and handles to ktransforms.
  *
  * @param out_graph A pointer to hold the newly-created graph.
+ * @param default_meta_value The default value to be used for meta data per hierarchy node. Pass 0 if not used.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 hierarchy_graph_create(hierarchy_graph* out_graph);
+KAPI b8 hierarchy_graph_create(hierarchy_graph* out_graph, u64 default_meta_value);
 
 /**
  * @brief Destroys the given hierarchy graph, releasing all resources.
@@ -172,6 +172,25 @@ KAPI khierarchy_node hierarchy_graph_child_add(hierarchy_graph* graph, khierarch
  * @returns A copy of the handle to the new node.
  */
 KAPI khierarchy_node hierarchy_graph_child_add_with_ktransform(hierarchy_graph* graph, khierarchy_node parent_node_handle, ktransform ktransform_handle);
+
+/**
+ * @brief gets the meta data for the given hierarchy node.
+ *
+ * @param graph A pointer to the graph containing the node whose metadata is to be retrieved.
+ * @param node The handle to the node whose metadata is to be retrieved.
+ * @returns The metadata for the given node, or INVALID_ID_U64 on error.
+ */
+KAPI u64 hierarchy_graph_meta_get(hierarchy_graph* graph, khierarchy_node node);
+
+/**
+ * @brief gets the meta data for the given hierarchy node.
+ *
+ * @param graph A pointer to the graph containing the node whose metadata is to be set.
+ * @param node The handle to the node whose metadata is to be set.
+ * @param meta The metadata to be set.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 hierarchy_graph_meta_set(hierarchy_graph* graph, khierarchy_node node, u64 meta);
 
 /**
  * @brief Attempts to get the number of child nodes of the given parent node.

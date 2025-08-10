@@ -304,3 +304,67 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  * @param enabled Indicates if the flag is enabled or not.
  */
 #define FLAG_SET(flags, flag, enabled) (flags = (enabled ? (flags | flag) : (flags & ~flag)))
+
+/**
+ * Unpacks 4 u16s from a single u64.
+ * @param packed The packed u64.
+ * @param a A pointer to a u16 to hold the first value.
+ * @param b A pointer to a u16 to hold the second value.
+ * @param c A pointer to a u16 to hold the third value.
+ * @param d A pointer to a u16 to hold the fourth value.
+ */
+#define UNPACK_U64_U16S(packed, a, b, c, d) \
+    {                                       \
+        a = (u16)(packed >> 48);            \
+        b = (u16)(packed >> 32);            \
+        c = (u16)(packed >> 16);            \
+        d = (u16)(packed >> 0);             \
+    }
+
+/**
+ * Unpacks a single u16 at the given index (0-3).
+ */
+#define UNPACK_U64_U16_AT(packed, index) ((u16)(packed >> ((3 - index) * 16)))
+
+/**
+ * @brief Packs 4 u16s into a single u64
+ */
+#define PACK_U64_U16S(a, b, c, d) (((u64)a << 48) | ((u64)b << 32) | ((u64)c << 16) | ((u64)d))
+
+/**
+ * @brief Packs n into target. Target can be an already-packed u64.
+ * @param target The u64 to be packed into.
+ * @param n The u16 to be packed.
+ * @param index The index to pack at (0-3).
+ */
+#define PACK_U64_U16_AT(target, n, index) (target = (target | ((u64)n << ((3 - index) * 16))))
+
+/**
+ * Unpacks 2 u32s from a single u64.
+ * @param packed The packed u64.
+ * @param a A pointer to a u32 to hold the first value.
+ * @param b A pointer to a u32 to hold the second value.
+ */
+#define UNPACK_U64_U32S(packed, a, b) \
+    {                                 \
+        a = (u32)(packed >> 32);      \
+        b = (u32)(packed >> 0);       \
+    }
+
+/**
+ * Unpacks a single u32 at the given index (0-1).
+ */
+#define UNPACK_U64_U32_AT(packed, index) ((u32)(packed >> ((1 - index) * 32)))
+
+/**
+ * @brief Packs 2 u32s into a single u64
+ */
+#define PACK_U64_U32S(a, b) (((u64)a << 32) | ((u64)b))
+
+/**
+ * @brief Packs n into target. Target can be an already-packed u64.
+ * @param target The u64 to be packed into.
+ * @param n The u32 to be packed.
+ * @param index The index to pack at (0-1).
+ */
+#define PACK_U64_U32_AT(target, n, index) (target = (target | ((u64)n << ((1 - index) * 32))))

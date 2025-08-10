@@ -19,11 +19,13 @@ static void destroy_view_tree(hierarchy_graph* graph, hierarchy_graph_view* out_
 static void hierarchy_graph_update_tree_view_node(hierarchy_graph* graph, u32 node_index);
 static u32 hierarchy_graph_parent_index_get(const hierarchy_graph* graph, khierarchy_node node_handle);
 
-b8 hierarchy_graph_create(hierarchy_graph* out_graph) {
+b8 hierarchy_graph_create(hierarchy_graph* out_graph, u64 default_meta_value) {
     if (!out_graph) {
         KERROR("hierarchy_graph_create requires a valid pointer to hold the created graph.");
         return false;
     }
+
+    out_graph->default_meta_value = default_meta_value;
 
     // Start with a reasonably large count of nodes.
     ensure_allocated(out_graph, 128);
@@ -57,6 +59,11 @@ void hierarchy_graph_destroy(hierarchy_graph* graph) {
         if (graph->ktransform_handles) {
             kfree(graph->ktransform_handles, sizeof(ktransform) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
             graph->ktransform_handles = 0;
+        }
+
+        if (graph->meta) {
+            kfree(graph->meta, sizeof(u64) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+            graph->meta = 0;
         }
 
         graph->nodes_allocated = 0;
@@ -126,6 +133,28 @@ khierarchy_node hierarchy_graph_child_add(hierarchy_graph* graph, khierarchy_nod
 
 khierarchy_node hierarchy_graph_child_add_with_ktransform(hierarchy_graph* graph, khierarchy_node parent_node_handle, ktransform ktransform_handle) {
     return node_acquire(graph, parent_node_handle, ktransform_handle);
+}
+
+u64 hierarchy_graph_meta_get(hierarchy_graph* graph, khierarchy_node node) {
+    if (!graph) {
+        KERROR("%s - null graph pointer passed, returning INVALID_ID_U64", __FUNCTION__);
+        return INVALID_ID_U64;
+    } else if (node == KHIERARCHY_NODE_INVALID || node >= graph->nodes_allocated) {
+        return graph->default_meta_value;
+    }
+
+    return graph->meta[node];
+}
+
+b8 hierarchy_graph_meta_set(hierarchy_graph* graph, khierarchy_node node, u64 meta) {
+    if (!graph) {
+        KERROR("%s - null graph pointer passed, nothing to be done.", __FUNCTION__);
+        return false;
+    } else if (node == KHIERARCHY_NODE_INVALID || node >= graph->nodes_allocated) {
+        return false;
+    }
+    graph->meta[node] = meta;
+    return true;
 }
 
 u32 hierarchy_graph_child_count_get(const hierarchy_graph* graph, khierarchy_node parent_node_handle) {
@@ -316,6 +345,10 @@ static void node_release(hierarchy_graph* graph, khierarchy_node* node_handle, b
 
         // Finally, invalidate the node handle itself.
         graph->node_handles[*node_handle] = KHIERARCHY_NODE_INVALID;
+
+        // Also default the metadata
+        graph->meta[*node_handle] = graph->default_meta_value;
+
         // Also hit the one passed in.
         *node_handle = KHIERARCHY_NODE_INVALID;
     }
@@ -382,6 +415,18 @@ static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count) {
         // Invalidate all new entries in the array.
         for (u32 ktransform_handle_index = graph->nodes_allocated; ktransform_handle_index < new_node_count; ++ktransform_handle_index) {
             graph->ktransform_handles[ktransform_handle_index] = KTRANSFORM_INVALID;
+        }
+
+        // Metadata
+        u64* new_meta = kallocate(sizeof(u64) * new_node_count, MEMORY_TAG_ARRAY);
+        if (graph->meta) {
+            kcopy_memory(new_meta, graph->meta, sizeof(u64) * graph->nodes_allocated);
+            kfree(graph->meta, sizeof(u64) * graph->nodes_allocated, MEMORY_TAG_ARRAY);
+        }
+        graph->meta = new_meta;
+        // Invalidate all new entries in the array.
+        for (u32 meta_index = graph->nodes_allocated; meta_index < new_node_count; ++meta_index) {
+            graph->meta[meta_index] = graph->default_meta_value;
         }
 
         graph->nodes_allocated = new_node_count;
