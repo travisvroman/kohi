@@ -3,7 +3,7 @@
 // TODO: All these types should be defined in some #include file when #includes are implemented.
 
 const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
-const uint MATERIAL_MAX_POINT_LIGHTS = 10;
+const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
 const uint MATERIAL_MAX_VIEWS = 4;
 
 // Option indices
@@ -28,15 +28,10 @@ struct directional_light {
 };
 
 struct point_light {
+    // .rgb = colour, .a = linear 
     vec4 colour;
+    // .xyz = position, .w = quadratic
     vec4 position;
-    // Usually 1, make sure denominator never gets smaller than 1
-    float constant_f;
-    // Reduces light intensity linearly
-    float linear;
-    // Makes the light fall off slower at longer distances.
-    float quadratic;
-    float padding;
 };
 
 /** 
@@ -62,15 +57,16 @@ layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
 
-// per-frame
-layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
+// per-frame, "global" data
+layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
+    point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 views[MATERIAL_MAX_VIEWS];
-    mat4 projection;
-    vec4 view_positions[MATERIAL_MAX_VIEWS];
-    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
-
+    mat4 projection;                                             // 64 bytes
+    mat4 view;                                                   // 64 bytes
+    directional_light dir_light;                                 // 48 bytes
+    vec4 view_position;                                          // 16 bytes
+    vec4 cascade_splits;                                         // 16 bytes
     // [shadow_bias, delta_time, game_time, padding]
     vec4 params;
     // [render_mode, use_pcf, padding, padding]
@@ -78,11 +74,10 @@ layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
     vec4 padding;  // 16 bytes
 } material_frame_ubo;
 
-// per-group
-layout(set = 1, binding = 0) uniform per_group_ubo {
-    directional_light dir_light;            // 48 bytes
-    point_light p_lights[MATERIAL_MAX_POINT_LIGHTS]; // 48 bytes each
-    uint num_p_lights;
+// per-group, "base material" data
+layout(set = 1, binding = 0) uniform kmaterial_standard_base_uniform_data {
+    // Packed texture channels for various maps requiring it.
+    uint texture_channels; // [metallic, roughness, ao, unused]
     /** @brief The material lighting model. */
     uint lighting_model;
     // Base set of flags for the material. Copied to the material instance when created.
@@ -105,21 +100,17 @@ layout(set = 1, binding = 0) uniform per_group_ubo {
     float emissive_texture_intensity;
 
     float refraction_scale;
-    // Packed texture channels for various maps requiring it.
-    uint texture_channels; // [metallic, roughness, ao, unused]
-    vec2 padding;
-    vec4 padding2;
-    vec4 padding3;
-    vec4 padding4;
+    vec3 padding;
 } material_group_ubo;
 
-// per-draw
+// per-draw, "material instance" data
 layout(push_constant) uniform per_draw_ubo {
     mat4 model;
     vec4 clipping_plane;
-    uint view_index;
+    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
+    uvec2 packed_point_light_indices; // 8 bytes
+    uint num_p_lights;
     uint irradiance_cubemap_index;
-    vec2 padding;
 } material_draw_ubo;
 
 // =========================================================
@@ -151,7 +142,7 @@ void main() {
 	mat3 m3_model = mat3(material_draw_ubo.model);
 	out_dto.normal = normalize(m3_model * in_normal);
 	out_dto.tangent = normalize(m3_model * vec3(in_tangent));
-    gl_Position = material_frame_ubo.projection * material_frame_ubo.views[material_draw_ubo.view_index] * material_draw_ubo.model * vec4(in_position, 1.0);
+    gl_Position = material_frame_ubo.projection * material_frame_ubo.view * material_draw_ubo.model * vec4(in_position, 1.0);
 
 	// Apply clipping plane
 	vec4 world_position = material_draw_ubo.model * vec4(in_position, 1.0);

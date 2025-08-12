@@ -44,6 +44,34 @@ typedef union vec2_u {
 } vec2;
 
 /**
+ * @brief A 2-element vector of unsigned ints.
+ */
+typedef union uvec2_u {
+    /** @brief An array of x, y, z */
+    u32 elements[2];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                u32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                u32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+        };
+    };
+} uvec2;
+
+/**
  * @brief A 3-element vector.
  */
 typedef union vec3_u {
@@ -82,6 +110,42 @@ typedef union vec3_u {
         };
     };
 } vec3;
+
+/**
+ * @brief A 3-element vector of unsigned ints.
+ */
+typedef union uvec3_u {
+    /** @brief An array of x, y, z */
+    u32 elements[3];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                u32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                u32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+            union {
+                /** @brief The third element. */
+                u32 z,
+                    /** @brief The third element. */
+                    b,
+                    /** @brief The third element. */
+                    p;
+            };
+        };
+    };
+} uvec3;
 
 /**
  * @brief A 4-element vector.

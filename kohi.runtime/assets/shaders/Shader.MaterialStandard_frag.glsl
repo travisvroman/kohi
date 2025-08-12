@@ -6,8 +6,7 @@
 const float PI = 3.14159265359;
 
 const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
-const uint MATERIAL_MAX_POINT_LIGHTS = 10;
-const uint MATERIAL_MAX_VIEWS = 4;
+const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
 const uint MATERIAL_STANDARD_TEXTURE_COUNT = 7;
 const uint MATERIAL_STANDARD_SAMPLER_COUNT = 7;
 const uint MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT = 4;
@@ -62,29 +61,26 @@ struct directional_light {
 };
 
 struct point_light {
+    // .rgb = colour, .a = linear 
     vec4 colour;
+    // .xyz = position, .w = quadratic
     vec4 position;
-    // Usually 1, make sure denominator never gets smaller than 1
-    float constant_f;
-    // Reduces light intensity linearly
-    float linear;
-    // Makes the light fall off slower at longer distances.
-    float quadratic;
-    float padding;
 };
 
 // =========================================================
 // Inputs
 // =========================================================
 
-// per-frame
-layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
+// per-frame, "global" data
+layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
+    point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 views[MATERIAL_MAX_VIEWS];
-    mat4 projection;
-    vec4 view_positions[MATERIAL_MAX_VIEWS];
-    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
+    mat4 projection;                                             // 64 bytes
+    mat4 view;                                                   // 64 bytes
+    directional_light dir_light;                                 // 48 bytes
+    vec4 view_position;                                          // 16 bytes
+    vec4 cascade_splits;                                         // 16 bytes
     // [shadow_bias, delta_time, game_time, padding]
     vec4 params;
     // [render_mode, use_pcf, padding, padding]
@@ -96,11 +92,10 @@ layout(set = 0, binding = 2) uniform textureCube irradiance_textures[MATERIAL_MA
 layout(set = 0, binding = 3) uniform sampler shadow_sampler;
 layout(set = 0, binding = 4) uniform sampler irradiance_sampler;
 
-// per-group
-layout(set = 1, binding = 0) uniform per_group_ubo {
-    directional_light dir_light;            // 48 bytes
-    point_light p_lights[MATERIAL_MAX_POINT_LIGHTS]; // 48 bytes each
-    uint num_p_lights;
+// per-group, "base material" data
+layout(set = 1, binding = 0) uniform kmaterial_standard_base_uniform_data {
+    // Packed texture channels for various maps requiring it.
+    uint texture_channels; // [metallic, roughness, ao, unused]
     /** @brief The material lighting model. */
     uint lighting_model;
     // Base set of flags for the material. Copied to the material instance when created.
@@ -123,23 +118,19 @@ layout(set = 1, binding = 0) uniform per_group_ubo {
     float emissive_texture_intensity;
 
     float refraction_scale;
-    // Packed texture channels for various maps requiring it.
-    uint texture_channels; // [metallic, roughness, ao, unused]
-    vec2 padding;
-    vec4 padding2;
-    vec4 padding3;
-    vec4 padding4;
+    vec3 padding;
 } material_group_ubo;
 layout(set = 1, binding = 1) uniform texture2D material_textures[MATERIAL_STANDARD_TEXTURE_COUNT];
 layout(set = 1, binding = 2) uniform sampler material_samplers[MATERIAL_STANDARD_SAMPLER_COUNT];
 
-// per-draw
+// per-draw, "material instance" data
 layout(push_constant) uniform per_draw_ubo {
     mat4 model;
     vec4 clipping_plane;
-    uint view_index;
+    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
+    uvec2 packed_point_light_indices; // 8 bytes
+    uint num_p_lights;
     uint irradiance_cubemap_index;
-    vec2 padding;
 } material_draw_ubo;
 
 // Data Transfer Object
@@ -174,7 +165,7 @@ uint flag_set(uint flags, uint flag, bool enabled);
 
 void main() {
     uint render_mode = material_frame_ubo.options[MAT_OPTION_IDX_RENDER_MODE];
-	vec4 view_position = material_frame_ubo.view_positions[material_draw_ubo.view_index];
+	vec4 view_position = material_frame_ubo.view_position;
     vec3 cascade_colour = vec3(1.0);
 
     vec3 normal = in_dto.normal;
@@ -347,7 +338,7 @@ void main() {
 
         // Directional light radiance.
         {
-            directional_light light = material_group_ubo.dir_light;
+            directional_light light = material_frame_ubo.dir_light;
             vec3 light_direction = normalize(-light.direction.xyz);
             vec3 radiance = calculate_directional_light_radiance(light, view_direction);
 
@@ -356,12 +347,19 @@ void main() {
         }
 
         // Point light radiance
-        for(int i = 0; i < material_group_ubo.num_p_lights; ++i) {
-            point_light light = material_group_ubo.p_lights[i];
-            vec3 light_direction = normalize(light.position.xyz - in_dto.frag_position.xyz);
-            vec3 radiance = calculate_point_light_radiance(light, view_direction, in_dto.frag_position.xyz);
+        // Get point light indices by unpacking each element of material_draw_ubo.packed_point_light_indices
+        uint plights_rendered = 0;
+        for(uint ppli = 0; ppli < 2 && plights_rendered < material_draw_ubo.num_p_lights; ++ppli) {
+            uint packed = material_draw_ubo.packed_point_light_indices[ppli];
+            uint unpacked[4];
+            unpack_u32(packed[0], packed[1], packed[2], packed[3]);
+            for(uint upi = 0; upi < 4 && plights_rendered < material_draw_ubo.num_p_lights; ++upi) {
+                point_light light = material_group_ubo.p_lights[unpacked[upi]];
+                vec3 light_direction = normalize(light.position.xyz - in_dto.frag_position.xyz);
+                vec3 radiance = calculate_point_light_radiance(light, view_direction, in_dto.frag_position.xyz);
 
-            total_reflectance += calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
+                total_reflectance += calculate_reflectance(albedo, normal, view_direction, light_direction, metallic, roughness, base_reflectivity, radiance);
+            }
         }
 
         // Irradiance holds all the scene's indirect diffuse light. Use the surface normal to sample from it.
@@ -448,9 +446,11 @@ vec3 calculate_reflectance(vec3 albedo, vec3 normal, vec3 view_direction, vec3 l
 }
 
 vec3 calculate_point_light_radiance(point_light light, vec3 view_direction, vec3 frag_position_xyz) {
+    float constant_f = 1.0f;
     // Per-light radiance based on the point light's attenuation.
     float distance = length(light.position.xyz - frag_position_xyz);
-    float attenuation = 1.0 / (light.constant_f + light.linear * distance + light.quadratic * (distance * distance));
+    // NOTE: linear = colour.a, quadratic = position.w
+    float attenuation = 1.0 / (constant_f + light.colour.a * distance + light.position.w * (distance * distance));
     // PBR lights are energy-based, so convert to a scale of 0-100.
     float energy_multiplier = 100.0;
     return (light.colour.rgb * energy_multiplier) * attenuation;
