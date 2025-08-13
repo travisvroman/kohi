@@ -185,7 +185,7 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
 
     // Create a terrain material by copying the properties of these materials to a new terrain material.
     // FIXME: Need layered materials for this. This is just using the default standard material for now if nothing exists.
-    kmaterial_system_acquire(engine_systems_get()->material_system, t->material_name ? t->material_name : kname_create(KMATERIAL_DEFAULT_NAME_STANDARD), &chunk->material);
+    kmaterial_system_acquire(engine_systems_get()->material_system, t->material_name ? t->material_name : kname_create(KMATERIAL_STANDARD_NAME_DEFAULT), &chunk->material);
     if (chunk->material.base_material == KMATERIAL_INVALID || chunk->material.instance_id == KMATERIAL_INSTANCE_INVALID) {
         KWARN("Failed to acquire terrain material. Using defualt instead.");
         chunk->material = kmaterial_system_get_default_blended(engine_systems_get()->material_system);

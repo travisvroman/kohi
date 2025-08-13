@@ -487,14 +487,13 @@ typedef struct kstatic_mesh_render_data {
  */
 typedef struct kdirectional_light_render_data {
     /** @brief The light colour. */
-    colour4 colour;
-    /** @brief The direction of the light. The w component is ignored.*/
-    vec4 direction;
+    colour3 colour;
+    /** @brief The direction of the light.*/
+    vec3 direction;
 
     f32 shadow_distance;
     f32 shadow_fade_distance;
     f32 shadow_split_mult;
-    f32 padding;
 } kdirectional_light_render_data;
 
 /**
@@ -502,17 +501,13 @@ typedef struct kdirectional_light_render_data {
  */
 typedef struct kpoint_light_render_data {
     /** @brief The light colour. */
-    colour4 colour;
+    colour3 colour;
     /** @brief The position of the light in the world. The w component is ignored.*/
-    vec4 position;
-    /** @brief Usually 1, make sure denominator never gets smaller than 1 */
-    f32 constant_f;
+    vec3 position;
     /** @brief Reduces light intensity linearly */
     f32 linear;
     /** @brief Makes the light fall off slower at longer distances. */
     f32 quadratic;
-    /** @brief Additional padding used for memory alignment purposes. Ignored. */
-    f32 padding;
 } kpoint_light_render_data;
 
 typedef struct kwater_plane_render_data {

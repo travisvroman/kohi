@@ -24,7 +24,6 @@ typedef struct skybox {
 
     kgeometry geometry;
     u32 group_id;
-    u32 draw_id;
 } skybox;
 
 /**

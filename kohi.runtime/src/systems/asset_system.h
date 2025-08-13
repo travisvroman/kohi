@@ -203,6 +203,7 @@ KAPI void asset_system_release_audio(struct asset_system_state* state, kasset_au
 // SCENE ASSETS
 // ////////////////////////////////////
 
+// FIXME: remove scene asset logic
 // sync load from game package.
 KAPI kasset_scene* asset_system_request_scene_sync(struct asset_system_state* state, const char* name);
 // sync load from specific package.

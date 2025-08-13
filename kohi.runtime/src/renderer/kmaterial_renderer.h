@@ -21,15 +21,31 @@
 
 #include "core_render_types.h"
 #include "kresources/kresource_types.h"
+#include "math/kmath.h"
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
-#include "systems/light_system.h"
 
 // Max number of point lights that can exist in the renderer at once.
 #define KMATERIAL_MAX_GLOBAL_POINT_LIGHTS 64
 // Max number of point lights that can be bound in a single draw.
 #define KMATERIAL_MAX_BOUND_POINT_LIGHTS 8
+
+// Option indices
+typedef enum kmaterial_option {
+    MAT_OPTION_IDX_RENDER_MODE = 0,
+    MAT_OPTION_IDX_USE_PCF = 1,
+    MAT_OPTION_IDX_UNUSED_0 = 2,
+    MAT_OPTION_IDX_UNUSED_1 = 3,
+} kmaterial_option;
+
+// Param indices
+typedef enum kmaterial_param {
+    MAT_PARAM_IDX_SHADOW_BIAS = 0,
+    MAT_PARAM_IDX_DELTA_TIME = 1,
+    MAT_PARAM_IDX_GAME_TIME = 2,
+    MAT_PARAM_IDX_UNUSED_0 = 3
+} kmaterial_param;
 
 typedef struct kdirectional_light_uniform_data {
     /** @brief The light colour, stored in rgb. The a component is ignored */
@@ -155,7 +171,7 @@ typedef struct kmaterial_water_instance_uniform_data {
 typedef struct kmaterial_renderer {
 
     // per-frame ("global") material data - applied to _all_ material types.
-    kmaterial_global_uniform_data global_data;
+    kmaterial_global_uniform_data global_ubo_data;
 
     ktexture shadow_map_texture;
     u8 ibl_cubemap_texture_count;
@@ -188,31 +204,79 @@ typedef struct kmaterial_renderer {
 } kmaterial_renderer;
 
 KAPI b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material_count, u32 max_material_instance_count);
-KAPI b8 kmaterial_renderer_shutdown(kmaterial_renderer* state);
+KAPI void kmaterial_renderer_shutdown(kmaterial_renderer* state);
 
-KAPI b8 kmaterial_renderer_update(kmaterial_renderer* state);
+KAPI void kmaterial_renderer_update(kmaterial_renderer* state);
 
-KAPI void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial base);
-KAPI void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial base);
+// Sets material_data->group_id;
+KAPI void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* material_data);
+KAPI void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial_data* material_data);
 
-KAPI void kmaterial_renderer_register_instance(kmaterial_renderer* state, kmaterial_instance instance);
-KAPI void kmaterial_renderer_unregister_instance(kmaterial_renderer* state, kmaterial_instance instance);
+KAPI void kmaterial_renderer_register_instance(kmaterial_renderer* state, kmaterial_data* base_material, kmaterial_instance_data* instance);
+KAPI void kmaterial_renderer_unregister_instance(kmaterial_renderer* state, kmaterial_data* base_material, kmaterial_instance_data* instance);
 
-KAPI void kmaterial_renderer_set_render_mode(kmaterial_renderer* state, renderer_debug_view_mode renderer_mode);
+#define kmaterial_renderer_set_render_mode(state, renderer_mode)                             \
+    {                                                                                        \
+        state->global_ubo_data.options.elements[MAT_OPTION_IDX_RENDER_MODE] = renderer_mode; \
+    }
 
-KAPI void kmaterial_renderer_set_pcf_enabled(kmaterial_renderer* state, b8 pcf_enabled);
+#define kmaterial_renderer_set_pcf_enabled(state, pcf_enabled)                         \
+    {                                                                                  \
+        state->global_ubo_data.options.elements[MAT_OPTION_IDX_USE_PCF] = pcf_enabled; \
+    }
 
-KAPI void kmaterial_renderer_set_shadow_bias(kmaterial_renderer* state, f32 shadow_bias);
+#define kmaterial_renderer_set_shadow_bias(state, shadow_bias)                           \
+    {                                                                                    \
+        state->global_ubo_data.params.elements[MAT_PARAM_IDX_SHADOW_BIAS] = shadow_bias; \
+    }
 
-KAPI void kmaterial_renderer_set_delta_game_times(kmaterial_renderer* state, f32 delta_time, f32 game_time);
+#define kmaterial_renderer_set_delta_game_times(state, delta_time, game_time)          \
+    {                                                                                  \
+        state->global_ubo_data.params.elements[MAT_PARAM_IDX_DELTA_TIME] = delta_time; \
+        state->global_ubo_data.params.elements[MAT_PARAM_IDX_GAME_TIME] = game_time;   \
+    }
 
-KAPI void kmaterial_renderer_set_directional_light(kmaterial_renderer* state, const directional_light* dir_light);
+#define kmaterial_renderer_set_matrices(state, projection_matrix, view_matrix)                 \
+    {                                                                                          \
+        state->global_ubo_data.projection = projection_matrix;                                 \
+        state->global_ubo_data.view = view_matrix;                                             \
+        state->global_ubo_data.view_position = vec3_to_vec4(mat4_position(view_matrix), 1.0f); \
+    }
+
+#define kmaterial_renderer_set_directional_light(state, p_dir_light)                               \
+    {                                                                                              \
+        state->global_ubo_data.dir_light.colour = vec4_from_vec3(p_dir_light->colour, 0.0f);       \
+        state->global_ubo_data.dir_light.direction = vec4_from_vec3(p_dir_light->direction, 0.0f); \
+        state->global_ubo_data.dir_light.shadow_distance = p_dir_light->shadow_distance;           \
+        state->global_ubo_data.dir_light.shadow_fade_distance = p_dir_light->shadow_fade_distance; \
+        state->global_ubo_data.dir_light.shadow_split_mult = p_dir_light->shadow_split_mult;       \
+    }
+
+KINLINE void kmaterial_renderer_set_point_lights(kmaterial_renderer* state, u8 count, kpoint_light_render_data* lights) {
+    u8 num_p_lights = KMIN(count, KMATERIAL_MAX_GLOBAL_POINT_LIGHTS);
+    for (u8 i = 0; i < num_p_lights; ++i) {
+        kpoint_light_render_data* pls = &lights[i];
+        kpoint_light_uniform_data* plt = &state->global_ubo_data.global_point_lights[i];
+        plt->colour = vec4_from_vec3(pls->colour, pls->linear);
+        plt->position = vec4_from_vec3(pls->position, pls->quadratic);
+    }
+}
 
 // Sets global point light data for the entire scene.
 // NOTE: count exceeding KMATERIAL_MAX_GLOBAL_POINT_LIGHTS will be ignored
-KAPI void kmaterial_renderer_set_point_lights(kmaterial_renderer* state, u8 point_light_count, point_light* point_lights);
-
-void kmaterial_renderer_set_matrices(kmaterial_renderer* state, mat4 projection, mat4 view);
+// Linear stored in colour.a, // Quadratic stored in position.w
+/* #define kmaterial_renderer_set_point_lights(state, point_light_count, point_lights)      \
+    {                                                                                    \
+        u8 count = KMIN(KMATERIAL_MAX_GLOBAL_POINT_LIGHTS, point_light_count);           \
+        for (u8 i = 0; i < count; ++i) {                                                 \
+            point_light* p = &point_lights[i];                                           \
+            kpoint_light_uniform_data* gpl = &state->global_data.global_point_lights[i]; \
+            gpl->colour = p->data.colour;                                                \
+            gpl->colour.a = p->data.linear;                                              \
+            gpl->position = p->data.position;                                            \
+            gpl->position.w = p->data.quadratic;                                         \
+        }                                                                                \
+    } */
 
 KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
 

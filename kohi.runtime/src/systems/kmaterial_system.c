@@ -1,3 +1,7 @@
+// TODO:
+// - Blended type material
+// - Material models (unlit, PBR, Phong, etc.)
+//
 #include "kmaterial_system.h"
 
 #include <assets/kasset_types.h>
@@ -12,34 +16,17 @@
 #include <serializers/kasset_material_serializer.h>
 #include <serializers/kasset_shader_serializer.h>
 #include <strings/kname.h>
+#include <strings/kstring.h>
 
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/event.h"
-#include "core/frame_data.h"
-#include "core/kvar.h"
 #include "kresources/kresource_types.h"
+#include "renderer/kmaterial_renderer.h"
 #include "renderer/renderer_frontend.h"
 #include "runtime_defines.h"
-#include "strings/kstring.h"
 #include "systems/asset_system.h"
-#include "systems/kshader_system.h"
-#include "systems/light_system.h"
 #include "systems/texture_system.h"
-
-// Texture indices
-
-// TODO:
-// - Blended type material
-// - Material models (unlit, PBR, Phong, etc.)
-
-// ======================================================
-// Standard Material
-// ======================================================
-
-// ======================================================
-// Water Material
-// ======================================================
 
 /**
  * The structure which holds state for the entire material system.
@@ -56,8 +43,6 @@ typedef struct kmaterial_system_state {
     kmaterial_data* default_standard_material;
     kmaterial_data* default_water_material;
     kmaterial_data* default_blended_material;
-
-    kshader material_blended_shader;
 
     // Pointer to use for material texture inputs _not_ using a texture map (because something has to be bound).
     ktexture default_texture;
@@ -90,7 +75,6 @@ static b8 create_default_standard_material(kmaterial_system_state* state);
 static b8 create_default_water_material(kmaterial_system_state* state);
 static b8 create_default_blended_material(kmaterial_system_state* state);
 static void on_material_system_dump(console_command_context context);
-static kshader get_shader_for_material_type(const kmaterial_system_state* state, kmaterial_type type);
 static kmaterial material_handle_create(kmaterial_system_state* state, kname name);
 static u16 kmaterial_instance_handle_create(kmaterial_system_state* state, kmaterial material_handle);
 static b8 material_create(kmaterial_system_state* state, kmaterial material_handle, const kasset_material* asset);
@@ -140,7 +124,14 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
     state->default_water_normal_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME));
     state->default_water_dudv_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME));
 
-    // FIXME: Material shaders have to be loaded before this point.
+    // Register a console command to dump list of materials/references.
+    console_command_register("material_system_dump", 0, state, on_material_system_dump);
+
+    return true;
+}
+
+b8 kmaterial_system_setup_defaults(struct kmaterial_system_state* state) {
+    // NOTE: Material shaders have to be loaded before this point, which is handled by the renderer.
 
     // Load up some default materials.
     if (!create_default_standard_material(state)) {
@@ -158,9 +149,6 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
         KFATAL("Failed to create default blended material. Application cannot continue.");
         return false;
     }
-
-    // Register a console command to dump list of materials/references.
-    console_command_register("material_system_dump", 0, state, on_material_system_dump);
 
     return true;
 }
@@ -569,7 +557,7 @@ void kmaterial_system_dump(kmaterial_system_state* state) {
 
 static b8 create_default_standard_material(kmaterial_system_state* state) {
     KTRACE("Creating default standard material...");
-    kname material_name = kname_create(KMATERIAL_DEFAULT_NAME_STANDARD);
+    kname material_name = kname_create(KMATERIAL_STANDARD_NAME_DEFAULT);
 
     // Create a fake material "asset" that can be used to load the material.
     kasset_material asset = {0};
@@ -610,7 +598,7 @@ static b8 create_default_standard_material(kmaterial_system_state* state) {
 
 static b8 create_default_water_material(kmaterial_system_state* state) {
     KTRACE("Creating default water material...");
-    kname material_name = kname_create(KMATERIAL_DEFAULT_NAME_WATER);
+    kname material_name = kname_create(KMATERIAL_WATER_NAME_DEFAULT);
 
     // Create a fake material "asset" that can be serialized into a string.
     kasset_material asset = {0};
@@ -688,27 +676,6 @@ static void on_material_system_dump(console_command_context context) {
     kmaterial_system_dump(engine_systems_get()->material_system);
 }
 
-static kshader get_shader_for_material_type(const kmaterial_system_state* state, kmaterial_type type) {
-    switch (type) {
-    default:
-    case KMATERIAL_TYPE_UNKNOWN:
-        KERROR("Cannot get shader for a material using an 'unknown' material type.");
-        return KSHADER_INVALID;
-    case KMATERIAL_TYPE_STANDARD:
-        return state->material_standard_shader;
-        break;
-    case KMATERIAL_TYPE_WATER:
-        return state->material_water_shader;
-        break;
-    case KMATERIAL_TYPE_BLENDED:
-        return state->material_blended_shader;
-        break;
-    case KMATERIAL_TYPE_CUSTOM:
-        KASSERT_MSG(false, "Not yet implemented!");
-        return KSHADER_INVALID;
-    }
-}
-
 static kmaterial material_handle_create(kmaterial_system_state* state, kname name) {
     u32 resource_index = INVALID_ID;
 
@@ -763,13 +730,6 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
     // Validate the material type and model.
     material->type = asset->type;
     material->model = asset->model;
-
-    // Select shader.
-    kshader material_shader = get_shader_for_material_type(state, material->type);
-    if (material_shader == KSHADER_INVALID) {
-        // TODO: invalidate handle/entry?
-        return false;
-    }
 
     // Base colour map or value - used by all material types.
     if (asset->base_colour_map.resource_name) {
@@ -979,14 +939,8 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
     FLAG_SET(material->flags, KMATERIAL_FLAG_CASTS_SHADOW_BIT, asset->casts_shadow);
     FLAG_SET(material->flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT, asset->use_vertex_colour_as_base_colour);
 
-    // Create a group for the material.
-    if (!kshader_system_shader_group_acquire(material_shader, &material->group_id)) {
-        KERROR("Failed to acquire shader group while creating material. See logs for details.");
-        // TODO: destroy/release
-        return false;
-    }
-
-    // TODO: Custom samplers.
+    // Register the base material with the renderer.
+    kmaterial_renderer_register_base(engine_systems_get()->material_renderer, material);
 
     material->state = KMATERIAL_STATE_LOADED;
 
@@ -998,13 +952,6 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
 
     // Immediately mark it as unavailable for use.
     material->state = KMATERIAL_STATE_UNINITIALIZED;
-
-    // Select shader.
-    kshader material_shader = get_shader_for_material_type(state, material->type);
-    if (material_shader == KSHADER_INVALID) {
-        KWARN("Attempting to release material that had an invalid shader.");
-        return;
-    }
 
     // Release texture resources/references
     if (material->base_colour_texture) {
@@ -1052,12 +999,8 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
         }
     }
 
-    // Release the group for the material.
-    if (!kshader_system_shader_group_release(material_shader, material->group_id)) {
-        KWARN("Failed to release shader group while creating material. See logs for details.");
-    }
-
-    // TODO: Custom samplers.
+    // Unregister the material.
+    kmaterial_renderer_unregister_base(engine_systems_get()->material_renderer, material);
 
     // Destroy instances.
     u32 instance_count = darray_length(state->instances[material_index]);
@@ -1090,12 +1033,8 @@ static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial bas
     if (material->state == KMATERIAL_STATE_LOADED) {
         inst->state = KMATERIAL_INSTANCE_STATE_LOADING;
 
-        // Get per-draw resources for the instance.
-        if (!renderer_shader_per_draw_resources_acquire(state->renderer, get_shader_for_material_type(state, material->type), &inst->per_draw_id)) {
-            KERROR("Failed to create per-draw resources for a material instance. Instance creation failed.");
-            inst->state = KMATERIAL_INSTANCE_STATE_UNINITIALIZED;
-            return false;
-        }
+        // Register the material instance with the material renderer.
+        kmaterial_renderer_register_instance(engine_systems_get()->material_renderer, material, inst);
 
         // Take a copy of the base material properties.
         inst->flags = material->flags;
@@ -1115,8 +1054,8 @@ static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial bas
 static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_data* base_material, kmaterial_instance_data* inst) {
     if (base_material && inst && inst->material != KMATERIAL_INVALID) {
 
-        // Release per-draw resources for the instance.
-        renderer_shader_per_draw_resources_release(state->renderer, get_shader_for_material_type(state, base_material->type), inst->per_draw_id);
+        // Unregister the material instance with the material renderer.
+        kmaterial_renderer_unregister_instance(engine_systems_get()->material_renderer, base_material, inst);
 
         kzero_memory(inst, sizeof(kmaterial_instance_data));
 
@@ -1152,12 +1091,9 @@ static void kasset_material_loaded(void* listener, kasset_material* asset) {
     for (u32 i = 0; i < instance_count; ++i) {
         kmaterial_instance_data* inst = &state->instances[listener_inst->material_handle][i];
         if (inst->state == KMATERIAL_INSTANCE_STATE_LOADING) {
-            // Get per-draw resources for the instance.
-            if (!renderer_shader_per_draw_resources_acquire(state->renderer, get_shader_for_material_type(state, material->type), &inst->per_draw_id)) {
-                KERROR("Failed to create per-draw resources for a material instance. Instance creation failed.");
-                inst->state = KMATERIAL_INSTANCE_STATE_UNINITIALIZED;
-                continue;
-            }
+
+            // Register the material instance with the material renderer.
+            kmaterial_renderer_register_instance(engine_systems_get()->material_renderer, material, inst);
 
             // Take a copy of the base material properties.
             inst->flags = material->flags;

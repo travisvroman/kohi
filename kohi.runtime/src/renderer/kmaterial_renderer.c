@@ -24,18 +24,6 @@
 #define MATERIAL_BLENDED_NAME_FRAG "Shader.MaterialBlended_frag"
 #define MATERIAL_BLENDED_NAME_VERT "Shader.MaterialBlended_vert"
 
-// Option indices
-const u32 MAT_OPTION_IDX_RENDER_MODE = 0;
-const u32 MAT_OPTION_IDX_USE_PCF = 1;
-const u32 MAT_OPTION_IDX_UNUSED_0 = 2;
-const u32 MAT_OPTION_IDX_UNUSED_1 = 3;
-
-// Param indices
-const u32 MAT_PARAM_IDX_SHADOW_BIAS = 0;
-const u32 MAT_PARAM_IDX_DELTA_TIME = 1;
-const u32 MAT_PARAM_IDX_GAME_TIME = 2;
-const u32 MAT_PARAM_IDX_UNUSED_0 = 3;
-
 #define MATERIAL_STANDARD_TEXTURE_COUNT 7
 #define MATERIAL_STANDARD_SAMPLER_COUNT 7
 
@@ -336,80 +324,90 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
         // TODO: blended materials.
         // state->material_blended_shader = shader_system_get(kname_create(SHADER_NAME_RUNTIME_MATERIAL_BLENDED));
     }
+
+    return true;
 }
 
-b8 kmaterial_renderer_shutdown(kmaterial_renderer* state) {
+void kmaterial_renderer_shutdown(kmaterial_renderer* state) {
+    if (state) {
+        // TODO: Free resources, etc.
+    }
 }
 
-b8 kmaterial_renderer_update(kmaterial_renderer* state) {
+void kmaterial_renderer_update(kmaterial_renderer* state) {
+    if (state) {
 
-    // Get "use pcf" option
-    i32 iuse_pcf = 0;
-    kvar_i32_get("use_pcf", &iuse_pcf);
-    kmaterial_renderer_set_pcf_enabled(state, (b8)iuse_pcf);
-}
-
-void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial base) {
-}
-void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial base) {
+        // Get "use pcf" option
+        i32 iuse_pcf = 0;
+        kvar_i32_get("use_pcf", &iuse_pcf);
+        kmaterial_renderer_set_pcf_enabled(state, (b8)iuse_pcf);
+    }
 }
 
-void kmaterial_renderer_register_instance(kmaterial_renderer* state, kmaterial_instance instance) {
-}
-void kmaterial_renderer_unregister_instance(kmaterial_renderer* state, kmaterial_instance instance) {
-}
-
-void kmaterial_renderer_set_render_mode(kmaterial_renderer* state, renderer_debug_view_mode renderer_mode) {
-    state->global_data.options.elements[MAT_OPTION_IDX_RENDER_MODE] = renderer_mode;
-}
-
-void kmaterial_renderer_set_pcf_enabled(kmaterial_renderer* state, b8 pcf_enabled) {
-    state->global_data.options.elements[MAT_OPTION_IDX_USE_PCF] = pcf_enabled;
-}
-
-void kmaterial_renderer_set_shadow_bias(kmaterial_renderer* state, f32 shadow_bias) {
-    state->global_data.params.elements[MAT_PARAM_IDX_SHADOW_BIAS] = shadow_bias;
+static kshader get_shader_for_material_type(kmaterial_renderer* state, kmaterial_type type) {
+    switch (type) {
+    default:
+    case KMATERIAL_TYPE_UNKNOWN:
+        return KSHADER_INVALID;
+    case KMATERIAL_TYPE_STANDARD:
+        return state->material_standard_shader;
+    case KMATERIAL_TYPE_WATER:
+        return state->material_water_shader;
+    }
 }
 
-void kmaterial_renderer_set_delta_game_times(kmaterial_renderer* state, f32 delta_time, f32 game_time) {
-    state->global_data.params.elements[MAT_PARAM_IDX_DELTA_TIME] = delta_time;
-    state->global_data.params.elements[MAT_PARAM_IDX_GAME_TIME] = game_time;
+void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* base_material) {
+    if (state) {
+        kshader shader = get_shader_for_material_type(state, base_material->type);
+        if (shader != KSHADER_INVALID) {
+            // Create a group for the material.
+            KASSERT_MSG(
+                kshader_system_shader_group_acquire(shader, &base_material->group_id),
+                "Failed to acquire shader group (base material). See logs for details.");
+        }
+    }
 }
 
-void kmaterial_renderer_set_directional_light(kmaterial_renderer* state, const directional_light* dir_light) {
-    KASSERT_DEBUG(state);
-    KASSERT_DEBUG(dir_light);
-    state->global_data.dir_light.colour = dir_light->data.colour;
-    state->global_data.dir_light.direction = dir_light->data.direction;
-    state->global_data.dir_light.shadow_distance = dir_light->data.shadow_distance;
-    state->global_data.dir_light.shadow_fade_distance = dir_light->data.shadow_fade_distance;
-    state->global_data.dir_light.shadow_split_mult = dir_light->data.shadow_split_mult;
+void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial_data* base_material) {
+    if (state) {
+        kshader shader = get_shader_for_material_type(state, base_material->type);
+        if (shader != KSHADER_INVALID) {
+            // Release the group for the material.
+            if (!kshader_system_shader_group_release(shader, base_material->group_id)) {
+                KWARN("Failed to release shader group (base material). See logs for details.");
+            }
+            base_material->group_id = INVALID_ID_U32;
+        }
+    }
+}
+
+void kmaterial_renderer_register_instance(kmaterial_renderer* state, kmaterial_data* base_material, kmaterial_instance_data* instance) {
+    if (state) {
+        kshader shader = get_shader_for_material_type(state, base_material->type);
+        if (shader != KSHADER_INVALID) {
+            // Create a group for the material.
+            KASSERT_MSG(
+                kshader_system_shader_per_draw_acquire(shader, &instance->per_draw_id),
+                "Failed to acquire shader per-draw (material instance). See logs for details.");
+        }
+    }
+}
+
+void kmaterial_renderer_unregister_instance(kmaterial_renderer* state, kmaterial_data* base_material, kmaterial_instance_data* instance) {
+    if (state) {
+        kshader shader = get_shader_for_material_type(state, base_material->type);
+        if (shader != KSHADER_INVALID) {
+            // Release the group for the material.
+            if (!kshader_system_shader_per_draw_release(shader, instance->per_draw_id)) {
+                KWARN("Failed to release shader per-draw (material instance). See logs for details.");
+            }
+            base_material->group_id = INVALID_ID_U32;
+        }
+    }
 }
 
 // Sets global point light data for the entire scene.
 // NOTE: count exceeding KMATERIAL_MAX_GLOBAL_POINT_LIGHTS will be ignored
-void kmaterial_renderer_set_point_lights(kmaterial_renderer* state, u8 point_light_count, point_light* point_lights) {
-    KASSERT_DEBUG(state);
-
-    u8 count = KMIN(KMATERIAL_MAX_GLOBAL_POINT_LIGHTS, point_light_count);
-    for (u8 i = 0; i < count; ++i) {
-        point_light* p = &point_lights[i];
-        kpoint_light_uniform_data* gpl = &state->global_data.global_point_lights[i];
-
-        gpl->colour = p->data.colour;
-        // Linear stored in colour.a
-        gpl->colour.a = p->data.linear;
-        gpl->position = p->data.position;
-        // Quadratic stored in position.w
-        gpl->position.w = p->data.quadratic;
-    }
-}
-
-void kmaterial_renderer_set_matrices(kmaterial_renderer* state, mat4 projection, mat4 view) {
-    state->global_data.projection = projection;
-    state->global_data.view = view;
-    state->global_data.view_position = vec3_to_vec4(mat4_position(view), 1.0f);
-}
 
 void kmaterial_renderer_set_shadow_map_texture(kmaterial_renderer* state, ktexture shadow_map_texture) {
     state->shadow_map_texture = shadow_map_texture;
@@ -428,7 +426,7 @@ void kmaterial_renderer_set_ibl_cubemap_textures(kmaterial_renderer* state, u32 
 
 void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 
-    b8 is_wireframe = (state->global_data.options.elements[MAT_OPTION_IDX_RENDER_MODE] == RENDERER_VIEW_MODE_WIREFRAME);
+    b8 is_wireframe = (state->global_ubo_data.options.elements[MAT_OPTION_IDX_RENDER_MODE] == RENDERER_VIEW_MODE_WIREFRAME);
 
     // TODO: Set standard shader globals
     {
@@ -441,7 +439,7 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
         KASSERT_DEBUG(kshader_system_bind_frame(shader));
 
         // Set UBO
-        KASSERT_DEBUG(kshader_system_uniform_set_by_location(shader, state->material_standard_locations.material_frame_ubo, &state->global_data));
+        KASSERT_DEBUG(kshader_system_uniform_set_by_location(shader, state->material_standard_locations.material_frame_ubo, &state->global_ubo_data));
 
         // Set texture maps.
         if (state->shadow_map_texture != INVALID_KTEXTURE) {
@@ -474,7 +472,7 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
         KASSERT_DEBUG(kshader_system_bind_frame(shader));
 
         // Set the whole UBO at once.
-        KASSERT_DEBUG(kshader_system_uniform_set_by_location(shader, state->material_water_locations.material_frame_ubo, &state->global_data));
+        KASSERT_DEBUG(kshader_system_uniform_set_by_location(shader, state->material_water_locations.material_frame_ubo, &state->global_ubo_data));
 
         // Texture maps
         // Shadow map - arrayed texture.

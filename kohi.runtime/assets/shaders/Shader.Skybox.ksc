@@ -60,11 +60,4 @@ uniforms = {
             type = "sampler"
         }
     ]
-    per_draw = [
-        {
-            name = "skybox_draw_ubo"
-            type = "struct"
-            size = 16
-        }
-    ]
 }

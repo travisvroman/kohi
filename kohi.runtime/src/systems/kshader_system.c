@@ -88,8 +88,6 @@ typedef struct kshader_system_state {
     // A collection of created shaders.
     kshader_data* shaders;
 
-    // Convenience pointer to resource system state.
-    struct kresource_system_state* resource_state;
 } kshader_system_state;
 
 // A pointer to hold the internal system state.
@@ -182,8 +180,6 @@ b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config
     u64 addr = (u64)memory;
     state_ptr->shaders = (void*)(addr + struct_requirement);
     state_ptr->config = *typed_config;
-
-    state_ptr->resource_state = engine_systems_get()->kresource_state;
 
     // Invalidate all shader ids.
     for (u32 i = 0; i < typed_config->max_shader_count; ++i) {

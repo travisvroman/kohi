@@ -18,6 +18,10 @@
 #include <defines.h>
 #include <strings/kname.h>
 
+#define KMATERIAL_STANDARD_NAME_DEFAULT "MaterialStandardDefault"
+#define KMATERIAL_WATER_NAME_DEFAULT "MaterialStandardWater"
+#define KMATERIAL_BLENDED_NAME_DEFAULT "MaterialStandardBlended"
+
 #define KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT 4
 #define KMATERIAL_MAX_SHADOW_CASCADES 4
 #define KMATERIAL_MAX_POINT_LIGHTS 10
@@ -197,6 +201,8 @@ typedef struct kmaterial_data {
  * @return True on success; otherwise false.
  */
 b8 kmaterial_system_initialize(u64* memory_requirement, struct kmaterial_system_state* state, const kmaterial_system_config* config);
+
+b8 kmaterial_system_setup_defaults(struct kmaterial_system_state* state);
 
 /**
  * @brief Shuts down the material system.

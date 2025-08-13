@@ -14,6 +14,7 @@
 #include <time/kclock.h>
 
 // Version reporting
+#include "debug/kassert.h"
 #include "kohi.runtime_version.h"
 
 #include "application/application_config.h"
@@ -26,6 +27,7 @@
 #include "core/metrics.h"
 #include "frame_data.h"
 #include "plugins/plugin_types.h"
+#include "renderer/kmaterial_renderer.h"
 #include "renderer/renderer_frontend.h"
 
 // systems
@@ -484,7 +486,7 @@ b8 engine_create(application* app) {
         renderer_on_window_resized(engine_state->systems.renderer_system, window);
     }
 
-    // Material system
+    // Material system and renderer.
     {
         kmaterial_system_config material_sys_config = {0};
         // FIXME: Should be configurable.
@@ -496,6 +498,18 @@ b8 engine_create(application* app) {
             KERROR("Failed to initialize material system.");
             return false;
         }
+
+        systems->material_renderer = kallocate(sizeof(kmaterial_renderer), MEMORY_TAG_ENGINE);
+        KASSERT_MSG(
+            kmaterial_renderer_initialize(
+                systems->material_renderer,
+                material_sys_config.max_material_count,
+                material_sys_config.max_instance_count),
+            "Failed to initialize material renderer.");
+
+        // Setup default materials in material system. Must be done after the renderer is initialized
+        // since it handles all GPU resources.
+        KASSERT_MSG(kmaterial_system_setup_defaults(systems->material_system), "Failed to setup material system defaults.");
     }
 
     // Static mesh system

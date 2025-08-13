@@ -87,6 +87,7 @@ typedef struct engine_system_states {
 
     u64 material_system_memory_requirement;
     struct kmaterial_system_state* material_system;
+    struct kmaterial_renderer* material_renderer;
 
     u64 static_mesh_system_memory_requirement;
     struct static_mesh_system_state* static_mesh_system;

@@ -30,7 +30,6 @@ b8 skybox_initialize(skybox* sb) {
     }
 
     sb->group_id = INVALID_ID;
-    sb->draw_id = INVALID_ID;
 
     sb->state = SKYBOX_STATE_INITIALIZED;
 
@@ -56,10 +55,6 @@ b8 skybox_load(skybox* sb) {
         KFATAL("Unable to acquire shader per-group resources for skybox.");
         return false;
     }
-    if (!renderer_shader_per_draw_resources_acquire(engine_systems_get()->renderer_system, skybox_shader, &sb->draw_id)) {
-        KFATAL("Unable to acquire shader per-draw resources for skybox.");
-        return false;
-    }
     sb->state = SKYBOX_STATE_LOADED;
 
     return true;
@@ -78,12 +73,6 @@ b8 skybox_unload(skybox* sb) {
         return false;
     }
     sb->group_id = INVALID_ID;
-
-    if (!renderer_shader_per_draw_resources_release(engine_systems_get()->renderer_system, skybox_shader, sb->draw_id)) {
-        KWARN("Unable to release shader draw resources for skybox.");
-        return false;
-    }
-    sb->draw_id = INVALID_ID;
 
     renderer_geometry_destroy(&sb->geometry);
     geometry_destroy(&sb->geometry);
