@@ -1,21 +1,7 @@
 /**
  * LEFTOFF:instance
- * - Remove multiple view/view_positions and per-draw view_index because they are no longer required due to
- *   the way scene renders are always done within a pass of their own, and never more than once.
- * - Move over all shader data (UBO structs, uniform locations, etc.)
  * - simplify API:
- *   - Maintain state at global level only, that persists across frames.
- *   - Material base creation registers material with mat renderer, unregisters when destroyed
- *     - Update() looks at base properties every frame, updates when needed. Use Generation?
- *   - Material instances register with mat renderer, unregisters when destroyed.
- *     - Update() looks at material instance-level properties every frame and updates uniforms. Use Generation?
- *   - Set properties instead of uniforms where it makes sense (i.e. proj/view matrix, skybox data, etc)
- *   - Move all directional light properties to global instead of group in shaders.
- *   - Directional light should be set once "per frame".
  *   - Point lights should be set per-draw (and based on the closest lights in the scene, max 10)
- * - kmaterial_system_prepare_frame() -> kmaterial_renderer_apply_global()
- * - kmaterial_system_apply() -> kmaterial_renderer_apply_base()
- * - kmaterial_system_apply_instance -> kmaterial_renderer_apply_instance()
  */
 #pragma once
 
@@ -25,11 +11,6 @@
 #include "math/math_types.h"
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
-
-// Max number of point lights that can exist in the renderer at once.
-#define KMATERIAL_MAX_GLOBAL_POINT_LIGHTS 64
-// Max number of point lights that can be bound in a single draw.
-#define KMATERIAL_MAX_BOUND_POINT_LIGHTS 8
 
 // Option indices
 typedef enum kmaterial_option {
@@ -175,7 +156,7 @@ typedef struct kmaterial_renderer {
 
     ktexture shadow_map_texture;
     u8 ibl_cubemap_texture_count;
-    ktexture* ibl_cubemap_textures;
+    ktexture ibl_cubemap_textures[KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
 
     // Pointer to use for material texture inputs _not_ using a texture map (because something has to be bound).
     ktexture default_texture;
@@ -262,21 +243,7 @@ KINLINE void kmaterial_renderer_set_point_lights(kmaterial_renderer* state, u8 c
     }
 }
 
-// Sets global point light data for the entire scene.
-// NOTE: count exceeding KMATERIAL_MAX_GLOBAL_POINT_LIGHTS will be ignored
-// Linear stored in colour.a, // Quadratic stored in position.w
-/* #define kmaterial_renderer_set_point_lights(state, point_light_count, point_lights)      \
-    {                                                                                    \
-        u8 count = KMIN(KMATERIAL_MAX_GLOBAL_POINT_LIGHTS, point_light_count);           \
-        for (u8 i = 0; i < count; ++i) {                                                 \
-            point_light* p = &point_lights[i];                                           \
-            kpoint_light_uniform_data* gpl = &state->global_data.global_point_lights[i]; \
-            gpl->colour = p->data.colour;                                                \
-            gpl->colour.a = p->data.linear;                                              \
-            gpl->position = p->data.position;                                            \
-            gpl->position.w = p->data.quadratic;                                         \
-        }                                                                                \
-    } */
+KAPI void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* state, u8 count, ktexture* irradiance_cubemap_textures);
 
 KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
 

@@ -15,6 +15,11 @@ struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
 
+// Max number of point lights that can exist in the renderer at once.
+#define KMATERIAL_MAX_GLOBAL_POINT_LIGHTS 64
+// Max number of point lights that can be bound in a single draw.
+#define KMATERIAL_MAX_BOUND_POINT_LIGHTS 8
+
 // The max number of "frames" for which data can exist. This would be 2 if
 // only double-buffering was supported, but since triple-buffering is supported
 // this must be always taken into account.

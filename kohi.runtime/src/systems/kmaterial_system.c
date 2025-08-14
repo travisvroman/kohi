@@ -44,17 +44,6 @@ typedef struct kmaterial_system_state {
     kmaterial_data* default_water_material;
     kmaterial_data* default_blended_material;
 
-    // Pointer to use for material texture inputs _not_ using a texture map (because something has to be bound).
-    ktexture default_texture;
-    ktexture default_base_colour_texture;
-    ktexture default_spec_texture;
-    ktexture default_normal_texture;
-    // Pointer to a default cubemap to fall back on if no IBL cubemaps are present.
-    ktexture default_ibl_cubemap;
-    ktexture default_mra_texture;
-    ktexture default_water_normal_texture;
-    ktexture default_water_dudv_texture;
-
     // Keep a pointer to the renderer state for quick access.
     struct renderer_system_state* renderer;
     struct texture_system_state* texture_system;
@@ -114,15 +103,6 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
     state->materials = darray_reserve(kmaterial_data, config->max_material_count);
     // An array for each material will be created when a material is created.
     state->instances = darray_reserve(kmaterial_instance_data*, config->max_material_count);
-
-    state->default_texture = texture_acquire_sync(kname_create(DEFAULT_TEXTURE_NAME));
-    state->default_base_colour_texture = texture_acquire_sync(kname_create(DEFAULT_BASE_COLOUR_TEXTURE_NAME));
-    state->default_spec_texture = texture_acquire_sync(kname_create(DEFAULT_SPECULAR_TEXTURE_NAME));
-    state->default_normal_texture = texture_acquire_sync(kname_create(DEFAULT_NORMAL_TEXTURE_NAME));
-    state->default_mra_texture = texture_acquire_sync(kname_create(DEFAULT_MRA_TEXTURE_NAME));
-    state->default_ibl_cubemap = texture_cubemap_acquire_sync(kname_create(DEFAULT_CUBE_TEXTURE_NAME));
-    state->default_water_normal_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_NORMAL_TEXTURE_NAME));
-    state->default_water_dudv_texture = texture_acquire_sync(kname_create(DEFAULT_WATER_DUDV_TEXTURE_NAME));
 
     // Register a console command to dump list of materials/references.
     console_command_register("material_system_dump", 0, state, on_material_system_dump);

@@ -493,6 +493,7 @@ static void destroy_view_tree_node(hierarchy_graph_view* view, hierarchy_graph_v
             destroy_view_tree_node(view, child);
         }
         darray_destroy(node->children);
+        node->children = 0;
     }
 }
 

@@ -2,7 +2,7 @@
 
 // TODO: All these types should be defined in some #include file when #includes are implemented.
 
-const uint MATERIAL_MAX_POINT_LIGHTS = 10;
+const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
 const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
 const uint MATERIAL_MAX_VIEWS = 4;
 const uint MATERIAL_WATER_TEXTURE_COUNT = 5;
@@ -19,15 +19,10 @@ struct directional_light {
 };
 
 struct point_light {
+    // .rgb = colour, .a = linear 
     vec4 colour;
+    // .xyz = position, .w = quadratic
     vec4 position;
-    // Usually 1, make sure denominator never gets smaller than 1
-    float constant_f;
-    // Reduces light intensity linearly
-    float linear;
-    // Makes the light fall off slower at longer distances.
-    float quadratic;
-    float padding;
 };
 
 /** 
@@ -49,15 +44,16 @@ const mat4 ndc_to_uvw = mat4(
 // Vertex inputs
 layout(location = 0) in vec4 in_position; // NOTE: w is ignored.
 
-// per-frame
-layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
+// per-frame, "global" data
+layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
+    point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 views[MATERIAL_MAX_VIEWS];
-    mat4 projection;
-    vec4 view_positions[MATERIAL_MAX_VIEWS];
-    vec4 cascade_splits;// TODO: support for something other than 4[MATERIAL_MAX_SHADOW_CASCADES];
-
+    mat4 projection;                                             // 64 bytes
+    mat4 view;                                                   // 64 bytes
+    directional_light dir_light;                                 // 48 bytes
+    vec4 view_position;                                          // 16 bytes
+    vec4 cascade_splits;                                         // 16 bytes
     // [shadow_bias, delta_time, game_time, padding]
     vec4 params;
     // [render_mode, use_pcf, padding, padding]
@@ -67,26 +63,24 @@ layout(std140, set = 0, binding = 0) uniform per_frame_ubo {
 
 // per-group
 layout(set = 1, binding = 0) uniform per_group_ubo {
-    directional_light dir_light;            // 48 bytes
-    point_light p_lights[MATERIAL_MAX_POINT_LIGHTS]; // 48 bytes each
-    uint num_p_lights;
     /** @brief The material lighting model. */
     uint lighting_model;
     // Base set of flags for the material. Copied to the material instance when created.
     uint flags;
-    float padding;
+    vec2 padding;
 } material_group_ubo;
 
 // per-draw
 layout(push_constant) uniform per_draw_ubo {
     mat4 model;
+    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 u32s.
+    uvec2 packed_point_light_indices; // 8 bytes
+    uint num_p_lights;
     uint irradiance_cubemap_index;
-    uint view_index;
-    vec2 padding;
     float tiling;
     float wave_strength;
     float wave_speed;
-    float padding2;
+    float padding;
 } material_draw_ubo;
 
 // =========================================================
@@ -107,7 +101,7 @@ layout(location = 0) out dto {
 void main() {
 	vec4 world_position = material_draw_ubo.model * in_position;
 	out_dto.frag_position = world_position;
-	out_dto.clip_space = material_frame_ubo.projection * material_frame_ubo.views[material_draw_ubo.view_index] * world_position;
+	out_dto.clip_space = material_frame_ubo.projection * material_frame_ubo.view * world_position;
 	gl_Position = out_dto.clip_space;
 	out_dto.texcoord = vec2((in_position.x * 0.5) + 0.5, (in_position.z * 0.5) + 0.5) * material_draw_ubo.tiling;
 
@@ -116,5 +110,5 @@ void main() {
 	    out_dto.light_space_frag_pos[i] = (ndc_to_uvw * material_frame_ubo.directional_light_spaces[i]) * world_position;
     }
 	
-	out_dto.world_to_camera = material_frame_ubo.view_positions[material_draw_ubo.view_index].xyz - world_position.xyz;
+	out_dto.world_to_camera = material_frame_ubo.view_position.xyz - world_position.xyz;
 }

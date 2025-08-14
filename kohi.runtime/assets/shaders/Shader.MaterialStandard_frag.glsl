@@ -268,7 +268,7 @@ void main() {
 
         // Generate shadow value based on current fragment position vs shadow map.
         // Light and normal are also taken in the case that a bias is to be used.
-        vec4 frag_position_view_space = material_frame_ubo.views[material_draw_ubo.view_index] * in_dto.frag_position;
+        vec4 frag_position_view_space = material_frame_ubo.view * in_dto.frag_position;
         float depth = abs(frag_position_view_space).z;
         // Get the cascade index from the current fragment's position.
         int cascade_index = -1;
@@ -298,11 +298,11 @@ void main() {
                     break;
             }
         }
-        shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, material_group_ubo.dir_light, cascade_index);
+        shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, material_frame_ubo.dir_light, cascade_index);
 
         // Fade out the shadow map past a certain distance.
-        float fade_start = material_group_ubo.dir_light.shadow_distance;
-        float fade_distance = material_group_ubo.dir_light.shadow_fade_distance;
+        float fade_start = material_frame_ubo.dir_light.shadow_distance;
+        float fade_distance = material_frame_ubo.dir_light.shadow_fade_distance;
 
         // The end of the fade-out range.
         float fade_end = fade_start + fade_distance;
@@ -352,9 +352,9 @@ void main() {
         for(uint ppli = 0; ppli < 2 && plights_rendered < material_draw_ubo.num_p_lights; ++ppli) {
             uint packed = material_draw_ubo.packed_point_light_indices[ppli];
             uint unpacked[4];
-            unpack_u32(packed[0], packed[1], packed[2], packed[3]);
+            unpack_u32(packed, unpacked[0], unpacked[1], unpacked[2], unpacked[3]);
             for(uint upi = 0; upi < 4 && plights_rendered < material_draw_ubo.num_p_lights; ++upi) {
-                point_light light = material_group_ubo.p_lights[unpacked[upi]];
+                point_light light = material_frame_ubo.p_lights[unpacked[upi]];
                 vec3 light_direction = normalize(light.position.xyz - in_dto.frag_position.xyz);
                 vec3 radiance = calculate_point_light_radiance(light, view_direction, in_dto.frag_position.xyz);
 

@@ -14,7 +14,6 @@
 #include "serializers/kasset_shader_serializer.h"
 #include "systems/kmaterial_system.h"
 #include "systems/kshader_system.h"
-#include "systems/light_system.h"
 #include "systems/texture_system.h"
 
 #define MATERIAL_STANDARD_NAME_FRAG "Shader.MaterialStandard_frag"
@@ -413,15 +412,14 @@ void kmaterial_renderer_set_shadow_map_texture(kmaterial_renderer* state, ktextu
     state->shadow_map_texture = shadow_map_texture;
 }
 
-void kmaterial_renderer_set_ibl_cubemap_textures(kmaterial_renderer* state, u32 count, ktexture* ibl_cubemap_textures) {
-    if (state->ibl_cubemap_texture_count != count) {
-        if (state->ibl_cubemap_textures) {
-            kfree(state->ibl_cubemap_textures, sizeof(ktexture) * state->ibl_cubemap_texture_count, MEMORY_TAG_ARRAY);
-            state->ibl_cubemap_textures = KALLOC_TYPE_CARRAY(ktexture, count);
-            state->ibl_cubemap_texture_count = count;
-        }
-    }
-    KCOPY_TYPE_CARRAY(state->ibl_cubemap_textures, ibl_cubemap_textures, ktexture, count);
+void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* state, u8 count, ktexture* irradiance_cubemap_textures) {
+    // Ignore anything over KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT
+    count = KMIN(count, KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+
+    KZERO_TYPE_CARRAY(state->ibl_cubemap_textures, ktexture, KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
+
+    state->ibl_cubemap_texture_count = count;
+    KCOPY_TYPE_CARRAY(state->ibl_cubemap_textures, irradiance_cubemap_textures, ktexture, count);
 }
 
 void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
@@ -448,8 +446,7 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 
         // Irradience textures provided by probes around in the world.
         for (u32 i = 0; i < KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT; ++i) {
-            ktexture t = state->ibl_cubemap_textures[i] ? state->ibl_cubemap_textures[i] : state->default_ibl_cubemap;
-            // FIXME: Check if the texture is loaded.
+            ktexture t = state->ibl_cubemap_textures[i] != INVALID_KTEXTURE ? state->ibl_cubemap_textures[i] : state->default_ibl_cubemap;
             if (!texture_is_loaded(t)) {
                 t = state->default_ibl_cubemap;
             }
