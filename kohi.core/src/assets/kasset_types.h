@@ -239,6 +239,7 @@ typedef struct kasset_material {
     kmaterial_model model;
 
     b8 has_transparency;
+    b8 masked;
     b8 double_sided;
     b8 recieves_shadow;
     b8 casts_shadow;

@@ -63,6 +63,7 @@ const char* kasset_material_serialize(const kasset_material* asset) {
 
     // Various flags
     kson_object_value_add_boolean(&tree.root, "has_transparency", material->has_transparency);
+    kson_object_value_add_boolean(&tree.root, "masked", material->masked);
     kson_object_value_add_boolean(&tree.root, "double_sided", material->double_sided);
     kson_object_value_add_boolean(&tree.root, "recieves_shadow", material->recieves_shadow);
     kson_object_value_add_boolean(&tree.root, "casts_shadow", material->casts_shadow);
@@ -277,6 +278,9 @@ b8 kasset_material_deserialize(const char* file_text, kasset_material* out_asset
     // Various flags - fall back to defaults if not provided.
     if (!kson_object_property_value_get_bool(&tree.root, "has_transparency", &out_material->has_transparency)) {
         out_material->has_transparency = false;
+    }
+    if (!kson_object_property_value_get_bool(&tree.root, "masked", &out_material->masked)) {
+        out_material->masked = false;
     }
     if (!kson_object_property_value_get_bool(&tree.root, "double_sided", &out_material->double_sided)) {
         out_material->double_sided = false;

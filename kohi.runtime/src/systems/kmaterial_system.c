@@ -545,6 +545,7 @@ static b8 create_default_standard_material(kmaterial_system_state* state) {
     asset.type = KMATERIAL_TYPE_STANDARD;
     asset.model = KMATERIAL_MODEL_PBR;
     asset.has_transparency = KMATERIAL_DEFAULT_HAS_TRANSPARENCY;
+    asset.masked = KMATERIAL_DEFAULT_MASKED;
     asset.double_sided = KMATERIAL_DEFAULT_DOUBLE_SIDED;
     asset.recieves_shadow = KMATERIAL_DEFAULT_RECIEVES_SHADOW;
     asset.casts_shadow = KMATERIAL_DEFAULT_CASTS_SHADOW;
@@ -586,6 +587,7 @@ static b8 create_default_water_material(kmaterial_system_state* state) {
     asset.type = KMATERIAL_TYPE_WATER;
     asset.model = KMATERIAL_MODEL_PBR;
     asset.has_transparency = false;
+    asset.masked = false;
     asset.double_sided = false;
     asset.recieves_shadow = true;
     asset.casts_shadow = false;
@@ -914,6 +916,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 
     // Set remaining flags
     FLAG_SET(material->flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT, asset->has_transparency);
+    FLAG_SET(material->flags, KMATERIAL_FLAG_MASKED_BIT, asset->masked);
     FLAG_SET(material->flags, KMATERIAL_FLAG_DOUBLE_SIDED_BIT, asset->double_sided);
     FLAG_SET(material->flags, KMATERIAL_FLAG_RECIEVES_SHADOW_BIT, asset->recieves_shadow);
     FLAG_SET(material->flags, KMATERIAL_FLAG_CASTS_SHADOW_BIT, asset->casts_shadow);

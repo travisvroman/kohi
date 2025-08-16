@@ -15,7 +15,10 @@ Changelog
   - Reworked ktransform system to use typedefed u32s(ktransform) in place of khandles.
   - Reworked hierarchy graph to use typedefed u32s(khierarchy_node) in place of khandles.
   - Reworked audio frontendThe metadata for the given node, or INVALID_ID_U64 on error. to use typedefed u16s(kaudio_emitter) in place of khandles.
-  - Added metadata to the hierarchy_graph, to be set by user code as a way to include context with a node.
+  - Removed dependency on the hierarchy graph. It is now up to the bespoke application scene to provide this.
+  - Added renderer support for double-sided materials.
+  - Added support for 'masked' materials. Those materials with both 'masked' and 'has_transparency' set use the discard method of transparency (best for things like foliage). 
+    - The threshold for discard is hardcoded to 0.1, and may be configurable in the future if the need arises.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.

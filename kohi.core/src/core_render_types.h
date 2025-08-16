@@ -370,7 +370,9 @@ typedef enum kmaterial_flag_bits {
     // Material refraction map is enabled. Refraction map is ignored if not set.
     KMATERIAL_FLAG_REFRACTION_ENABLED_BIT = 0x0100U,
     // Material uses vertex colour data as the base colour.
-    KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT = 0x0200U
+    KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT = 0x0200U,
+    // The material uses a mask for transparency. If both this and transparency bits are set, fragments below a given threshold are discarded.
+    KMATERIAL_FLAG_MASKED_BIT = 0x0400U,
 } kmaterial_flag_bits;
 
 typedef u32 kmaterial_flags;

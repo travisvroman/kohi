@@ -42,6 +42,7 @@ const uint KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT = 0x0040;
 const uint KMATERIAL_FLAG_MRA_ENABLED_BIT = 0x0080;
 const uint KMATERIAL_FLAG_REFRACTION_ENABLED_BIT = 0x0100;
 const uint KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT = 0x0200;
+const uint KMATERIAL_FLAG_MASKED_BIT = 0x0400;
 
 const uint MATERIAL_STANDARD_FLAG_USE_BASE_COLOUR_TEX = 0x0001;
 const uint MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX = 0x0002;
@@ -186,6 +187,11 @@ void main() {
         } else {
             base_colour_samp = material_group_ubo.base_colour;
         }
+    }
+
+    // discard the fragment if using transparency and masking, and the alpha falls below a given threshold.
+    if(base_colour_samp.a < 0.1 && flag_get(material_group_ubo.flags, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT) && flag_get(material_group_ubo.flags, KMATERIAL_FLAG_MASKED_BIT)) {
+        discard;
     }
     vec3 albedo = pow(base_colour_samp.rgb, vec3(2.2));
 
