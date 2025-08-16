@@ -19,6 +19,7 @@ Changelog
   - Added renderer support for double-sided materials.
   - Added support for 'masked' materials. Those materials with both 'masked' and 'has_transparency' set use the discard method of transparency (best for things like foliage). 
     - The threshold for discard is hardcoded to 0.1, and may be configurable in the future if the need arises.
+  - Emissive values and texture maps now work on PBR materials.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.
