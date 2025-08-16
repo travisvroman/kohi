@@ -89,7 +89,7 @@ b8 worker_thread_start(worker_thread* thread) {
     }
 
     // Create the internal thread if need be.
-    if (!kthread_create(worker_thread_loop, thread, false, &thread->thread)) {
+    if (!kthread_create(worker_thread_loop, "KohiWorker", thread, false, &thread->thread)) {
         KERROR("Worker thread internal thread creation failed.");
         return false;
     }

@@ -12,6 +12,10 @@
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
 
+#define KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT 4
+#define KMATERIAL_MAX_SHADOW_CASCADES 4
+#define KMATERIAL_MAX_POINT_LIGHTS 10
+
 // Option indices
 typedef enum kmaterial_option {
     MAT_OPTION_IDX_RENDER_MODE = 0,
@@ -50,45 +54,8 @@ typedef struct kpoint_light_uniform_data {
     vec4 position;
 } kpoint_light_uniform_data;
 
-// Shader locations for all material shaders.
-typedef struct kmaterial_shader_locations {
-    // Per frame
-    u16 material_frame_ubo;
-    u16 shadow_texture;
-    u16 irradiance_cube_textures;
-    u16 shadow_sampler;
-    u16 irradiance_sampler;
-
-    // Per group
-    u16 material_textures;
-    u16 material_samplers;
-    u16 material_group_ubo;
-
-    // Per draw.
-    u16 material_draw_ubo;
-} kmaterial_shader_locations;
-
-// Material Per-frame ("global") UBO data for ALL material types.
-typedef struct kmaterial_global_uniform_data {
-    // All available point lights in a scene. Indexed into during per-draw.
-    kpoint_light_uniform_data global_point_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;                                              // 64 bytes
-    mat4 view;                                                    // 64 bytes
-    kdirectional_light_uniform_data dir_light;                    // 48 bytes
-    vec4 view_position;                                           // 16 bytes
-    vec4 cascade_splits;                                          // 16 bytes
-
-    // [shadow_bias, delta_time, game_time, padding]
-    vec4 params; // 16 bytes
-    // [render_mode, use_pcf, padding, padding]
-    uvec4 options; // 16 bytes
-    vec4 padding;  // 16 bytes
-} kmaterial_global_uniform_data;
-
-// Standard Material Per-group UBO (i.e. per "base material")
-typedef struct kmaterial_standard_base_uniform_data {
+// Base Material uniform data for all material types.
+typedef struct kmaterial_base_uniform_data {
     // Packed texture channels for various maps requiring it.
     u32 texture_channels; // [metallic, roughness, ao, unused]
     /** @brief The material lighting model. */
@@ -114,39 +81,108 @@ typedef struct kmaterial_standard_base_uniform_data {
 
     f32 refraction_scale;
     vec3 padding;
-} kmaterial_standard_base_uniform_data;
+} kmaterial_base_uniform_data;
 
-// Standard Material Per-draw UBO (i.e per "material instance")
-typedef struct kmaterial_standard_instance_uniform_data {
-    mat4 model;          // 64 bytes
+// FIXME: Figure out where this structure belongs. The renderer frontend needs to know about
+// it minimally for sizing of the global storage buffer (plus whatever other structs should)
+// be in there). However this structure needs to know about material data, which belongs here.
+// Unless we move _all_ types having to do with uniforms, etc. over to render types.
+/**
+ * Contains data that is held as part of globally-accessible storage for the renderer.
+ * Any application-specific data should be located immediately after this in the buffer.
+ */
+typedef struct krenderer_storagebuffer_data {
+    mat4 projections[MAX_STORAGE_PROJECTIONS];
+    // Array of view matrices. The first one should always be the 'default'
+    mat4 views[MAX_STORAGE_VIEWS];
+    // Array of view positions. Should align with view matrices above.
+    vec4 view_positions[MAX_STORAGE_VIEWS];
+
+    kpoint_light_uniform_data point_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS];
+
+    kmaterial_base_uniform_data base_materials[KMATERIAL_MAX_BASE_MATERIAL_COUNT];
+
+    // Light space for shadow mapping. Per cascade
+    mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    kdirectional_light_uniform_data dir_light;                    // 48 bytes
+    vec4 cascade_splits;                                          // 16 bytes
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params;
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options;
+    // TODO: other properties
+
+    // Move other data here as well, such as base material params, perhaps even material instance params and
+    // then get rid of the per-frame/per-group/per-draw concept entirely. Replace that with simply "binding", but to be
+    // determined invidually by the shader, not at a global level. Each binding would be assigned to a binding # (0-3)
+    // which would directly correllate with the bindings on the backend. Each of these bindings would have a maximum size
+    // of 16KiB. A storage buffer binding is effectively unlimited size (although obviously limited by GPU). In addition to
+    // index, bindings must also include a type of either 'uniform' or 'storage' to indicate where it should be stored.
+    // The concept of "push constants" would be handled as its own case called "immediate constants" on the frontend, and
+    // have a maximum size of 128B.
+    //
+    // For example, a material would be handled thusly:
+    // - Projection and view matrices (and positions) would go to storage and indexed into by immediates.projectionindex and immediates.viewindex.
+    // - Global 'scene' textures/samplers (like shadow map and IBL probe textures) would go in a 'scene' binding point of 0, updated once per frame.
+    // - base material properties would also go to storage and would be indexed by immediates.materialindex.
+    // - base material textures/samplers would go into a 'base material' binding point of 1.
+    // - material instance properties could probably go in a "material instance" binding point of 2.
+    // - for materials, immediates (push constants) would contain the model matrix, projectionindex, viewindex, materialindex, and any other indices into SB data.
+    // - Water planes would be handled similarly
+    // The skybox would be handled thusly:
+    // - global 'scene' texture/sampler of the skybox cubemap would go in 'scene' binding point 0.
+    // - immediates would just contain the projection and view indices into the SB. No model matrix needed.
+    // Heightmap terrains could be added here too.
+
+    // TODO: Combine material type shaders to a single shader so material instances may be shared.
+    // Ensure all uniform objects can be cross-compatible.
+} krenderer_storagebuffer_data;
+
+// Material Instance uniform data
+typedef struct kmaterial_instance_uniform_data {
+    // bytes 0-63
+    mat4 model; // 64 bytes
+
+    // bytes 64-79
     vec4 clipping_plane; // 16 bytes
+
+    // bytes 80-95
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 u32s.
     uvec2 packed_point_light_indices; // 8 bytes
     u32 num_p_lights;
     u32 irradiance_cubemap_index;
-} kmaterial_standard_instance_uniform_data;
 
-// Water Material Per-group UBO (i.e. per "base material")
-typedef struct kmaterial_water_base_uniform_data {
-    /** @brief The material lighting model. */
-    u32 lighting_model;
-    // Base set of flags for the material. Copied to the material instance when created.
-    u32 flags;
-    vec2 padding;
-} kmaterial_water_base_uniform_data;
+    // bytes 96-111 NOTE: if need be, the indices could all be packed into a single u32
+    u32 material_index;
+    u32 projection_index;
+    u32 view_index;
+    u32 u_padding; // unused
 
-// Water Material Per-draw UBO (i.e per "material instance")
-typedef struct kmaterial_water_instance_uniform_data {
-    mat4 model;
-    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 u32s.
-    uvec2 packed_point_light_indices; // 8 bytes
-    u32 num_p_lights;
-    u32 irradiance_cubemap_index;
-    f32 tiling;
-    f32 wave_strength;
-    f32 wave_speed;
-    f32 padding;
-} kmaterial_water_instance_uniform_data;
+    // bytes 112-127
+    f32 tiling;        // water material use
+    f32 wave_strength; // water material use
+    f32 wave_speed;    // water material use
+    f32 f_padding;     // unused
+} kmaterial_instance_uniform_data;
+
+typedef struct kmaterial_immediate_data {
+    u32 instance_index;
+} kmaterial_immediate_data;
+
+// Shader locations for all material shaders.
+typedef struct kmaterial_shader_locations {
+    // Global Textures/samplers (uniforms provided by storage buffer)
+    u16 shadow_texture;
+    u16 irradiance_cube_textures;
+    u16 shadow_sampler;
+    u16 irradiance_sampler;
+
+    // Base material data Textures/samplers (uniforms provided by storage buffer)
+    u16 material_textures;
+    u16 material_samplers;
+
+    // NOTE: per-draw data is provided via 'immediates'
+} kmaterial_shader_locations;
 
 /** @brief State for the material renderer. */
 typedef struct kmaterial_renderer {

@@ -51,7 +51,7 @@ const uint MATERIAL_STANDARD_FLAG_USE_AO_TEX = 0x0010;
 const uint MATERIAL_STANDARD_FLAG_USE_MRA_TEX = 0x0020;
 const uint MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX = 0x0040;
 
-struct directional_light {
+struct kdirectional_light_uniform_data {
     vec4 colour;
     vec4 direction;
     float shadow_distance;
@@ -60,40 +60,15 @@ struct directional_light {
     float padding;
 };
 
-struct point_light {
+struct kpoint_light_uniform_data {
     // .rgb = colour, .a = linear 
     vec4 colour;
     // .xyz = position, .w = quadratic
     vec4 position;
 };
 
-// =========================================================
-// Inputs
-// =========================================================
-
-// per-frame, "global" data
-layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
-    point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
-    // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
-    mat4 projection;                                             // 64 bytes
-    mat4 view;                                                   // 64 bytes
-    directional_light dir_light;                                 // 48 bytes
-    vec4 view_position;                                          // 16 bytes
-    vec4 cascade_splits;                                         // 16 bytes
-    // [shadow_bias, delta_time, game_time, padding]
-    vec4 params;
-    // [render_mode, use_pcf, padding, padding]
-    uvec4 options;
-    vec4 padding;  // 16 bytes
-} material_frame_ubo;
-layout(set = 0, binding = 1) uniform texture2DArray shadow_texture;
-layout(set = 0, binding = 2) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
-layout(set = 0, binding = 3) uniform sampler shadow_sampler;
-layout(set = 0, binding = 4) uniform sampler irradiance_sampler;
-
-// per-group, "base material" data
-layout(set = 1, binding = 0) uniform kmaterial_standard_base_uniform_data {
+// Base Material uniform data for all material types.
+struct kmaterial_standard_base_uniform_data {
     // Packed texture channels for various maps requiring it.
     uint texture_channels; // [metallic, roughness, ao, unused]
     /** @brief The material lighting model. */
@@ -119,19 +94,71 @@ layout(set = 1, binding = 0) uniform kmaterial_standard_base_uniform_data {
 
     float refraction_scale;
     vec3 padding;
-} material_group_ubo;
+};
+
+// =========================================================
+// Inputs
+// =========================================================
+
+// Storage buffer, set 0, binding 0 
+layout(std430, set = 0, binding = 0) buffer krenderer_storagebuffer_data {
+    mat4 projections[MAX_STORAGE_PROJECTIONS];
+    mat4 views[MAX_STORAGE_VIEWS];
+    vec4 views_positions[MAX_STORAGE_VIEWS];
+
+    kpoint_light_uniform_data point_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
+
+    // Base material data
+    kmaterial_base_uniform_data base_materials[KMATERIAL_MAX_BASE_MATERIAL_COUNT];
+
+    // Light space for shadow mapping. Per cascade
+    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    kdirectional_light_uniform_data dir_light;                                 // 48 bytes
+    vec4 cascade_splits;                                         // 16 bytes
+    // [shadow_bias, delta_time, game_time, padding]
+    vec4 params;
+    // [render_mode, use_pcf, padding, padding]
+    uvec4 options;
+    // TODO: other properties
+} storage_buffer;
+
+// "global" textures/samplers, set 0, bindings 1+
+layout(set = 0, binding = 1) uniform texture2DArray shadow_texture;
+layout(set = 0, binding = 2) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
+layout(set = 0, binding = 3) uniform sampler shadow_sampler;
+layout(set = 0, binding = 4) uniform sampler irradiance_sampler;
+
+// per-group, "base material" data
+layout(set = 1, binding = 0) uniform 
 layout(set = 1, binding = 1) uniform texture2D material_textures[MATERIAL_STANDARD_TEXTURE_COUNT];
 layout(set = 1, binding = 2) uniform sampler material_samplers[MATERIAL_STANDARD_SAMPLER_COUNT];
 
 // per-draw, "material instance" data
-layout(push_constant) uniform per_draw_ubo {
-    mat4 model;
-    vec4 clipping_plane;
-    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 uints.
+layout(push_constant) uniform kmaterial_instance_uniform_data {
+    // bytes 0-63
+    mat4 model; // 64 bytes
+
+    // bytes 64-79
+    vec4 clipping_plane; // 16 bytes
+
+    // bytes 80-95
+    // Index into the global point lights array. Up to 16 indices as u8s packed into 2 u32s.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
     uint irradiance_cubemap_index;
-} material_draw_ubo;
+
+    // bytes 96-111 NOTE: if need be, the indices could all be packed into a single u32
+    uint material_index;
+    uint projection_index;
+    uint view_index;
+    uint u_padding; // unused
+
+    // bytes 112-127
+    float tiling;        // water material use
+    float wave_strength; // water material use
+    float wave_speed;    // water material use
+    float f_padding;      // unused
+} instance_ubo;
 
 // Data Transfer Object
 layout(location = 0) in dto {

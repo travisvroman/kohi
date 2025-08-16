@@ -9,6 +9,7 @@
 #include "threads/ksemaphore.h"
 #include "threads/kthread.h"
 #include "logger.h"
+#include "platform/platform.h"
 
 typedef struct job_thread {
     u8 index;
@@ -206,13 +207,28 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* 
     }
 
     KDEBUG("Main thread id is: %#x", platform_current_thread_id());
+    kthread_current_name_set("KohiMainThread");
+    for (u32 i = 0; i < 100; ++i) {
+        platform_sleep(10);
+    }
 
     KDEBUG("Spawning %i job threads.", state_ptr->thread_count);
 
     for (u8 i = 0; i < state_ptr->thread_count; ++i) {
+        char name[16] = "KohiJobThread00";
+        if (i < 10) {
+            char digitchar = (char)(i + 48);
+            name[14] = digitchar;
+        } else {
+            char hi_digitchar = (char)((i / 10) + 48);
+            char lo_digitchar = (char)((i % 10) + 48);
+            name[13] = hi_digitchar;
+            name[14] = lo_digitchar;
+        }
+
         state_ptr->job_threads[i].index = i;
         state_ptr->job_threads[i].type_mask = typed_config->type_masks[i];
-        if (!kthread_create(job_thread_run, &state_ptr->job_threads[i].index, false, &state_ptr->job_threads[i].thread)) {
+        if (!kthread_create(job_thread_run, name, &state_ptr->job_threads[i].index, false, &state_ptr->job_threads[i].thread)) {
             KFATAL("OS Error in creating job thread. Application cannot continue.");
             return false;
         }

@@ -65,3 +65,31 @@ b8 kasset_type_is_binary(kasset_type type) {
         return true;
     }
 }
+
+kasset_shader_binding_type kasset_shader_binding_type_from_string(const char* type_str) {
+    if (strings_equali(type_str, "ubo")) {
+        return KASSET_SHADER_BINDING_TYPE_UBO;
+    } else if (strings_equali(type_str, "ssbo")) {
+        return KASSET_SHADER_BINDING_TYPE_SSBO;
+    } else if (strings_equali(type_str, "texture")) {
+        return KASSET_SHADER_BINDING_TYPE_TEXTURE;
+    } else if (strings_equali(type_str, "sampler")) {
+        return KASSET_SHADER_BINDING_TYPE_SAMPLER;
+    } else {
+        KERROR("Unknown shader binding type '%s', defaulting to 'ubo'", type_str);
+        return KASSET_SHADER_BINDING_TYPE_UBO;
+    }
+}
+
+const char* kasset_shader_binding_type_to_string(kasset_shader_binding_type type) {
+    switch (type) {
+    case KASSET_SHADER_BINDING_TYPE_UBO:
+        return "ubo";
+    case KASSET_SHADER_BINDING_TYPE_SSBO:
+        return "ssbo";
+    case KASSET_SHADER_BINDING_TYPE_TEXTURE:
+        return "texture";
+    case KASSET_SHADER_BINDING_TYPE_SAMPLER:
+        return "sampler";
+    }
+}

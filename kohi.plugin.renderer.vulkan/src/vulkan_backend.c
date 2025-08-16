@@ -2505,7 +2505,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, kshader sh
     kzero_memory(internal_shader->mapped_uniform_buffer_blocks, sizeof(void*) * VULKAN_RESOURCE_IMAGE_COUNT);
     kzero_memory(internal_shader->uniform_buffers, sizeof(renderbuffer) * VULKAN_RESOURCE_IMAGE_COUNT);
 
-    // Uniform  buffers, one per swapchain image.
+    // Uniform buffers, one per swapchain image.
     u64 total_buffer_size = internal_shader->per_frame_info.ubo_stride + (internal_shader->per_group_info.ubo_stride * internal_shader->max_groups);
     for (u32 i = 0; i < VULKAN_RESOURCE_IMAGE_COUNT; ++i) {
         const char* buffer_name = string_format("renderbuffer_uniform_%s_idx_%d", kname_string_get(internal_shader->name), i);
@@ -2783,6 +2783,87 @@ b8 vulkan_renderer_shader_apply_per_group(renderer_backend_interface* backend, k
     return true;
 }
 
+// LEFTOFF:
+// - Replace 'per-draw' with this. Everywhere.
+// - Change bind/apply (per- frame/group/draw) logic to instead take binding#.
+// - Get rid of uniforms and all logic surrounding update frequencies. Neat concept, but kinda heavy. Should be up to what is drawing the thing.
+//   - Go back to just a large struct per binding.
+// - Separate entry point (similar to below) to upload to storage buffer. Ideally should be one large region of mapped memory.
+// - Attempt to simplify 'shader config' as much as possible - only require stages, attribute layout, and binding definitions. Bindables should just be:
+//   - a single UBO for uniform buffers (type=ubo, set=#, binding=#),
+//   - single SSBO for storage buffers (type=storage, set=#, binding=#)
+//   - multiple types of samplers/textures (type=texturetype/samplertype, set=#, binding=#)
+//   - each set can only have 1 of EITHER a UBO or a SSBO, but can have as many textures/samplers as it wants (up to 16).
+//   - Immediates do not need to be included in shader config.
+
+/**
+ * example structure:
+ *
+ * // index in array = set
+ * binding_sets = [
+ *      {
+ *          name = "global_binding_name"
+ *          bindings = [
+ *              {
+ *                  type = "ssbo"
+ *                  size = 65536
+ *                  offset = 4096
+ *              }
+ *              {
+ *                  type = "texture"
+ *                  array_size = 4
+ *              }
+ *              {
+ *                  type = "sampler"
+ *                  array_size = 4
+ *              }
+ *          ]
+ *      }
+ *      {
+ *          name = "global_binding_name"
+ *          bindings = [
+ *              {
+ *                  type = "ubo"
+ *                  size = 4096
+ *              }
+ *              {
+ *                  type = "texture"
+ *                  array_size = 4
+ *              }
+ *              {
+ *                  type = "sampler"
+ *                  array_size = 4
+ *              }
+ *          ]
+ *      }
+ * ]
+ */
+
+void vulkan_renderer_apply_immediate(renderer_backend_interface* backend, kshader shader, void* data, u8 data_size) {
+    vulkan_context* context = (vulkan_context*)backend->internal_context;
+    VkCommandBuffer command_buffer = get_current_command_buffer(context)->handle;
+    vulkan_shader* internal_shader = &context->shaders[shader];
+
+    // Pick the correct pipeline.
+    b8 wireframe_enabled = vulkan_renderer_shader_flag_get(backend, shader, SHADER_FLAG_WIREFRAME_BIT);
+    vulkan_pipeline** pipeline_array = wireframe_enabled ? internal_shader->wireframe_pipelines : internal_shader->pipelines;
+
+    u8 push_constant_block[RENDERER_IMMEDIATE_DATA_MAX_SIZE] = {0};
+    kcopy_memory(push_constant_block, data, data_size);
+
+    // Update the non-sampler uniforms via push constants.
+    context->rhi.kvkCmdPushConstants(
+        command_buffer,
+        pipeline_array[internal_shader->bound_pipeline_index]->pipeline_layout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,                                // Always start at the beginning of the block...
+        RENDERER_IMMEDIATE_DATA_MAX_SIZE, // and always upload the entire thing.
+        push_constant_block);
+
+    // NOTE: immediates are not associated with samplers or textures, so there's nothing else to be done here.
+}
+
+// FIXME: eliminate this and the others like it below (and the callees of this)
 b8 vulkan_renderer_shader_apply_per_draw(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number) {
     vulkan_context* context = (vulkan_context*)backend->internal_context;
     krhi_vulkan* rhi = &context->rhi;
@@ -3254,8 +3335,9 @@ b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, renderbuff
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         break;
     case RENDERBUFFER_TYPE_STORAGE:
-        KERROR("Storage buffer not yet supported.");
-        return false;
+        internal_buffer.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        internal_buffer.memory_property_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        break;
     default:
         KERROR("Unsupported buffer type: %i", buffer->type);
         return false;
@@ -3264,16 +3346,17 @@ b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, renderbuff
     VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     buffer_info.size = buffer->total_size;
     buffer_info.usage = internal_buffer.usage;
-    buffer_info.sharingMode =
-        VK_SHARING_MODE_EXCLUSIVE; // NOTE: Only used in one queue.
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // NOTE: Only used in one queue.
 
-    VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info,
-                                  context->allocator, &internal_buffer.handle));
+    VK_CHECK(rhi->kvkCreateBuffer(
+        context->device.logical_device, &buffer_info,
+        context->allocator, &internal_buffer.handle));
 
     // Gather memory requirements.
-    rhi->kvkGetBufferMemoryRequirements(context->device.logical_device,
-                                        internal_buffer.handle,
-                                        &internal_buffer.memory_requirements);
+    rhi->kvkGetBufferMemoryRequirements(
+        context->device.logical_device,
+        internal_buffer.handle,
+        &internal_buffer.memory_requirements);
     internal_buffer.memory_index = context->find_memory_index(
         context, internal_buffer.memory_requirements.memoryTypeBits,
         internal_buffer.memory_property_flags);

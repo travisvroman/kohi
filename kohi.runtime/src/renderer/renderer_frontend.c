@@ -63,6 +63,8 @@ typedef struct renderer_system_state {
     renderbuffer geometry_vertex_buffer;
     /** @brief The object index buffer, used to hold geometry indices. */
     renderbuffer geometry_index_buffer;
+    /** @brief A storage buffer used for engine-specific global storage. */
+    renderbuffer global_storage_buffer;
 
     /**
      * @brief A darray of pointers to renderbuffers that are considered "registered". These are
@@ -274,6 +276,14 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         return false;
     }
 
+    // Global storage buffer.
+    // TODO: Make size configurable.
+    const u64 storage_buffer_size = sizeof(krenderer_storagebuffer_data);
+    if (!renderer_renderbuffer_create("renderbuffer_storagebuffer_global", RENDERBUFFER_TYPE_STORAGE, storage_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &state->global_storage_buffer)) {
+        KERROR("Error creating global storage buffer.");
+        return false;
+    }
+
     return true;
 }
 
@@ -286,6 +296,7 @@ void renderer_system_shutdown(renderer_system_state* state) {
         // Destroy buffers.
         renderer_renderbuffer_destroy(&typed_state->geometry_vertex_buffer);
         renderer_renderbuffer_destroy(&typed_state->geometry_index_buffer);
+        renderer_renderbuffer_destroy(&typed_state->global_storage_buffer);
 
         // Destroy generic samplers.
         for (u32 i = 0; i < SHADER_GENERIC_SAMPLER_COUNT; ++i) {
@@ -681,6 +692,8 @@ renderbuffer* renderer_renderbuffer_get(renderbuffer_type type) {
         return &state_ptr->geometry_vertex_buffer;
     case RENDERBUFFER_TYPE_INDEX:
         return &state_ptr->geometry_index_buffer;
+    case RENDERBUFFER_TYPE_STORAGE:
+        return &state_ptr->global_storage_buffer;
     default:
         KERROR("Unsupported buffer type %u", type);
         return 0;
@@ -872,6 +885,17 @@ b8 renderer_shader_flag_get(struct renderer_system_state* state, kshader shader,
 
 void renderer_shader_flag_set(struct renderer_system_state* state, kshader shader, shader_flags flag, b8 enabled) {
     state->backend->shader_flag_set(state->backend, shader, flag, enabled);
+}
+
+void renderer_apply_immediate(struct renderer_system_state* state, kshader shader, void* data, u8 data_size, u16 renderer_frame_number) {
+    KASSERT_DEBUG(data);
+    KASSERT_DEBUG(data_size);
+    KASSERT_DEBUG_MSG(data_size <= 128, "immediate data_size must be <= 128");
+
+    // Ensure the 128B size limit isn't exceeded.
+    data_size = KMIN(128, data_size);
+
+    state->backend->apply_immediate(state->backend, shader, data, data_size);
 }
 
 b8 renderer_shader_bind_per_frame(struct renderer_system_state* state, kshader shader) {

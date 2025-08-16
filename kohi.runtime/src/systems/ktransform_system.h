@@ -11,11 +11,14 @@ typedef struct ktransform_system_config {
     u32 initial_slot_count;
 } ktransform_system_config;
 
-b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* config);
+struct frame_data;
+struct ktransform_system_state;
 
-void ktransform_system_shutdown(void* state);
+b8 ktransform_system_initialize(u64* memory_requirement, struct ktransform_system_state* state, void* config);
 
-b8 ktransform_system_update(void* state, struct frame_data* p_frame_data);
+void ktransform_system_shutdown(struct ktransform_system_state* state);
+
+void ktransform_system_update(struct ktransform_system_state* state, struct frame_data* p_frame_data);
 
 /**
  * @brief Creates and returns a new ktransform, using a zero

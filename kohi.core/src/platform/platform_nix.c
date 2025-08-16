@@ -12,6 +12,7 @@
 #include "platform.h"
 
 #if defined(KPLATFORM_LINUX) || defined(KPLATFORM_APPLE)
+#    define _GNU_SOURCE
 
 #    include "threads/ksemaphore.h"
 #    include <dlfcn.h>
@@ -26,6 +27,7 @@
 #    if defined(KPLATFORM_LINUX)
 #        include <semaphore.h> // sudo apt install linux-headers
 /* #include <sys/stat.h>   // For mode constants */
+#        include <sys/prctl.h>
 #    endif
 
 #    include <errno.h> // For error reporting
@@ -48,9 +50,9 @@ static u32 semaphore_id = 0;
 
 // NOTE: Begin threads.
 
-typedef void *(*kthread_work_callback)(void *);
+typedef void* (*kthread_work_callback)(void*);
 
-b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_detach, kthread* out_thread) {
+b8 kthread_create(pfn_thread_start start_function_ptr, const char* name, void* params, b8 auto_detach, kthread* out_thread) {
     if (!start_function_ptr) {
         return false;
     }
@@ -74,8 +76,13 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 
     // Only save off the handle if not auto-detaching.
     if (!auto_detach) {
-        out_thread->internal_data = platform_allocate(sizeof(u64), false);
+        out_thread->internal_data = platform_allocate(sizeof(pthread_t), false);
         *(u64*)out_thread->internal_data = out_thread->thread_id;
+
+        // Apply name if provided.
+        if (name && string_length(name)) {
+            kthread_name_set(out_thread, name);
+        }
     } else {
         // If immediately detaching, make sure the operation is a success.
         result = pthread_detach((pthread_t)out_thread->thread_id);
@@ -95,6 +102,55 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
     }
 
     return true;
+}
+
+// pthread_self()
+b8 kthread_current_name_set(const char* name) {
+#    if defined(KPLATFORM_LINUX)
+    char truncated_name[16] = {0};
+    string_ncopy(truncated_name, name, 15);
+    return prctl(PR_SET_NAME, (unsigned long)(void*)truncated_name, 0, 0, 0) >= 0;
+#    endif
+}
+
+b8 kthread_name_set(kthread* thread, const char* name) {
+
+#    if defined(KPLATFORM_LINUX)
+
+    char truncated_name[16] = {0};
+    string_ncopy(truncated_name, name, 15);
+    i32 rc = pthread_setname_np(*(pthread_t*)thread->internal_data, truncated_name);
+    if (rc != 0) {
+        KERROR("Error setting thread name.");
+        return false;
+    }
+    return true;
+    // return prctl(PR_SET_NAME, (unsigned long)(void*)truncatedName, 0, 0, 0) >= 0;
+#    endif
+
+    // the API is nearly the same on different *nix, but not quite:
+
+    // #    if defined(__DARWIN__)
+    //     // FIXME: must be done in the context of the current thread
+    //     pthread_setname_np(name);
+    //     return true;
+    // #    elif defined(__LINUX__) && defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 12)
+    //     // Only available since glibc 2.12
+    //     // Linux doesn't allow names longer than 15 bytes.
+    //     char truncatedName[16] = {0};
+    //     strncpy(truncatedName, name, 15);
+    // #        warn("rubbish")
+    //     return pthread_setname_np((pthread_t)out_thread->thread_id, truncatedName) == 0;
+    // #    elif defined(__LINUX__) && defined(PR_SET_NAME)
+    //     return prctl(PR_SET_NAME, (unsigned long)(void*)truncatedName, 0, 0, 0);
+    // #    else
+    //     KDEBUG("No implementation for kthread_name_set() on this OS.");
+    //     return false;
+    // #    endif
+    //     // TODO: #elif defined(__FREEBSD__) || defined(__OPENBSD__)
+    //     // TODO: These two BSDs would need #include <pthread_np.h>
+    //     // and the function call would be:
+    //     // pthread_set_name_np(pthread_self(), name.utf8_str());
 }
 
 void kthread_destroy(kthread* thread) {
@@ -127,7 +183,7 @@ void kthread_detach(kthread* thread) {
 
 void kthread_cancel(kthread* thread) {
     if (thread->internal_data) {
-        i32 result = pthread_cancel(*(pthread_t*)thread->internal_data);
+        i32 result = pthread_cancel((pthread_t)thread->internal_data);
         if (result != 0) {
             switch (result) {
             case ESRCH:
@@ -372,7 +428,6 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
     if (!name) {
         return false;
     }
-
 
     const char* extension = platform_dynamic_library_extension();
     const char* prefix = platform_dynamic_library_prefix();

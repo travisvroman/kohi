@@ -35,7 +35,7 @@ KAPI const char* texture_channel_to_string(texture_channel channel);
 KAPI texture_channel string_to_texture_channel(const char* str);
 
 /** @brief Returns the string representation of the given shader uniform type. */
-KAPI const char* shader_uniform_type_to_string(shader_uniform_type type);
+KAPI const char* shader__type_to_string(shader_uniform_type type);
 
 /** @brief Converts the given string into a shader uniform type. Case-insensitive. */
 KAPI shader_uniform_type string_to_shader_uniform_type(const char* str);

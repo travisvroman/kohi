@@ -19,6 +19,7 @@
 #include <platform/platform.h>
 #include <threads/kmutex.h>
 #include <threads/kthread.h>
+#include <strings/kstring.h>
 
 // #ifdef KPLATFORM_WINDOWS
 // #    include <malloc.h>
@@ -847,11 +848,15 @@ static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudi
     // Create the source worker thread's mutex.
     kmutex_create(&out_source->data_mutex);
 
+    char* name = string_format("KohiAudWrkT%2u", out_source->id);
+
     // Also create the worker thread itself for this source.
     ksource_work_thread_params* params = kallocate(sizeof(ksource_work_thread_params), MEMORY_TAG_AUDIO);
     params->source = out_source;
     params->backend = backend;
-    kthread_create(source_work_thread, params, true, &out_source->thread);
+    kthread_create(source_work_thread, name, params, true, &out_source->thread);
+
+    string_free(name);
 
     return true;
 }

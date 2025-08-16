@@ -516,6 +516,8 @@ KAPI b8 renderer_shader_flag_get(struct renderer_system_state* state, kshader sh
  */
 KAPI void renderer_shader_flag_set(struct renderer_system_state* state, kshader shader, shader_flags flag, b8 enabled);
 
+KAPI void renderer_apply_immediate(struct renderer_system_state* state, kshader shader, void* data, u8 data_size, u16 renderer_frame_number);
+
 /**
  * @brief Binds the per-frame frequency.
  *

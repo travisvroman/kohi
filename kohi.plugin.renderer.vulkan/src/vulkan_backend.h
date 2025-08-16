@@ -87,6 +87,10 @@ b8 vulkan_renderer_shader_bind_per_group(renderer_backend_interface* backend, ks
 b8 vulkan_renderer_shader_bind_per_draw(renderer_backend_interface* backend, kshader shader, u32 draw_id);
 b8 vulkan_renderer_shader_apply_per_frame(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number);
 b8 vulkan_renderer_shader_apply_per_group(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number);
+
+// NOTE: data_size MUST be limited to 128 by the caller
+void vulkan_renderer_apply_immediate(renderer_backend_interface* backend, kshader shader, void* data, u8 data_size);
+
 b8 vulkan_renderer_shader_apply_per_draw(renderer_backend_interface* backend, kshader shader, u16 renderer_frame_number);
 b8 vulkan_renderer_shader_per_group_resources_acquire(renderer_backend_interface* backend, kshader shader, u32* out_group_id);
 b8 vulkan_renderer_shader_per_group_resources_release(renderer_backend_interface* backend, kshader shader, u32 group_id);

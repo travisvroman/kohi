@@ -168,7 +168,7 @@ b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config
 
     // Block of memory will contain state structure then the block for the shader array.
     u64 struct_requirement = sizeof(kshader_system_state);
-    u64 shader_array_requirement = sizeof(kshader) * typed_config->max_shader_count;
+    u64 shader_array_requirement = sizeof(kshader_data) * typed_config->max_shader_count;
     *memory_requirement = struct_requirement + shader_array_requirement;
 
     if (!memory) {

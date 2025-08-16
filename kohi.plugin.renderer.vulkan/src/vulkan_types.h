@@ -484,8 +484,6 @@ typedef struct vulkan_shader {
     kname name;
     /** @brief The block of memory mapped to the each per-colourbuffer-image uniform buffer. */
     void* mapped_uniform_buffer_blocks[VULKAN_RESOURCE_IMAGE_COUNT];
-    /** @brief The block of memory used for push constants, 128B. */
-    void* per_draw_push_constant_block;
 
     /** @brief The shader identifier. */
     u32 id;

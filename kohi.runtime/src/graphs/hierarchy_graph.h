@@ -15,12 +15,13 @@
  * - Reset the dirty list.
  */
 
-#ifndef _ktransform_GRAPH_H_
-#define _ktransform_GRAPH_H_
+#ifndef _KTRANSFORM_GRAPH_H_
+#define _KTRANSFORM_GRAPH_H_
 
 #include <core_resource_types.h>
 #include <math/math_types.h>
 #include <systems/ktransform_system.h>
+#include <threads/kmutex.h>
 
 struct frame_data;
 
@@ -68,6 +69,7 @@ typedef struct hierarchy_graph {
 
     // A view of the tree.
     hierarchy_graph_view view;
+    kmutex mutex;
 } hierarchy_graph;
 
 /**

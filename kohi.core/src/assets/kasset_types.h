@@ -355,25 +355,35 @@ typedef struct kasset_shader_uniform {
     shader_update_frequency frequency;
 } kasset_shader_uniform;
 
+typedef enum kasset_shader_binding_type {
+    KASSET_SHADER_BINDING_TYPE_UBO,
+    KASSET_SHADER_BINDING_TYPE_SSBO,
+    KASSET_SHADER_BINDING_TYPE_TEXTURE,
+    KASSET_SHADER_BINDING_TYPE_SAMPLER,
+} kasset_shader_binding_type;
+
+typedef struct kasset_shader_binding {
+    kasset_shader_binding_type type;
+    kname name;
+    u32 size;
+    u32 offset;
+    u32 array_size;
+} kasset_shader_binding;
+
+typedef struct kasset_shader_binding_set {
+    kname name;
+    u32 binding_count;
+    kasset_shader_binding* bindings;
+} kasset_shader_binding_set;
+
 /**
  * @brief Represents a shader asset, typically loaded from disk.
  */
 typedef struct kasset_shader {
     kname name;
     u32 version;
-    b8 depth_test;
-    b8 depth_write;
-    b8 stencil_test;
-    b8 stencil_write;
-    b8 colour_read;
-    b8 colour_write;
     b8 supports_wireframe;
     primitive_topology_types topology_types;
-
-    face_cull_mode cull_mode;
-
-    u16 max_groups;
-    u16 max_draw_ids;
 
     u32 stage_count;
     kasset_shader_stage* stages;
@@ -381,8 +391,8 @@ typedef struct kasset_shader {
     u32 attribute_count;
     kasset_shader_attribute* attributes;
 
-    u32 uniform_count;
-    kasset_shader_uniform* uniforms;
+    u32 binding_set_count;
+    kasset_shader_binding_set* sets;
 } kasset_shader;
 
 #define KASSET_TYPE_NAME_SYSTEM_FONT "SystemFont"

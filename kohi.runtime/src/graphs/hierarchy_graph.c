@@ -10,7 +10,7 @@
 #include "memory/kmemory.h"
 #include "systems/ktransform_system.h"
 
-static khierarchy_node node_acquire(hierarchy_graph* graph, u32 parent_index, ktransform ktransform_handle);
+static khierarchy_node node_acquire(hierarchy_graph* graph, khierarchy_node parent, ktransform ktransform_handle);
 static void node_release(hierarchy_graph* graph, khierarchy_node* node_handle, b8 release_transform);
 static void child_levels_update(hierarchy_graph* graph, u32 parent_index);
 static void ensure_allocated(hierarchy_graph* graph, u32 new_node_count);
@@ -29,6 +29,8 @@ b8 hierarchy_graph_create(hierarchy_graph* out_graph, u64 default_meta_value) {
 
     // Start with a reasonably large count of nodes.
     ensure_allocated(out_graph, 128);
+
+    kmutex_create(&out_graph->mutex);
 
     return true;
 }
@@ -73,6 +75,7 @@ void hierarchy_graph_destroy(hierarchy_graph* graph) {
 }
 
 void hierarchy_graph_update(hierarchy_graph* graph) {
+    kmutex_lock(&graph->mutex);
     // Destroy the old tree
     destroy_view_tree(graph, &graph->view);
 
@@ -85,6 +88,7 @@ void hierarchy_graph_update(hierarchy_graph* graph) {
         // Roots have no parent, so no world matrix is passed.
         hierarchy_graph_update_tree_view_node(graph, graph->view.root_indices[i]);
     }
+    kmutex_unlock(&graph->mutex);
 }
 
 ktransform hierarchy_graph_ktransform_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle) {
@@ -114,7 +118,7 @@ khierarchy_node hierarchy_graph_parent_handle_get(const hierarchy_graph* graph, 
 ktransform hierarchy_graph_parent_ktransform_handle_get(const hierarchy_graph* graph, khierarchy_node node_handle) {
     u32 parent_index = hierarchy_graph_parent_index_get(graph, node_handle);
     if (parent_index == KHIERARCHY_NODE_INVALID) {
-        return KHIERARCHY_NODE_INVALID;
+        return KTRANSFORM_INVALID;
     }
     return graph->ktransform_handles[parent_index];
 }
@@ -123,16 +127,16 @@ khierarchy_node hierarchy_graph_root_add(hierarchy_graph* graph) {
     return hierarchy_graph_child_add_with_ktransform(graph, KHIERARCHY_NODE_INVALID, KTRANSFORM_INVALID);
 }
 
-khierarchy_node hierarchy_graph_root_add_with_ktransform(hierarchy_graph* graph, ktransform ktransform_handle) {
-    return hierarchy_graph_child_add_with_ktransform(graph, KHIERARCHY_NODE_INVALID, ktransform_handle);
+khierarchy_node hierarchy_graph_root_add_with_ktransform(hierarchy_graph* graph, ktransform transform) {
+    return hierarchy_graph_child_add_with_ktransform(graph, KHIERARCHY_NODE_INVALID, transform);
 }
 
-khierarchy_node hierarchy_graph_child_add(hierarchy_graph* graph, khierarchy_node parent_node_handle) {
-    return hierarchy_graph_child_add_with_ktransform(graph, parent_node_handle, KTRANSFORM_INVALID);
+khierarchy_node hierarchy_graph_child_add(hierarchy_graph* graph, khierarchy_node parent) {
+    return hierarchy_graph_child_add_with_ktransform(graph, parent, KTRANSFORM_INVALID);
 }
 
-khierarchy_node hierarchy_graph_child_add_with_ktransform(hierarchy_graph* graph, khierarchy_node parent_node_handle, ktransform ktransform_handle) {
-    return node_acquire(graph, parent_node_handle, ktransform_handle);
+khierarchy_node hierarchy_graph_child_add_with_ktransform(hierarchy_graph* graph, khierarchy_node parent, ktransform transform) {
+    return node_acquire(graph, parent, transform);
 }
 
 u64 hierarchy_graph_meta_get(hierarchy_graph* graph, khierarchy_node node) {
@@ -292,7 +296,7 @@ vec3 hierarchy_graph_world_scale_get(const hierarchy_graph* graph, khierarchy_no
     return world_scale;
 }
 
-static khierarchy_node node_acquire(hierarchy_graph* graph, u32 parent_index, ktransform ktransform_handle) {
+static khierarchy_node node_acquire(hierarchy_graph* graph, khierarchy_node parent, ktransform ktransform_handle) {
     KASSERT(graph);
     khierarchy_node node = KHIERARCHY_NODE_INVALID;
     for (u32 i = 1; i < graph->nodes_allocated; ++i) {
@@ -314,8 +318,8 @@ static khierarchy_node node_acquire(hierarchy_graph* graph, u32 parent_index, kt
     graph->node_handles[node] = node;
     // If parent is KHIERARCHY_NODE_INVALID, then it is a root node. Otherwise,
     // nest it below the parent in the hierarchy.
-    graph->levels[node] = parent_index == KHIERARCHY_NODE_INVALID ? 0 : graph->levels[parent_index] + 1;
-    graph->parent_indices[node] = parent_index;
+    graph->levels[node] = parent == KHIERARCHY_NODE_INVALID ? 0 : graph->levels[parent] + 1;
+    graph->parent_indices[node] = parent;
     graph->dirty_flags[node] = false;
     graph->ktransform_handles[node] = ktransform_handle;
 

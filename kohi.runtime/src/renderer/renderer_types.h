@@ -15,8 +15,9 @@ struct camera;
 struct material;
 struct kwindow_renderer_backend_state;
 
-// Max number of point lights that can exist in the renderer at once.
-#define KMATERIAL_MAX_GLOBAL_POINT_LIGHTS 64
+// The maximum size that renderer 'immediate' data can be.
+#define RENDERER_IMMEDIATE_DATA_MAX_SIZE 128
+
 // Max number of point lights that can be bound in a single draw.
 #define KMATERIAL_MAX_BOUND_POINT_LIGHTS 8
 
@@ -584,6 +585,8 @@ typedef struct renderer_backend_interface {
      * @param enabled Indicates whether the flag should be set or unset.
      */
     void (*shader_flag_set)(struct renderer_backend_interface* backend, kshader shader, shader_flags flag, b8 enabled);
+
+    void (*apply_immediate)(struct renderer_backend_interface* backend, kshader shader, void* data, u8 data_size);
 
     /**
      * @brief Binds the per-frame frequency.

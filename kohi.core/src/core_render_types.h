@@ -521,3 +521,12 @@ typedef struct kwater_plane_render_data {
     /** @brief The instance of the material to use with this static mesh when rendering. */
     kmaterial_instance material;
 } kwater_plane_render_data;
+
+#define MAX_STORAGE_VIEWS 8
+#define MAX_STORAGE_PROJECTIONS 4
+
+// Max number of point lights that can exist in renderer storage at once.
+#define KMATERIAL_MAX_GLOBAL_POINT_LIGHTS 64
+
+// The max number of base materials that can exist in renderer storage.
+#define KMATERIAL_MAX_BASE_MATERIAL_COUNT 256

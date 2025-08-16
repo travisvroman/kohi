@@ -457,6 +457,12 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
         0,
         (DWORD*)&out_thread->thread_id);
     KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);
+
+    // Apply name if provided.
+    if (name && string_length(name)) {
+        kthread_name_set(out_thread, name);
+    }
+
     if (!out_thread->internal_data) {
         return false;
     }
@@ -464,6 +470,13 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
         CloseHandle(out_thread->internal_data);
     }
     return true;
+}
+
+b8 kthread_name_set(kthread* thread, const char* name) {
+    if (thread && thread->internal_data) {
+        HRESULT result = SetThreadDescription(thread->internal_data, name);
+        return !FAILED(hr);
+    }
 }
 
 void kthread_destroy(kthread* thread) {

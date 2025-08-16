@@ -659,6 +659,8 @@ b8 engine_run(application* app) {
             // because we don't want or have timeline data in the frame_data struct any longer.
             ktimeline_system_update(engine_state->systems.timeline_system, delta);
 
+            ktransform_system_update(engine_state->systems.ktransform_system, &engine_state->p_frame_data);
+
             // update metrics
             metrics_update(frame_elapsed_time);
 
