@@ -206,7 +206,7 @@ void main() {
             local_normal = material_group_ubo.normal;
         }
     } else {
-        local_normal = vec3(0, 1.0, 0);
+        local_normal = vec3(0, 0, 1.0);
     }
     // Update the normal to use a sample from the normal map.
     normal = normalize(TBN * (2.0 * local_normal - 1.0));

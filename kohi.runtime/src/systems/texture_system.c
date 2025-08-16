@@ -805,8 +805,8 @@ static b8 create_default_textures(texture_system_state* state) {
                 u64 index = (row * 16) + col;
                 u64 index_bpp = index * channels;
                 // Set blue, z-axis by default and alpha.
-                normal_pixels[index_bpp + 2] = 128;
-                normal_pixels[index_bpp + 3] = 128;
+                normal_pixels[index_bpp + 2] = 255;
+                normal_pixels[index_bpp + 3] = 255;
             }
         }
 

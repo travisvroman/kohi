@@ -541,7 +541,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
             base_colour_tex));
 
         // Normal, if used
-        group_ubo.normal = vec3_up();
+        group_ubo.normal = KMATERIAL_DEFAULT_NORMAL_VALUE;
         ktexture normal_tex = state->default_normal_texture;
         if (FLAG_GET(material->flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)) {
             group_ubo.normal = material->normal;
