@@ -24,6 +24,9 @@
 
 #define KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT 4
 #define KMATERIAL_MAX_SHADOW_CASCADES 4
+#define KMATERIAL_MAX_WATER_PLANES 4
+// One view for regular camera, plus one reflection view per water plane.
+#define KMATERIAL_MAX_VIEWS (KMATERIAL_MAX_WATER_PLANES + 1)
 #define KMATERIAL_MAX_POINT_LIGHTS 10
 
 #define KMATERIAL_DEFAULT_BASE_COLOUR_VALUE (vec4){1.0f, 1.0f, 1.0f, 1.0f}

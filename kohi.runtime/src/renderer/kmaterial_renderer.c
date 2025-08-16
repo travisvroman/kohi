@@ -648,15 +648,15 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
             .lighting_model = material->model,
         };
 
-        ktexture reflection_colour_tex = texture_is_loaded(material->reflection_texture) ? material->reflection_texture : state->default_texture;
-        ktexture refraction_colour_tex = texture_is_loaded(material->refraction_texture) ? material->refraction_texture : state->default_texture;
-        ktexture reflection_depth_tex = texture_is_loaded(material->reflection_depth_texture) ? material->reflection_depth_texture : state->default_texture;
+        ktexture reflection_colour_tex = material->reflection_texture;
+        ktexture refraction_colour_tex = material->refraction_texture;
+        ktexture refraction_depth_tex = material->refraction_depth_texture;
         ktexture dudv_texture = texture_is_loaded(material->dudv_texture) ? material->dudv_texture : state->default_texture;
         ktexture normal_texture = texture_is_loaded(material->normal_texture) ? material->normal_texture : state->default_normal_texture;
 
         KASSERT_DEBUG(kshader_system_texture_set_by_location_arrayed(shader, state->material_water_locations.material_textures, MAT_WATER_IDX_REFLECTION, reflection_colour_tex));
         KASSERT_DEBUG(kshader_system_texture_set_by_location_arrayed(shader, state->material_water_locations.material_textures, MAT_WATER_IDX_REFRACTION, refraction_colour_tex));
-        KASSERT_DEBUG(kshader_system_texture_set_by_location_arrayed(shader, state->material_water_locations.material_textures, MAT_WATER_IDX_REFRACTION_DEPTH, reflection_depth_tex));
+        KASSERT_DEBUG(kshader_system_texture_set_by_location_arrayed(shader, state->material_water_locations.material_textures, MAT_WATER_IDX_REFRACTION_DEPTH, refraction_depth_tex));
         KASSERT_DEBUG(kshader_system_texture_set_by_location_arrayed(shader, state->material_water_locations.material_textures, MAT_WATER_IDX_DUDV, dudv_texture));
         KASSERT_DEBUG(kshader_system_texture_set_by_location_arrayed(shader, state->material_water_locations.material_textures, MAT_WATER_IDX_NORMAL, normal_texture));
 
@@ -677,7 +677,7 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 }
 
 // Updates and binds material instance using the provided lighting information.
-void kmaterial_renderer_bind_instance(kmaterial_renderer* state, kmaterial_instance instance, mat4 model, vec4 clipping_plane, u8 point_light_count, const u8* point_light_indices) {
+void kmaterial_renderer_bind_instance(kmaterial_renderer* state, kmaterial_instance instance, u32 view_index, mat4 model, vec4 clipping_plane, u8 point_light_count, const u8* point_light_indices) {
     KASSERT_DEBUG(state);
 
     const kmaterial_instance_data* instance_data = kmaterial_get_material_instance_data(engine_systems_get()->material_system, instance);
@@ -723,7 +723,9 @@ void kmaterial_renderer_bind_instance(kmaterial_renderer* state, kmaterial_insta
             .irradiance_cubemap_index = 0, // TODO: Multiple IBL cubemap support.
             .packed_point_light_indices = packed_point_light_indices,
             .model = model,
-            .clipping_plane = clipping_plane};
+            .clipping_plane = clipping_plane,
+            .view_index = view_index,
+        };
 
         // Upload the data
         KASSERT_DEBUG(kshader_system_uniform_set_by_location(shader, state->material_standard_locations.material_draw_ubo, &inst_ubo_data));
@@ -745,7 +747,8 @@ void kmaterial_renderer_bind_instance(kmaterial_renderer* state, kmaterial_insta
             .model = model,
             .tiling = base_material->tiling,
             .wave_strength = base_material->wave_strength,
-            .wave_speed = base_material->wave_speed};
+            .wave_speed = base_material->wave_speed,
+            .view_index = view_index};
 
         // Upload the data
         KASSERT_DEBUG(kshader_system_uniform_set_by_location(shader, state->material_water_locations.material_draw_ubo, &inst_ubo_data));

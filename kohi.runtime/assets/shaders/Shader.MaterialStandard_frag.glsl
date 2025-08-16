@@ -5,8 +5,11 @@
 
 const float PI = 3.14159265359;
 
-const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
+const uint KMATERIAL_MAX_SHADOW_CASCADES = 4;
 const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
+const uint KMATERIAL_MAX_WATER_PLANES = 4;
+// One view for regular camera, plus one reflection view per water plane.
+const uint KMATERIAL_MAX_VIEWS = KMATERIAL_MAX_WATER_PLANES + 1;
 const uint MATERIAL_STANDARD_TEXTURE_COUNT = 7;
 const uint MATERIAL_STANDARD_SAMPLER_COUNT = 7;
 const uint MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT = 4;
@@ -76,11 +79,11 @@ struct point_light {
 layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
     point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
     // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    mat4 views[KMATERIAL_MAX_VIEWS];                             // 320 bytes
+    vec4 view_positions[KMATERIAL_MAX_VIEWS];                     // 80 bytes
     mat4 projection;                                             // 64 bytes
-    mat4 view;                                                   // 64 bytes
     directional_light dir_light;                                 // 48 bytes
-    vec4 view_position;                                          // 16 bytes
     vec4 cascade_splits;                                         // 16 bytes
     // [shadow_bias, delta_time, game_time, padding]
     vec4 params;
@@ -132,12 +135,13 @@ layout(push_constant) uniform per_draw_ubo {
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
     uint irradiance_cubemap_index;
+    uint view_index;
 } material_draw_ubo;
 
 // Data Transfer Object
 layout(location = 0) in dto {
 	vec4 frag_position;
-	vec4 light_space_frag_pos[MATERIAL_MAX_SHADOW_CASCADES];
+	vec4 light_space_frag_pos[KMATERIAL_MAX_SHADOW_CASCADES];
     vec4 vertex_colour;
 	vec3 normal;
     uint metallic_texture_channel;
@@ -166,7 +170,7 @@ uint flag_set(uint flags, uint flag, bool enabled);
 
 void main() {
     uint render_mode = material_frame_ubo.options[MAT_OPTION_IDX_RENDER_MODE];
-	vec4 view_position = material_frame_ubo.view_position;
+	vec4 view_position = material_frame_ubo.view_positions[material_draw_ubo.view_index];
     vec3 cascade_colour = vec3(1.0);
 
     vec3 normal = in_dto.normal;
@@ -198,18 +202,17 @@ void main() {
     // Calculate "local normal".
     // If enabled, get the normal from the normal map if used, or the supplied vector if not.
     // Otherwise, just use a default z-up
-    vec3 local_normal;
+    vec3 local_normal = vec3(0, 0, 1.0);
     if(flag_get(material_group_ubo.flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)){
         if(flag_get(material_group_ubo.tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX)) {
             local_normal = texture(sampler2D(material_textures[MAT_STANDARD_IDX_NORMAL], material_samplers[MAT_STANDARD_IDX_NORMAL]), in_dto.tex_coord).rgb;
+            local_normal = (2.0 * local_normal - 1.0);
         } else {
             local_normal = material_group_ubo.normal;
         }
-    } else {
-        local_normal = vec3(0, 0, 1.0);
-    }
+    } 
     // Update the normal to use a sample from the normal map.
-    normal = normalize(TBN * (2.0 * local_normal - 1.0));
+    normal = normalize(TBN * local_normal);
 
     // Either use combined MRA (metallic/roughness/ao) or individual maps, depending on settings.
     vec3 mra;
@@ -274,18 +277,18 @@ void main() {
 
         // Generate shadow value based on current fragment position vs shadow map.
         // Light and normal are also taken in the case that a bias is to be used.
-        vec4 frag_position_view_space = material_frame_ubo.view * in_dto.frag_position;
+        vec4 frag_position_view_space = material_frame_ubo.views[material_draw_ubo.view_index] * in_dto.frag_position;
         float depth = abs(frag_position_view_space).z;
         // Get the cascade index from the current fragment's position.
         int cascade_index = -1;
-        for(int i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
+        for(int i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
             if(depth < material_frame_ubo.cascade_splits[i]) {
                 cascade_index = i;
                 break;
             }
         }
         if(cascade_index == -1) {
-            cascade_index = int(MATERIAL_MAX_SHADOW_CASCADES);
+            cascade_index = int(KMATERIAL_MAX_SHADOW_CASCADES);
         }
 
         if(render_mode == 3) {
@@ -386,7 +389,7 @@ void main() {
         colour *= cascade_colour;
 
         // Apply emissive at the end.
-        colour.rgb += emissive;
+        colour.rgb += (emissive * 1.0); // adjust for intensity
 
         // Ensure the alpha is based on the albedo's original alpha value if transparency is enabled.
         // If it's not enabled, just use 1.0.

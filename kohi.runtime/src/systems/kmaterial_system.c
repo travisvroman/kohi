@@ -712,19 +712,27 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
     // Validate the material type and model.
     material->type = asset->type;
     material->model = asset->model;
+    material->name = asset->name;
 
     // Base colour map or value - used by all material types.
     if (asset->base_colour_map.resource_name) {
         material->base_colour_texture = texture_acquire_from_package(asset->base_colour_map.resource_name, asset->base_colour_map.package_name, 0, 0);
     } else {
         material->base_colour = asset->base_colour;
+        material->base_colour_texture = INVALID_KTEXTURE;
     }
 
     // Normal map - used by all material types.
     if (asset->normal_map.resource_name) {
         material->normal_texture = texture_acquire_from_package(asset->normal_map.resource_name, asset->normal_map.package_name, 0, 0);
+    } else {
+        material->normal = asset->normal;
+        material->normal_texture = INVALID_KTEXTURE;
     }
     FLAG_SET(material->flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT, asset->normal_enabled);
+    if (!FLAG_GET(material->flags, KMATERIAL_FLAG_NORMAL_ENABLED_BIT)) {
+        material->normal = KMATERIAL_DEFAULT_NORMAL_VALUE;
+    }
 
     // Water textures require normals to be enabled and a texture to exist.
     if (material->type == KMATERIAL_TYPE_WATER) {
@@ -744,6 +752,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
             material->metallic_texture_channel = asset->metallic_map.channel;
         } else {
             material->metallic = asset->metallic;
+            material->metallic_texture = INVALID_KTEXTURE;
         }
         // Roughness map or value
         if (asset->roughness_map.resource_name) {
@@ -751,6 +760,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
             material->roughness_texture_channel = asset->roughness_map.channel;
         } else {
             material->roughness = asset->roughness;
+            material->roughness_texture = INVALID_KTEXTURE;
         }
         // Ambient occlusion map or value
         if (asset->ambient_occlusion_map.resource_name) {
@@ -758,6 +768,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
             material->ao_texture_channel = asset->ambient_occlusion_map.channel;
         } else {
             material->ao = asset->ambient_occlusion;
+            material->ao_texture = INVALID_KTEXTURE;
         }
         FLAG_SET(material->flags, KMATERIAL_FLAG_AO_ENABLED_BIT, asset->ambient_occlusion_enabled);
 
@@ -766,6 +777,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
             material->mra_texture = texture_acquire_from_package(asset->mra_map.resource_name, asset->mra_map.package_name, 0, 0);
         } else {
             material->mra = asset->mra;
+            material->mra_texture = INVALID_KTEXTURE;
         }
         FLAG_SET(material->flags, KMATERIAL_FLAG_MRA_ENABLED_BIT, asset->use_mra);
 
@@ -774,6 +786,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
             material->emissive_texture = texture_acquire_from_package(asset->emissive_map.resource_name, asset->emissive_map.package_name, 0, 0);
         } else {
             material->emissive = asset->emissive;
+            material->emissive_texture = INVALID_KTEXTURE;
         }
         FLAG_SET(material->flags, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT, asset->emissive_enabled);
 

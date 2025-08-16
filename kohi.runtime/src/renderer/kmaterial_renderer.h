@@ -74,10 +74,10 @@ typedef struct kmaterial_global_uniform_data {
     kpoint_light_uniform_data global_point_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes
     // Light space for shadow mapping. Per cascade
     mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    mat4 views[KMATERIAL_MAX_VIEWS];                              // 320 bytes
+    vec4 view_positions[KMATERIAL_MAX_VIEWS];                     // 80 bytes
     mat4 projection;                                              // 64 bytes
-    mat4 view;                                                    // 64 bytes
     kdirectional_light_uniform_data dir_light;                    // 48 bytes
-    vec4 view_position;                                           // 16 bytes
     vec4 cascade_splits;                                          // 16 bytes
 
     // [shadow_bias, delta_time, game_time, padding]
@@ -124,6 +124,8 @@ typedef struct kmaterial_standard_instance_uniform_data {
     uvec2 packed_point_light_indices; // 8 bytes
     u32 num_p_lights;
     u32 irradiance_cubemap_index;
+    u32 view_index;
+    uvec3 padding;
 } kmaterial_standard_instance_uniform_data;
 
 // Water Material Per-group UBO (i.e. per "base material")
@@ -142,10 +144,10 @@ typedef struct kmaterial_water_instance_uniform_data {
     uvec2 packed_point_light_indices; // 8 bytes
     u32 num_p_lights;
     u32 irradiance_cubemap_index;
+    u32 view_index;
     f32 tiling;
     f32 wave_strength;
     f32 wave_speed;
-    f32 padding;
 } kmaterial_water_instance_uniform_data;
 
 /** @brief State for the material renderer. */
@@ -217,13 +219,6 @@ KAPI void kmaterial_renderer_unregister_instance(kmaterial_renderer* state, kmat
         state->global_ubo_data.params.elements[MAT_PARAM_IDX_GAME_TIME] = game_time;   \
     }
 
-#define kmaterial_renderer_set_matrices(state, projection_matrix, view_matrix)                 \
-    {                                                                                          \
-        state->global_ubo_data.projection = projection_matrix;                                 \
-        state->global_ubo_data.view = view_matrix;                                             \
-        state->global_ubo_data.view_position = vec3_to_vec4(mat4_position(view_matrix), 1.0f); \
-    }
-
 #define kmaterial_renderer_set_directional_light(state, p_dir_light)                               \
     {                                                                                              \
         state->global_ubo_data.dir_light.colour = vec4_from_vec3(p_dir_light->colour, 0.0f);       \
@@ -252,4 +247,4 @@ KAPI void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base
 
 // Updates and binds material instance using the provided lighting information.
 // NOTE: Up to KMATERIAL_MAX_BOUND_POINT_LIGHTS. Anything past this will be ignored.
-KAPI void kmaterial_renderer_bind_instance(kmaterial_renderer* state, kmaterial_instance instance, mat4 model, vec4 clipping_plane, u8 point_light_count, const u8* point_light_indices);
+KAPI void kmaterial_renderer_bind_instance(kmaterial_renderer* state, kmaterial_instance instance, u32 view_index, mat4 model, vec4 clipping_plane, u8 point_light_count, const u8* point_light_indices);

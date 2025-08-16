@@ -7,8 +7,10 @@ layout(location = 0) out vec4 out_colour;
 const float PI = 3.14159265359;
 
 const uint KMATERIAL_MAX_GLOBAL_POINT_LIGHTS = 64;
-const uint MATERIAL_MAX_SHADOW_CASCADES = 4;
-const uint MATERIAL_MAX_VIEWS = 4;
+const uint KMATERIAL_MAX_SHADOW_CASCADES = 4;
+const uint KMATERIAL_MAX_WATER_PLANES = 4;
+// One view for regular camera, plus one reflection view per water plane.
+const uint KMATERIAL_MAX_VIEWS = KMATERIAL_MAX_WATER_PLANES + 1;
 const uint MATERIAL_WATER_TEXTURE_COUNT = 5;
 const uint MATERIAL_WATER_SAMPLER_COUNT = 5;
 const uint MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT = 4;
@@ -55,11 +57,11 @@ struct point_light {
 layout(std140, set = 0, binding = 0) uniform kmaterial_global_uniform_data {
     point_light p_lights[KMATERIAL_MAX_GLOBAL_POINT_LIGHTS]; // 2048 bytes @ 32 bytes each
     // Light space for shadow mapping. Per cascade
-    mat4 directional_light_spaces[MATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    mat4 directional_light_spaces[KMATERIAL_MAX_SHADOW_CASCADES]; // 256 bytes
+    mat4 views[KMATERIAL_MAX_VIEWS];                             // 320 bytes
+    vec4 view_positions[KMATERIAL_MAX_VIEWS];                     // 80 bytes
     mat4 projection;                                             // 64 bytes
-    mat4 view;                                                   // 64 bytes
     directional_light dir_light;                                 // 48 bytes
-    vec4 view_position;                                          // 16 bytes
     vec4 cascade_splits;                                         // 16 bytes
     // [shadow_bias, delta_time, game_time, padding]
     vec4 params;
@@ -84,23 +86,23 @@ layout(set = 1, binding = 0) uniform per_group_ubo {
 layout(set = 1, binding = 1) uniform texture2D material_textures[MATERIAL_WATER_TEXTURE_COUNT];
 layout(set = 1, binding = 2) uniform sampler material_samplers[MATERIAL_WATER_SAMPLER_COUNT];
 
-// per-draw
+// per-draw, "material instance" data
 layout(push_constant) uniform per_draw_ubo {
     mat4 model;
     // Index into the global point lights array. Up to 16 indices as u8s packed into 2 u32s.
     uvec2 packed_point_light_indices; // 8 bytes
     uint num_p_lights;
     uint irradiance_cubemap_index;
+    uint view_index;
     float tiling;
     float wave_strength;
     float wave_speed;
-    float padding;
 } material_draw_ubo;
 
 // Data Transfer Object from vertex shader.
 layout(location = 0) in dto {
     vec4 frag_position;
-    vec4 light_space_frag_pos[MATERIAL_MAX_SHADOW_CASCADES];
+    vec4 light_space_frag_pos[KMATERIAL_MAX_SHADOW_CASCADES];
 	vec4 clip_space;
     vec3 world_to_camera;
     float padding;
@@ -190,7 +192,7 @@ void main() {
     }
 
     // Apply lighting
-    vec4 lighting = do_lighting(material_frame_ubo.view, in_dto.frag_position.xyz, out_colour.rgb, normal, render_mode);
+    vec4 lighting = do_lighting(material_frame_ubo.views[material_draw_ubo.view_index], in_dto.frag_position.xyz, out_colour.rgb, normal, render_mode);
     out_colour = lighting;
 
     if(render_mode == 0) {
@@ -214,14 +216,14 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
     float depth = abs(frag_position_view_space).z;
     // Get the cascade index from the current fragment's position.
     int cascade_index = -1;
-    for(int i = 0; i < MATERIAL_MAX_SHADOW_CASCADES; ++i) {
+    for(int i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
         if(depth < material_frame_ubo.cascade_splits[i]) {
             cascade_index = i;
             break;
         }
     }
     if(cascade_index == -1) {
-        cascade_index = int(MATERIAL_MAX_SHADOW_CASCADES);
+        cascade_index = int(KMATERIAL_MAX_SHADOW_CASCADES);
     }
     float shadow = calculate_shadow(in_dto.light_space_frag_pos[cascade_index], normal, material_frame_ubo.dir_light, cascade_index);
 
@@ -232,7 +234,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
     // The end of the fade-out range.
     float fade_end = fade_start + fade_distance;
 
-    float zclamp = clamp(length(material_frame_ubo.view_position.xyz - frag_position), fade_start, fade_end);
+    float zclamp = clamp(length(material_frame_ubo.view_positions[material_draw_ubo.view_index].xyz - frag_position), fade_start, fade_end);
     float fade_factor = (fade_end - zclamp) / (fade_end - fade_start + 0.00001); // Avoid divide by 0
 
     shadow = clamp(shadow + (1.0 - fade_factor), 0.0, 1.0);
@@ -243,7 +245,7 @@ vec4 do_lighting(mat4 view, vec3 frag_position, vec3 albedo, vec3 normal, uint r
     base_reflectivity = mix(base_reflectivity, albedo, metallic);
 
     if(render_mode == 0 || render_mode == 1 || render_mode == 3) {
-        vec3 view_direction = normalize(material_frame_ubo.view_position.xyz - frag_position);
+        vec3 view_direction = normalize(material_frame_ubo.view_positions[material_draw_ubo.view_index].xyz - frag_position);
 
         // Don't include albedo in mode 1 (lighting-only). Do this by using white 
         // multiplied by mode (mode 1 will result in white, mode 0 will be black),
