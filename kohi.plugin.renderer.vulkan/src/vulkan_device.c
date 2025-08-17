@@ -33,7 +33,7 @@ typedef struct vulkan_physical_device_queue_family_info {
     i32 transfer_family_index;
 } vulkan_physical_device_queue_family_info;
 
-static b8 select_physical_device(vulkan_context* context);
+static b8 select_physical_device(vulkan_context* context, b8 require_discrete_gpu);
 static b8 physical_device_meets_requirements(
     vulkan_context* context,
     VkPhysicalDevice device,
@@ -43,8 +43,8 @@ static b8 physical_device_meets_requirements(
     vulkan_physical_device_queue_family_info* out_queue_family_info,
     vulkan_swapchain_support_info* out_swapchain_support);
 
-b8 vulkan_device_create(vulkan_context* context) {
-    if (!select_physical_device(context)) {
+b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
+    if (!select_physical_device(context, require_discrete_gpu)) {
         return false;
     }
 
@@ -421,7 +421,7 @@ b8 vulkan_device_detect_depth_format(vulkan_context* context, vulkan_device* dev
     return false;
 }
 
-static b8 select_physical_device(vulkan_context* context) {
+static b8 select_physical_device(vulkan_context* context, b8 require_discrete_gpu) {
     u32 physical_device_count = 0;
     krhi_vulkan* rhi = &context->rhi;
     VK_CHECK(rhi->kvkEnumeratePhysicalDevices(context->instance, &physical_device_count, 0));
@@ -441,10 +441,15 @@ static b8 select_physical_device(vulkan_context* context) {
     // requirements.compute = true;
     requirements.sampler_anisotropy = true;
 #if KPLATFORM_APPLE
+    // Don't allow this setting on mac
     requirements.discrete_gpu = false;
+    if (require_discrete_gpu) {
+        KWARN("Application settings called for a discrete GPU to be required, but this setting is ignored on macOS.");
+    }
 #else
-    requirements.discrete_gpu = true;
+    requirements.discrete_gpu = require_discrete_gpu;
 #endif
+    KINFO("Vulkan: Discrete GPU is%s required.", require_discrete_gpu ? "" : " NOT");
     requirements.device_extension_names = darray_create(const char*);
     darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 

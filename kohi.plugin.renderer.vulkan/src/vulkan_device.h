@@ -19,9 +19,10 @@
  * @brief Creates a new Vulkan device and assigns it to the given context.
  *
  * @param context A pointer to the Vulkan context.
+ * @param require_discrete_gpu Indicates if a discrete GPU is required. Ignored on macOS.
  * @return True on success; otherwise false.
  */
-b8 vulkan_device_create(vulkan_context* context);
+b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu);
 
 /**
  * @brief Destroys the device present in the given context.

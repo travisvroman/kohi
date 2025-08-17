@@ -50,6 +50,8 @@ typedef struct renderer_system_config {
 
     // The max number of shaders that can be held. Must match the shader system's count.
     u16 max_shader_count;
+
+    b8 require_discrete_gpu;
 } renderer_system_config;
 
 struct renderer_system_state;

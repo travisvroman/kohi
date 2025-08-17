@@ -223,6 +223,8 @@ typedef struct renderer_backend_config {
     u16 max_shader_count;
     /** @brief Indicates if triple buffering should be used. Otherwise, double-buffering is used. */
     b8 use_triple_buffering;
+    /** @brief Indicates if a discrete GPU is required. Can be ignored on some platforms. */
+    b8 require_discrete_gpu;
 } renderer_backend_config;
 
 /** @brief The winding order of vertices, used to determine what is the front-face of a triangle. */

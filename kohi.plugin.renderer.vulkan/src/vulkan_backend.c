@@ -330,7 +330,7 @@ b8 vulkan_renderer_backend_initialize(renderer_backend_interface* backend, const
     }
 
     // Device creation
-    if (!vulkan_device_create(context)) {
+    if (!vulkan_device_create(context, config->require_discrete_gpu)) {
         KERROR("Failed to create device!");
         return false;
     }

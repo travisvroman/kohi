@@ -83,6 +83,7 @@ systems = [
             enable_validation=false
             backend_plugin_name = "kohi.plugin.renderer.vulkan"
             triple_buffering_enabled = true
+            require_discrete_gpu = false
         }
     }
     {

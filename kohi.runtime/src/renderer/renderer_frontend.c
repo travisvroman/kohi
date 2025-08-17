@@ -127,6 +127,11 @@ b8 renderer_system_deserialize_config(const char* config_str, renderer_system_co
         out_config->triple_buffering_enabled = false;
     }
 
+    if (!kson_object_property_value_get_bool(&tree.root, "require_discrete_gpu", &out_config->require_discrete_gpu)) {
+        // Default to true if not defined.
+        out_config->require_discrete_gpu = false;
+    }
+
     i64 max_shader_count = 0;
     if (!kson_object_property_value_get_int(&tree.root, "max_shader_count", &max_shader_count)) {
         max_shader_count = 1024;
@@ -182,6 +187,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     renderer_config.flags = 0;
     renderer_config.use_triple_buffering = config->triple_buffering_enabled;
     renderer_config.max_shader_count = config->max_shader_count;
+    renderer_config.require_discrete_gpu = config->require_discrete_gpu;
     if (config->vsync) {
         renderer_config.flags |= RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT;
     }

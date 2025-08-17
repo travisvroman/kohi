@@ -20,6 +20,8 @@ Changelog
   - Added support for 'masked' materials. Those materials with both 'masked' and 'has_transparency' set use the discard method of transparency (best for things like foliage). 
     - The threshold for discard is hardcoded to 0.1, and may be configurable in the future if the need arises.
   - Emissive values and texture maps now work on PBR materials.
+  - Fixed a variety of Vulkan validation issues.
+  - Added a new renderer config option require_discrete_gpu to indicate if a dedicated GPU is required by the application. Defaults to false if not provided. Ignored on macOS.
 
 - 0.10.0
   - Combined asset_image_format and texture_format into a single kpixel_format which is used for both.
