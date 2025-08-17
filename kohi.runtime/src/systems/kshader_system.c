@@ -560,6 +560,7 @@ static b8 internal_sampler_add(kshader_data* shader, shader_uniform_config* conf
 static kshader generate_new_shader_handle(void) {
     for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
         if (state_ptr->shaders[i].state == SHADER_STATE_FREE) {
+            state_ptr->shaders[i].state = SHADER_STATE_NOT_CREATED;
             return i;
         }
     }

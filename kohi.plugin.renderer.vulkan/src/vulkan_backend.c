@@ -505,6 +505,18 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
     kwindow_renderer_state* window_internal = window->renderer_state;
     kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
 
+    rhi->kvkDeviceWaitIdle(context->device.logical_device);
+
+    // Per-swapchain-image resources.
+    for (u32 i = 0; i < window_backend->swapchain.image_count; ++i) {
+        if (window_backend->submit_semaphores[i]) {
+            rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->submit_semaphores[i], context->allocator);
+            window_backend->submit_semaphores[i] = 0;
+        }
+    }
+    KFREE_TYPE_CARRAY(window_backend->submit_semaphores, VkSemaphore, window_backend->swapchain.image_count);
+    window_backend->submit_semaphores = 0;
+
     // Destroy per-frame-in-flight resources.
     {
         for (u32 i = 0; i < window_backend->max_frames_in_flight; ++i) {
@@ -515,10 +527,6 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
             if (window_backend->acquire_semaphores[i]) {
                 rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->acquire_semaphores[i], context->allocator);
                 window_backend->acquire_semaphores[i] = 0;
-            }
-            if (window_backend->submit_semaphores[i]) {
-                rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->submit_semaphores[i], context->allocator);
-                window_backend->submit_semaphores[i] = 0;
             }
 
             rhi->kvkDestroyFence(context->device.logical_device, window_backend->in_flight_fences[i], context->allocator);
@@ -531,9 +539,6 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
         }
         KFREE_TYPE_CARRAY(window_backend->acquire_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
         window_backend->acquire_semaphores = 0;
-
-        KFREE_TYPE_CARRAY(window_backend->submit_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
-        window_backend->submit_semaphores = 0;
 
         KFREE_TYPE_CARRAY(window_backend->in_flight_fences, VkFence, window_backend->max_frames_in_flight);
         window_backend->in_flight_fences = 0;
@@ -1831,7 +1836,6 @@ void vulkan_renderer_texture_resources_release(renderer_backend_interface* backe
     vulkan_texture_handle_data* texture_data = &context->textures[*renderer_texture_handle];
 
     // Invalidate the handle first.
-    texture_data->image_count = 0;
     *renderer_texture_handle = KTEXTURE_BACKEND_INVALID;
 
     // Release/destroy the internal data.
@@ -2528,7 +2532,7 @@ b8 vulkan_renderer_shader_create(renderer_backend_interface* backend, kshader sh
 }
 
 void vulkan_renderer_shader_destroy(renderer_backend_interface* backend, kshader shader) {
-    if (shader == KSHADER_INVALID) {
+    if (shader != KSHADER_INVALID) {
         vulkan_context* context = (vulkan_context*)backend->internal_context;
         krhi_vulkan* rhi = &context->rhi;
         VkDevice logical_device = context->device.logical_device;
@@ -3274,6 +3278,9 @@ b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, renderbuff
 
     VK_CHECK(rhi->kvkCreateBuffer(context->device.logical_device, &buffer_info,
                                   context->allocator, &internal_buffer.handle));
+    KTRACE("VkBuffer created at %p", internal_buffer.handle);
+
+    VK_SET_DEBUG_OBJECT_NAME(context, VK_OBJECT_TYPE_BUFFER, internal_buffer.handle, buffer->name);
 
     // Gather memory requirements.
     rhi->kvkGetBufferMemoryRequirements(context->device.logical_device,
@@ -3347,6 +3354,7 @@ void vulkan_buffer_destroy_internal(renderer_backend_interface* backend, renderb
                                    context->allocator);
                 internal_buffer->memory = 0;
             }
+            KTRACE("VkBuffer destroyed at %p", internal_buffer->handle);
             if (internal_buffer->handle) {
                 rhi->kvkDestroyBuffer(context->device.logical_device, internal_buffer->handle,
                                       context->allocator);

@@ -142,6 +142,13 @@ void texture_system_shutdown(void* state) {
 
         texture_system_config* typed_config = &state_ptr->config;
 
+        // Ensure all textures are released.
+        for (u16 i = 0; i < typed_config->max_texture_count; ++i) {
+            if (state_ptr->states[i] != TEXTURE_STATE_UNINITIALIZED) {
+                renderer_texture_resources_release(state_ptr->renderer, &state_ptr->renderer_texture_handles[i]);
+            }
+        }
+
         KFREE_TYPE_CARRAY(state_ptr->renderer_texture_handles, ktexture_backend, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->types, ktexture_type, typed_config->max_texture_count);
         KFREE_TYPE_CARRAY(state_ptr->widths, u32, typed_config->max_texture_count);
@@ -984,6 +991,8 @@ static void texture_kasset_image_loaded(void* listener, kasset_image* asset) {
         if (texture_apply_asset_data(t, context->name, &context->options, context->assets)) {
             success = true;
         }
+
+        state_ptr->states[t] = TEXTURE_STATE_LOADED;
 
         if (context->assets) {
             KFREE_TYPE_CARRAY(context->assets, kasset_image*, state_ptr->array_sizes[t]);
