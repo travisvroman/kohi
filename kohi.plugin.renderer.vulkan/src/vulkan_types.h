@@ -616,10 +616,10 @@ typedef struct kwindow_renderer_backend_state {
     vulkan_command_buffer* graphics_command_buffers;
 
     /** @brief The semaphores used to indicate image availability, one per frame in flight. */
-    VkSemaphore* image_available_semaphores;
+    VkSemaphore* acquire_semaphores;
 
-    /** @brief The semaphores used to indicate queue availability, one per frame in flight. */
-    VkSemaphore* queue_complete_semaphores;
+    /** @brief The semaphores used to indicate queue availability, one per swapchain image. */
+    VkSemaphore* submit_semaphores;
 
     /**
      * @brief The in-flight fences, used to indicate to the application when a frame is

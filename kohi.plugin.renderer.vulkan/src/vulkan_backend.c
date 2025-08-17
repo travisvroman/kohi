@@ -433,8 +433,9 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
     {
         // Sync objects are owned by the window since they go hand-in-hand
         // with the swapchain and window resources.
-        window_backend->image_available_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, window_backend->max_frames_in_flight);
-        window_backend->queue_complete_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->acquire_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, window_backend->max_frames_in_flight);
+        // Create submission semaphores based on the number of swapchain images.
+        window_backend->submit_semaphores = KALLOC_TYPE_CARRAY(VkSemaphore, window_backend->swapchain.image_count);
         window_backend->in_flight_fences = KALLOC_TYPE_CARRAY(VkFence, window_backend->max_frames_in_flight);
 
         window_backend->frame_texture_updated_list = KALLOC_TYPE_CARRAY(ktexture_backend*, window_backend->max_frames_in_flight);
@@ -445,10 +446,14 @@ b8 vulkan_renderer_on_window_created(renderer_backend_interface* backend, kwindo
         const u64 staging_buffer_size = MEBIBYTES(768); // FIXME: This is huge. Need to queue updates per frame in flight to shrink this down.
         window_backend->staging = kallocate(sizeof(renderbuffer) * window_backend->max_frames_in_flight, MEMORY_TAG_ARRAY);
 
+        for (u8 i = 0; i < window_backend->swapchain.image_count; ++i) {
+            VkSemaphoreCreateInfo semaphore_create_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+            VK_CHECK(rhi->kvkCreateSemaphore(context->device.logical_device, &semaphore_create_info, context->allocator, &window_backend->submit_semaphores[i]));
+        }
+
         for (u8 i = 0; i < window_backend->max_frames_in_flight; ++i) {
             VkSemaphoreCreateInfo semaphore_create_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-            rhi->kvkCreateSemaphore(context->device.logical_device, &semaphore_create_info, context->allocator, &window_backend->image_available_semaphores[i]);
-            rhi->kvkCreateSemaphore(context->device.logical_device, &semaphore_create_info, context->allocator, &window_backend->queue_complete_semaphores[i]);
+            VK_CHECK(rhi->kvkCreateSemaphore(context->device.logical_device, &semaphore_create_info, context->allocator, &window_backend->acquire_semaphores[i]));
 
             // Create the fence in a signaled state, indicating that the first frame has
             // already been "rendered". This will prevent the application from waiting
@@ -507,13 +512,13 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
             renderer_renderbuffer_destroy(&window_backend->staging[i]);
 
             // Sync objects
-            if (window_backend->image_available_semaphores[i]) {
-                rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->image_available_semaphores[i], context->allocator);
-                window_backend->image_available_semaphores[i] = 0;
+            if (window_backend->acquire_semaphores[i]) {
+                rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->acquire_semaphores[i], context->allocator);
+                window_backend->acquire_semaphores[i] = 0;
             }
-            if (window_backend->queue_complete_semaphores[i]) {
-                rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->queue_complete_semaphores[i], context->allocator);
-                window_backend->queue_complete_semaphores[i] = 0;
+            if (window_backend->submit_semaphores[i]) {
+                rhi->kvkDestroySemaphore(context->device.logical_device, window_backend->submit_semaphores[i], context->allocator);
+                window_backend->submit_semaphores[i] = 0;
             }
 
             rhi->kvkDestroyFence(context->device.logical_device, window_backend->in_flight_fences[i], context->allocator);
@@ -524,11 +529,11 @@ void vulkan_renderer_on_window_destroyed(renderer_backend_interface* backend, kw
                 window_backend->graphics_command_buffers[i].handle = 0;
             }
         }
-        KFREE_TYPE_CARRAY(window_backend->image_available_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
-        window_backend->image_available_semaphores = 0;
+        KFREE_TYPE_CARRAY(window_backend->acquire_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->acquire_semaphores = 0;
 
-        KFREE_TYPE_CARRAY(window_backend->queue_complete_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
-        window_backend->queue_complete_semaphores = 0;
+        KFREE_TYPE_CARRAY(window_backend->submit_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
+        window_backend->submit_semaphores = 0;
 
         KFREE_TYPE_CARRAY(window_backend->in_flight_fences, VkFence, window_backend->max_frames_in_flight);
         window_backend->in_flight_fences = 0;
@@ -673,7 +678,7 @@ b8 vulkan_renderer_frame_prepare_window_surface(renderer_backend_interface* back
         context->device.logical_device,
         window_backend->swapchain.handle,
         U64_MAX,
-        window_backend->image_available_semaphores[window_backend->current_frame],
+        window_backend->acquire_semaphores[window_backend->current_frame],
         0,
         &window_backend->swapchain.image_index);
 
@@ -918,11 +923,11 @@ b8 vulkan_renderer_frame_submit(struct renderer_backend_interface* backend, stru
         command_buffer,
         context->device.graphics_queue,
         1,
-        // The semaphore(s) to be signaled when the queue is complete.
-        &window_backend->queue_complete_semaphores[window_backend->current_frame],
+        // The semaphore(s) to be signaled when the queue is complete, based on the swapchain image index.
+        &window_backend->submit_semaphores[window_backend->swapchain.image_index],
         1,
         // Wait semaphore ensures that the operation cannot begin until the image is available.
-        &window_backend->image_available_semaphores[window_backend->current_frame],
+        &window_backend->acquire_semaphores[window_backend->current_frame],
         window_backend->in_flight_fences[window_backend->current_frame]);
 
     if (!result) {
@@ -947,7 +952,7 @@ b8 vulkan_renderer_frame_present(renderer_backend_interface* backend, struct kwi
     // Return the image to the swapchain for presentation.
     VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &window_backend->queue_complete_semaphores[window_backend->current_frame];
+    present_info.pWaitSemaphores = &window_backend->submit_semaphores[window_backend->swapchain.image_index]; // based on swapchain image index.
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &window_backend->swapchain.handle;
     present_info.pImageIndices = &window_backend->swapchain.image_index;
