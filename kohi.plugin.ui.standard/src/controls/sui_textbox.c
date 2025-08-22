@@ -254,7 +254,7 @@ b8 sui_textbox_control_load(standard_ui_state* state, struct sui_control* self) 
 
     typed_data->clip_mask.render_data.diffuse_colour = vec4_zero(); // transparent;
 
-    typed_data->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f});
+    typed_data->clip_mask.clip_ktransform = ktransform_from_position((vec3){corner_size.x, 0.0f, 0.0f}, 0);
 
     // Acquire group resources for this control.
     kshader sui_shader = kshader_system_get(kname_create(STANDARD_UI_SHADER_NAME), kname_create(PACKAGE_NAME_STANDARD_UI));

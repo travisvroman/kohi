@@ -11,18 +11,18 @@
 typedef struct ray {
     vec3 origin;
     vec3 direction;
+    f32 max_distance;
 } ray;
 
 typedef enum raycast_hit_type {
-    RAYCAST_HIT_TYPE_OBB,
+    RAYCAST_HIT_TYPE_BVH_AABB,
     RAYCAST_HIT_TYPE_SURFACE
 } raycast_hit_type;
 
 typedef struct raycast_hit {
     raycast_hit_type type;
-    ktransform ktransform_handle;
-    khierarchy_node node_handle;
-    ktransform ktransform_parent_handle;
+    ktransform transform_handle;
+    u64 user;
     vec3 position;
     f32 distance;
 } raycast_hit;
@@ -33,7 +33,7 @@ typedef struct raycast_result {
 } raycast_result;
 
 KAPI ray ray_create(vec3 position, vec3 direction);
-KAPI ray ray_from_screen(vec2 screen_pos, rect_2d viewport_rect, vec3 origin, mat4 view, mat4 projection);
+KAPI ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection);
 
 KAPI b8 raycast_aabb(extents_3d bb_extents, const ray* r, vec3* out_point);
 KAPI b8 raycast_oriented_extents(extents_3d bb_extents, mat4 model, const ray* r, f32* out_dist);

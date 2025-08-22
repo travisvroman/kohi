@@ -35,7 +35,7 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
     }
 
     out_gizmo->mode = EDITOR_GIZMO_MODE_NONE;
-    out_gizmo->ktransform_handle = ktransform_create();
+    out_gizmo->ktransform_handle = ktransform_create(0);
     out_gizmo->selected_ktransform_handle = KTRANSFORM_INVALID;
     // Default orientation.
     out_gizmo->orientation = EDITOR_GIZMO_ORIENTATION_LOCAL;

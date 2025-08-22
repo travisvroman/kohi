@@ -13,6 +13,8 @@
 
 #pragma once
 
+#define KNULL 0
+
 // Unsigned int types.
 
 /** @brief Unsigned 8-bit integer */
@@ -287,6 +289,13 @@ KINLINE u64 get_aligned(u64 operand, u64 granularity) {
 KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
     return (krange){get_aligned(offset, granularity), get_aligned(size, granularity)};
 }
+
+#define KSWAP(type, a, b) \
+    {                     \
+        type temp = a;    \
+        a = b;            \
+        b = temp;         \
+    }
 
 #define KMIN(x, y) (x < y ? x : y)
 #define KMAX(x, y) (x > y ? x : y)

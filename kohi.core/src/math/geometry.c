@@ -210,9 +210,13 @@ kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name) {
 }
 
 kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name) {
+    return geometry_generate_line3d_typed(point_0, point_1, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR);
+}
+
+kgeometry geometry_generate_line3d_typed(vec3 point_0, vec3 point_1, kname name, kgeometry_type type) {
     kgeometry out_geometry = {0};
     out_geometry.name = name;
-    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_geometry.type = type;
     out_geometry.generation = INVALID_ID_U16;
     out_geometry.center = vec3_mid(point_0, point_1);
     out_geometry.extents.min = (vec3){
@@ -224,10 +228,25 @@ kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name) {
         KMAX(point_0.y, point_1.y),
         KMAX(point_0.z, point_1.z)};
     out_geometry.vertex_count = 2;
-    out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
-    out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
-    ((colour_vertex_3d*)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
-    ((colour_vertex_3d*)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
+
+    switch (type) {
+    default:
+        KASSERT("Only types of colour and positon_only are supported.");
+        return (kgeometry){0};
+    case KGEOMETRY_TYPE_3D_STATIC_COLOUR:
+        out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
+        out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
+        ((colour_vertex_3d*)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
+        ((colour_vertex_3d*)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
+        break;
+    case KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY:
+        out_geometry.vertex_element_size = sizeof(position_vertex_3d);
+        out_geometry.vertices = KALLOC_TYPE_CARRAY(position_vertex_3d, out_geometry.vertex_count);
+        ((position_vertex_3d*)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
+        ((position_vertex_3d*)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
+        break;
+    }
+
     out_geometry.vertex_buffer_offset = INVALID_ID_U64;
     // NOTE: lines do not have indices.
     out_geometry.index_count = 0;
@@ -238,10 +257,14 @@ kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name) {
     return out_geometry;
 }
 
-kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, vec4 colour, kname name) {
+kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, kname name) {
+    return geometry_generate_line_sphere3d_typed(radius, segment_count, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR);
+}
+
+kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, kname name, kgeometry_type type) {
     kgeometry out_geometry = {0};
     out_geometry.name = name;
-    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_geometry.type = type;
     out_geometry.generation = INVALID_ID_U16;
     out_geometry.center = vec3_zero();
 
@@ -250,69 +273,117 @@ kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, vec4 co
 
     // 2 per line, 3 lines + 3 lines
     out_geometry.vertex_count = 12 + (segment_count * 2 * 3);
-    out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
-    out_geometry.vertices = kallocate(sizeof(colour_vertex_3d) * out_geometry.vertex_count, MEMORY_TAG_ARRAY);
 
-    // Start with the center, draw small axes.
-    // x
-    colour_vertex_3d* verts = out_geometry.vertices;
-    verts[0].colour = colour; // First vert is at origin, no pos needed.
-    verts[1].colour = colour;
-    verts[1].position.x = 0.2f;
+    switch (type) {
+    default:
+        KASSERT("Only types of colour and positon_only are supported.");
+        return (kgeometry){0};
+    case KGEOMETRY_TYPE_3D_STATIC_COLOUR: {
+        out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
+        out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
 
-    // y
-    verts[2].colour = colour; // First vert is at origin, no pos needed.
-    verts[3].colour = colour;
-    verts[3].position.y = 0.2f;
+        // Start with the center, draw small axes.
+        // x
+        colour_vertex_3d* verts = out_geometry.vertices;
+        verts[1].position.x = 0.2f;
+        verts[3].position.y = 0.2f;
+        verts[5].position.z = 0.2f;
 
-    // z
-    verts[4].colour = colour; // First vert is at origin, no pos needed.
-    verts[5].colour = colour;
-    verts[5].position.z = 0.2f;
+        // For each axis, generate points in a circle.
+        u32 j = 6;
 
-    // For each axis, generate points in a circle.
-    u32 j = 6;
+        // x
+        for (u32 i = 0; i < segment_count; ++i, j += 2) {
+            // 2 at a time to form a line.
+            f32 theta = (f32)i / segment_count * K_2PI;
+            verts[j].position.y = radius * kcos(theta);
+            verts[j].position.z = radius * ksin(theta);
 
-    // x
-    for (u32 i = 0; i < segment_count; ++i, j += 2) {
-        // 2 at a time to form a line.
-        f32 theta = (f32)i / segment_count * K_2PI;
-        verts[j].position.y = radius * kcos(theta);
-        verts[j].position.z = radius * ksin(theta);
-        verts[j].colour = colour;
+            theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+            verts[j + 1].position.y = radius * kcos(theta);
+            verts[j + 1].position.z = radius * ksin(theta);
+        }
 
-        theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
-        verts[j + 1].position.y = radius * kcos(theta);
-        verts[j + 1].position.z = radius * ksin(theta);
-        verts[j + 1].colour = colour;
-    }
+        // y
+        for (u32 i = 0; i < segment_count; ++i, j += 2) {
+            // 2 at a time to form a line.
+            f32 theta = (f32)i / segment_count * K_2PI;
+            verts[j].position.x = radius * kcos(theta);
+            verts[j].position.z = radius * ksin(theta);
 
-    // y
-    for (u32 i = 0; i < segment_count; ++i, j += 2) {
-        // 2 at a time to form a line.
-        f32 theta = (f32)i / segment_count * K_2PI;
-        verts[j].position.x = radius * kcos(theta);
-        verts[j].position.z = radius * ksin(theta);
-        verts[j].colour = colour;
+            theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+            verts[j + 1].position.x = radius * kcos(theta);
+            verts[j + 1].position.z = radius * ksin(theta);
+        }
 
-        theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
-        verts[j + 1].position.x = radius * kcos(theta);
-        verts[j + 1].position.z = radius * ksin(theta);
-        verts[j + 1].colour = colour;
-    }
+        // z
+        for (u32 i = 0; i < segment_count; ++i, j += 2) {
+            // 2 at a time to form a line.
+            f32 theta = (f32)i / segment_count * K_2PI;
+            verts[j].position.x = radius * kcos(theta);
+            verts[j].position.y = radius * ksin(theta);
 
-    // z
-    for (u32 i = 0; i < segment_count; ++i, j += 2) {
-        // 2 at a time to form a line.
-        f32 theta = (f32)i / segment_count * K_2PI;
-        verts[j].position.x = radius * kcos(theta);
-        verts[j].position.y = radius * ksin(theta);
-        verts[j].colour = colour;
+            theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+            verts[j + 1].position.x = radius * kcos(theta);
+            verts[j + 1].position.y = radius * ksin(theta);
+        }
 
-        theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
-        verts[j + 1].position.x = radius * kcos(theta);
-        verts[j + 1].position.y = radius * ksin(theta);
-        verts[j + 1].colour = colour;
+    } break;
+    case KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY: {
+        out_geometry.vertex_element_size = sizeof(position_vertex_3d);
+        out_geometry.vertices = KALLOC_TYPE_CARRAY(position_vertex_3d, out_geometry.vertex_count);
+
+        // Start with the center, draw small axes.
+        // x
+        position_vertex_3d* verts = out_geometry.vertices;
+        verts[1].position.x = 0.2f;
+
+        // y
+        verts[3].position.y = 0.2f;
+
+        // z
+        verts[5].position.z = 0.2f;
+
+        // For each axis, generate points in a circle.
+        u32 j = 6;
+
+        // x
+        for (u32 i = 0; i < segment_count; ++i, j += 2) {
+            // 2 at a time to form a line.
+            f32 theta = (f32)i / segment_count * K_2PI;
+            verts[j].position.y = radius * kcos(theta);
+            verts[j].position.z = radius * ksin(theta);
+
+            theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+            verts[j + 1].position.y = radius * kcos(theta);
+            verts[j + 1].position.z = radius * ksin(theta);
+        }
+
+        // y
+        for (u32 i = 0; i < segment_count; ++i, j += 2) {
+            // 2 at a time to form a line.
+            f32 theta = (f32)i / segment_count * K_2PI;
+            verts[j].position.x = radius * kcos(theta);
+            verts[j].position.z = radius * ksin(theta);
+
+            theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+            verts[j + 1].position.x = radius * kcos(theta);
+            verts[j + 1].position.z = radius * ksin(theta);
+        }
+
+        // z
+        for (u32 i = 0; i < segment_count; ++i, j += 2) {
+            // 2 at a time to form a line.
+            f32 theta = (f32)i / segment_count * K_2PI;
+            verts[j].position.x = radius * kcos(theta);
+            verts[j].position.y = radius * ksin(theta);
+
+            theta = (f32)((i + 1) % segment_count) / segment_count * K_2PI;
+            verts[j + 1].position.x = radius * kcos(theta);
+            verts[j + 1].position.y = radius * ksin(theta);
+        }
+
+    } break;
     }
 
     out_geometry.vertex_buffer_offset = INVALID_ID_U64;
@@ -428,110 +499,218 @@ kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u3
 }
 
 void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 points[8]) {
-    // Front lines
-    {
-        // top
-        ((colour_vertex_3d*)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
-        // bottom
-        ((colour_vertex_3d*)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
-    }
-    // back lines
-    {
-        // top
-        ((colour_vertex_3d*)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
-        // bottom
-        ((colour_vertex_3d*)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
-    }
+    if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_COLOUR) {
+        // Front lines
+        {
+            // top
+            ((colour_vertex_3d*)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
+            // bottom
+            ((colour_vertex_3d*)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
+        }
+        // back lines
+        {
+            // top
+            ((colour_vertex_3d*)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
+            // bottom
+            ((colour_vertex_3d*)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
+        }
 
-    // top connecting lines
-    {
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
-    }
-    // bottom connecting lines
-    {
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
-        ((colour_vertex_3d*)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
+        // top connecting lines
+        {
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
+        }
+        // bottom connecting lines
+        {
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
+            ((colour_vertex_3d*)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
+        }
+    } else if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY) {
+        // Front lines
+        {
+            // top
+            ((position_vertex_3d*)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
+            // right
+            ((position_vertex_3d*)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
+            // bottom
+            ((position_vertex_3d*)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
+            // left
+            ((position_vertex_3d*)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
+        }
+        // back lines
+        {
+            // top
+            ((position_vertex_3d*)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
+            // right
+            ((position_vertex_3d*)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
+            // bottom
+            ((position_vertex_3d*)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
+            // left
+            ((position_vertex_3d*)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
+        }
+
+        // top connecting lines
+        {
+            // left
+            ((position_vertex_3d*)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
+            // right
+            ((position_vertex_3d*)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
+        }
+        // bottom connecting lines
+        {
+            // left
+            ((position_vertex_3d*)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
+            // right
+            ((position_vertex_3d*)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
+            ((position_vertex_3d*)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
+        }
     }
 }
 
 void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents) {
-    // Front lines
-    {
-        // top
-        ((colour_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-        // bottom
-        ((colour_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
-    }
-    // back lines
-    {
-        // top
-        ((colour_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
-        // bottom
-        ((colour_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
-    }
+    if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_COLOUR) {
+        // Front lines
+        {
+            // top
+            ((colour_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+            // bottom
+            ((colour_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+        }
+        // back lines
+        {
+            // top
+            ((colour_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+            // bottom
+            ((colour_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+        }
 
-    // top connecting lines
-    {
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
-    }
-    // bottom connecting lines
-    {
-        // left
-        ((colour_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
-        // right
-        ((colour_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
-        ((colour_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+        // top connecting lines
+        {
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+        }
+        // bottom connecting lines
+        {
+            // left
+            ((colour_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+            // right
+            ((colour_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+            ((colour_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+        }
+    } else if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY) {
+        // Front lines
+        {
+            // top
+            ((position_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+            // right
+            ((position_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+            // bottom
+            ((position_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+            // left
+            ((position_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+        }
+        // back lines
+        {
+            // top
+            ((position_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+            // right
+            ((position_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+            // bottom
+            ((position_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+            // left
+            ((position_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+        }
+
+        // top connecting lines
+        {
+            // left
+            ((position_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x, extents.min.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x, extents.min.y, extents.max.z, 1.0f};
+            // right
+            ((position_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x, extents.min.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x, extents.min.y, extents.max.z, 1.0f};
+        }
+        // bottom connecting lines
+        {
+            // left
+            ((position_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x, extents.max.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x, extents.max.y, extents.max.z, 1.0f};
+            // right
+            ((position_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x, extents.max.y, extents.min.z, 1.0f};
+            ((position_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x, extents.max.y, extents.max.z, 1.0f};
+        }
     }
 }
 
 kgeometry geometry_generate_line_box3d(vec3 size, kname name) {
+    return geometry_generate_line_box3d_typed(size, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR);
+}
+
+kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type) {
 
     f32 half_width = size.x * 0.5f;
     f32 half_height = size.y * 0.5f;
@@ -539,16 +718,29 @@ kgeometry geometry_generate_line_box3d(vec3 size, kname name) {
 
     kgeometry out_geometry = {0};
     out_geometry.name = name;
-    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_geometry.type = type;
     out_geometry.generation = INVALID_ID_U16; // NOTE: generation is 0 because this is technically the first "update"
     out_geometry.extents.min = (vec3){-half_width, -half_height, -half_depth};
     out_geometry.extents.max = (vec3){half_width, half_height, half_depth};
     // Always 0 since min/max of each axis are -/+ half of the size.
     out_geometry.center = vec3_zero();
-    out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
     out_geometry.vertex_count = 2 * 12; // 12 lines to make a cube.
-    out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
     out_geometry.vertex_buffer_offset = INVALID_ID_U64;
+
+    switch (type) {
+    default:
+        KASSERT("Only types of colour and positon_only are supported.");
+        return (kgeometry){0};
+    case KGEOMETRY_TYPE_3D_STATIC_COLOUR:
+        out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
+        out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
+        break;
+    case KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY:
+        out_geometry.vertex_element_size = sizeof(position_vertex_3d);
+        out_geometry.vertices = KALLOC_TYPE_CARRAY(position_vertex_3d, out_geometry.vertex_count);
+        break;
+    }
+
     // NOTE: line-based boxes do not have/need indices.
     out_geometry.index_count = 0;
     out_geometry.index_element_size = sizeof(u32);
@@ -564,12 +756,6 @@ kgeometry geometry_generate_line_box3d(vec3 size, kname name) {
     extents.max.z = half_depth;
 
     geometry_recalculate_line_box3d_by_extents(&out_geometry, extents);
-
-    // Set the default colour.
-    colour_vertex_3d* verts = (colour_vertex_3d*)out_geometry.vertices;
-    for (u32 i = 0; i < out_geometry.vertex_count; ++i) {
-        verts[i].colour = vec4_one();
-    }
 
     return out_geometry;
 }
@@ -748,7 +934,7 @@ kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count
 
     kgeometry out_geometry = {0};
     out_geometry.name = name;
-    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR;
     out_geometry.generation = INVALID_ID_U16;
     //
     f32 max_0 = segment_count_dim_0 * segment_scale;

@@ -19,14 +19,16 @@ typedef enum kgeometry_type {
     KGEOMETRY_TYPE_2D_DYNAMIC = 0x02,
     /** @brief Used for 3d geometry that doesn't change. */
     KGEOMETRY_TYPE_3D_STATIC = 0x03,
-    /** @brief Used for 3d geometry that doesn't change, and only contains colour data. */
-    KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY = 0x04,
+    /** @brief Used for 3d geometry that doesn't change, and only contains position and colour data. */
+    KGEOMETRY_TYPE_3D_STATIC_COLOUR = 0x04,
+    /** @brief Used for 3d geometry that doesn't change, and only contains position data. */
+    KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY = 0x05,
     /** @brief Used for 3d geometry that changes often. */
-    KGEOMETRY_TYPE_3D_DYNAMIC = 0x05,
+    KGEOMETRY_TYPE_3D_DYNAMIC = 0x06,
     /** @brief Used for skinned 3d geometry that changes potentially every frame, and includes bone/weight data. */
-    KGEOMETRY_TYPE_3D_SKINNED = 0x06,
+    KGEOMETRY_TYPE_3D_SKINNED = 0x07,
     /** @brief Used for heightmap terrain-specific geometry that rarely (if ever) changes - includes material index/weight data. */
-    KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x07,
+    KGEOMETRY_TYPE_3D_HEIGHTMAP_TERRAIN = 0x08,
     /** @brief User-defined geometry type. Vertex/index size will only be looked at for this type. */
     KGEOMETRY_TYPE_CUSTOM = 0xFF,
 } kgeometry_type;
@@ -173,8 +175,10 @@ KAPI kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name);
  * @returns The newly-created geometry.
  */
 KAPI kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name);
+KAPI kgeometry geometry_generate_line3d_typed(vec3 point_0, vec3 point_1, kname name, kgeometry_type type);
 
-KAPI kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, vec4 colour, kname name);
+KAPI kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, kname name);
+KAPI kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, kname name, kgeometry_type type);
 
 /**
  * @brief Generates a three-dimensional plane of geometry. Note that memory for the
@@ -216,6 +220,7 @@ KAPI void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extent
  * @returns The newly-created geometry.
  */
 KAPI kgeometry geometry_generate_line_box3d(vec3 size, kname name);
+KAPI kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type);
 
 /**
  * @brief Generates a three-dimensional cube of geometry. Note that memory for the

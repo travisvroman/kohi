@@ -90,13 +90,6 @@ KINLINE void kswapf(f32* a, f32* b) {
     *b = temp;
 }
 
-#define KSWAP(type, a, b) \
-    {                     \
-        type temp = a;    \
-        a = b;            \
-        b = temp;         \
-    }
-
 /** @brief Returns 0.0f if x == 0.0f, -1.0f if negative, otherwise 1.0f. */
 KINLINE f32 ksign(f32 x) {
     return x == 0.0f ? 0.0f : x < 0.0f ? -1.0f
@@ -155,6 +148,46 @@ KAPI f32 kacos(f32 x);
 /**
  * @brief Calculates the square root of x.
  *
+
+    f32 half_width = size.x * 0.5f;
+    f32 half_height = size.y * 0.5f;
+    f32 half_depth = size.z * 0.5f;
+
+    kgeometry out_geometry = {0};
+    out_geometry.name = name;
+    out_geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_geometry.generation = INVALID_ID_U16; // NOTE: generation is 0 because this is technically the first "update"
+    out_geometry.extents.min = (vec3){-half_width, -half_height, -half_depth};
+    out_geometry.extents.max = (vec3){half_width, half_height, half_depth};
+    // Always 0 since min/max of each axis are -/+ half of the size.
+    out_geometry.center = vec3_zero();
+    out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
+    out_geometry.vertex_count = 2 * 12; // 12 lines to make a cube.
+    out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
+    out_geometry.vertex_buffer_offset = INVALID_ID_U64;
+    // NOTE: line-based boxes do not have/need indices.
+    out_geometry.index_count = 0;
+    out_geometry.index_element_size = sizeof(u32);
+    out_geometry.indices = 0;
+    out_geometry.index_buffer_offset = INVALID_ID_U64;
+
+    extents_3d extents = {0};
+    extents.min.x = -half_width;
+    extents.min.y = -half_height;
+    extents.min.z = -half_depth;
+    extents.max.x = half_width;
+    extents.max.y = half_height;
+    extents.max.z = half_depth;
+
+    geometry_recalculate_line_box3d_by_extents(&out_geometry, extents);
+
+    // Set the default colour.
+    colour_vertex_3d* verts = (colour_vertex_3d*)out_geometry.vertices;
+    for (u32 i = 0; i < out_geometry.vertex_count; ++i) {
+        verts[i].colour = vec4_one();
+    }
+
+    return out_geometry;
  * @param x The number to calculate the square root of.
  * @return The square root of x.
  */
@@ -298,11 +331,16 @@ KINLINE b8 kfloat_compare(f32 f_0, f32 f_1) {
  * @return A new 2-element vector.
  */
 KINLINE vec2 vec2_create(f32 x, f32 y) {
-    vec2 out_vector;
-    out_vector.x = x;
-    out_vector.y = y;
-    return out_vector;
+    return (vec2){x, y};
 }
+
+/**
+ * @brief Creates and returns a new 2-element vector using the supplied scalar for all components.
+ *
+ * @param scalar The scalar value.
+ * @return A new 2-element vector.
+ */
+KINLINE vec2 vec2_from_scalar(f32 scalar) { return (vec2){scalar, scalar}; }
 
 /**
  * @brief Creates and returns a 2-component vector with all components set to
@@ -508,6 +546,14 @@ KINLINE f32 vec2_distance_squared(vec2 vector_0, vec2 vector_1) {
  * @return A new 3-element vector.
  */
 KINLINE vec3 vec3_create(f32 x, f32 y, f32 z) { return (vec3){x, y, z}; }
+
+/**
+ * @brief Creates and returns a new 3-element vector using the supplied scalar for all components.
+ *
+ * @param scalar The scalar value.
+ * @return A new 3-element vector.
+ */
+KINLINE vec3 vec3_from_scalar(f32 scalar) { return (vec3){scalar, scalar, scalar}; }
 
 /*
  * @brief Returns a new vec3 containing the x, y and z components of the
@@ -828,6 +874,35 @@ KINLINE vec3 vec3_transform(vec3 v, f32 w, mat4 m) {
     return out;
 }
 
+KINLINE vec3 vec3_min(vec3 vector_0, vec3 vector_1) {
+    return vec3_create(
+        KMIN(vector_0.x, vector_1.x),
+        KMIN(vector_0.y, vector_1.y),
+        KMIN(vector_0.z, vector_1.z));
+}
+
+KINLINE vec3 vec3_max(vec3 vector_0, vec3 vector_1) {
+    return vec3_create(
+        KMAX(vector_0.x, vector_1.x),
+        KMAX(vector_0.y, vector_1.y),
+        KMAX(vector_0.z, vector_1.z));
+}
+
+KINLINE vec3 vec3_sign(vec3 v) {
+    return vec3_create(ksign(v.x), ksign(v.y), ksign(v.z));
+}
+
+KINLINE vec3 vec3_rotate(vec3 v, quat q) {
+    vec3 u = vec3_create(q.x, q.y, q.z);
+    f32 s = q.w;
+
+    return vec3_add(
+        vec3_add(
+            vec3_mul_scalar(u, 2.0f * vec3_dot(u, v)),
+            vec3_mul_scalar(v, (s * s - vec3_dot(u, u)))),
+        vec3_mul_scalar(vec3_cross(u, v), 2.0f * s));
+}
+
 // ------------------------------------------
 // Vector 4
 // ------------------------------------------
@@ -853,6 +928,14 @@ KINLINE vec4 vec4_create(f32 x, f32 y, f32 z, f32 w) {
 #endif
     return out_vector;
 }
+
+/**
+ * @brief Creates and returns a new 4-element vector using the supplied scalar for all components.
+ *
+ * @param scalar The scalar value.
+ * @return A new 4-element vector.
+ */
+KINLINE vec4 vec4_from_scalar(f32 scalar) { return (vec4){scalar, scalar, scalar, scalar}; }
 
 /**
  * @brief Returns a new vec3 containing the x, y and z components of the
@@ -1779,35 +1862,6 @@ KINLINE f32 quat_dot(quat q_0, quat q_1) {
     return q_0.x * q_1.x + q_0.y * q_1.y + q_0.z * q_1.z + q_0.w * q_1.w;
 }
 
-KINLINE vec3 vec3_min(vec3 vector_0, vec3 vector_1) {
-    return vec3_create(
-        KMIN(vector_0.x, vector_1.y),
-        KMIN(vector_0.y, vector_1.y),
-        KMIN(vector_0.z, vector_1.z));
-}
-
-KINLINE vec3 vec3_max(vec3 vector_0, vec3 vector_1) {
-    return vec3_create(
-        KMAX(vector_0.x, vector_1.y),
-        KMAX(vector_0.y, vector_1.y),
-        KMAX(vector_0.z, vector_1.z));
-}
-
-KINLINE vec3 vec3_sign(vec3 v) {
-    return vec3_create(ksign(v.x), ksign(v.y), ksign(v.z));
-}
-
-KINLINE vec3 vec3_rotate(vec3 v, quat q) {
-    vec3 u = vec3_create(q.x, q.y, q.z);
-    f32 s = q.w;
-
-    return vec3_add(
-        vec3_add(
-            vec3_mul_scalar(u, 2.0f * vec3_dot(u, v)),
-            vec3_mul_scalar(v, (s * s - vec3_dot(u, u)))),
-        vec3_mul_scalar(vec3_cross(u, v), 2.0f * s));
-}
-
 /**
  * @brief Creates a rotation matrix from the given quaternion.
  *
@@ -2158,6 +2212,18 @@ KINLINE vec3 extents_2d_half(extents_2d extents) {
     };
 }
 
+KINLINE extents_3d extents_3d_zero(void) {
+    return (extents_3d){
+        .min = vec3_zero(),
+        .max = vec3_zero()};
+}
+
+KINLINE extents_3d extents_3d_one(void) {
+    return (extents_3d){
+        .min = vec3_one(),
+        .max = vec3_one()};
+}
+
 KINLINE vec3 extents_3d_center(extents_3d extents) {
     return (vec3){
         (extents.min.x + extents.max.x) * 0.5f,
@@ -2172,6 +2238,16 @@ KINLINE vec3 extents_3d_half(extents_3d extents) {
         kabs(extents.min.y - extents.max.y) * 0.5f,
         kabs(extents.min.z - extents.max.z) * 0.5f,
     };
+}
+
+KINLINE vec3 size_from_extents_3d(extents_3d extents) {
+    return vec3_sub(extents.max, extents.min);
+}
+
+KINLINE extents_3d extents_combine(extents_3d a, extents_3d b) {
+    return (extents_3d){
+        .min = vec3_min(a.min, b.min),
+        .max = vec3_max(a.max, b.max)};
 }
 
 KINLINE vec2 vec2_mid(vec2 v_0, vec2 v_1) {
@@ -2223,4 +2299,55 @@ KINLINE quat quat_from_surface_normal(vec3 normal, vec3 reference_up) {
     // Compute the quaternion components
     f32 angle = kacos(dot); // Angle between the vectors
     return quat_from_axis_angle(axis, angle, false);
+}
+
+KINLINE aabb aabb_create(vec3 min, vec3 max) {
+    return (aabb){
+        .min = min,
+        .max = max};
+}
+
+KINLINE aabb aabb_combine(aabb a_0, aabb a_1) {
+    return (aabb){
+        .min = vec3_min(a_0.min, a_1.min),
+        .max = vec3_max(a_0.max, a_1.max)};
+}
+
+KINLINE b8 aabbs_intersect(aabb a_0, aabb a_1) {
+    return !(
+        a_0.max.x < a_1.min.x || a_0.min.x > a_1.max.x ||
+        a_0.max.y < a_1.min.y || a_0.min.y > a_1.max.y ||
+        a_0.max.z < a_1.min.z || a_0.min.z > a_1.max.z);
+}
+
+KINLINE f32 aabb_surface_area(aabb a) {
+    f32 dx = a.max.x - a.min.x;
+    f32 dy = a.max.y - a.min.y;
+    f32 dz = a.max.z - a.min.z;
+    return 2.0f * (dx * dy + dy * dz + dz * dx);
+}
+
+/**
+ * @brief Expand the AABB by amount on all axes.
+ */
+KINLINE aabb aabb_expand(aabb a, f32 amount) {
+    vec3 d = vec3_from_scalar(amount);
+    return aabb_create(vec3_sub(a.min, d), vec3_add(a.max, d));
+}
+
+/**
+ * @brief Constructs a tight, world-space AABB from an OBB defined by a center point (the
+ * translation of mat) and the provided half_extents.
+ *
+ * @param half_extents Half of the extents of the OBB to be created from.
+ * @param mat The world matrix to use when creating the AABB.
+ * @returns A newly-created AABB.
+ */
+KINLINE aabb aabb_from_mat4(vec3 half_extents, mat4 mat) {
+    vec3 center = (vec3){mat.data[12], mat.data[13], mat.data[14]}; // The center
+    f32 ax = kabs(mat.data[0]) * half_extents.x + kabs(mat.data[4]) * half_extents.y + kabs(mat.data[8]) * half_extents.z;
+    f32 ay = kabs(mat.data[1]) * half_extents.x + kabs(mat.data[5]) * half_extents.y + kabs(mat.data[9]) * half_extents.z;
+    f32 az = kabs(mat.data[2]) * half_extents.x + kabs(mat.data[6]) * half_extents.y + kabs(mat.data[10]) * half_extents.z;
+    vec3 half = (vec3){ax, ay, az};
+    return aabb_create(vec3_sub(center, half), vec3_add(center, half));
 }

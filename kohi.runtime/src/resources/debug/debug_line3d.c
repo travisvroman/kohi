@@ -16,14 +16,14 @@ b8 debug_line3d_create(vec3 point_0, vec3 point_1, ktransform parent_ktransform,
     if (!out_line) {
         return false;
     }
-    out_line->ktransform = ktransform_create();
+    out_line->ktransform = ktransform_create(0);
     out_line->ktransform_parent = parent_ktransform;
     // out_line->name // TODO: name?
     out_line->point_0 = point_0;
     out_line->point_1 = point_1;
     out_line->colour = vec4_one(); // Default to white.
 
-    out_line->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_line->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR;
     out_line->geometry.generation = INVALID_ID_U16;
     out_line->is_dirty = true;
 

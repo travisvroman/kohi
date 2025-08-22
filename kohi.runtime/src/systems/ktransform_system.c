@@ -38,6 +38,9 @@ typedef struct ktransform_system_state {
     /** @brief The flags of the transforms, indexed by handle. */
     ktransform_flag_bits* flags;
 
+    /** @brief User data, typically a handle or pointer to something. */
+    u64* user;
+
     /** @brief A list of handle ids that represent dirty local ktransforms. */
     ktransform* local_dirty_handles;
     u32 local_dirty_count;
@@ -118,8 +121,12 @@ void ktransform_system_shutdown(void* state) {
             kfree_aligned(typed_state->flags, sizeof(ktransform_flag_bits) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
             typed_state->flags = 0;
         }
+        if (typed_state->user) {
+            kfree_aligned(typed_state->user, sizeof(u64) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+            typed_state->user = 0;
+        }
         if (typed_state->local_dirty_handles) {
-            kfree_aligned(typed_state->local_dirty_handles, sizeof(u32) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
+            kfree_aligned(typed_state->local_dirty_handles, sizeof(ktransform) * typed_state->allocated, 16, MEMORY_TAG_TRANSFORM);
             typed_state->local_dirty_handles = 0;
         }
     }
@@ -130,7 +137,7 @@ b8 ktransform_system_update(void* state, struct frame_data* p_frame_data) {
     return true;
 }
 
-ktransform ktransform_create(void) {
+ktransform ktransform_create(u64 user) {
     ktransform handle = {0};
     ktransform_system_state* state = engine_systems_get()->ktransform_system;
     if (state) {
@@ -140,6 +147,7 @@ ktransform ktransform_create(void) {
         state->scales[handle] = vec3_one();
         state->local_matrices[handle] = mat4_identity();
         state->world_matrices[handle] = mat4_identity();
+        state->user[handle] = user;
         // NOTE: This is not added to the dirty list because the defualts form an identity matrix.
     } else {
         KERROR("Attempted to create a transform before the system was initialized.");
@@ -148,7 +156,7 @@ ktransform ktransform_create(void) {
     return handle;
 }
 
-ktransform ktransform_from_position(vec3 position) {
+ktransform ktransform_from_position(vec3 position, u64 user) {
     ktransform handle = {0};
     ktransform_system_state* state = engine_systems_get()->ktransform_system;
     if (state) {
@@ -158,6 +166,7 @@ ktransform ktransform_from_position(vec3 position) {
         state->scales[handle] = vec3_one();
         state->local_matrices[handle] = mat4_identity();
         state->world_matrices[handle] = mat4_identity();
+        state->user[handle] = user;
         // Add to the dirty list.
         dirty_list_add(state, handle);
     } else {
@@ -167,7 +176,7 @@ ktransform ktransform_from_position(vec3 position) {
     return handle;
 }
 
-ktransform ktransform_from_rotation(quat rotation) {
+ktransform ktransform_from_rotation(quat rotation, u64 user) {
     ktransform handle = {0};
     ktransform_system_state* state = engine_systems_get()->ktransform_system;
     if (state) {
@@ -177,6 +186,7 @@ ktransform ktransform_from_rotation(quat rotation) {
         state->scales[handle] = vec3_one();
         state->local_matrices[handle] = mat4_identity();
         state->world_matrices[handle] = mat4_identity();
+        state->user[handle] = user;
         // Add to the dirty list.
         dirty_list_add(state, handle);
     } else {
@@ -186,7 +196,7 @@ ktransform ktransform_from_rotation(quat rotation) {
     return handle;
 }
 
-ktransform ktransform_from_position_rotation(vec3 position, quat rotation) {
+ktransform ktransform_from_position_rotation(vec3 position, quat rotation, u64 user) {
     ktransform handle = {0};
     ktransform_system_state* state = engine_systems_get()->ktransform_system;
     if (state) {
@@ -196,6 +206,7 @@ ktransform ktransform_from_position_rotation(vec3 position, quat rotation) {
         state->scales[handle] = vec3_one();
         state->local_matrices[handle] = mat4_identity();
         state->world_matrices[handle] = mat4_identity();
+        state->user[handle] = user;
         // Add to the dirty list.
         dirty_list_add(state, handle);
     } else {
@@ -205,7 +216,7 @@ ktransform ktransform_from_position_rotation(vec3 position, quat rotation) {
     return handle;
 }
 
-ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale) {
+ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale, u64 user) {
     ktransform handle = {0};
     ktransform_system_state* state = engine_systems_get()->ktransform_system;
     if (state) {
@@ -215,6 +226,7 @@ ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation,
         state->scales[handle] = scale;
         state->local_matrices[handle] = mat4_identity();
         state->world_matrices[handle] = mat4_identity();
+        state->user[handle] = user;
         // Add to the dirty list.
         dirty_list_add(state, handle);
     } else {
@@ -224,7 +236,7 @@ ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation,
     return handle;
 }
 
-ktransform ktransform_from_matrix(mat4 m) {
+ktransform ktransform_from_matrix(mat4 m, u64 user) {
     // TODO: decompose matrix
     KASSERT_MSG(false, "Not implemented.");
     return KTRANSFORM_INVALID;
@@ -382,6 +394,26 @@ mat4 ktransform_world_get(ktransform t) {
     return mat4_identity();
 }
 
+u64 ktransform_user_get(ktransform t) {
+    ktransform_system_state* state = engine_systems_get()->ktransform_system;
+    if (t != KTRANSFORM_INVALID) {
+        return state->user[t];
+    }
+
+    KWARN("Invalid handle passed to %s. Returning default of INVALID_ID_U64.", __FUNCTION__);
+    return INVALID_ID_U64;
+}
+
+void ktransform_user_set(ktransform t, u64 user) {
+    ktransform_system_state* state = engine_systems_get()->ktransform_system;
+    if (t != KTRANSFORM_INVALID) {
+        state->user[t] = user;
+        return;
+    }
+
+    KWARN("Invalid handle passed to %s. Nothing will be done.", __FUNCTION__);
+}
+
 mat4 ktransform_local_get(ktransform t) {
     ktransform_system_state* state = engine_systems_get()->ktransform_system;
     if (t != KTRANSFORM_INVALID) {
@@ -419,7 +451,7 @@ const char* ktransform_to_string(ktransform t) {
     return 0;
 }
 
-b8 ktransform_from_string(const char* str, ktransform* out_ktransform) {
+b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform) {
     if (!out_ktransform) {
         KERROR("string_to_scene_ktransform_config requires a valid pointer to out_ktransform.");
         return false;
@@ -479,6 +511,7 @@ b8 ktransform_from_string(const char* str, ktransform* out_ktransform) {
         state->scales[handle] = scale;
         state->local_matrices[handle] = mat4_identity();
         state->world_matrices[handle] = mat4_identity();
+        state->user[handle] = user;
         // Add to the dirty list.
         dirty_list_add(state, handle);
     } else {
@@ -541,11 +574,19 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
         }
         state->flags = new_flags;
 
+        // User data
+        u64* new_user = kallocate_aligned(sizeof(u64) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+        if (state->user) {
+            kcopy_memory(new_user, state->user, sizeof(u64) * state->allocated);
+            kfree_aligned(state->user, sizeof(u64) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+        }
+        state->user = new_user;
+
         // Dirty handle list doesn't *need* to be aligned, but do it anyways since everything else is.
-        u32* new_dirty_handles = kallocate_aligned(sizeof(u32) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+        u32* new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
         if (state->local_dirty_handles) {
-            kcopy_memory(new_dirty_handles, state->local_dirty_handles, sizeof(u32) * state->allocated);
-            kfree_aligned(state->local_dirty_handles, sizeof(u32) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
+            kcopy_memory(new_dirty_handles, state->local_dirty_handles, sizeof(ktransform) * state->allocated);
+            kfree_aligned(state->local_dirty_handles, sizeof(ktransform) * state->allocated, 16, MEMORY_TAG_TRANSFORM);
         }
         state->local_dirty_handles = new_dirty_handles;
 

@@ -20,29 +20,32 @@ b8 ktransform_system_update(void* state, struct frame_data* p_frame_data);
 /**
  * @brief Creates and returns a new ktransform, using a zero
  * vector for position, identity quaternion for rotation, and
- * a one vector for scale. Also has a null parent. Marked dirty
- * by default.
+ * a one vector for scale. Not marked dirty by default.
+ *
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_create(void);
+KAPI ktransform ktransform_create(u64 user);
 
 /**
  * @brief Creates a ktransform from the given position.
  * Uses a zero rotation and a one scale.
  *
  * @param position The position to be used.
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_position(vec3 position);
+KAPI ktransform ktransform_from_position(vec3 position, u64 user);
 
 /**
  * @brief Creates a ktransform from the given rotation.
  * Uses a zero position and a one scale.
  *
  * @param rotation The rotation to be used.
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_rotation(quat rotation);
+KAPI ktransform ktransform_from_rotation(quat rotation, u64 user);
 
 /**
  * @brief Creates a ktransform from the given position and rotation.
@@ -50,9 +53,10 @@ KAPI ktransform ktransform_from_rotation(quat rotation);
  *
  * @param position The position to be used.
  * @param rotation The rotation to be used.
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_position_rotation(vec3 position, quat rotation);
+KAPI ktransform ktransform_from_position_rotation(vec3 position, quat rotation, u64 user);
 
 /**
  * @brief Creates a ktransform from the given position, rotation and scale.
@@ -60,17 +64,19 @@ KAPI ktransform ktransform_from_position_rotation(vec3 position, quat rotation);
  * @param position The position to be used.
  * @param rotation The rotation to be used.
  * @param scale The scale to be used.
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale);
+KAPI ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale, u64 user);
 
 /**
  * @brief Creates a ktransform from the provided matrix.
  *
  * @param m The matrix to decompose and extract a transform from.
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_matrix(mat4 m);
+KAPI ktransform ktransform_from_matrix(mat4 m, u64 user);
 
 /**
  * @brief Destroys the ktransform with the given handle, and frees the handle.
@@ -207,6 +213,9 @@ KAPI void ktransform_world_set(ktransform t, mat4 world);
  */
 KAPI mat4 ktransform_world_get(ktransform t);
 
+KAPI u64 ktransform_user_get(ktransform t);
+KAPI void ktransform_user_set(ktransform t, u64 user);
+
 /**
  * @brief Returns a string representation of the ktransform pointed to by the given handle.
  *
@@ -219,9 +228,10 @@ KAPI const char* ktransform_to_string(ktransform t);
  * @brief Creates an ktransform from the given string.
  *
  * @param str The string from which to create the ktransform. Should be either 'x y z qx qy qz qw sx sy sz' (quaternion rotation) OR 'x y z ex ey ez sx sy sz' (euler rotation)
+ * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @param out_ktransform A pointer to hold the handle to the newly created ktransform.
  * @returns True on success; otherwise false.
  */
-KAPI b8 ktransform_from_string(const char* str, ktransform* out_ktransform);
+KAPI b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform);
 
 #endif

@@ -11,7 +11,7 @@ ray ray_create(vec3 position, vec3 direction) {
     return r;
 }
 
-ray ray_from_screen(vec2 screen_pos, rect_2d viewport_rect, vec3 origin, mat4 view, mat4 projection) {
+ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection) {
     ray r = {0};
     r.origin = origin;
 
@@ -34,6 +34,8 @@ ray ray_from_screen(vec2 screen_pos, rect_2d viewport_rect, vec3 origin, mat4 vi
     r.direction = vec3_from_vec4(mat4_mul_vec4(view, ray_eye));
     vec3_normalize(&r.direction);
 
+    r.max_distance = 1000.0f;
+
     return r;
 }
 
@@ -46,15 +48,15 @@ b8 raycast_aabb(extents_3d bb_extents, const ray* r, vec3* out_point) {
 
     for (u32 i = 0; i < 3; ++i) {
         if (r->origin.elements[i] < bb_extents.min.elements[i]) {
-            quadrant[i] = 1;  // left
+            quadrant[i] = 1; // left
             candidate_plane.elements[i] = bb_extents.min.elements[i];
             inside = false;
         } else if (r->origin.elements[i] > bb_extents.max.elements[i]) {
-            quadrant[i] = 0;  // right
+            quadrant[i] = 0; // right
             candidate_plane.elements[i] = bb_extents.max.elements[i];
             inside = false;
         } else {
-            quadrant[i] = 2;  // middle
+            quadrant[i] = 2; // middle
         }
     }
 

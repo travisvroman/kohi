@@ -14,13 +14,13 @@ b8 debug_box3d_create(vec3 size, ktransform parent_ktransform, debug_box3d* out_
     if (!out_box) {
         return false;
     }
-    out_box->ktransform = ktransform_create();
+    out_box->ktransform = ktransform_create(0);
     out_box->parent_ktransform = parent_ktransform;
     // out_box->name // TODO: name?
     out_box->size = size;
     out_box->colour = vec4_one(); // Default to white.
 
-    out_box->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_box->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR;
     out_box->geometry.generation = INVALID_ID_U16;
     out_box->is_dirty = true;
 

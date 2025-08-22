@@ -14,13 +14,13 @@ b8 debug_sphere3d_create(f32 radius, vec4 colour, ktransform parent_ktransform, 
     if (!out_sphere) {
         return false;
     }
-    out_sphere->ktransform = ktransform_create();
+    out_sphere->ktransform = ktransform_create(0);
     out_sphere->parent_ktransform = parent_ktransform;
     // out_sphere->name // TODO: name?
     out_sphere->radius = radius;
     out_sphere->colour = colour;
 
-    out_sphere->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR_ONLY;
+    out_sphere->geometry.type = KGEOMETRY_TYPE_3D_STATIC_COLOUR;
     out_sphere->geometry.generation = INVALID_ID_U16;
     out_sphere->is_dirty = true;
 
@@ -74,7 +74,10 @@ b8 debug_sphere3d_initialize(debug_sphere3d* sphere) {
         return false;
     }
 
-    sphere->geometry = geometry_generate_line_sphere3d(sphere->radius, 32, sphere->colour, sphere->name);
+    sphere->geometry = geometry_generate_line_sphere3d(sphere->radius, 32, sphere->name);
+    for (u32 i = 0; i < sphere->geometry.vertex_count; ++i) {
+        ((colour_vertex_3d*)sphere->geometry.vertices)[i].colour = sphere->colour;
+    }
 
     return true;
 }

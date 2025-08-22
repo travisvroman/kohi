@@ -282,6 +282,11 @@ typedef struct extents_3d {
 } extents_3d;
 
 /**
+ * @brief Axis-aligned bounding box.
+ */
+typedef extents_3d aabb;
+
+/**
  * @brief Represents a single vertex in 3D space.
  */
 typedef struct vertex_3d {
@@ -306,6 +311,14 @@ typedef struct vertex_2d {
     /** @brief The texture coordinate of the vertex. */
     vec2 texcoord;
 } vertex_2d;
+
+/**
+ * Position-only 3d vertex.
+ */
+typedef struct position_vertex_3d {
+    /** @brief The position of the vertex. w is ignored. */
+    vec4 position;
+} position_vertex_3d;
 
 /**
  * @brief Represents a single vertex in 3D space with position and colour data only.

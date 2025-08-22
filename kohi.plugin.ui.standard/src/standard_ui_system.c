@@ -413,7 +413,7 @@ b8 sui_base_control_create(standard_ui_state* state, const char* name, struct su
     out_control->name = string_duplicate(name);
     out_control->id = identifier_create();
 
-    out_control->ktransform = ktransform_create();
+    out_control->ktransform = ktransform_create(0);
 
     return true;
 }

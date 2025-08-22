@@ -288,7 +288,7 @@ void scene_node_initialize(scene* s, khierarchy_node parent_handle, scene_node_c
         // Obtain the ktransform if one is configured.
         ktransform ktransform_handle = {0};
         if (node_config->ktransform_source) {
-            if (!ktransform_from_string(node_config->ktransform_source, &ktransform_handle)) {
+            if (!ktransform_from_string(node_config->ktransform_source, 0, &ktransform_handle)) {
                 KWARN("Failed to create ktransform. See logs for details.");
             }
         } else {
@@ -1702,14 +1702,14 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
 
                 raycast_hit hit = {0};
                 hit.distance = dist;
-                hit.type = RAYCAST_HIT_TYPE_OBB;
+                hit.type = RAYCAST_HIT_TYPE_BVH_AABB;
                 hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
 
-                hit.ktransform_handle = ktransform_handle;
-                hit.node_handle = attachment->hierarchy_node_handle;
+                hit.transform_handle = ktransform_handle;
+                /* hit.node_handle = attachment->hierarchy_node_handle; */
 
                 // Get parent ktransform handle if one exists.
-                hit.ktransform_parent_handle = hierarchy_graph_parent_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
+                /* hit.ktransform_parent_handle = hierarchy_graph_parent_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle); */
                 // TODO: Indicate selection node attachment type somehow?
 
                 darray_push(out_result->hits, hit);

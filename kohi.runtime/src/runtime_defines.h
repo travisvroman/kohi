@@ -4,6 +4,7 @@
 #define PACKAGE_NAME_RUNTIME "Kohi.Runtime"
 
 #define SHADER_NAME_RUNTIME_COLOUR_3D "Shader.Colour3D"
+#define SHADER_NAME_RUNTIME_DEBUG_3D "Shader.Debug3D"
 #define SHADER_NAME_RUNTIME_MATERIAL_STANDARD "Shader.MaterialStandard"
 #define SHADER_NAME_RUNTIME_MATERIAL_WATER "Shader.MaterialWater"
 #define SHADER_NAME_RUNTIME_MATERIAL_BLENDED "Shader.MaterialBlended"

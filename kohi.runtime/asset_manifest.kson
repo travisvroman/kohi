@@ -15,6 +15,18 @@ assets = [
         path = "assets/shaders/Shader.Colour3D_vert.glsl"
     }
     {
+        name = "Shader.Debug3D"
+        path = "assets/shaders/Shader.Debug3D.ksc"
+    }
+    {
+        name = "Shader.Debug3D_vert"
+        path = "assets/shaders/Shader.Debug3D_vert.glsl"
+    }
+    {
+        name = "Shader.Debug3D_frag"
+        path = "assets/shaders/Shader.Debug3D_frag.glsl"
+    }
+    {
         name = "Shader.MaterialStandard_frag"
         path = "assets/shaders/Shader.MaterialStandard_frag.glsl"
     }

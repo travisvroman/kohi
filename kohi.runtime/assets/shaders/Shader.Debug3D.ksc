@@ -1,0 +1,56 @@
+version=1
+
+depth_test=true
+depth_write=true
+max_draw_ids = 256
+
+topology_types = [
+    "line_list"
+    "triangle_list"
+]
+
+stages = [
+    {
+        type = "vertex"
+        source_asset_name = "Shader.Debug3D_vert"
+        package_name = "Kohi.Runtime"
+    }
+    {
+        type = "fragment"
+        source_asset_name = "Shader.Debug3D_frag"
+        package_name = "Kohi.Runtime"
+    }
+]
+
+attributes = [
+    {
+        name = "in_position"
+        type = "vec4"
+    }
+]
+
+uniforms = {
+    per_frame = [
+        {
+            name = "projection"
+            type = "mat4"
+        }
+        {
+            name = "view"
+            type = "mat4"
+        }
+    ]
+    per_group = [
+    ]
+    per_draw = [
+        {
+            name = "model"
+            type = "mat4"
+        }
+        {
+            name = "colour"
+            type = "vec4"
+        }
+    ]
+}
+
