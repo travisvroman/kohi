@@ -238,6 +238,19 @@ const char* shader_attribute_type_to_string(shader_attribute_type type) {
         return "i32";
     case SHADER_ATTRIB_TYPE_UINT32:
         return "u32";
+    case SHADER_ATTRIB_TYPE_INT32_2:
+        return "ivec2";
+    case SHADER_ATTRIB_TYPE_INT32_3:
+        return "ivec3";
+    case SHADER_ATTRIB_TYPE_INT32_4:
+        return "ivec4";
+    case SHADER_ATTRIB_TYPE_UINT32_2:
+        return "uvec2";
+    case SHADER_ATTRIB_TYPE_UINT32_3:
+        return "uvec3";
+    case SHADER_ATTRIB_TYPE_UINT32_4:
+        return "uvec4";
+        break;
     }
 }
 
@@ -262,8 +275,20 @@ shader_attribute_type string_to_shader_attribute_type(const char* str) {
         return SHADER_ATTRIB_TYPE_UINT16;
     } else if (strings_equali("i32", str) || strings_equali("int", str)) {
         return SHADER_ATTRIB_TYPE_INT32;
-    } else if (strings_equali("u32", str)) {
+    } else if (strings_equali("ivec2", str)) {
+        return SHADER_ATTRIB_TYPE_INT32_2;
+    } else if (strings_equali("ivec3", str)) {
+        return SHADER_ATTRIB_TYPE_INT32_3;
+    } else if (strings_equali("ivec4", str)) {
+        return SHADER_ATTRIB_TYPE_INT32_4;
+    } else if (strings_equali("u32", str) || strings_equali("uint", str)) {
         return SHADER_ATTRIB_TYPE_UINT32;
+    } else if (strings_equali("uvec2", str)) {
+        return SHADER_ATTRIB_TYPE_UINT32_2;
+    } else if (strings_equali("uvec3", str)) {
+        return SHADER_ATTRIB_TYPE_UINT32_3;
+    } else if (strings_equali("uvec4", str)) {
+        return SHADER_ATTRIB_TYPE_UINT32_4;
     } else {
         KERROR("Unrecognized attribute type '%s'. Defaulting to i32", str);
         return SHADER_ATTRIB_TYPE_INT32;
@@ -400,10 +425,16 @@ u16 size_from_shader_attribute_type(shader_attribute_type type) {
     case SHADER_ATTRIB_TYPE_FLOAT32:
         return 4;
     case SHADER_ATTRIB_TYPE_FLOAT32_2:
+    case SHADER_ATTRIB_TYPE_INT32_2:
+    case SHADER_ATTRIB_TYPE_UINT32_2:
         return 8;
     case SHADER_ATTRIB_TYPE_FLOAT32_3:
+    case SHADER_ATTRIB_TYPE_INT32_3:
+    case SHADER_ATTRIB_TYPE_UINT32_3:
         return 12;
     case SHADER_ATTRIB_TYPE_FLOAT32_4:
+    case SHADER_ATTRIB_TYPE_INT32_4:
+    case SHADER_ATTRIB_TYPE_UINT32_4:
         return 16;
     case SHADER_ATTRIB_TYPE_UINT8:
         return 1;

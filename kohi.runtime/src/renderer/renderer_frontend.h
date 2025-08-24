@@ -353,13 +353,6 @@ KAPI void renderer_default_texture_register(struct renderer_system_state* state,
 KAPI ktexture_backend renderer_default_texture_get(struct renderer_system_state* state, renderer_default_texture default_texture);
 
 /**
- * @brief Attempts retrieve the renderer's internal buffer of the given type.
- * @param type The type of buffer to retrieve.
- * @returnshader A handle to the buffer on success; otherwise 0/null.
- */
-KAPI renderbuffer* renderer_renderbuffer_get(renderbuffer_type type);
-
-/**
  * @brief Acquires GPU resources and uploads geometry data.
  *
  * @param geometry A pointer to the geometry to upload.
@@ -711,165 +704,158 @@ KAPI f32 renderer_max_anisotropy_get(void);
  * @brief Creates a new renderbuffer to hold data for a given purpose/use. Backed by a
  * renderer-backend-specific buffer resource.
  *
- * @param name The name of the renderbuffer, used for debugging purposes.
+ * @param name The name of the renderbuffer.
  * @param type The type of buffer, indicating it's use (i.e. vertex/index data, uniforms, etc.)
  * @param total_size The total size in bytes of the buffer.
  * @param track_type Indicates what type of allocation tracking should be used.
- * @param out_buffer A pointer to hold the newly created buffer.
- * @return True on success; otherwise false.
+ * @return out_buffer A handle to hold the newly created buffer.
  */
-KAPI b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer* out_buffer);
+KAPI krenderbuffer renderer_renderbuffer_create(kname name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type);
 
 /**
  * @brief Destroys the given renderbuffer.
  *
- * @param buffer A pointer to the buffer to be destroyed.
+ * @param buffer A handle to the buffer to be destroyed.
  */
-KAPI void renderer_renderbuffer_destroy(renderbuffer* buffer);
+KAPI void renderer_renderbuffer_destroy(krenderbuffer buffer);
 
 /**
  * @brief Binds the given buffer at the provided offset.
  *
- * @param buffer A pointer to the buffer to bind.
+ * @param buffer A handle to the buffer to bind.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_bind(renderbuffer* buffer, u64 offset);
+KAPI b8 renderer_renderbuffer_bind(krenderbuffer buffer, u64 offset);
 
 /**
  * @brief Unbinds the given buffer.
  *
- * @param buffer A pointer to the buffer to be unbound.
+ * @param buffer A handle to the buffer to be unbound.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_unbind(renderbuffer* buffer);
+KAPI b8 renderer_renderbuffer_unbind(krenderbuffer buffer);
 
 /**
  * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
  * This memory should be considered invalid once unmapped.
- * @param buffer A pointer to the buffer to map.
+ * @param buffer A handle to the buffer to map.
  * @param offset The number of bytes from the beginning of the buffer to map.
  * @param size The amount of memory in the buffer to map.
  * @returns A mapped block of memory. Freed and invalid once unmapped.
  */
-KAPI void* renderer_renderbuffer_map_memory(renderbuffer* buffer, u64 offset, u64 size);
+KAPI void* renderer_renderbuffer_map_memory(krenderbuffer buffer, u64 offset, u64 size);
 
 /**
  * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
  * This memory should be considered invalid once unmapped.
- * @param buffer A pointer to the buffer to unmap.
+ * @param buffer A handle to the buffer to unmap.
  * @param offset The number of bytes from the beginning of the buffer to unmap.
  * @param size The amount of memory in the buffer to unmap.
  */
-KAPI void renderer_renderbuffer_unmap_memory(renderbuffer* buffer, u64 offset, u64 size);
+KAPI void renderer_renderbuffer_unmap_memory(krenderbuffer buffer, u64 offset, u64 size);
 
 /**
  * @brief Flushes buffer memory at the given range. Should be done after a write.
- * @param buffer A pointer to the buffer to unmap.
+ * @param buffer A handle to the buffer to unmap.
  * @param offset The number of bytes from the beginning of the buffer to flush.
  * @param size The amount of memory in the buffer to flush.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_flush(renderbuffer* buffer, u64 offset, u64 size);
+KAPI b8 renderer_renderbuffer_flush(krenderbuffer buffer, u64 offset, u64 size);
 
 /**
  * @brief Reads memory from the provided buffer at the given range to the output variable.
- * @param buffer A pointer to the buffer to read from.
+ * @param buffer A handle to the buffer to read from.
  * @param offset The number of bytes from the beginning of the buffer to read.
  * @param size The amount of memory in the buffer to read.
  * @param out_memory A pointer to a block of memory to read to. Must be of appropriate size.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_read(renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
+KAPI b8 renderer_renderbuffer_read(krenderbuffer buffer, u64 offset, u64 size, void** out_memory);
 
 /**
  * @brief Resizes the given buffer to new_total_size. new_total_size must be
  * greater than the current buffer size. Data from the old internal buffer is copied
  * over.
  *
- * @param buffer A pointer to the buffer to be resized.
+ * @param buffer A handle to the buffer to be resized.
  * @param new_total_size The new size in bytes. Must be larger than the current size.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size);
+KAPI b8 renderer_renderbuffer_resize(krenderbuffer buffer, u64 new_total_size);
 
 /**
  * @brief Attempts to allocate memory from the given buffer. Should only be used on
  * buffers that were created with use_freelist = true.
  *
- * @param buffer A pointer to the buffer to be allocated from.
+ * @param buffer A handle to the buffer to be allocated from.
  * @param size The size in bytes to allocate.
  * @param out_offset A pointer to hold the offset in bytes of the allocation from the beginning of the buffer.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offset);
+KAPI b8 renderer_renderbuffer_allocate(krenderbuffer buffer, u64 size, u64* out_offset);
 
 /**
  * @brief Frees memory from the given buffer.
  *
- * @param buffer A pointer to the buffer to be freed from.
+ * @param buffer A handle to the buffer to be freed from.
  * @param size The size in bytes to free.
  * @param offset The offset in bytes from the beginning of the buffer to free.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset);
+KAPI b8 renderer_renderbuffer_free(krenderbuffer buffer, u64 size, u64 offset);
 
 /**
  * @brief Clears the given buffer. Internally, resets the free list if one is used.
  *
- * @param buffer A pointer to the buffer to be freed from.
+ * @param buffer A handle to the buffer to be freed from.
  * @param zero_memory True if memory should be zeroed; otherwise false. NOTE: this can be an expensive operation on large sums of memory.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory);
+KAPI b8 renderer_renderbuffer_clear(krenderbuffer buffer, b8 zero_memory);
 
 /**
  * @brief Loads provided data into the specified rage of the given buffer.
  *
- * @param buffer A pointer to the buffer to load data into.
+ * @param buffer A handle to the buffer to load data into.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param size The size of the data in bytes to be loaded.
  * @param data The data to be loaded.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
+KAPI b8 renderer_renderbuffer_load_range(krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
 
 /**
  * @brief Copies data in the specified rage fron the source to the destination buffer.
  *
- * @param source A pointer to the source buffer to copy data from.
+ * @param source A handle to the source buffer to copy data from.
  * @param source_offset The offset in bytes from the beginning of the source buffer.
  * @param dest A pointer to the destination buffer to copy data to.
  * @param dest_offset The offset in bytes from the beginning of the destination buffer.
  * @param size The size of the data in bytes to be copied.
  * @returns True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
+KAPI b8 renderer_renderbuffer_copy_range(krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
 
 /**
  * @brief Attempts to draw the contents of the provided buffer at the given offset
  * and element count. Only meant to be used with vertex and index buffers.
  *
- * @param buffer A pointer to the buffer to be drawn.
+ * @param buffer A handle to the buffer to be drawn.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param element_count The number of elements to be drawn.
  * @param bind_only Only bind the buffer, but don't draw.
  * @return True on success; otherwise false.
  */
-KAPI b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
-
-// nocheckin
-/**
- * @brief Returns a pointer to the currently active viewport.
- */
-// KAPI struct viewport* renderer_active_viewport_get(void);
+KAPI b8 renderer_renderbuffer_draw(krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only);
 
 /**
- * @brief Sets the currently active viewport.
- *
- * @param viewport A pointer to the viewport to be set.
+ * @brief Attempts retrieve the renderer's internal buffer of the given name.
+ * @param type The name of buffer to retrieve.
+ * @returnshader A handle to the buffer on success; otherwise 0/null.
  */
-// KAPI void renderer_active_viewport_set(struct viewport* v);
+KAPI krenderbuffer renderer_renderbuffer_get(kname name);
 
 /**
  * Waits for the renderer backend to be completely idle of work before returning.

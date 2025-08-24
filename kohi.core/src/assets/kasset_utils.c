@@ -19,7 +19,7 @@ static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
     "Binary",           // KASSET_TYPE_BINARY,
     "Kson",             // KASSET_TYPE_KSON,
     "VoxelTerrain",     // KASSET_TYPE_VOXEL_TERRAIN,
-    "SkeletalMesh",     // KASSET_TYPE_SKELETAL_MESH,
+    "SkinnedMesh",      // KASSET_TYPE_SKINNED_MESH,
     "Audio",            // KASSET_TYPE_AUDIO,
     "Shader"            // KASSET_TYPE_SHADER,
 };
@@ -60,7 +60,7 @@ b8 kasset_type_is_binary(kasset_type type) {
     case KASSET_TYPE_BITMAP_FONT:
     case KASSET_TYPE_BINARY:
     case KASSET_TYPE_VOXEL_TERRAIN:
-    case KASSET_TYPE_SKELETAL_MESH:
+    case KASSET_TYPE_SKINNED_MESH:
     case KASSET_TYPE_AUDIO:
         return true;
     }

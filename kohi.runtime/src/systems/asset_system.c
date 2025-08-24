@@ -1,17 +1,4 @@
 #include "asset_system.h"
-#include "core/engine.h"
-
-#include "platform/platform.h"
-#include "platform/vfs.h"
-#include "serializers/kasset_audio_serializer.h"
-#include "serializers/kasset_bitmap_font_serializer.h"
-#include "serializers/kasset_heightmap_terrain_serializer.h"
-#include "serializers/kasset_image_serializer.h"
-#include "serializers/kasset_material_serializer.h"
-#include "serializers/kasset_scene_serializer.h"
-#include "serializers/kasset_shader_serializer.h"
-#include "serializers/kasset_static_mesh_serializer.h"
-#include "serializers/kasset_system_font_serializer.h"
 
 #include <assets/kasset_types.h>
 #include <assets/kasset_utils.h>
@@ -24,8 +11,22 @@
 #include <logger.h>
 #include <memory/kmemory.h>
 #include <parsers/kson_parser.h>
+#include <platform/platform.h>
+#include <serializers/kasset_audio_serializer.h>
+#include <serializers/kasset_bitmap_font_serializer.h>
+#include <serializers/kasset_heightmap_terrain_serializer.h>
+#include <serializers/kasset_image_serializer.h>
+#include <serializers/kasset_material_serializer.h>
+#include <serializers/kasset_scene_serializer.h>
+#include <serializers/kasset_shader_serializer.h>
+#include <serializers/kasset_skinned_mesh_serializer.h>
+#include <serializers/kasset_static_mesh_serializer.h>
+#include <serializers/kasset_system_font_serializer.h>
 #include <strings/kname.h>
 #include <strings/kstring.h>
+
+#include "core/engine.h"
+#include "platform/vfs.h"
 
 typedef struct asset_watch {
     kasset_type type;
@@ -623,6 +624,106 @@ void asset_system_release_static_mesh(struct asset_system_state* state, kasset_s
             kfree(asset->geometries, sizeof(asset->geometries[0]) * asset->geometry_count, MEMORY_TAG_ARRAY);
         }
         KFREE_TYPE(asset, kasset_static_mesh, MEMORY_TAG_ASSET);
+    }
+}
+
+// ////////////////////////////////////
+// SKINNED MESH ASSETS
+// ////////////////////////////////////
+
+typedef struct kasset_skinned_mesh_vfs_context {
+    void* listener;
+    PFN_kasset_skinned_mesh_loaded_callback callback;
+    kasset_skinned_mesh* asset;
+} kasset_skinned_mesh_vfs_context;
+
+static void vfs_on_skinned_mesh_asset_loaded_callback(struct vfs_state* vfs, vfs_asset_data asset_data) {
+    kasset_skinned_mesh_vfs_context* context = asset_data.context;
+    kasset_skinned_mesh* out_asset = context->asset;
+    b8 result = kasset_skinned_mesh_deserialize(asset_data.size, asset_data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize skinned_mesh asset. See logs for details.");
+    }
+
+    if (context->callback) {
+        context->callback(context->listener, out_asset);
+    }
+}
+
+// async load from game package.
+kasset_skinned_mesh* asset_system_request_skinned_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_skinned_mesh_loaded_callback callback) {
+    return asset_system_request_skinned_mesh_from_package(state, state->default_package_name_str, name, listener, callback);
+}
+// sync load from game package.
+kasset_skinned_mesh* asset_system_request_skinned_mesh_sync(struct asset_system_state* state, const char* name) {
+    return asset_system_request_skinned_mesh_from_package_sync(state, state->default_package_name_str, name);
+}
+// async load from specific package.
+kasset_skinned_mesh* asset_system_request_skinned_mesh_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_skinned_mesh_loaded_callback callback) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_skinned_mesh* out_asset = KALLOC_TYPE(kasset_skinned_mesh, MEMORY_TAG_ASSET);
+
+    kasset_skinned_mesh_vfs_context* context = KALLOC_TYPE(kasset_skinned_mesh_vfs_context, MEMORY_TAG_ASSET);
+    context->asset = out_asset;
+    context->callback = callback;
+    context->listener = listener;
+
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = state->default_package_name,
+        .is_binary = true,
+        .vfs_callback = vfs_on_skinned_mesh_asset_loaded_callback,
+        .context = context,
+        .context_size = sizeof(kasset_skinned_mesh_vfs_context)};
+    vfs_request_asset(state->vfs, info);
+
+    return out_asset;
+}
+// sync load from specific package.
+kasset_skinned_mesh* asset_system_request_skinned_mesh_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name) {
+    if (!state || !name || !string_length(name)) {
+        KERROR("%s requires valid pointers to state and name.", __FUNCTION__);
+        return 0;
+    }
+
+    kasset_skinned_mesh* out_asset = KALLOC_TYPE(kasset_skinned_mesh, MEMORY_TAG_ASSET);
+    vfs_request_info info = {
+        .asset_name = kname_create(name),
+        .package_name = kname_create(package_name),
+        .is_binary = true,
+    };
+    vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
+
+    b8 result = kasset_skinned_mesh_deserialize(data.size, data.bytes, out_asset);
+    if (!result) {
+        KERROR("Failed to deserialize skinned_mesh asset. See logs for details.");
+        KFREE_TYPE(out_asset, kasset_skinned_mesh, MEMORY_TAG_ASSET);
+        return 0;
+    }
+
+    return out_asset;
+}
+
+void asset_system_release_skinned_mesh(struct asset_system_state* state, kasset_skinned_mesh* asset) {
+    if (state && asset) {
+        // Asset type-specific data cleanup
+        if (asset->geometries && asset->geometry_count) {
+            for (u32 i = 0; i < asset->geometry_count; ++i) {
+                kasset_skinned_mesh_geometry* g = &asset->geometries[i];
+                if (g->vertices && g->vertex_count) {
+                    kfree(g->vertices, sizeof(g->vertices[0]) * g->vertex_count, MEMORY_TAG_ARRAY);
+                }
+                if (g->indices && g->index_count) {
+                    kfree(g->indices, sizeof(g->indices[0]) * g->index_count, MEMORY_TAG_ARRAY);
+                }
+            }
+            kfree(asset->geometries, sizeof(asset->geometries[0]) * asset->geometry_count, MEMORY_TAG_ARRAY);
+        }
+        KFREE_TYPE(asset, kasset_skinned_mesh, MEMORY_TAG_ASSET);
     }
 }
 

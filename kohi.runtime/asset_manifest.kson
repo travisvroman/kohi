@@ -35,6 +35,10 @@ assets = [
         path = "assets/shaders/Shader.MaterialStandard_vert.glsl"
     }
     {
+        name = "Shader.MaterialStandardSkinned_vert"
+        path = "assets/shaders/Shader.MaterialStandardSkinned_vert.glsl"
+    }
+    {
         name = "Shader.PBR_Terrain"
         path = "assets/shaders/Shader.PBR_Terrain.ksc"
     }

@@ -149,6 +149,23 @@ KAPI kasset_static_mesh* asset_system_request_static_mesh_from_package_sync(stru
 KAPI void asset_system_release_static_mesh(struct asset_system_state* state, kasset_static_mesh* asset);
 
 // ////////////////////////////////////
+// SKINNED MESH ASSETS
+// ////////////////////////////////////
+
+typedef void (*PFN_kasset_skinned_mesh_loaded_callback)(void* listener, kasset_skinned_mesh* asset);
+
+// async load from game package.
+KAPI kasset_skinned_mesh* asset_system_request_skinned_mesh(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_skinned_mesh_loaded_callback callback);
+// sync load from game package.
+KAPI kasset_skinned_mesh* asset_system_request_skinned_mesh_sync(struct asset_system_state* state, const char* name);
+// async load from specific package.
+KAPI kasset_skinned_mesh* asset_system_request_skinned_mesh_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_skinned_mesh_loaded_callback callback);
+// sync load from specific package.
+KAPI kasset_skinned_mesh* asset_system_request_skinned_mesh_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+
+KAPI void asset_system_release_skinned_mesh(struct asset_system_state* state, kasset_skinned_mesh* asset);
+
+// ////////////////////////////////////
 // HEIGHTMAP TERRAIN ASSETS
 // ////////////////////////////////////
 

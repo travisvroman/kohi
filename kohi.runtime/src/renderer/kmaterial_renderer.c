@@ -18,6 +18,9 @@
 
 #define MATERIAL_STANDARD_NAME_FRAG "Shader.MaterialStandard_frag"
 #define MATERIAL_STANDARD_NAME_VERT "Shader.MaterialStandard_vert"
+#define MATERIAL_STANDARD_SKINNED_NAME_VERT "Shader.MaterialStandardSkinned_vert"
+// Use the same fragment shader for skinned materials.
+#define MATERIAL_STANDARD_SKINNED_NAME_FRAG MATERIAL_STANDARD_NAME_FRAG
 #define MATERIAL_WATER_NAME_FRAG "Shader.MaterialWater_frag"
 #define MATERIAL_WATER_NAME_VERT "Shader.MaterialWater_vert"
 #define MATERIAL_BLENDED_NAME_FRAG "Shader.MaterialBlended_frag"
@@ -70,7 +73,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
     // Get default material shaders.
 
-    // Standard material shader.
+    // Standard material shader (static meshes).
     {
         kname mat_std_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_STANDARD);
         kasset_shader mat_std_shader = {0};
@@ -196,6 +199,138 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
             // Per draw.
             out_state->material_standard_locations.material_draw_ubo = kshader_system_uniform_location(out_state->material_standard_shader, kname_create("material_draw_ubo"));
+        }
+    }
+
+    // Standard Skinned material shader (skinned meshes).
+    {
+        kname mat_std_skinned_shader_name = kname_create(SHADER_NAME_RUNTIME_MATERIAL_STANDARD_SKINNED);
+        kasset_shader mat_std_skinned_shader = {0};
+        mat_std_skinned_shader.name = mat_std_skinned_shader_name;
+        mat_std_skinned_shader.depth_test = true;
+        mat_std_skinned_shader.depth_write = true;
+        mat_std_skinned_shader.stencil_test = false;
+        mat_std_skinned_shader.stencil_write = false;
+        mat_std_skinned_shader.colour_write = true;
+        mat_std_skinned_shader.colour_read = false;
+        mat_std_skinned_shader.supports_wireframe = true;
+        mat_std_skinned_shader.cull_mode = FACE_CULL_MODE_BACK;
+        mat_std_skinned_shader.max_groups = max_material_count;
+        mat_std_skinned_shader.max_draw_ids = max_material_instance_count;
+        mat_std_skinned_shader.topology_types = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
+
+        mat_std_skinned_shader.stage_count = 2;
+        mat_std_skinned_shader.stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, mat_std_skinned_shader.stage_count);
+        mat_std_skinned_shader.stages[0].type = SHADER_STAGE_VERTEX;
+        mat_std_skinned_shader.stages[0].package_name = PACKAGE_NAME_RUNTIME;
+        mat_std_skinned_shader.stages[0].source_asset_name = MATERIAL_STANDARD_SKINNED_NAME_VERT;
+        mat_std_skinned_shader.stages[1].type = SHADER_STAGE_FRAGMENT;
+        mat_std_skinned_shader.stages[1].package_name = PACKAGE_NAME_RUNTIME;
+        mat_std_skinned_shader.stages[1].source_asset_name = MATERIAL_STANDARD_SKINNED_NAME_FRAG;
+
+        mat_std_skinned_shader.attribute_count = 7;
+        mat_std_skinned_shader.attributes = KALLOC_TYPE_CARRAY(kasset_shader_attribute, mat_std_skinned_shader.attribute_count);
+        mat_std_skinned_shader.attributes[0].name = "in_position";
+        mat_std_skinned_shader.attributes[0].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+        mat_std_skinned_shader.attributes[1].name = "in_normal";
+        mat_std_skinned_shader.attributes[1].type = SHADER_ATTRIB_TYPE_FLOAT32_3;
+        mat_std_skinned_shader.attributes[2].name = "in_texcoord";
+        mat_std_skinned_shader.attributes[2].type = SHADER_ATTRIB_TYPE_FLOAT32_2;
+        mat_std_skinned_shader.attributes[3].name = "in_colour";
+        mat_std_skinned_shader.attributes[3].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+        mat_std_skinned_shader.attributes[4].name = "in_tangent";
+        mat_std_skinned_shader.attributes[4].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+        mat_std_skinned_shader.attributes[5].name = "in_bone_ids";
+        mat_std_skinned_shader.attributes[5].type = SHADER_ATTRIB_TYPE_INT32_4;
+        mat_std_skinned_shader.attributes[6].name = "in_weights";
+        mat_std_skinned_shader.attributes[6].type = SHADER_ATTRIB_TYPE_FLOAT32_4;
+
+        mat_std_skinned_shader.uniform_count = 9;
+        mat_std_skinned_shader.uniforms = KALLOC_TYPE_CARRAY(kasset_shader_uniform, mat_std_skinned_shader.uniform_count);
+
+        // per_frame
+        u32 uidx = 0;
+        mat_std_skinned_shader.uniforms[uidx].name = "material_frame_ubo";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_STRUCT;
+        mat_std_skinned_shader.uniforms[uidx].size = sizeof(kmaterial_global_uniform_data);
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+        uidx++;
+
+        mat_std_skinned_shader.uniforms[uidx].name = "shadow_texture";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_TEXTURE_2D_ARRAY;
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+        uidx++;
+
+        mat_std_skinned_shader.uniforms[uidx].name = "irradiance_cube_textures";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_TEXTURE_CUBE;
+        mat_std_skinned_shader.uniforms[uidx].array_size = KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT;
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+        uidx++;
+
+        mat_std_skinned_shader.uniforms[uidx].name = "shadow_sampler";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_SAMPLER;
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+        uidx++;
+
+        mat_std_skinned_shader.uniforms[uidx].name = "irradiance_sampler";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_SAMPLER;
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_FRAME;
+        uidx++;
+
+        // per_group
+        mat_std_skinned_shader.uniforms[uidx].name = "material_group_ubo";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_STRUCT;
+        mat_std_skinned_shader.uniforms[uidx].size = sizeof(kmaterial_standard_base_uniform_data);
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
+        uidx++;
+
+        mat_std_skinned_shader.uniforms[uidx].name = "material_textures";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_TEXTURE_2D;
+        mat_std_skinned_shader.uniforms[uidx].array_size = MATERIAL_STANDARD_TEXTURE_COUNT;
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
+        uidx++;
+
+        mat_std_skinned_shader.uniforms[uidx].name = "material_samplers";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_SAMPLER;
+        mat_std_skinned_shader.uniforms[uidx].array_size = MATERIAL_STANDARD_SAMPLER_COUNT;
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_GROUP;
+        uidx++;
+
+        // per_draw
+        mat_std_skinned_shader.uniforms[uidx].name = "material_draw_ubo";
+        mat_std_skinned_shader.uniforms[uidx].type = SHADER_UNIFORM_TYPE_STRUCT;
+        mat_std_skinned_shader.uniforms[uidx].size = sizeof(kmaterial_standard_instance_uniform_data);
+        mat_std_skinned_shader.uniforms[uidx].frequency = SHADER_UPDATE_FREQUENCY_PER_DRAW;
+        uidx++;
+
+        // Serialize
+        const char* config_source = kasset_shader_serialize(&mat_std_skinned_shader);
+
+        // Destroy the temp asset.
+        KFREE_TYPE_CARRAY(mat_std_skinned_shader.stages, kasset_shader_stage, mat_std_skinned_shader.stage_count);
+        KFREE_TYPE_CARRAY(mat_std_skinned_shader.attributes, kasset_shader_attribute, mat_std_skinned_shader.attribute_count);
+        KFREE_TYPE_CARRAY(mat_std_skinned_shader.uniforms, kasset_shader_uniform, mat_std_skinned_shader.uniform_count);
+        kzero_memory(&mat_std_skinned_shader, sizeof(kasset_shader));
+
+        // Create/load the shader from the serialized source.
+        out_state->material_standard_skinned_shader = kshader_system_get_from_source(mat_std_skinned_shader_name, config_source);
+
+        // Save off the shader's uniform locations.
+        {
+            // Per frame
+            out_state->material_standard_skinned_locations.material_frame_ubo = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("material_frame_ubo"));
+            out_state->material_standard_skinned_locations.shadow_texture = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("shadow_texture"));
+            out_state->material_standard_skinned_locations.irradiance_cube_textures = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("irradiance_cube_textures"));
+            out_state->material_standard_skinned_locations.shadow_sampler = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("shadow_sampler"));
+            out_state->material_standard_skinned_locations.irradiance_sampler = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("irradiance_sampler"));
+
+            // Per group
+            out_state->material_standard_skinned_locations.material_textures = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("material_textures"));
+            out_state->material_standard_skinned_locations.material_samplers = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("material_samplers"));
+            out_state->material_standard_skinned_locations.material_group_ubo = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("material_group_ubo"));
+
+            // Per draw.
+            out_state->material_standard_skinned_locations.material_draw_ubo = kshader_system_uniform_location(out_state->material_standard_skinned_shader, kname_create("material_draw_ubo"));
         }
     }
 

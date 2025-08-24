@@ -92,6 +92,9 @@ typedef struct engine_system_states {
     u64 static_mesh_system_memory_requirement;
     struct static_mesh_system_state* static_mesh_system;
 
+    u64 skinned_mesh_system_memory_requirement;
+    struct skinned_mesh_system_state* skinned_mesh_system;
+
     u64 light_system_memory_requirement;
     struct light_system_state* light_system;
 

@@ -22,26 +22,44 @@
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
 
-typedef struct renderer_dynamic_state {
-    rect_2di viewport;
-    rect_2di scissor;
+/**
+ * @brief Represents a queued renderbuffer deletion.
+ */
+typedef struct renderbuffer_queued_deletion {
+    /** @brief The number of frames remaining until the deletion occurs. */
+    u8 frames_until_delete;
+    /** @brief The range to be deleted. Considered a "free" slot if range's values are 0. */
+    krange range;
+} renderbuffer_queued_deletion;
 
-    b8 depth_test_enabled;
-    b8 depth_write_enabled;
-    b8 stencil_test_enabled;
+typedef struct krenderbuffer_data {
+    /** @brief The name of the buffer. */
+    kname name;
+    /** @brief The type of buffer, which typically determines its use. */
+    renderbuffer_type type;
+    /** @brief The total size of the buffer in bytes. */
+    u64 total_size;
+    /** @brief indicates the allocation tracking type. */
+    renderbuffer_track_type track_type;
+    /** @brief The amount of memory required to store the freelist. 0 if not used. */
+    u64 freelist_memory_requirement;
+    /** @brief The buffer freelist, if used. */
+    freelist buffer_freelist;
+    /** @brief The freelist memory block, if needed. */
+    void* freelist_block;
+    /** @brief Contains internal data for the renderer-API-specific buffer. */
+    void* internal_data;
+    /** @brief The byte offset used for linear tracking. */
+    u64 offset;
 
-    u32 stencil_reference;
-    u32 stencil_compare_mask;
-    u32 stencil_write_mask;
-
-    renderer_stencil_op fail_op;
-    renderer_stencil_op pass_op;
-    renderer_stencil_op depth_fail_op;
-    renderer_compare_op compare_op;
-
-    renderer_winding winding;
-    renderer_cull_mode cull_mode;
-} renderer_dynamic_state;
+    /**
+     * @brief Queue of ranges to be deleted in this buffer. This is to ensure that the
+     * data isn't being used before being marked as free and potentially overwritten.
+     * Used for all buffer types, including those without tracking. Zeroed out if the
+     * queue is cleared.
+     */
+    renderbuffer_queued_deletion* delete_queue;
+} krenderbuffer_data;
 
 typedef struct renderer_system_state {
     /** @brief The current frame number. Rolls over about every 18 minutes at 60FPS. */
@@ -60,25 +78,19 @@ typedef struct renderer_system_state {
     u8 render_target_count;
 
     /** @brief The object vertex buffer, used to hold geometry vertices. */
-    renderbuffer geometry_vertex_buffer;
+    krenderbuffer geometry_vertex_buffer;
     /** @brief The object index buffer, used to hold geometry indices. */
-    renderbuffer geometry_index_buffer;
+    krenderbuffer geometry_index_buffer;
+    /** @brief The global material storage buffer, used to hold global data needed in many places (i.e lights, transforms, materials, skinning data, etc.). */
+    krenderbuffer global_material_storage_buffer;
 
-    /**
-     * @brief A darray of pointers to renderbuffers that are considered "registered". These are
-     * checked every frame for deletions automatically.
-     */
-    renderbuffer** registered_renderbuffers;
+    // Darray of created renderbuffers.
+    krenderbuffer_data* renderbuffers;
 
     // Renderer options.
 
     /** @brief Use PCF filtering */
     b8 use_pcf;
-
-    /** @brief Current dynamic state settings. */
-    renderer_dynamic_state dynamic_state;
-    /** @brief Frame defaults - dynamic state settings that are reapplied at the beginning of every frame. */
-    renderer_dynamic_state frame_default_dynamic_state;
 
     /** @brief Generic samplers. */
     ksampler_backend generic_samplers[SHADER_GENERIC_SAMPLER_COUNT];
@@ -86,8 +98,6 @@ typedef struct renderer_system_state {
     /** @brief Default textures. Registered from the texture system. */
     ktexture_backend default_textures[RENDERER_DEFAULT_TEXTURE_COUNT];
 } renderer_system_state;
-
-static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state);
 
 b8 renderer_system_deserialize_config(const char* config_str, renderer_system_config* out_config) {
     if (!config_str || !out_config) {
@@ -243,31 +253,14 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         state->default_textures[i] = KTEXTURE_BACKEND_INVALID;
     }
 
-    // Default dynamic state settings.
-    state->dynamic_state.viewport = (rect_2di){0, 0, 1280, 720};
-    state->dynamic_state.scissor = (rect_2di){0, 0, 1280, 720};
-    state->dynamic_state.depth_test_enabled = true;
-    state->dynamic_state.depth_write_enabled = true;
-    state->dynamic_state.stencil_test_enabled = false;
-    state->dynamic_state.stencil_reference = 0;
-    state->dynamic_state.stencil_write_mask = 0;
-    state->dynamic_state.fail_op = RENDERER_STENCIL_OP_KEEP;
-    state->dynamic_state.pass_op = RENDERER_STENCIL_OP_REPLACE;
-    state->dynamic_state.depth_fail_op = RENDERER_STENCIL_OP_KEEP;
-    state->dynamic_state.compare_op = RENDERER_COMPARE_OP_ALWAYS;
-    state->dynamic_state.winding = RENDERER_WINDING_COUNTER_CLOCKWISE;
-    state->dynamic_state.cull_mode = RENDERER_CULL_MODE_NONE;
-
-    // Take a copy as the frame default.
-    state->frame_default_dynamic_state = state->dynamic_state;
-
-    // Setup a default-sized array to hold registered renderbuffers.
-    state->registered_renderbuffers = darray_reserve(renderbuffer*, 50);
+    // Renderbuffer setup.
+    state->renderbuffers = darray_create(krenderbuffer_data);
 
     // Geometry vertex buffer
     // TODO: make this configurable.
     const u64 vertex_buffer_size = sizeof(vertex_3d) * 20 * 1024 * 1024;
-    if (!renderer_renderbuffer_create("renderbuffer_vertexbuffer_globalgeometry", RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &state->geometry_vertex_buffer)) {
+    state->geometry_vertex_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX), RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
+    if (state->geometry_vertex_buffer == KRENDERBUFFER_INVALID) {
         KERROR("Error creating vertex buffer.");
         return false;
     }
@@ -275,10 +268,21 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
     // Geometry index buffer
     // TODO: Make this configurable.
     const u64 index_buffer_size = sizeof(u32) * 100 * 1024 * 1024;
-    if (!renderer_renderbuffer_create("renderbuffer_indexbuffer_globalgeometry", RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, &state->geometry_index_buffer)) {
+    state->geometry_index_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX), RENDERBUFFER_TYPE_INDEX, index_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
+    if (state->geometry_index_buffer == KRENDERBUFFER_INVALID) {
         KERROR("Error creating index buffer.");
         return false;
     }
+
+    // Global storage buffer
+    // TODO: Make this configurable.
+    const u64 storage_buffer_size = MEBIBYTES(256);
+    state->global_material_storage_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_MATERIALS), RENDERBUFFER_TYPE_STORAGE, storage_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);
+    if (state->global_material_storage_buffer == KRENDERBUFFER_INVALID) {
+        KERROR("Error creating global storage buffer.");
+        return false;
+    }
+    KDEBUG("Created global storage buffer.");
 
     return true;
 }
@@ -290,8 +294,9 @@ void renderer_system_shutdown(renderer_system_state* state) {
         // renderer_wait_for_idle();
 
         // Destroy buffers.
-        renderer_renderbuffer_destroy(&typed_state->geometry_vertex_buffer);
-        renderer_renderbuffer_destroy(&typed_state->geometry_index_buffer);
+        renderer_renderbuffer_destroy(typed_state->geometry_vertex_buffer);
+        renderer_renderbuffer_destroy(typed_state->geometry_index_buffer);
+        renderer_renderbuffer_destroy(typed_state->global_material_storage_buffer);
 
         // Destroy generic samplers.
         for (u32 i = 0; i < SHADER_GENERIC_SAMPLER_COUNT; ++i) {
@@ -425,11 +430,11 @@ b8 renderer_frame_prepare_window_surface(struct renderer_system_state* state, st
 
 b8 renderer_frame_command_list_begin(struct renderer_system_state* state, struct frame_data* p_frame_data) {
     // Before the frame starts, check registered renderbuffers to see if deletes are needed.
-    u32 registered_renderbuffer_count = darray_length(state->registered_renderbuffers);
+    u32 registered_renderbuffer_count = darray_length(state->renderbuffers);
     for (u32 i = 0; i < registered_renderbuffer_count; ++i) {
-        renderbuffer* pr = state->registered_renderbuffers[i];
+        krenderbuffer_data* pr = &state->renderbuffers[i];
         if (pr) {
-            u32 delete_count = darray_length(pr->delete_queue);
+            u32 delete_count = pr->delete_queue ? darray_length(pr->delete_queue) : 0;
             for (u32 d = 0; d < delete_count; ++d) {
                 renderbuffer_queued_deletion* q = &pr->delete_queue[d];
                 if (q->frames_until_delete > 0) {
@@ -471,11 +476,6 @@ b8 renderer_frame_command_list_begin(struct renderer_system_state* state, struct
     // Now actually begin the command list in the renderer backend.
     b8 result = state->backend->frame_commands_begin(state->backend, p_frame_data);
 
-    // Reapply frame defaults if successful.
-    if (result) {
-        /* reapply_dynamic_state(state, &state->frame_default_dynamic_state); */
-    }
-
     return result;
 }
 
@@ -495,7 +495,6 @@ b8 renderer_frame_present(struct renderer_system_state* state, struct kwindow* w
 
 void renderer_viewport_set(rect_2di rect) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.viewport = rect;
     state_ptr->backend->viewport_set(state_ptr->backend, rect);
 }
 
@@ -509,7 +508,6 @@ void renderer_scissor_set(rect_2di rect) {
         KERROR("%s: width/height should not be zero");
     }
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.scissor = rect;
     state_ptr->backend->scissor_set(state_ptr->backend, rect);
 }
 
@@ -520,48 +518,38 @@ void renderer_scissor_reset(void) {
 
 void renderer_winding_set(renderer_winding winding) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.winding = winding;
     state_ptr->backend->winding_set(state_ptr->backend, winding);
 }
 
 void renderer_cull_mode_set(renderer_cull_mode cull_mode) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.cull_mode = cull_mode;
     state_ptr->backend->cull_mode_set(state_ptr->backend, cull_mode);
 }
 
 void renderer_set_stencil_test_enabled(b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.stencil_test_enabled = enabled;
     state_ptr->backend->set_stencil_test_enabled(state_ptr->backend, enabled);
 }
 
 void renderer_set_stencil_reference(u32 reference) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.stencil_reference = reference;
     state_ptr->backend->set_stencil_reference(state_ptr->backend, reference);
 }
 
 void renderer_set_depth_test_enabled(b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.depth_test_enabled = enabled;
     state_ptr->backend->set_depth_test_enabled(state_ptr->backend, enabled);
 }
 
 void renderer_set_depth_write_enabled(b8 enabled) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     // Cache dynamic state.
-    state_ptr->dynamic_state.depth_write_enabled = enabled;
     state_ptr->backend->set_depth_write_enabled(state_ptr->backend, enabled);
 }
 
 void renderer_set_stencil_op(renderer_stencil_op fail_op, renderer_stencil_op pass_op, renderer_stencil_op depth_fail_op, renderer_compare_op compare_op) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     // Cache dynamic state.
-    state_ptr->dynamic_state.fail_op = fail_op;
-    state_ptr->dynamic_state.pass_op = pass_op;
-    state_ptr->dynamic_state.depth_fail_op = depth_fail_op;
-    state_ptr->dynamic_state.compare_op = compare_op;
     state_ptr->backend->set_stencil_op(state_ptr->backend, fail_op, pass_op, depth_fail_op, compare_op);
 }
 
@@ -581,10 +569,6 @@ void renderer_begin_rendering(struct renderer_system_state* state, struct frame_
 #endif
 
     state->backend->begin_rendering(state->backend, p_frame_data, render_area, colour_target_count, colour_targets, depth_stencil_target, depth_stencil_layer);
-
-    // Dynamic state needs to be reapplied here in case the backend needs it.
-    // FIXME: Need to remove this and just call all of this from the game renderer instead.
-    /* reapply_dynamic_state(state, &state->dynamic_state); */
 }
 
 void renderer_end_rendering(struct renderer_system_state* state, struct frame_data* p_frame_data) {
@@ -593,13 +577,11 @@ void renderer_end_rendering(struct renderer_system_state* state, struct frame_da
 
 void renderer_set_stencil_compare_mask(u32 compare_mask) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.stencil_compare_mask = compare_mask;
     state_ptr->backend->set_stencil_compare_mask(state_ptr->backend, compare_mask);
 }
 
 void renderer_set_stencil_write_mask(u32 write_mask) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->dynamic_state.stencil_write_mask = write_mask;
     state_ptr->backend->set_stencil_write_mask(state_ptr->backend, write_mask);
 }
 
@@ -680,19 +662,6 @@ b8 renderer_texture_resize(struct renderer_system_state* state, ktexture_backend
     return false;
 }
 
-renderbuffer* renderer_renderbuffer_get(renderbuffer_type type) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    switch (type) {
-    case RENDERBUFFER_TYPE_VERTEX:
-        return &state_ptr->geometry_vertex_buffer;
-    case RENDERBUFFER_TYPE_INDEX:
-        return &state_ptr->geometry_index_buffer;
-    default:
-        KERROR("Unsupported buffer type %u", type);
-        return 0;
-    }
-}
-
 b8 renderer_geometry_upload(kgeometry* g) {
     if (!g) {
         KERROR("renderer_geometry_upload requires a valid pointer to geometry.");
@@ -708,7 +677,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
     // Vertex data.
     if (!is_reupload) {
         // Allocate space in the buffer.
-        if (!renderer_renderbuffer_allocate(&state_ptr->geometry_vertex_buffer, vertex_size, &g->vertex_buffer_offset)) {
+        if (!renderer_renderbuffer_allocate(state_ptr->geometry_vertex_buffer, vertex_size, &g->vertex_buffer_offset)) {
             KERROR("vulkan_renderer_geometry_upload failed to allocate from the vertex buffer!");
             return false;
         }
@@ -716,7 +685,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
 
     // Load the data.
     // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
+    if (!renderer_renderbuffer_load_range(state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + vertex_offset, vertex_size, g->vertices + vertex_offset, false)) {
         KERROR("vulkan_renderer_geometry_upload failed to upload to the vertex buffer!");
         return false;
     }
@@ -725,7 +694,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
     if (index_size) {
         if (!is_reupload) {
             // Allocate space in the buffer.
-            if (!renderer_renderbuffer_allocate(&state_ptr->geometry_index_buffer, index_size, &g->index_buffer_offset)) {
+            if (!renderer_renderbuffer_allocate(state_ptr->geometry_index_buffer, index_size, &g->index_buffer_offset)) {
                 KERROR("vulkan_renderer_geometry_upload failed to allocate from the index buffer!");
                 return false;
             }
@@ -733,7 +702,7 @@ b8 renderer_geometry_upload(kgeometry* g) {
 
         // Load the data.
         // TODO: Passing false here produces a queue wait and should be offloaded to another queue.
-        if (!renderer_renderbuffer_load_range(&state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset, false)) {
+        if (!renderer_renderbuffer_load_range(state_ptr->geometry_index_buffer, g->index_buffer_offset + index_offset, index_size, g->indices + index_offset, false)) {
             KERROR("vulkan_renderer_geometry_upload failed to upload to the index buffer!");
             return false;
         }
@@ -748,7 +717,7 @@ void renderer_geometry_vertex_update(kgeometry* g, u32 offset, u32 vertex_count,
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     // Load the data.
     u32 size = g->vertex_element_size * vertex_count;
-    if (!renderer_renderbuffer_load_range(&state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
+    if (!renderer_renderbuffer_load_range(state_ptr->geometry_vertex_buffer, g->vertex_buffer_offset + offset, size, vertices + offset, include_in_frame_workload)) {
         KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
     }
 }
@@ -760,7 +729,7 @@ void renderer_geometry_destroy(kgeometry* g) {
         // Free vertex data
         u64 vertex_data_size = g->vertex_element_size * g->vertex_count;
         if (vertex_data_size) {
-            if (!renderer_renderbuffer_free(&state_ptr->geometry_vertex_buffer, vertex_data_size, g->vertex_buffer_offset)) {
+            if (!renderer_renderbuffer_free(state_ptr->geometry_vertex_buffer, vertex_data_size, g->vertex_buffer_offset)) {
                 KERROR("vulkan_renderer_destroy_geometry failed to free vertex buffer range.");
             }
         }
@@ -768,7 +737,7 @@ void renderer_geometry_destroy(kgeometry* g) {
         // Free index data, if applicable
         u64 index_data_size = g->index_element_size * g->index_count;
         if (index_data_size) {
-            if (!renderer_renderbuffer_free(&state_ptr->geometry_index_buffer, index_data_size, g->index_buffer_offset)) {
+            if (!renderer_renderbuffer_free(state_ptr->geometry_index_buffer, index_data_size, g->index_buffer_offset)) {
                 KERROR("vulkan_renderer_destroy_geometry failed to free index buffer range.");
             }
         }
@@ -783,13 +752,13 @@ void renderer_geometry_destroy(kgeometry* g) {
 void renderer_geometry_draw(geometry_render_data* data) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     b8 includes_index_data = data->index_count > 0;
-    if (!renderer_renderbuffer_draw(&state_ptr->geometry_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, includes_index_data)) {
+    if (!renderer_renderbuffer_draw(state_ptr->geometry_vertex_buffer, data->vertex_buffer_offset, data->vertex_count, includes_index_data)) {
         KERROR("vulkan_renderer_draw_geometry failed to draw vertex buffer;");
         return;
     }
 
     if (includes_index_data) {
-        if (!renderer_renderbuffer_draw(&state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, !includes_index_data)) {
+        if (!renderer_renderbuffer_draw(state_ptr->geometry_index_buffer, data->index_buffer_offset, data->index_count, !includes_index_data)) {
             KERROR("vulkan_renderer_draw_geometry failed to draw index buffer;");
             return;
         }
@@ -969,23 +938,30 @@ f32 renderer_max_anisotropy_get(void) {
     return state_ptr->backend->max_anisotropy_get(state_ptr->backend);
 }
 
-b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type, renderbuffer* out_buffer) {
+krenderbuffer renderer_renderbuffer_create(kname name, renderbuffer_type type, u64 total_size, renderbuffer_track_type track_type) {
     renderer_system_state* state = engine_systems_get()->renderer_system;
-    if (!out_buffer) {
-        KERROR("renderer_renderbuffer_create requires a valid pointer to hold the created buffer.");
-        return false;
-    }
 
-    kzero_memory(out_buffer, sizeof(renderbuffer));
+    // Look for a free slot or create a new one.
+    krenderbuffer out_handle = KRENDERBUFFER_INVALID;
+    krenderbuffer_data* out_buffer = 0;
+    u16 len = state->renderbuffers ? darray_length(state->renderbuffers) : 0;
+    for (u16 i = 0; i < len; ++i) {
+        if (state->renderbuffers[i].type == RENDERBUFFER_TYPE_UNKNOWN) {
+            out_handle = i;
+            break;
+        }
+    }
+    if (out_handle == KRENDERBUFFER_INVALID) {
+        darray_push(state->renderbuffers, (krenderbuffer_data){0});
+        out_handle = len;
+    }
+    out_buffer = &state->renderbuffers[out_handle];
+
+    kzero_memory(out_buffer, sizeof(krenderbuffer));
 
     out_buffer->type = type;
     out_buffer->total_size = total_size;
-    if (name) {
-        out_buffer->name = string_duplicate(name);
-    } else {
-        out_buffer->name = string_format("renderbuffer_%s", "unnamed");
-    }
-
+    out_buffer->name = name;
     out_buffer->track_type = track_type;
 
     // Create the freelist, if needed.
@@ -998,7 +974,7 @@ b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 to
     }
 
     // Create the internal buffer from the backend.
-    if (!state->backend->renderbuffer_internal_create(state->backend, out_buffer)) {
+    if (!state->backend->renderbuffer_internal_create(state->backend, name, total_size, type, out_handle)) {
         KFATAL("Unable to create backing buffer for renderbuffer. Application cannot continue.");
         return false;
     }
@@ -1006,100 +982,78 @@ b8 renderer_renderbuffer_create(const char* name, renderbuffer_type type, u64 to
     // Setup the deletion queue.
     out_buffer->delete_queue = darray_reserve(renderbuffer_queued_deletion, 20);
 
-    // Register the renderbuffer to have its deletes checked for every frame.
-    // Start by searching for an empty slot. Use it if found.
-    u32 registered_renderbuffer_count = darray_length(state->registered_renderbuffers);
-    for (u32 i = 0; i < registered_renderbuffer_count; ++i) {
-        if (!state->registered_renderbuffers[i]) {
-            KTRACE("Found free slot %u, using to register renderbuffer.", i);
-            state->registered_renderbuffers[i] = out_buffer;
-            return true;
-        }
-    }
-
-    // If one isn't found, push a new one.
-    KTRACE("Did not find free slot to register renderbuffer, pushing new entry.");
-    darray_push(state->registered_renderbuffers, out_buffer);
-
-    return true;
+    return out_handle;
 }
 
-void renderer_renderbuffer_destroy(renderbuffer* buffer) {
+void renderer_renderbuffer_destroy(krenderbuffer handle) {
     renderer_system_state* state = engine_systems_get()->renderer_system;
-    if (buffer) {
-        // Immediately unregister it from per-frame deletion checks.
-        u32 registered_renderbuffer_count = darray_length(state->registered_renderbuffers);
-        for (u32 i = 0; i < registered_renderbuffer_count; ++i) {
-            renderbuffer* pr = state->registered_renderbuffers[i];
-            if (pr && pr == buffer) {
-                // Found it. Unregister it.
-                KTRACE("Unregistering renderbuffer '%s'.", pr->name);
-                // Just setting the array entry to null removes it from registration.
-                state->registered_renderbuffers[i] = 0;
-                break;
-            }
-        }
-
-        if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_FREELIST) {
-            freelist_destroy(&buffer->buffer_freelist);
-            kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
-            buffer->freelist_memory_requirement = 0;
-        } else if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_LINEAR) {
-            buffer->offset = 0;
-        }
-
-        if (buffer->name) {
-            string_free(buffer->name);
-            buffer->name = 0;
-        }
-
-        // Cleanup the deletion queue.
-        darray_destroy(buffer->delete_queue);
-        buffer->delete_queue = 0;
-
-        // Free up the backend resources.
-        state->backend->renderbuffer_internal_destroy(state->backend, buffer);
-        buffer->internal_data = 0;
+    if (handle == KRENDERBUFFER_INVALID) {
+        KERROR("%s - Called with invalid handle.", __FUNCTION__);
+        return;
     }
+
+    krenderbuffer_data* buffer = &state->renderbuffers[handle];
+    KTRACE("Unregistering renderbuffer '%s'.", kname_string_get(buffer->name));
+    // Just setting the array entry's type to unknown removes it from registration.
+    buffer->type = RENDERBUFFER_TYPE_UNKNOWN;
+
+    if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_FREELIST) {
+        freelist_destroy(&buffer->buffer_freelist);
+        kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+        buffer->freelist_memory_requirement = 0;
+    } else if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_LINEAR) {
+        buffer->offset = 0;
+    }
+
+    buffer->name = 0;
+
+    // Cleanup the deletion queue.
+    darray_destroy(buffer->delete_queue);
+    buffer->delete_queue = 0;
+
+    // Free up the backend resources.
+    state->backend->renderbuffer_internal_destroy(state->backend, handle);
 }
 
-b8 renderer_renderbuffer_bind(renderbuffer* buffer, u64 offset) {
+b8 renderer_renderbuffer_bind(krenderbuffer buffer, u64 offset) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    if (!buffer) {
-        KERROR("renderer_renderbuffer_bind requires a valid pointer to a buffer.");
+    if (buffer == KRENDERBUFFER_INVALID) {
+        KERROR("renderer_renderbuffer_bind requires a valid buffer.");
         return false;
     }
 
     return state_ptr->backend->renderbuffer_bind(state_ptr->backend, buffer, offset);
 }
 
-b8 renderer_renderbuffer_unbind(renderbuffer* buffer) {
+b8 renderer_renderbuffer_unbind(krenderbuffer buffer) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_unbind(state_ptr->backend, buffer);
 }
 
-void* renderer_renderbuffer_map_memory(renderbuffer* buffer, u64 offset, u64 size) {
+void* renderer_renderbuffer_map_memory(krenderbuffer buffer, u64 offset, u64 size) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_map_memory(state_ptr->backend, buffer, offset, size);
 }
 
-void renderer_renderbuffer_unmap_memory(renderbuffer* buffer, u64 offset, u64 size) {
+void renderer_renderbuffer_unmap_memory(krenderbuffer buffer, u64 offset, u64 size) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     state_ptr->backend->renderbuffer_unmap_memory(state_ptr->backend, buffer, offset, size);
 }
 
-b8 renderer_renderbuffer_flush(renderbuffer* buffer, u64 offset, u64 size) {
+b8 renderer_renderbuffer_flush(krenderbuffer buffer, u64 offset, u64 size) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_flush(state_ptr->backend, buffer, offset, size);
 }
 
-b8 renderer_renderbuffer_read(renderbuffer* buffer, u64 offset, u64 size, void** out_memory) {
+b8 renderer_renderbuffer_read(krenderbuffer buffer, u64 offset, u64 size, void** out_memory) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_read(state_ptr->backend, buffer, offset, size, out_memory);
 }
 
-b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size) {
+b8 renderer_renderbuffer_resize(krenderbuffer handle, u64 new_total_size) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
+
     // Sanity check.
     if (new_total_size <= buffer->total_size) {
         KERROR("renderer_renderbuffer_resize requires that new size be larger than the old. Not doing this could lead to data loss.");
@@ -1124,7 +1078,7 @@ b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size) {
         buffer->freelist_block = new_block;
     }
 
-    b8 result = state_ptr->backend->renderbuffer_resize(state_ptr->backend, buffer, new_total_size);
+    b8 result = state_ptr->backend->renderbuffer_resize(state_ptr->backend, handle, new_total_size);
     if (result) {
         buffer->total_size = new_total_size;
     } else {
@@ -1133,7 +1087,9 @@ b8 renderer_renderbuffer_resize(renderbuffer* buffer, u64 new_total_size) {
     return result;
 }
 
-b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offset) {
+b8 renderer_renderbuffer_allocate(krenderbuffer handle, u64 size, u64* out_offset) {
+    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
     if (!buffer || !size || !out_offset) {
         KERROR("renderer_renderbuffer_allocate requires valid buffer, a nonzero size and valid pointer to hold offset.");
         return false;
@@ -1152,7 +1108,9 @@ b8 renderer_renderbuffer_allocate(renderbuffer* buffer, u64 size, u64* out_offse
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
 
-b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset) {
+b8 renderer_renderbuffer_free(krenderbuffer handle, u64 size, u64 offset) {
+    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
     if (!buffer || !size) {
         KERROR("renderer_renderbuffer_free requires valid buffer and a nonzero size.");
         return false;
@@ -1194,7 +1152,9 @@ b8 renderer_renderbuffer_free(renderbuffer* buffer, u64 size, u64 offset) {
     return true;
 }
 
-b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
+b8 renderer_renderbuffer_clear(krenderbuffer handle, b8 zero_memory) {
+    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
+    krenderbuffer_data* buffer = &state_ptr->renderbuffers[handle];
     if (!buffer) {
         KERROR("renderer_renderbuffer_clear requires valid buffer and a nonzero size.");
         return false;
@@ -1218,44 +1178,32 @@ b8 renderer_renderbuffer_clear(renderbuffer* buffer, b8 zero_memory) {
     return true;
 }
 
-b8 renderer_renderbuffer_load_range(renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload) {
+b8 renderer_renderbuffer_load_range(krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_load_range(state_ptr->backend, buffer, offset, size, data, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_copy_range(renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload) {
+b8 renderer_renderbuffer_copy_range(krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_copy_range(state_ptr->backend, source, source_offset, dest, dest_offset, size, include_in_frame_workload);
 }
 
-b8 renderer_renderbuffer_draw(renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only) {
+b8 renderer_renderbuffer_draw(krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
     return state_ptr->backend->renderbuffer_draw(state_ptr->backend, buffer, offset, element_count, bind_only);
 }
 
-// nocheckin
-//
-/* void renderer_active_viewport_set(viewport* v) {
+krenderbuffer renderer_renderbuffer_get(kname name) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    state_ptr->active_viewport = v;
-
-    if (v->rect.width == 0 || v->rect.height == 0) {
-        KERROR("%s: width/height should not be zero");
+    u16 len = darray_length(state_ptr->renderbuffers);
+    for (u16 i = 0; i < len; ++i) {
+        if (state_ptr->renderbuffers[i].name == name) {
+            return (krenderbuffer)i;
+        }
     }
-
-    // rect_2d viewport_rect = (vec4){v->rect.x, v->rect.height - v->rect.y, v->rect.width, -v->rect.height};
-    rect_2d viewport_rect = (vec4){v->rect.x, v->rect.y + v->rect.height, v->rect.width, -v->rect.height};
-    state_ptr->backend->viewport_set(state_ptr->backend, viewport_rect);
-
-    rect_2d scissor_rect = (vec4){v->rect.x, v->rect.y, v->rect.width, v->rect.height};
-    state_ptr->backend->scissor_set(state_ptr->backend, scissor_rect);
-} */
-
-// nocheckin
-/* viewport* renderer_active_viewport_get(void) {
-    renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
-    return state_ptr->active_viewport;
-} */
+    KERROR("Renderbuffer named '%s' not found. Returning KRENDERBUFFER_INVALID.", kname_string_get(name));
+    return KRENDERBUFFER_INVALID;
+}
 
 void renderer_wait_for_idle(void) {
     renderer_system_state* state_ptr = engine_systems_get()->renderer_system;
@@ -1277,23 +1225,4 @@ u16 renderer_max_bound_texture_count_get(struct renderer_system_state* state) {
 u16 renderer_max_bound_sampler_count_get(struct renderer_system_state* state) {
     // NOTE: while the backend could allow for more, most "non-bindless" APIs have a limit of 16.
     return 16;
-}
-
-static void reapply_dynamic_state(renderer_system_state* state, const renderer_dynamic_state* dynamic_state) {
-    renderer_set_depth_test_enabled(dynamic_state->depth_test_enabled);
-    renderer_set_depth_write_enabled(dynamic_state->depth_write_enabled);
-
-    renderer_set_stencil_test_enabled(dynamic_state->stencil_test_enabled);
-    renderer_set_stencil_reference(dynamic_state->stencil_reference);
-    renderer_set_stencil_write_mask(dynamic_state->stencil_write_mask);
-    renderer_set_stencil_compare_mask(dynamic_state->stencil_compare_mask);
-    renderer_set_stencil_op(
-        dynamic_state->fail_op,
-        dynamic_state->pass_op,
-        dynamic_state->depth_fail_op,
-        dynamic_state->compare_op);
-    renderer_winding_set(dynamic_state->winding);
-    renderer_cull_mode_set(dynamic_state->cull_mode);
-    renderer_viewport_set(dynamic_state->viewport);
-    renderer_scissor_set(dynamic_state->scissor);
 }

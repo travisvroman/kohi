@@ -168,7 +168,7 @@ b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config
 
     // Block of memory will contain state structure then the block for the shader array.
     u64 struct_requirement = sizeof(kshader_system_state);
-    u64 shader_array_requirement = sizeof(kshader) * typed_config->max_shader_count;
+    u64 shader_array_requirement = sizeof(kshader_data) * typed_config->max_shader_count;
     *memory_requirement = struct_requirement + shader_array_requirement;
 
     if (!memory) {
@@ -443,35 +443,7 @@ b8 kshader_system_shader_per_draw_release(kshader shader, u32 per_draw_id) {
 }
 
 static b8 internal_attribute_add(kshader_data* shader, const shader_attribute_config* config) {
-    u32 size = 0;
-    switch (config->type) {
-    case SHADER_ATTRIB_TYPE_INT8:
-    case SHADER_ATTRIB_TYPE_UINT8:
-        size = 1;
-        break;
-    case SHADER_ATTRIB_TYPE_INT16:
-    case SHADER_ATTRIB_TYPE_UINT16:
-        size = 2;
-        break;
-    case SHADER_ATTRIB_TYPE_FLOAT32:
-    case SHADER_ATTRIB_TYPE_INT32:
-    case SHADER_ATTRIB_TYPE_UINT32:
-        size = 4;
-        break;
-    case SHADER_ATTRIB_TYPE_FLOAT32_2:
-        size = 8;
-        break;
-    case SHADER_ATTRIB_TYPE_FLOAT32_3:
-        size = 12;
-        break;
-    case SHADER_ATTRIB_TYPE_FLOAT32_4:
-        size = 16;
-        break;
-    default:
-        KERROR("Unrecognized type %d, defaulting to size of 4. This probably is not what is desired.");
-        size = 4;
-        break;
-    }
+    u32 size = size_from_shader_attribute_type(config->type);
 
     shader->attribute_stride += size;
 

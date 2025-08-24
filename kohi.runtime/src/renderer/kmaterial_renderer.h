@@ -173,6 +173,8 @@ typedef struct kmaterial_renderer {
 
     kshader material_standard_shader;
     kmaterial_shader_locations material_standard_locations;
+    kshader material_standard_skinned_shader;
+    kmaterial_shader_locations material_standard_skinned_locations;
     kshader material_water_shader;
     kmaterial_shader_locations material_water_locations;
     // FIXME: implement this

@@ -153,7 +153,7 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
     // these will be handled manually here for terrains.
 
     // Upload vertex data.
-    renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
     u64 total_vertex_size = sizeof(terrain_vertex) * chunk->total_vertex_count;
     if (!renderer_renderbuffer_allocate(vertex_buffer, total_vertex_size, &chunk->vertex_buffer_offset)) {
         KERROR("Failed to allocate memory for terrain chunk vertex data.");
@@ -167,7 +167,7 @@ b8 terrain_chunk_load(terrain* t, terrain_chunk* chunk) {
     }
 
     // Upload index data for all LODs.
-    renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+    krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
     for (u32 i = 0; i < t->lod_count; ++i) {
         terrain_chunk_lod* lod = &chunk->lods[i];
         u32 total_size = sizeof(u32) * lod->total_index_count;
@@ -239,7 +239,7 @@ b8 terrain_chunk_unload(terrain* t, terrain_chunk* chunk) {
 
     if (chunk->vertices) {
         // NOTE: since geometry is not used here, need to release vertex and index data manually.
-        renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         if (!renderer_renderbuffer_free(vertex_buffer, sizeof(terrain_vertex) * chunk->total_vertex_count, chunk->vertex_buffer_offset)) {
             KERROR("Error freeing vertex data for terrain chunk. See logs for details.");
             has_error = true; // Flag that an error occurred.
@@ -248,7 +248,7 @@ b8 terrain_chunk_unload(terrain* t, terrain_chunk* chunk) {
 
     // Release each LOD.
     if (chunk->lods) {
-        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         for (u32 j = 0; j < t->lod_count; ++j) {
             terrain_chunk_lod* lod = &chunk->lods[j];
             if (lod->indices) {

@@ -163,44 +163,12 @@ typedef enum renderbuffer_track_type {
     RENDERBUFFER_TRACK_TYPE_LINEAR = 2
 } renderbuffer_track_type;
 
-/**
- * @brief Represents a queued renderbuffer deletion.
- */
-typedef struct renderbuffer_queued_deletion {
-    /** @brief The number of frames remaining until the deletion occurs. */
-    u8 frames_until_delete;
-    /** @brief The range to be deleted. Considered a "free" slot if range's values are 0. */
-    krange range;
-} renderbuffer_queued_deletion;
+typedef u16 krenderbuffer;
+#define KRENDERBUFFER_INVALID INVALID_ID_U16
 
-typedef struct renderbuffer {
-    /** @brief The name of the buffer, used for debugging purposes. */
-    char* name;
-    /** @brief The type of buffer, which typically determines its use. */
-    renderbuffer_type type;
-    /** @brief The total size of the buffer in bytes. */
-    u64 total_size;
-    /** @brief indicates the allocation tracking type. */
-    renderbuffer_track_type track_type;
-    /** @brief The amount of memory required to store the freelist. 0 if not used. */
-    u64 freelist_memory_requirement;
-    /** @brief The buffer freelist, if used. */
-    freelist buffer_freelist;
-    /** @brief The freelist memory block, if needed. */
-    void* freelist_block;
-    /** @brief Contains internal data for the renderer-API-specific buffer. */
-    void* internal_data;
-    /** @brief The byte offset used for linear tracking. */
-    u64 offset;
-
-    /**
-     * @brief Queue of ranges to be deleted in this buffer. This is to ensure that the
-     * data isn't being used before being marked as free and potentially overwritten.
-     * Used for all buffer types, including those without tracking. Zeroed out if the
-     * queue is cleared.
-     */
-    renderbuffer_queued_deletion* delete_queue;
-} renderbuffer;
+#define KRENDERBUFFER_NAME_GLOBAL_VERTEX "vertex_globalgeometry"
+#define KRENDERBUFFER_NAME_GLOBAL_INDEX "index_globalgeometry"
+#define KRENDERBUFFER_NAME_GLOBAL_MATERIALS "storage_globalmaterials"
 
 typedef enum renderer_config_flag_bits {
     /** @brief Indicates that vsync should be enabled. */
@@ -777,81 +745,81 @@ typedef struct renderer_backend_interface {
      * @brief Creates and assigns the renderer-backend-specific buffer.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to create the internal buffer for.
+     * @param buffer A handle to create the internal buffer for.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_internal_create)(struct renderer_backend_interface* backend, renderbuffer* buffer);
+    b8 (*renderbuffer_internal_create)(struct renderer_backend_interface* backend, kname name, u64 size, renderbuffer_type type, krenderbuffer buffer);
 
     /**
      * @brief Destroys the given buffer.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to be destroyed.
+     * @param buffer A handle to the buffer to be destroyed.
      */
-    void (*renderbuffer_internal_destroy)(struct renderer_backend_interface* backend, renderbuffer* buffer);
+    void (*renderbuffer_internal_destroy)(struct renderer_backend_interface* backend, krenderbuffer buffer);
 
     /**
      * @brief Binds the given buffer at the provided offset.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to bind.
+     * @param buffer A handle to the buffer to bind.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_bind)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset);
+    b8 (*renderbuffer_bind)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset);
     /**
      * @brief Unbinds the given buffer.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to be unbound.
+     * @param buffer A handle to the buffer to be unbound.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_unbind)(struct renderer_backend_interface* backend, renderbuffer* buffer);
+    b8 (*renderbuffer_unbind)(struct renderer_backend_interface* backend, krenderbuffer buffer);
 
     /**
      * @brief Maps memory from the given buffer in the provided range to a block of memory and returns it.
      * This memory should be considered invalid once unmapped.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to map.
+     * @param buffer A handle to the buffer to map.
      * @param offset The number of bytes from the beginning of the buffer to map.
      * @param size The amount of memory in the buffer to map.
      * @returns A mapped block of memory. Freed and invalid once unmapped.
      */
-    void* (*renderbuffer_map_memory)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size);
+    void* (*renderbuffer_map_memory)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size);
     /**
      * @brief Unmaps memory from the given buffer in the provided range to a block of memory.
      * This memory should be considered invalid once unmapped.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to unmap.
+     * @param buffer A handle to the buffer to unmap.
      * @param offset The number of bytes from the beginning of the buffer to unmap.
      * @param size The amount of memory in the buffer to unmap.
      */
-    void (*renderbuffer_unmap_memory)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size);
+    void (*renderbuffer_unmap_memory)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size);
 
     /**
      * @brief Flushes buffer memory at the given range. Should be done after a write.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to unmap.
+     * @param buffer A handle to the buffer to unmap.
      * @param offset The number of bytes from the beginning of the buffer to flush.
      * @param size The amount of memory in the buffer to flush.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_flush)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size);
+    b8 (*renderbuffer_flush)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size);
 
     /**
      * @brief Reads memory from the provided buffer at the given range to the output variable.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to read from.
+     * @param buffer A handle to the buffer to read from.
      * @param offset The number of bytes from the beginning of the buffer to read.
      * @param size The amount of memory in the buffer to read.
      * @param out_memory A pointer to a block of memory to read to. Must be of appropriate size.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_read)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
+    b8 (*renderbuffer_read)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size, void** out_memory);
 
     /**
      * @brief Resizes the given buffer to new_total_size. new_total_size must be
@@ -859,49 +827,49 @@ typedef struct renderer_backend_interface {
      * over.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to be resized.
+     * @param buffer A handle to the buffer to be resized.
      * @param new_total_size The new size in bytes. Must be larger than the current size.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_resize)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 new_total_size);
+    b8 (*renderbuffer_resize)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 new_total_size);
 
     /**
      * @brief Loads provided data into the specified rage of the given buffer.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to load data into.
+     * @param buffer A handle to the buffer to load data into.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @param size The size of the data in bytes to be loaded.
      * @param data The data to be loaded.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_load_range)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
+    b8 (*renderbuffer_load_range)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
 
     /**
      * @brief Copies data in the specified rage fron the source to the destination buffer.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param source A pointer to the source buffer to copy data from.
+     * @param source A handle to the source buffer to copy data from.
      * @param source_offset The offset in bytes from the beginning of the source buffer.
      * @param dest A pointer to the destination buffer to copy data to.
      * @param dest_offset The offset in bytes from the beginning of the destination buffer.
      * @param size The size of the data in bytes to be copied.
      * @returns True on success; otherwise false.
      */
-    b8 (*renderbuffer_copy_range)(struct renderer_backend_interface* backend, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
+    b8 (*renderbuffer_copy_range)(struct renderer_backend_interface* backend, krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
 
     /**
      * @brief Attempts to draw the contents of the provided buffer at the given offset
      * and element count. Only meant for use with vertex and index buffers.
      *
      * @param backend A pointer to the renderer backend interface.
-     * @param buffer A pointer to the buffer to be drawn.
+     * @param buffer A handle to the buffer to be drawn.
      * @param offset The offset in bytes from the beginning of the buffer.
      * @param element_count The number of elements to be drawn.
      * @param bind_only Only binds the buffer, but does not call draw.
      * @return True on success; otherwise false.
      */
-    b8 (*renderbuffer_draw)(struct renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
+    b8 (*renderbuffer_draw)(struct renderer_backend_interface* backend, krenderbuffer buffer, u64 offset, u32 element_count, b8 bind_only);
 
     /**
      * Waits for the renderer backend to be completely idle of work before returning.

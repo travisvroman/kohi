@@ -72,6 +72,34 @@ typedef union uvec2_u {
 } uvec2;
 
 /**
+ * @brief A 2-element vector of signed ints.
+ */
+typedef union ivec2_u {
+    /** @brief An array of x, y, z */
+    i32 elements[2];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                i32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                i32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+        };
+    };
+} ivec2;
+
+/**
  * @brief A 3-element vector.
  */
 typedef union vec3_u {
@@ -146,6 +174,42 @@ typedef union uvec3_u {
         };
     };
 } uvec3;
+
+/**
+ * @brief A 3-element vector of signed ints.
+ */
+typedef union ivec3_u {
+    /** @brief An array of x, y, z */
+    i32 elements[3];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                i32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                i32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+            union {
+                /** @brief The third element. */
+                i32 z,
+                    /** @brief The third element. */
+                    b,
+                    /** @brief The third element. */
+                    p;
+            };
+        };
+    };
+} ivec3;
 
 /**
  * @brief A 4-element vector.
@@ -249,6 +313,54 @@ typedef union uvec4_u {
     };
 } uvec4;
 
+/**
+ * @brief A 4-element vector of signed ints.
+ */
+typedef union ivec4_u {
+    /** @brief An array of x, y, z, w */
+    i32 elements[4];
+    union {
+        struct {
+            union {
+                /** @brief The first element. */
+                i32 x,
+                    /** @brief The first element. */
+                    r,
+                    /** @brief The first element. */
+                    s;
+            };
+            union {
+                /** @brief The second element. */
+                i32 y,
+                    /** @brief The third element. */
+                    g,
+                    /** @brief The third element. */
+                    t;
+            };
+            union {
+                /** @brief The third element. */
+                i32 z,
+                    /** @brief The third element. */
+                    b,
+                    /** @brief The third element. */
+                    p,
+                    /** @brief The third element. */
+                    width;
+            };
+            union {
+                /** @brief The fourth element. */
+                i32 w,
+                    /** @brief The fourth element. */
+                    a,
+                    /** @brief The fourth element. */
+                    q,
+                    /** @brief The fourth element. */
+                    height;
+            };
+        };
+    };
+} ivec4;
+
 /** @brief A 3x3 matrix */
 typedef union mat3_u {
     /** @brief The matrix elements. */
@@ -301,6 +413,26 @@ typedef struct vertex_3d {
     /** @brief The tangent of the vertex. */
     vec4 tangent;
 } vertex_3d;
+
+/**
+ * @brief Represents a single skinned vertex in 3D space.
+ */
+typedef struct skinned_vertex_3d {
+    /** @brief The position of the vertex */
+    vec3 position;
+    /** @brief The normal of the vertex. */
+    vec3 normal;
+    /** @brief The texture coordinate of the vertex. */
+    vec2 texcoord;
+    /** @brief The colour of the vertex. */
+    vec4 colour;
+    /** @brief The tangent of the vertex. */
+    vec4 tangent;
+    /** @brief Bone indices that will influence this index. -1 means no bone. */
+    ivec4 bone_ids;
+    /** @brief Weights from each bone that will influence this index. */
+    vec4 weights;
+} skinned_vertex_3d;
 
 /**
  * @brief Represents a single vertex in 2D space.

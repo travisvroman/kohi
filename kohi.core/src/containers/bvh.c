@@ -164,6 +164,9 @@ raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, b
         if (!ray_intersects_aabb_internal(t->nodes[id].aabb, origin, direction, max, &tmin, &tmaxi)) {
             continue;
         }
+        if (tmin > 0) {
+            continue;
+        }
         if (bvh_is_leaf(&t->nodes[id])) {
             // If no callback, assume every hit is counted.
             if (!callback || callback(t->nodes[id].user, id, tmin, tmaxi, usr)) {
@@ -217,7 +220,7 @@ void bvh_rebalance(bvh* t, u32 iterations) {
 
 static b8 ray_intersects_aabb_internal(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max) {
     // Slab method with divide by zero handling.
-    f32 min = 0.0f;
+    f32 min = -K_INFINITY;
     f32 maxi = max;
     for (u32 a = 0; a < 3; ++a) {
         f32 origin_a = origin.elements[a];
@@ -244,13 +247,9 @@ static b8 ray_intersects_aabb_internal(aabb box, vec3 origin, vec3 direction, f3
             if (min > maxi) {
                 return false;
             }
-            /* if (min < 0) {
+            if (min < 0) {
                 return false;
-            } */
-            /* // FIXME: don't select if the origin is inside the thing.
-            if (kfloat_compare(min - maxi, 0.0f)) {
-                return false;
-            } */
+            }
         }
     }
     if (out_min) {

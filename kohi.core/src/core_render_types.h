@@ -116,7 +116,13 @@ typedef enum shader_attribute_type {
     SHADER_ATTRIB_TYPE_INT16 = 7U,
     SHADER_ATTRIB_TYPE_UINT16 = 8U,
     SHADER_ATTRIB_TYPE_INT32 = 9U,
-    SHADER_ATTRIB_TYPE_UINT32 = 10U,
+    SHADER_ATTRIB_TYPE_INT32_2 = 10U,
+    SHADER_ATTRIB_TYPE_INT32_3 = 11U,
+    SHADER_ATTRIB_TYPE_INT32_4 = 12U,
+    SHADER_ATTRIB_TYPE_UINT32 = 13U,
+    SHADER_ATTRIB_TYPE_UINT32_2 = 14U,
+    SHADER_ATTRIB_TYPE_UINT32_3 = 15U,
+    SHADER_ATTRIB_TYPE_UINT32_4 = 16U,
 } shader_attribute_type;
 
 /** @brief Available uniform types. */
@@ -441,8 +447,8 @@ typedef struct kskybox_render_data {
 /** @brief Defines flags used for rendering static meshes */
 typedef enum kstatic_mesh_render_data_flag {
     /** @brief Indicates that the winding order for the given static mesh should be inverted. */
-    KSTATICM_ESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
-} kstaticm_esh_render_data_flag;
+    KSTATIC_MESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
+} kstatic_mesh_render_data_flag;
 
 /**
  * @brief Collection of flags for a static mesh submesh to be rendered.
@@ -483,6 +489,52 @@ typedef struct kstatic_mesh_render_data {
     /** @brief The tint override to be used when rendering all submeshes. Typically white (1, 1, 1, 1) if not used. */
     vec4 tint;
 } kstatic_mesh_render_data;
+
+/** @brief Defines flags used for rendering skinned meshes */
+typedef enum kskinned_mesh_render_data_flag {
+    /** @brief Indicates that the winding order for the given skinned mesh should be inverted. */
+    KSKINNED_MESH_RENDER_DATA_FLAG_WINDING_INVERTED_BIT = 0x0001
+} kskinned_mesh_render_data_flag;
+
+/**
+ * @brief Collection of flags for a skinned mesh submesh to be rendered.
+ * @see kskinned_mesh_render_data_flag
+ */
+typedef u32 kskinned_mesh_render_data_flag_bits;
+
+/**
+ * @brief The render data for an individual skinned sub-mesh
+ * to be rendered.
+ */
+typedef struct kskinned_mesh_submesh_render_data {
+    /** @brief Flags for the skinned mesh to be rendered. */
+    kskinned_mesh_render_data_flag_bits flags;
+
+    /** @brief The vertex data. */
+    krenderbuffer_render_data vertex_data;
+
+    /** @brief The index data. */
+    krenderbuffer_render_data index_data;
+
+    /** @brief The instance of the material to use with this skinned mesh when rendering. */
+    kmaterial_instance material;
+} kskinned_mesh_submesh_render_data;
+
+/**
+ * Contains data required to render a skinned mesh (ultimately its submeshes).
+ */
+typedef struct kskinned_mesh_render_data {
+    /** The identifier of the mesh instance being rendered. */
+    u16 instance_id;
+
+    /** @brief The number of submeshes to be rendered. */
+    u32 submesh_count;
+    /** @brief The array of submeshes to be rendered. */
+    kskinned_mesh_submesh_render_data* submeshes;
+
+    /** @brief The tint override to be used when rendering all submeshes. Typically white (1, 1, 1, 1) if not used. */
+    vec4 tint;
+} kskinned_mesh_render_data;
 
 /**
  * Directional light data formatted for direct shader use.

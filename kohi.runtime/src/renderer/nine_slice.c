@@ -256,7 +256,7 @@ void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data
 
     if (nslice->is_dirty) {
         // Upload the new vertex data.
-        renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
         u32 size = nslice->vertex_data.element_size * nslice->vertex_data.element_count;
         if (!renderer_renderbuffer_load_range(vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, true)) {
             KERROR("vulkan_renderer_geometry_vertex_update failed to upload to the vertex buffer!");
@@ -313,7 +313,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
     }
 
     // Vertex data.
-    renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
     // Allocate space in the buffer.
     if (!renderer_renderbuffer_allocate(vertex_buffer, vert_size * vert_count, &out_nine_slice->vertex_data.buffer_offset)) {
         KERROR("Failed to allocate from the vertex buffer!");
@@ -328,7 +328,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
     }
 
     // Index data
-    renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+    krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
     // Allocate space in the buffer.
     if (!renderer_renderbuffer_allocate(index_buffer, idx_size * idx_count, &out_nine_slice->index_data.buffer_offset)) {
         KERROR("Failed to allocate from the index buffer!");

@@ -5,6 +5,7 @@
 #include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
+#include "strings/kname.h"
 #include "systems/kmaterial_system.h"
 
 b8 water_plane_create(water_plane* out_plane) {
@@ -55,8 +56,8 @@ b8 water_plane_load(water_plane* plane) {
         // FIXME: Make this configurable.
         plane->material = kmaterial_system_get_default_water(engine_systems_get()->material_system);
 
-        renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
-        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         // Allocate space
         if (!renderer_renderbuffer_allocate(vertex_buffer, sizeof(water_plane_vertex) * 4, &plane->vertex_buffer_offset)) {
             KERROR("Failed to allocate space in vertex buffer.");
@@ -85,8 +86,8 @@ b8 water_plane_load(water_plane* plane) {
 b8 water_plane_unload(water_plane* plane) {
     if (plane) {
 
-        renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
-        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+        krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         // Free space
         if (!renderer_renderbuffer_free(vertex_buffer, sizeof(water_plane_vertex) * 4, plane->vertex_buffer_offset)) {
             KERROR("Failed to free space in vertex buffer.");

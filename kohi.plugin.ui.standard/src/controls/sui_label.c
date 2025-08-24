@@ -127,7 +127,7 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
     }
 
     // Free from the vertex buffer.
-    renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
+    krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
     if (typed_data->vertex_buffer_offset != INVALID_ID_U64) {
         if (typed_data->max_text_length > 0) {
             renderer_renderbuffer_free(vertex_buffer, sizeof(vertex_2d) * 4 * typed_data->max_quad_count, typed_data->vertex_buffer_offset);
@@ -137,8 +137,8 @@ void sui_label_control_unload(standard_ui_state* state, struct sui_control* self
 
     // Free from the index buffer.
     if (typed_data->index_buffer_offset != INVALID_ID_U64) {
+        krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
         static const u64 quad_index_size = (sizeof(u32) * 6);
-        renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
         if (typed_data->max_text_length > 0 || typed_data->index_buffer_offset != INVALID_ID_U64) {
             renderer_renderbuffer_free(index_buffer, quad_index_size * typed_data->max_quad_count, typed_data->index_buffer_offset);
         }
@@ -293,8 +293,8 @@ static void sui_label_control_render_frame_prepare(standard_ui_state* state, str
                 goto sui_label_frame_prepare_cleanup;
             }
 
-            renderbuffer* vertex_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_VERTEX);
-            renderbuffer* index_buffer = renderer_renderbuffer_get(RENDERBUFFER_TYPE_INDEX);
+            krenderbuffer vertex_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_VERTEX));
+            krenderbuffer index_buffer = renderer_renderbuffer_get(kname_create(KRENDERBUFFER_NAME_GLOBAL_INDEX));
 
             u64 old_vertex_size = typed_data->vertex_buffer_size;
             u64 old_vertex_offset = typed_data->vertex_buffer_offset;

@@ -63,6 +63,9 @@ typedef struct vulkan_buffer {
     i32 memory_index;
     /** @brief The property flags for the memory used by the buffer. */
     u32 memory_property_flags;
+    u64 size;
+    kname name;
+    renderbuffer_type type;
 } vulkan_buffer;
 
 /** @brief Contains swapchain support information and capabilities. */
@@ -545,7 +548,7 @@ typedef struct vulkan_shader {
     VkDescriptorSetLayout descriptor_set_layouts[VULKAN_SHADER_DESCRIPTOR_SET_LAYOUT_COUNT];
 
     /** @brief The uniform buffers used by this shader, one per colourbuffer image. */
-    renderbuffer uniform_buffers[VULKAN_RESOURCE_IMAGE_COUNT];
+    krenderbuffer uniform_buffers[VULKAN_RESOURCE_IMAGE_COUNT];
 
     /** @brief An array of pointers to pipelines associated with this shader. */
     vulkan_pipeline** pipelines;
@@ -628,7 +631,7 @@ typedef struct kwindow_renderer_backend_state {
     VkFence* in_flight_fences;
 
     /** @brief Resusable staging buffers (one per frame in flight) to transfer data from a resource to a GPU-only buffer. */
-    renderbuffer* staging;
+    krenderbuffer* staging;
 
     /**
      * @brief Array of darrays of handles to textures that were updated as part of a frame's workload.
@@ -758,6 +761,9 @@ typedef struct vulkan_context {
 
     /** @brief A pointer to the currently bound vulkan shader. */
     vulkan_shader* bound_shader;
+
+    // Darray of vulkan buffers, which matches up to the frontend's krenderbuffers.
+    vulkan_buffer* renderbuffers;
 
     /**
      * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)

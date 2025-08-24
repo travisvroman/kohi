@@ -106,17 +106,17 @@ void vulkan_renderer_flag_enabled_set(renderer_backend_interface* backend, rende
 
 f32 vulkan_renderer_max_anisotropy_get(renderer_backend_interface* backend);
 
-b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, renderbuffer* buffer);
-void vulkan_buffer_destroy_internal(renderer_backend_interface* backend, renderbuffer* buffer);
-b8 vulkan_buffer_resize(renderer_backend_interface* backend, renderbuffer* buffer, u64 new_size);
-b8 vulkan_buffer_bind(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset);
-b8 vulkan_buffer_unbind(renderer_backend_interface* backend, renderbuffer* buffer);
-void* vulkan_buffer_map_memory(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size);
-void vulkan_buffer_unmap_memory(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size);
-b8 vulkan_buffer_flush(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size);
-b8 vulkan_buffer_read(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size, void** out_memory);
-b8 vulkan_buffer_load_range(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
-b8 vulkan_buffer_copy_range(renderer_backend_interface* backend, renderbuffer* source, u64 source_offset, renderbuffer* dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
-b8 vulkan_buffer_draw(renderer_backend_interface* backend, renderbuffer* buffer, u64 offset, u32 element_count, b8 bind_only);
+b8 vulkan_buffer_create_internal(renderer_backend_interface* backend, kname name, u64 size, renderbuffer_type type, krenderbuffer handle);
+void vulkan_buffer_destroy_internal(renderer_backend_interface* backend, krenderbuffer handle);
+b8 vulkan_buffer_resize(renderer_backend_interface* backend, krenderbuffer handle, u64 new_size);
+b8 vulkan_buffer_bind(renderer_backend_interface* backend, krenderbuffer handle, u64 offset);
+b8 vulkan_buffer_unbind(renderer_backend_interface* backend, krenderbuffer handle);
+void* vulkan_buffer_map_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);
+void vulkan_buffer_unmap_memory(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);
+b8 vulkan_buffer_flush(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size);
+b8 vulkan_buffer_read(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size, void** out_memory);
+b8 vulkan_buffer_load_range(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u64 size, const void* data, b8 include_in_frame_workload);
+b8 vulkan_buffer_copy_range(renderer_backend_interface* backend, krenderbuffer source, u64 source_offset, krenderbuffer dest, u64 dest_offset, u64 size, b8 include_in_frame_workload);
+b8 vulkan_buffer_draw(renderer_backend_interface* backend, krenderbuffer handle, u64 offset, u32 element_count, b8 bind_only);
 
 void vulkan_renderer_wait_for_idle(renderer_backend_interface* backend);

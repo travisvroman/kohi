@@ -54,6 +54,13 @@ typedef u16 kstatic_mesh;
 
 #define INVALID_KSTATIC_MESH INVALID_ID_U16
 
+/**
+ * @brief Represents a single skinned mesh, which contains geometry.
+ */
+typedef u16 kskinned_mesh;
+
+#define INVALID_KSKINNED_MESH INVALID_ID_U16
+
 typedef struct font_glyph {
     i32 codepoint;
     u16 x;

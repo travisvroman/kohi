@@ -37,7 +37,7 @@ typedef enum kasset_type {
     KASSET_TYPE_BINARY = 9,
     KASSET_TYPE_KSON = 10,
     KASSET_TYPE_VOXEL_TERRAIN = 11,
-    KASSET_TYPE_SKELETAL_MESH = 12,
+    KASSET_TYPE_SKINNED_MESH = 12,
     KASSET_TYPE_AUDIO = 13,
     KASSET_TYPE_SHADER = 14,
     KASSET_TYPE_MAX
@@ -229,6 +229,27 @@ typedef struct kasset_static_mesh {
     extents_3d extents;
     vec3 center;
 } kasset_static_mesh;
+
+#define KASSET_TYPE_NAME_SKINNED_MESH "SkinnedMesh"
+
+typedef struct kasset_skinned_mesh_geometry {
+    kname name;
+    kname material_asset_name;
+    u32 vertex_count;
+    skinned_vertex_3d* vertices;
+    u32 index_count;
+    u32* indices;
+    extents_3d extents;
+    vec3 center;
+} kasset_skinned_mesh_geometry;
+
+/** @brief Represents a skinned mesh asset. */
+typedef struct kasset_skinned_mesh {
+    u16 geometry_count;
+    kasset_skinned_mesh_geometry* geometries;
+    extents_3d extents;
+    vec3 center;
+} kasset_skinned_mesh;
 
 #define KASSET_TYPE_NAME_MATERIAL "Material"
 

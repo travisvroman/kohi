@@ -41,6 +41,7 @@
 #include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/plugin_system.h"
+#include "systems/skinned_mesh_system.h"
 #include "systems/static_mesh_system.h"
 #include "systems/texture_system.h"
 
@@ -518,7 +519,18 @@ b8 engine_create(application* app) {
         static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, 0, config);
         systems->static_mesh_system = kallocate(systems->static_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
         if (!static_mesh_system_initialize(&systems->static_mesh_system_memory_requirement, systems->static_mesh_system, config)) {
-            KERROR("Failed to initialize geometry system.");
+            KERROR("Failed to initialize static mesh system.");
+            return false;
+        }
+    }
+
+    // Skinned mesh system
+    {
+        skinned_mesh_system_config config = {.application_package_name = app->app_config.default_package_name};
+        skinned_mesh_system_initialize(&systems->skinned_mesh_system_memory_requirement, 0, config);
+        systems->skinned_mesh_system = kallocate(systems->skinned_mesh_system_memory_requirement, MEMORY_TAG_ENGINE);
+        if (!skinned_mesh_system_initialize(&systems->skinned_mesh_system_memory_requirement, systems->skinned_mesh_system, config)) {
+            KERROR("Failed to initialize skinned system.");
             return false;
         }
     }
@@ -820,6 +832,7 @@ b8 engine_run(application* app) {
         kcamera_system_shutdown(systems->camera_system);
         light_system_shutdown(systems->light_system);
         static_mesh_system_shutdown(systems->static_mesh_system);
+        skinned_mesh_system_shutdown(systems->skinned_mesh_system);
         kmaterial_system_shutdown(systems->material_system);
         font_system_shutdown(systems->font_system);
         texture_system_shutdown(systems->texture_system);
