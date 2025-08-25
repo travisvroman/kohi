@@ -16,7 +16,6 @@
 #include "identifiers/identifier.h"
 #include "identifiers/khandle.h"
 #include "logger.h"
-#include "math/geometry_3d.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
@@ -1687,14 +1686,14 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
             continue;
         }
         // Perform a lookup into the attachments array to get the hierarchy node.
-        scene_attachment* attachment = &scene->mesh_attachments[i];
-        ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
-        mat4 model = ktransform_world_get(ktransform_handle);
-        f32 dist;
+        /* scene_attachment* attachment = &scene->mesh_attachments[i]; */
+        /* ktransform ktransform_handle = hierarchy_graph_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle); */
+        /* mat4 model = ktransform_world_get(ktransform_handle); */
+        /* f32 dist; */
 
         extents_3d sm_extents = {0};
         if (static_mesh_extents_get(engine_systems_get()->static_mesh_system, mi.mesh, &sm_extents)) {
-            if (raycast_oriented_extents(sm_extents, model, r, &dist)) {
+            /* if (raycast_oriented_extents(sm_extents, model, r, &dist)) {
                 // Hit
                 if (!out_result->hits) {
                     out_result->hits = darray_create(raycast_hit);
@@ -1706,14 +1705,14 @@ b8 scene_raycast(scene* scene, const struct ray* r, struct raycast_result* out_r
                 hit.position = vec3_add(r->origin, vec3_mul_scalar(r->direction, hit.distance));
 
                 hit.transform_handle = ktransform_handle;
-                /* hit.node_handle = attachment->hierarchy_node_handle; */
+                // hit.node_handle = attachment->hierarchy_node_handle;
 
                 // Get parent ktransform handle if one exists.
-                /* hit.ktransform_parent_handle = hierarchy_graph_parent_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle); */
+                 //hit.ktransform_parent_handle = hierarchy_graph_parent_ktransform_handle_get(&scene->hierarchy, attachment->hierarchy_node_handle);
                 // TODO: Indicate selection node attachment type somehow?
 
                 darray_push(out_result->hits, hit);
-            }
+            } */
         }
     }
 

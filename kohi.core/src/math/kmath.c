@@ -271,3 +271,117 @@ static void seed_randoms(void) {
 
     rand_seeded = true;
 }
+
+ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection) {
+    ray r = {0};
+    r.origin = origin;
+
+    // Get normalized device coordinates (i.e. -1:1 range).
+    vec3 ray_ndc;
+    ray_ndc.x = (2.0f * (screen_pos.x - viewport_rect.x)) / viewport_rect.width - 1.0f;
+    ray_ndc.y = 1.0f - (2.0f * (screen_pos.y - viewport_rect.y)) / viewport_rect.height;
+    ray_ndc.z = 1.0f;
+
+    // Clip space
+    vec4 ray_clip = vec4_create(ray_ndc.x, ray_ndc.y, -1.0f, 1.0f);
+
+    // Eye/Camera
+    vec4 ray_eye = mat4_mul_vec4(mat4_inverse(projection), ray_clip);
+
+    // Unproject xy, change wz to "forward".
+    ray_eye = vec4_create(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+
+    // Convert to world coordinates;
+    r.direction = vec3_from_vec4(mat4_mul_vec4(view, ray_eye));
+    vec3_normalize(&r.direction);
+
+    r.max_distance = 1000.0f;
+
+    return r;
+}
+
+b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max) {
+    // Slab method with divide by zero handling.
+    f32 min = 0.0f;
+    f32 maxi = max;
+    for (u32 a = 0; a < 3; ++a) {
+        f32 origin_a = origin.elements[a];
+        f32 direction_a = direction.elements[a];
+        f32 min_a = box.min.elements[a];
+        f32 max_a = box.max.elements[a];
+        if (kabs(direction_a) < K_FLOAT_EPSILON) {
+            if (origin_a < min_a || origin_a > max_a) {
+                return false;
+            }
+        } else {
+            f32 inv = 1.0f / direction_a;
+            f32 t1 = (min_a - origin_a) * inv;
+            f32 t2 = (max_a - origin_a) * inv;
+            if (t1 > t2) {
+                KSWAP(f32, t1, t2);
+            }
+            if (t1 > min) {
+                min = t1;
+            }
+            if (t2 < maxi) {
+                maxi = t2;
+            }
+            if (min > maxi) {
+                return false;
+            }
+        }
+    }
+    if (out_min) {
+        *out_min = min;
+    }
+    if (out_max) {
+        *out_max = maxi;
+    }
+    return true;
+}
+
+b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance) {
+    f32 normal_dir = vec3_dot(r->direction, p->normal);
+    f32 point_normal = vec3_dot(r->origin, p->normal);
+
+    // If the ray and plane normal point in the same direction, there can't be a hit.
+    if (normal_dir >= 0.0f) {
+        return false;
+    }
+
+    // Calculate the distance.
+    f32 t = (p->distance - point_normal) / normal_dir;
+
+    // Distance must be positive or 0, otherwise the ray hits behind the plane,
+    // which technically isn't a hit at all.
+    if (t >= 0.0f) {
+        *out_distance = t;
+        *out_point = vec3_add(r->origin, vec3_mul_scalar(r->direction, t));
+        return true;
+    }
+
+    return false;
+}
+
+b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3* out_point, f32* out_distance) {
+    if (!r) {
+        return false;
+    }
+
+    plane_3d p = plane_3d_create(center, normal);
+    if (raycast_plane_3d(r, &p, out_point, out_distance)) {
+        // Square the radii and compare against squared distance
+        f32 orad_sq = outer_radius * outer_radius;
+        f32 irad_sq = inner_radius * inner_radius;
+        f32 dist_sq = vec3_distance_squared(center, *out_point);
+        if (dist_sq > orad_sq) {
+            return false;
+        }
+        if (inner_radius > 0 && dist_sq < irad_sq) {
+            return false;
+        }
+        return true;
+    }
+
+    return false;
+}

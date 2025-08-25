@@ -2351,3 +2351,30 @@ KINLINE aabb aabb_from_mat4(vec3 half_extents, mat4 mat) {
     vec3 half = (vec3){ax, ay, az};
     return aabb_create(vec3_sub(center, half), vec3_add(center, half));
 }
+
+/**
+ * @brief Indicates if point is inside the provided AABB.
+ *
+ * @param point The point to test.
+ * @param box The box to test against.
+ * @returns True if inside; otherwise false.
+ */
+KINLINE b8 point_inside_aabb(vec3 point, aabb box) {
+    return (point.x >= box.min.x && point.x <= box.max.x) &&
+           (point.y >= box.min.y && point.y <= box.max.y) &&
+           (point.z >= box.min.z && point.z <= box.max.z);
+}
+
+KINLINE ray ray_create(vec3 position, vec3 direction) {
+    return (ray){
+        .origin = position,
+        .direction = direction};
+}
+
+KAPI ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection);
+
+KAPI b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max);
+
+KAPI b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance);
+
+KAPI b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3* out_point, f32* out_distance);

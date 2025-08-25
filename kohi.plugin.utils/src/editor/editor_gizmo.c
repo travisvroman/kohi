@@ -10,7 +10,6 @@
 
 #include <defines.h>
 #include <logger.h>
-#include <math/geometry_3d.h>
 #include <math/kmath.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/ktransform_system.h>
@@ -703,14 +702,23 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
                 ktransform_translate(gizmo->selected_ktransform_handle, scaled_translation);
             }
         } else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
-            f32 dist;
             ktransform_calculate_local(gizmo->ktransform_handle);
             u8 hit_axis = INVALID_ID_U8;
+
+            mat4 inv = mat4_inverse(gizmo_world);
+
+            ray transformed_ray = {
+                .origin = vec3_transform(r->origin, 1.0f, inv),
+                .direction = vec3_transform(r->direction, 0.0f, inv),
+                .max_distance = r->max_distance,
+                .flags = r->flags};
 
             // Loop through each axis/axis combo. Loop backwards to give priority to combos since
             // those hit boxes are much smaller.
             for (i32 i = 6; i > -1; --i) {
-                if (raycast_oriented_extents(data->mode_extents[i], gizmo_world, r, &dist)) {
+
+                f32 min, max;
+                if (ray_intersects_aabb(data->mode_extents[i], transformed_ray.origin, transformed_ray.direction, transformed_ray.max_distance, &min, &max)) {
                     hit_axis = i;
                     break;
                 }
@@ -897,14 +905,22 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
             }
             data->last_interaction_pos = intersection;
         } else if (interaction_type == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_HOVER) {
-            f32 dist;
             ktransform_calculate_local(gizmo->ktransform_handle);
             u8 hit_axis = INVALID_ID_U8;
+
+            mat4 inv = mat4_inverse(gizmo_world);
+
+            ray transformed_ray = {
+                .origin = vec3_transform(r->origin, 1.0f, inv),
+                .direction = vec3_transform(r->direction, 0.0f, inv),
+                .max_distance = r->max_distance,
+                .flags = r->flags};
 
             // Loop through each axis/axis combo. Loop backwards to give priority to combos since
             // those hit boxes are much smaller.
             for (i32 i = 6; i > -1; --i) {
-                if (raycast_oriented_extents(data->mode_extents[i], gizmo_world, r, &dist)) {
+                f32 min, max;
+                if (ray_intersects_aabb(data->mode_extents[i], transformed_ray.origin, transformed_ray.direction, transformed_ray.max_distance, &min, &max)) {
                     hit_axis = i;
                     break;
                 }

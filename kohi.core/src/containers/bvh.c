@@ -2,7 +2,6 @@
 #include "containers/darray.h"
 #include "debug/kassert.h"
 #include "defines.h"
-#include "math/geometry_3d.h"
 #include "math/kmath.h"
 #include "memory/kmemory.h"
 
@@ -143,7 +142,7 @@ u32 bvh_query_overlaps(const bvh* t, aabb query, bvh_query_callback callback, vo
     return hits;
 }
 
-raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, bvh_raycast_callback callback, void* usr) {
+raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, b8 ignore_if_inside, bvh_raycast_callback callback, void* usr) {
     raycast_result result = {0};
     if (t->root == KNULL) {
         return result;
@@ -164,22 +163,24 @@ raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, b
         if (!ray_intersects_aabb_internal(t->nodes[id].aabb, origin, direction, max, &tmin, &tmaxi)) {
             continue;
         }
-        if (tmin > 0) {
-            continue;
-        }
         if (bvh_is_leaf(&t->nodes[id])) {
+            // Ignore if the origin is inside, depending on flags.
+            if (ignore_if_inside && point_inside_aabb(origin, t->nodes[id].aabb)) {
+                continue;
+            }
+
+            f32 distance = tmin;
+            vec3 pos = vec3_add(origin, vec3_mul_scalar(direction, distance));
             // If no callback, assume every hit is counted.
-            if (!callback || callback(t->nodes[id].user, id, tmin, tmaxi, usr)) {
+            if (!callback || callback(t->nodes[id].user, id, tmin, tmaxi, distance, pos, usr)) {
                 if (!result.hits) {
                     result.hits = darray_create(raycast_hit);
                 }
                 raycast_hit hit = {
                     .type = RAYCAST_HIT_TYPE_BVH_AABB,
-                    .distance = tmaxi - tmin,
-                    .user = t->nodes[id].user
-                    // TODO: fill out position (aabb center), and other properties
-                    // Pass bvh_userdata as perhaps some sort of raycast_hit userdata (i.e. a u64)
-                };
+                    .distance = distance,
+                    .user = t->nodes[id].user,
+                    .position = pos};
                 darray_push(result.hits, hit);
             }
         } else {
@@ -220,7 +221,7 @@ void bvh_rebalance(bvh* t, u32 iterations) {
 
 static b8 ray_intersects_aabb_internal(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max) {
     // Slab method with divide by zero handling.
-    f32 min = -K_INFINITY;
+    f32 min = 0.0f;
     f32 maxi = max;
     for (u32 a = 0; a < 3; ++a) {
         f32 origin_a = origin.elements[a];
@@ -245,9 +246,6 @@ static b8 ray_intersects_aabb_internal(aabb box, vec3 origin, vec3 direction, f3
                 maxi = t2;
             }
             if (min > maxi) {
-                return false;
-            }
-            if (min < 0) {
                 return false;
             }
         }

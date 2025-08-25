@@ -274,7 +274,7 @@ b8 renderer_system_initialize(u64* memory_requirement, renderer_system_state* st
         return false;
     }
 
-    // Global storage buffer
+    // Global material storage buffer
     // TODO: Make this configurable.
     const u64 storage_buffer_size = MEBIBYTES(256);
     state->global_material_storage_buffer = renderer_renderbuffer_create(kname_create(KRENDERBUFFER_NAME_GLOBAL_MATERIALS), RENDERBUFFER_TYPE_STORAGE, storage_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST);

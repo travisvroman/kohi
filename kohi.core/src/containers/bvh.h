@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.h"
-#include "math/geometry_3d.h"
 #include "math/math_types.h"
 
 typedef u32 bvh_id;
@@ -43,7 +42,7 @@ typedef u32 (*bvh_query_callback)(bvh_userdata user, bvh_id id, void* usr);
 KAPI u32 bvh_query_overlaps(const bvh* t, aabb query, bvh_query_callback callback, void* context);
 
 // Ray cast (origin + dir, max). Callback gets fraction [0,hit], return 0 to terminate early.
-typedef b8 (*bvh_raycast_callback)(bvh_userdata user, bvh_id id, f32 min, f32 max, void* usr);
-KAPI raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, bvh_raycast_callback callback, void* usr);
+typedef b8 (*bvh_raycast_callback)(bvh_userdata user, bvh_id id, f32 min, f32 max, f32 dist, vec3 pos, void* usr);
+KAPI raycast_result bvh_raycast(const bvh* t, vec3 origin, vec3 direction, f32 max, b8 ignore_if_inside, bvh_raycast_callback callback, void* usr);
 
 KAPI void bvh_rebalance(bvh* t, u32 iterations);

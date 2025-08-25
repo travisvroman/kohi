@@ -604,6 +604,42 @@ typedef struct triangle {
     vec3 verts[3];
 } triangle;
 
+typedef enum ray_flag_bits {
+    RAY_FLAG_NONE = 0,
+    RAY_FLAG_IGNORE_IF_INSIDE_BIT = 1 << 0
+} ray_flag_bits;
+
+typedef u32 ray_flags;
+
+/**
+ * @brief Represents a line which starts at an origin
+ * and proceed infinitely in the given direction. Typically
+ * used for hit tests, picking, etc.
+ */
+typedef struct ray {
+    vec3 origin;
+    vec3 direction;
+    f32 max_distance;
+    ray_flags flags;
+} ray;
+
+typedef enum raycast_hit_type {
+    RAYCAST_HIT_TYPE_BVH_AABB,
+    RAYCAST_HIT_TYPE_SURFACE
+} raycast_hit_type;
+
+typedef struct raycast_hit {
+    raycast_hit_type type;
+    f32 distance;
+    u64 user;
+    vec3 position;
+} raycast_hit;
+
+typedef struct raycast_result {
+    /** @brief Darray of hits. Not set if there are no hits. */
+    raycast_hit* hits;
+} raycast_result;
+
 typedef struct ksphere {
     vec3 position;
     f32 radius;
