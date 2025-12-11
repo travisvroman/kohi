@@ -61,6 +61,7 @@ static b8 vulkan_buffer_copy_range_internal(vulkan_context* context,
 											u64 size, b8 queue_wait);
 static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context);
 static u32 get_current_image_index(vulkan_context* context);
+static u32 get_previous_image_index(vulkan_context* context);
 static u32 get_current_frame_index(vulkan_context* context);
 
 // Returns the current image count. Typically 2 for double-buffering, 3 for triple.
@@ -720,52 +721,75 @@ b8 vulkan_renderer_frame_command_list_begin(renderer_backend_interface* backend,
 	vulkan_command_buffer_reset(command_buffer);
 	vulkan_command_buffer_begin(context, command_buffer, true, false, false);
 
+	/*
 	// Setup a pipeline barrier to ensure all vertex updates have happened
 	// on the previous frame before trying to read it.
+	VkBufferMemoryBarrier barriers[3] = {0};
+
 	{
-		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
-		vulkan_buffer* internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
-		u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
-		VkBufferMemoryBarrier vertex_buffer_barrier = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-			.pNext = NULL,
-			.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-			.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.buffer = internal_vertex_buffer->infos[index].handle,
-			.offset = 0,
-			.size = VK_WHOLE_SIZE,
-		};
+		// Standard vertex buffer
+		krenderbuffer buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
+		vulkan_buffer* internal_buffer = &context->renderbuffers[buffer];
+		u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier* barrier = &barriers[0];
 
-		krenderbuffer vertex_buffer2 = renderer_renderbuffer_get(backend->frontend_state, context->extended_vertex_buffer_name);
-		vulkan_buffer* internal_vertex_buffer2 = &context->renderbuffers[vertex_buffer2];
-		u8 index2 = internal_vertex_buffer2->handle_count == 1 ? 0 : get_current_image_index(context);
-		VkBufferMemoryBarrier vertex_buffer_barrier2 = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-			.pNext = NULL,
-			.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-			.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.buffer = internal_vertex_buffer2->infos[index2].handle,
-			.offset = 0,
-			.size = VK_WHOLE_SIZE,
-		};
-
-		VkBufferMemoryBarrier barriers[2] = {vertex_buffer_barrier, vertex_buffer_barrier2};
-
-		context->rhi.kvkCmdPipelineBarrier(
-			command_buffer->handle,
-			VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_HOST_BIT,	 // srcStageMask
-			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_HOST_BIT, // dstStageMask
-			0,																 // dependencyFlags
-			0, NULL,														 // pMemoryBarriers
-			/* 1, &vertex_buffer_barrier,			// pBufferMemoryBarriers */
-			2, barriers, // pBufferMemoryBarriers
-			0, NULL		 // pImageMemoryBarriers
-		);
+		barrier->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier->pNext = NULL;
+		barrier->srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier->dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->buffer = internal_buffer->infos[index].handle;
+		barrier->offset = 0;
+		barrier->size = VK_WHOLE_SIZE;
 	}
+
+	{
+		// Extended vertex buffer
+		krenderbuffer buffer = renderer_renderbuffer_get(backend->frontend_state, context->extended_vertex_buffer_name);
+		vulkan_buffer* internal_buffer = &context->renderbuffers[buffer];
+		u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier* barrier = &barriers[1];
+
+		barrier->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier->pNext = NULL;
+		barrier->srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier->dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->buffer = internal_buffer->infos[index].handle;
+		barrier->offset = 0;
+		barrier->size = VK_WHOLE_SIZE;
+	}
+
+	{
+		// Index buffer
+		krenderbuffer buffer = renderer_renderbuffer_get(backend->frontend_state, context->index_buffer_name);
+		vulkan_buffer* internal_buffer = &context->renderbuffers[buffer];
+		u8 index = internal_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier* barrier = &barriers[1];
+
+		barrier->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier->pNext = NULL;
+		barrier->srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier->dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->buffer = internal_buffer->infos[index].handle;
+		barrier->offset = 0;
+		barrier->size = VK_WHOLE_SIZE;
+	}
+
+	context->rhi.kvkCmdPipelineBarrier(
+		command_buffer->handle,
+		VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_HOST_BIT,	 // srcStageMask
+		VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_HOST_BIT, // dstStageMask
+		0,																 // dependencyFlags
+		0, NULL,														 // pMemoryBarriers
+		3, barriers, // pBufferMemoryBarriers
+		0, NULL		 // pImageMemoryBarriers
+	);
+	*/
 
 	return true;
 }
@@ -784,10 +808,10 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 	vulkan_texture_handle_data* target_image_handle = &context->textures[window_backend->swapchain.swapchain_colour_texture];
 	vulkan_image* target_image = &target_image_handle->images[window_backend->swapchain.image_index];
 
-	VkImageMemoryBarrier before_barriers[3];
-	kzero_memory(before_barriers, sizeof(VkImageMemoryBarrier) * 3);
+	VkImageMemoryBarrier before_barriers[2];
+	kzero_memory(before_barriers, sizeof(VkImageMemoryBarrier) * 2);
 	// Need a barrier to ensure all previous writes are complete.
-	{
+	/* {
 		VkImageMemoryBarrier* barrier = &before_barriers[0];
 		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier->oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -804,18 +828,18 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
 		barrier->srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		barrier->dstAccessMask = 0;
-	}
+	} */
 
 	// Before ending the command buffer, blit the current colour buffer's contents to
 	// the current swapchain image. Start by transitioning to transfer source layout.
 	{
 		VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "window colour->transfer_src", vec4_one());
-		VkImageMemoryBarrier* barrier = &before_barriers[1];
+		VkImageMemoryBarrier* barrier = &before_barriers[0];
 		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier->srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT; // VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-		barrier->dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 		barrier->oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier->image = source_image->handle;
 		barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		barrier->subresourceRange.baseArrayLayer = 0;
@@ -823,13 +847,16 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 		barrier->subresourceRange.baseMipLevel = 0;
 		barrier->subresourceRange.levelCount = source_image->mip_levels;
 
+		barrier->srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT; // VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+		barrier->dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
 		VK_END_DEBUG_LABEL(context, command_buffer->handle);
 	}
 
 	// Transition the swapchain image to transfer destination layout.
 	{
 		VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "swapchain img->transfer_dst", vec4_one());
-		VkImageMemoryBarrier* barrier = &before_barriers[2];
+		VkImageMemoryBarrier* barrier = &before_barriers[1];
 		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier->srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 		barrier->dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -848,7 +875,7 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 		command_buffer->handle,
 		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
-		0, 0, 0, 0, 0, 3, before_barriers);
+		0, 0, 0, 0, 0, 2, before_barriers);
 
 	// Now do the blit operation from the source image to the target image
 	{
@@ -880,8 +907,6 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
 	VkImageMemoryBarrier after_image_barriers[2];
 	kzero_memory(after_image_barriers, sizeof(VkImageMemoryBarrier) * 2);
-	VkBufferMemoryBarrier after_buffer_barriers[3];
-	kzero_memory(after_buffer_barriers, sizeof(VkBufferMemoryBarrier) * 3);
 
 	// Transition source back to the correct layout for rendering to
 	{
@@ -919,6 +944,9 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 
 		VK_END_DEBUG_LABEL(context, command_buffer->handle);
 	}
+
+	/* VkBufferMemoryBarrier after_buffer_barriers[3];
+	kzero_memory(after_buffer_barriers, sizeof(VkBufferMemoryBarrier) * 3);
 
 	// Barrier for standard vertex buffer
 	{
@@ -966,13 +994,16 @@ b8 vulkan_renderer_frame_command_list_end(renderer_backend_interface* backend, s
 		barrier->size = VK_WHOLE_SIZE;
 		barrier->srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
 		barrier->dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	}
+	} */
 
 	rhi->kvkCmdPipelineBarrier(
 		command_buffer->handle,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		0, 0, 0, 3, after_buffer_barriers, 2, after_image_barriers);
+		0, 0, 0,
+		/* 3, after_buffer_barriers,  */
+		0, 0,
+		2, after_image_barriers);
 
 	// Just end the command buffer.
 	vulkan_command_buffer_end(context, command_buffer);
@@ -1427,6 +1458,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 	// End secondary command buffer.
 	vulkan_command_buffer_end(context, secondary);
 
+	/*
 	VkBufferMemoryBarrier buffer_barriers[3];
 	kzero_memory(buffer_barriers, sizeof(VkBufferMemoryBarrier) * 3);
 	// Barrier for standard vertex buffer
@@ -1485,6 +1517,7 @@ void vulkan_renderer_end_rendering(struct renderer_backend_interface* backend, f
 		0, 0,
 		3, buffer_barriers,
 		0, 0);
+		*/
 
 	// Execute secondary command buffer.
 	vulkan_command_buffer_execute_secondary(context, secondary);
@@ -1649,7 +1682,7 @@ void vulkan_renderer_clear_depth_stencil(renderer_backend_interface* backend, kt
 
 		rhi->kvkCmdPipelineBarrier(
 			command_buffer->handle,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			0,
 			0, 0,
@@ -1721,13 +1754,13 @@ void vulkan_renderer_colour_texture_prepare_for_present(renderer_backend_interfa
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = image->layer_count;
 
-	barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	barrier.dstAccessMask = 0;
 
 	rhi->kvkCmdPipelineBarrier(
 		command_buffer->handle,
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 		0,
 		0, 0,
 		0, 0,
@@ -1757,64 +1790,82 @@ void vulkan_renderer_texture_prepare_for_sampling(renderer_backend_interface* ba
 		aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
 	}
 
+	/* VkImageMemoryBarrier barriers[2] = {0};
 	{
 		// Ensure any transfers are done.
-		VkImageMemoryBarrier barrier = {0};
-		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier.oldLayout = is_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		barrier.newLayout = is_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barrier.image = image->handle;
-		barrier.subresourceRange.aspectMask = aspect_flags;
-		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.levelCount = image->mip_levels;
-		barrier.subresourceRange.layerCount = image->layer_count;
-		barrier.subresourceRange.baseArrayLayer = 0;
-
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-
-		rhi->kvkCmdPipelineBarrier(
-			command_buffer->handle,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			0,
-			0, 0,
-			0, 0,
-			1, &barrier);
+		VkImageMemoryBarrier* barrier = &barriers[0];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->oldLayout = is_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier->newLayout = is_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->image = image->handle;
+		barrier->subresourceRange.aspectMask = aspect_flags;
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = image->mip_levels;
+		barrier->subresourceRange.layerCount = image->layer_count;
+		barrier->subresourceRange.baseArrayLayer = 0;
+		barrier->srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier->dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
 	}
 
 	// Transition the layout to be read in a shader
+	{
+		VkImageMemoryBarrier* barrier = &barriers[1];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->oldLayout = is_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // 0; // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier->newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier->srcQueueFamilyIndex = context->device.graphics_queue_index;
+		barrier->dstQueueFamilyIndex = context->device.graphics_queue_index;
+		barrier->image = image->handle;
+		barrier->subresourceRange.aspectMask = aspect_flags;
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = image->mip_levels;
+		barrier->subresourceRange.layerCount = image->layer_count;
+		barrier->subresourceRange.baseArrayLayer = 0;
+
+		barrier->srcAccessMask =
+			VK_ACCESS_TRANSFER_WRITE_BIT |
+			VK_ACCESS_HOST_WRITE_BIT |
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		barrier->dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
+								 VK_ACCESS_TRANSFER_READ_BIT |
+								 VK_ACCESS_MEMORY_READ_BIT |
+								 VK_ACCESS_UNIFORM_READ_BIT |
+								 VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	}
+
+	u32 src_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+						  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+						  VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+						  VK_PIPELINE_STAGE_TRANSFER_BIT |
+						  VK_PIPELINE_STAGE_HOST_BIT;
+
+	rhi->kvkCmdPipelineBarrier(
+		command_buffer->handle,
+		src_stage_flags,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0,
+		0, 0,
+		0, 0,
+		2, barriers); */
+
 	VkImageMemoryBarrier barrier = {0};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.oldLayout = is_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // 0; // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	barrier.srcQueueFamilyIndex = context->device.graphics_queue_index;
-	barrier.dstQueueFamilyIndex = context->device.graphics_queue_index;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = image->handle;
 	barrier.subresourceRange.aspectMask = aspect_flags;
-	// Mips
 	barrier.subresourceRange.baseMipLevel = 0;
 	barrier.subresourceRange.levelCount = image->mip_levels;
-
-	// Transition all layers at once.
 	barrier.subresourceRange.layerCount = image->layer_count;
-
-	// Start at the first layer.
 	barrier.subresourceRange.baseArrayLayer = 0;
-
-	barrier.srcAccessMask =
-		VK_ACCESS_TRANSFER_WRITE_BIT |
-		VK_ACCESS_HOST_WRITE_BIT |
-		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
-							VK_ACCESS_TRANSFER_READ_BIT |
-							VK_ACCESS_MEMORY_READ_BIT |
-							VK_ACCESS_UNIFORM_READ_BIT |
-							VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
 
 	u32 src_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
 						  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
@@ -3931,6 +3982,14 @@ static vulkan_command_buffer* get_current_command_buffer(vulkan_context* context
 
 static u32 get_current_image_index(vulkan_context* context) {
 	return context->current_window->renderer_state->backend_state->image_index;
+}
+static u32 get_previous_image_index(vulkan_context* context) {
+	i32 cur = (i32)context->current_window->renderer_state->backend_state->image_index;
+	cur--;
+	if (cur < 0) {
+		cur += get_current_image_count(context);
+	}
+	return (u32)cur;
 }
 static u32 get_current_frame_index(vulkan_context* context) {
 	return context->current_window->renderer_state->backend_state->current_frame;
