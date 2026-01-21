@@ -318,6 +318,35 @@ u8 hashtable_should_set_get_and_update_ptr_successfully(void) {
     return true;
 }
 
+u8 hashtable_collision(void) {
+    hashtable table;
+    u64 memory[1];  // Small enough to force a collision.
+    u64 element_size = sizeof(memory[0]);
+    u64 element_count = sizeof(memory) / element_size;
+    hashtable_create(element_size, element_count, memory, false, &table);
+
+    const char* key1 = "first";
+    u64 val1 = 1;
+    hashtable_set(&table, key1, &val1);
+    u64 retrieved_val1 = 0;
+    hashtable_get(&table, key1, &retrieved_val1);
+    expect_should_be(retrieved_val1, val1);
+
+    const char* key2 = "second";
+    u64 val2 = 2;
+    hashtable_set(&table, key2, &val2);
+    u64 retrieved_val2 = 0;
+    hashtable_get(&table, key2, &retrieved_val2);
+    expect_should_be(retrieved_val2, val2);
+
+    // The old key's entry should ideally not be overwritten (but currently is).
+    u64 retrieved_val3 = 0;
+    hashtable_get(&table, key1, &retrieved_val3);
+    expect_should_be(retrieved_val3, val1);
+
+    return true;
+}
+
 void hashtable_register_tests(void) {
     test_manager_register_test(hashtable_should_create_and_destroy, "Hashtable should create and destroy");
     test_manager_register_test(hashtable_should_set_and_get_successfully, "Hashtable should set and get");
@@ -327,5 +356,6 @@ void hashtable_register_tests(void) {
     test_manager_register_test(hashtable_should_set_and_unset_ptr, "Hashtable should set and unset pointer entry as nothing.");
     test_manager_register_test(hashtable_try_call_non_ptr_on_ptr_table, "Hashtable try calling non-pointer functions on pointer type table.");
     test_manager_register_test(hashtable_try_call_ptr_on_non_ptr_table, "Hashtable try calling pointer functions on non-pointer type table.");
-    test_manager_register_test(hashtable_should_set_get_and_update_ptr_successfully, "Hashtable Should get pointer, update, and get again successfully.");
+    test_manager_register_test(hashtable_should_set_get_and_update_ptr_successfully, "Hashtable should get pointer, update, and get again successfully.");
+    test_manager_register_test(hashtable_collision, "Hashtable collision should not silently overwrite the old key's entry.");
 }
