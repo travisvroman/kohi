@@ -500,6 +500,7 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 	}
 	if (auto_detach) {
 		CloseHandle(out_thread->internal_data);
+		thread->internal_data = 0;
 	}
 	return true;
 }
