@@ -581,7 +581,7 @@ ktexture texture_acquire_with_options_sync(ktexture_load_options options) {
 			}
 			if (!assets[i]) {
 				// NOTE: Continue to load other images instead of booting here.
-				KERROR("%s - Asset named '%k' does not exist, thus a texture cannot be loaded from it.", __FUNCTION__, options.image_asset_name);
+				KERROR("%s - Asset named '%s' does not exist, thus a texture cannot be loaded from it.", __FUNCTION__, kname_string_get(options.image_asset_name));
 			}
 		}
 

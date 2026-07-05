@@ -353,7 +353,6 @@ typedef struct kscene {
 #if KOHI_DEBUG
 	// Darray of debug render data.
 	kscene_debug_data* debug_datas;
-
 #endif
 } kscene;
 
