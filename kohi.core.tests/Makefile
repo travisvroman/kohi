@@ -118,7 +118,7 @@ link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
 # 		here that would not on other platforms from not being exported (i.e. Windows)
 # 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
 link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
-link-linux: LDFLAGS += -lm
+link-linux: LDFLAGS += -lm -Wl,-rpath='$$ORIGIN'
 link-linux: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
 
 link-macos: LDFLAGS += 

@@ -7,325 +7,321 @@
 
 u8 hashtable_should_create_and_destroy(void) {
 	hashtable table;
-	u64 element_size = sizeof(u64);
-	u64 element_count = 3;
-	u64 memory[3];
-
-	hashtable_create(element_size, element_count, memory, false, &table);
+	hashtable_create(sizeof(u64), 4, false, &table);
 
 	expect_should_not_be(0, table.memory);
 	expect_should_be(sizeof(u64), table.element_size);
-	expect_should_be(3, table.element_count);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	hashtable_destroy(&table);
 
 	expect_should_be(0, table.memory);
 	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	return true;
 }
 
 u8 hashtable_should_set_and_get_successfully(void) {
 	hashtable table;
-	u64 element_size = sizeof(u64);
-	u64 element_count = 3;
-	u64 memory[3];
-
-	hashtable_create(element_size, element_count, memory, false, &table);
+	hashtable_create(sizeof(u64), 4, false, &table);
 
 	expect_should_not_be(0, table.memory);
 	expect_should_be(sizeof(u64), table.element_size);
-	expect_should_be(3, table.element_count);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
-	u64 testval1 = 23;
-	hashtable_set(&table, "test1", &testval1);
-	u64 get_testval_1 = 0;
-	hashtable_get(&table, "test1", &get_testval_1);
-	expect_should_be(testval1, get_testval_1);
+	const char* keys[4] = {
+		"one",
+		"two",
+		"three",
+		"four",
+	};
+	u64 values[4] = {
+		1,
+		2,
+		3,
+		4,
+	};
+
+	for (i32 i = 0; i < 4; i++) {
+		hashtable_set(&table, keys[i], &values[i]);
+	}
+
+	expect_should_be(4, table.filled);
+
+	for (i32 i = 0; i < 4; i++) {
+		u64 value;
+		b8 get_result = hashtable_get(&table, keys[i], &value);
+		expect_to_be_true(get_result);
+
+		expect_should_be(value, values[i]);
+	}
 
 	hashtable_destroy(&table);
 
 	expect_should_be(0, table.memory);
 	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	return true;
 }
 
-typedef struct ht_test_struct {
-	b8 b_value;
-	f32 f_value;
-	u64 u_value;
-} ht_test_struct;
+u8 hashtable_should_grow_successfully(void) {
+	hashtable table;
+	hashtable_create(sizeof(u64), 4, false, &table);
+
+	expect_should_not_be(0, table.memory);
+	expect_should_be(sizeof(u64), table.element_size);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
+
+	const char* keys[10] = {
+		"one",
+		"two",
+		"three",
+		"four",
+		"five",
+		"six",
+		"seven",
+		"eight",
+		"nine",
+		"ten",
+	};
+	u64 values[10] = {
+		1,
+		2,
+		3,
+		4,
+		5,
+		6,
+		7,
+		8,
+		9,
+		10,
+	};
+
+	for (i32 i = 0; i < 10; i++) {
+		hashtable_set(&table, keys[i], &values[i]);
+	}
+
+	expect_should_be(10, table.filled);
+	expect_should_be(16, table.capacity);
+
+	for (i32 i = 0; i < 10; i++) {
+		u64 value;
+		b8 get_result = hashtable_get(&table, keys[i], &value);
+		expect_to_be_true(get_result);
+
+		expect_should_be(value, values[i]);
+	}
+
+	hashtable_destroy(&table);
+
+	expect_should_be(0, table.memory);
+	expect_should_be(0, table.element_size);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
+
+	return true;
+}
 
 u8 hashtable_should_set_and_get_ptr_successfully(void) {
 	hashtable table;
-	u64 element_size = sizeof(ht_test_struct*);
-	u64 element_count = 3;
-	ht_test_struct* memory[3];
-
-	hashtable_create(element_size, element_count, memory, true, &table);
+	hashtable_create(sizeof(u64*), 4, true, &table);
 
 	expect_should_not_be(0, table.memory);
-	expect_should_be(sizeof(ht_test_struct*), table.element_size);
-	expect_should_be(3, table.element_count);
+	expect_should_be(sizeof(u64*), table.element_size);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_true(table.is_pointer_type);
 
-	ht_test_struct t;
-	ht_test_struct* testval1 = &t;
-	testval1->b_value = true;
-	testval1->u_value = 63;
-	testval1->f_value = 3.1415f;
-	hashtable_set_ptr(&table, "test1", (void**)&testval1);
+	const char* keys[4] = {
+		"one",
+		"two",
+		"three",
+		"four",
+	};
+	u64 values[4] = {
+		1,
+		2,
+		3,
+		4,
+	};
 
-	ht_test_struct* get_testval_1 = 0;
-	hashtable_get_ptr(&table, "test1", (void**)&get_testval_1);
+	for (i32 i = 0; i < 4; i++) {
+		hashtable_set(&table, keys[i], &values[i]);
+	}
 
-	expect_should_be(testval1->b_value, get_testval_1->b_value);
-	expect_should_be(testval1->u_value, get_testval_1->u_value);
+	expect_should_be(4, table.filled);
+
+	for (i32 i = 0; i < 4; i++) {
+		u64* got_ptr;
+		b8 get_result = hashtable_get(&table, keys[i], &got_ptr);
+		expect_to_be_true(get_result);
+
+		expect_should_be(got_ptr, &values[i]);
+		expect_should_be(*got_ptr, values[i]);
+	}
 
 	hashtable_destroy(&table);
 
 	expect_should_be(0, table.memory);
 	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	return true;
 }
 
-u8 hashtable_should_set_and_get_nonexistant(void) {
+u8 hashtable_should_get_nonexistant(void) {
 	hashtable table;
-	u64 element_size = sizeof(u64);
-	u64 element_count = 3;
-	u64 memory[3];
-
-	hashtable_create(element_size, element_count, memory, false, &table);
+	hashtable_create(sizeof(u64), 4, false, &table);
 
 	expect_should_not_be(0, table.memory);
 	expect_should_be(sizeof(u64), table.element_size);
-	expect_should_be(3, table.element_count);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
-	u64 testval1 = 23;
-	hashtable_set(&table, "test1", &testval1);
-	u64 get_testval_1 = 0;
-	hashtable_get(&table, "test2", &get_testval_1);
-	expect_should_be(0, get_testval_1);
+	const char* keys[4] = {
+		"one",
+		"two",
+		"three",
+		"four",
+	};
+	u64 values[4] = {
+		1,
+		2,
+		3,
+		4,
+	};
+
+	for (i32 i = 0; i < 4; i++) {
+		hashtable_set(&table, keys[i], &values[i]);
+	}
+
+	expect_should_be(4, table.filled);
+
+	u64 out;
+	expect_to_be_false(hashtable_get(&table, "five", &out));
 
 	hashtable_destroy(&table);
 
 	expect_should_be(0, table.memory);
 	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	return true;
 }
 
-u8 hashtable_should_set_and_get_ptr_nonexistant(void) {
+u8 hashtable_should_get_nonexistant_ptr(void) {
 	hashtable table;
-	u64 element_size = sizeof(ht_test_struct*);
-	u64 element_count = 3;
-	ht_test_struct* memory[3];
-
-	hashtable_create(element_size, element_count, memory, true, &table);
+	hashtable_create(sizeof(u64*), 4, true, &table);
 
 	expect_should_not_be(0, table.memory);
-	expect_should_be(sizeof(ht_test_struct*), table.element_size);
-	expect_should_be(3, table.element_count);
+	expect_should_be(sizeof(u64*), table.element_size);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_true(table.is_pointer_type);
 
-	ht_test_struct t;
-	ht_test_struct* testval1 = &t;
-	testval1->b_value = true;
-	testval1->u_value = 63;
-	testval1->f_value = 3.1415f;
-	b8 result = hashtable_set_ptr(&table, "test1", (void**)&testval1);
-	expect_to_be_true(result);
+	const char* keys[4] = {
+		"one",
+		"two",
+		"three",
+		"four",
+	};
+	u64 values[4] = {
+		1,
+		2,
+		3,
+		4,
+	};
 
-	ht_test_struct* get_testval_1 = 0;
-	result = hashtable_get_ptr(&table, "test2", (void**)&get_testval_1);
-	expect_to_be_false(result);
-	expect_should_be(0, get_testval_1);
+	for (i32 i = 0; i < 4; i++) {
+		hashtable_set(&table, keys[i], &values[i]);
+	}
+
+	expect_should_be(4, table.filled);
+
+	u64* out;
+	expect_to_be_false(hashtable_get(&table, "five", &out));
 
 	hashtable_destroy(&table);
 
 	expect_should_be(0, table.memory);
 	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	return true;
 }
 
-u8 hashtable_should_set_and_unset_ptr(void) {
+u8 hashtable_should_reset_ptr(void) {
 	hashtable table;
-	u64 element_size = sizeof(ht_test_struct*);
-	u64 element_count = 3;
-	ht_test_struct* memory[3];
-
-	hashtable_create(element_size, element_count, memory, true, &table);
+	hashtable_create(sizeof(u64*), 4, true, &table);
 
 	expect_should_not_be(0, table.memory);
-	expect_should_be(sizeof(ht_test_struct*), table.element_size);
-	expect_should_be(3, table.element_count);
+	expect_should_be(sizeof(u64*), table.element_size);
+	expect_should_be(4, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_true(table.is_pointer_type);
 
-	ht_test_struct t;
-	ht_test_struct* testval1 = &t;
-	testval1->b_value = true;
-	testval1->u_value = 63;
-	testval1->f_value = 3.1415f;
-	// Set it
-	b8 result = hashtable_set_ptr(&table, "test1", (void**)&testval1);
-	expect_to_be_true(result);
+	const char* keys[4] = {
+		"one",
+		"two",
+		"three",
+		"four",
+	};
+	u64 values[4] = {
+		1,
+		2,
+		3,
+		4,
+	};
 
-	// Check that it exists and is correct.
-	ht_test_struct* get_testval_1 = 0;
-	hashtable_get_ptr(&table, "test1", (void**)&get_testval_1);
-	expect_should_be(testval1->b_value, get_testval_1->b_value);
-	expect_should_be(testval1->u_value, get_testval_1->u_value);
+	for (i32 i = 0; i < 4; i++) {
+		hashtable_set(&table, keys[i], &values[i]);
+	}
 
-	// Unset it
-	result = hashtable_set_ptr(&table, "test1", 0);
-	expect_to_be_true(result);
+	expect_to_be_true(hashtable_set(&table, keys[1], 0));
 
-	// Should no longer be found.
-	ht_test_struct* get_testval_2 = 0;
-	result = hashtable_get_ptr(&table, "test1", (void**)&get_testval_2);
-	expect_to_be_false(result);
-	expect_should_be(0, get_testval_2);
+	expect_should_be(4, table.filled);
+
+	u64* out;
+	expect_to_be_true(hashtable_get(&table, "two", &out));
+	expect_should_be(out, 0);
 
 	hashtable_destroy(&table);
 
 	expect_should_be(0, table.memory);
 	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
-
-	return true;
-}
-
-u8 hashtable_try_call_non_ptr_on_ptr_table(void) {
-	hashtable table;
-	u64 element_size = sizeof(ht_test_struct*);
-	u64 element_count = 3;
-	ht_test_struct* memory[3];
-
-	hashtable_create(element_size, element_count, memory, true, &table);
-
-	expect_should_not_be(0, table.memory);
-	expect_should_be(sizeof(ht_test_struct*), table.element_size);
-	expect_should_be(3, table.element_count);
-
-	KDEBUG("The following 2 error messages are intentional.");
-
-	ht_test_struct t;
-	t.b_value = true;
-	t.u_value = 63;
-	t.f_value = 3.1415f;
-	// Try setting the record
-	b8 result = hashtable_set(&table, "test1", &t);
-	expect_to_be_false(result);
-
-	// Try getting the record.
-	ht_test_struct* get_testval_1 = 0;
-	result = hashtable_get(&table, "test1", (void**)&get_testval_1);
-	expect_to_be_false(result);
-
-	hashtable_destroy(&table);
-
-	expect_should_be(0, table.memory);
-	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
-
-	return true;
-}
-
-u8 hashtable_try_call_ptr_on_non_ptr_table(void) {
-	hashtable table;
-	u64 element_size = sizeof(ht_test_struct);
-	u64 element_count = 3;
-	ht_test_struct memory[3];
-
-	hashtable_create(element_size, element_count, memory, false, &table);
-
-	expect_should_not_be(0, table.memory);
-	expect_should_be(sizeof(ht_test_struct), table.element_size);
-	expect_should_be(3, table.element_count);
-
-	KDEBUG("The following 2 error messages are intentional.");
-
-	ht_test_struct t;
-	ht_test_struct* testval1 = &t;
-	testval1->b_value = true;
-	testval1->u_value = 63;
-	testval1->f_value = 3.1415f;
-	// Attempt to call pointer functions.
-	b8 result = hashtable_set_ptr(&table, "test1", (void**)&testval1);
-	expect_to_be_false(result);
-
-	// Try to call pointer function.
-	ht_test_struct* get_testval_1 = 0;
-	result = hashtable_get_ptr(&table, "test1", (void**)&get_testval_1);
-	expect_to_be_false(result);
-
-	hashtable_destroy(&table);
-
-	expect_should_be(0, table.memory);
-	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
-
-	return true;
-}
-
-u8 hashtable_should_set_get_and_update_ptr_successfully(void) {
-	hashtable table;
-	u64 element_size = sizeof(ht_test_struct*);
-	u64 element_count = 3;
-	ht_test_struct* memory[3];
-
-	hashtable_create(element_size, element_count, memory, true, &table);
-
-	expect_should_not_be(0, table.memory);
-	expect_should_be(sizeof(ht_test_struct*), table.element_size);
-	expect_should_be(3, table.element_count);
-
-	ht_test_struct t;
-	ht_test_struct* testval1 = &t;
-	testval1->b_value = true;
-	testval1->u_value = 63;
-	testval1->f_value = 3.1415f;
-	hashtable_set_ptr(&table, "test1", (void**)&testval1);
-
-	ht_test_struct* get_testval_1 = 0;
-	hashtable_get_ptr(&table, "test1", (void**)&get_testval_1);
-	expect_should_be(testval1->b_value, get_testval_1->b_value);
-	expect_should_be(testval1->u_value, get_testval_1->u_value);
-
-	// Update pointed-to values
-	get_testval_1->b_value = false;
-	get_testval_1->u_value = 99;
-	get_testval_1->f_value = 6.69f;
-
-	// Get the pointer again and confirm correct values
-	ht_test_struct* get_testval_2 = 0;
-	hashtable_get_ptr(&table, "test1", (void**)&get_testval_2);
-	expect_to_be_false(get_testval_2->b_value);
-	expect_should_be(99, get_testval_2->u_value);
-	expect_float_to_be(6.69f, get_testval_2->f_value);
-
-	hashtable_destroy(&table);
-
-	expect_should_be(0, table.memory);
-	expect_should_be(0, table.element_size);
-	expect_should_be(0, table.element_count);
+	expect_should_be(0, table.capacity);
+	expect_should_be(0, table.filled);
+	expect_to_be_false(table.is_pointer_type);
 
 	return true;
 }
 
 void hashtable_register_tests(void) {
 	test_manager_register_test(hashtable_should_create_and_destroy, "Hashtable should create and destroy");
-	test_manager_register_test(hashtable_should_set_and_get_successfully, "Hashtable should set and get");
-	test_manager_register_test(hashtable_should_set_and_get_ptr_successfully, "Hashtable should set and get pointer");
-	test_manager_register_test(hashtable_should_set_and_get_nonexistant, "Hashtable should set and get non-existent entry as nothing.");
-	test_manager_register_test(hashtable_should_set_and_get_ptr_nonexistant, "Hashtable should set and get non-existent pointer entry as nothing.");
-	test_manager_register_test(hashtable_should_set_and_unset_ptr, "Hashtable should set and unset pointer entry as nothing.");
-	test_manager_register_test(hashtable_try_call_non_ptr_on_ptr_table, "Hashtable try calling non-pointer functions on pointer type table.");
-	test_manager_register_test(hashtable_try_call_ptr_on_non_ptr_table, "Hashtable try calling pointer functions on non-pointer type table.");
-	test_manager_register_test(hashtable_should_set_get_and_update_ptr_successfully, "Hashtable Should get pointer, update, and get again successfully.");
+	test_manager_register_test(hashtable_should_set_and_get_successfully, "Hashtable should get and set successfully");
+	test_manager_register_test(hashtable_should_grow_successfully, "Hashtable should grow successfully");
+	test_manager_register_test(hashtable_should_set_and_get_ptr_successfully, "Hashtable should get and set pointer successfully");
+	test_manager_register_test(hashtable_should_get_nonexistant, "Hashtable should get nonexistant and fail");
+	test_manager_register_test(hashtable_should_get_nonexistant_ptr, "Hashtable should get nonexistant pointer and fail");
+	test_manager_register_test(hashtable_should_reset_ptr, "Hashtable should reset pointer");
 }
