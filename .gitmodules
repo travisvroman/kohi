@@ -1,3 +1,6 @@
 [submodule "submodules/assimp"]
 	path = submodules/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "submodules/kbuild"]
+	path = submodules/kbuild
+	url = git@github.com:travisvroman/kbuild.git
