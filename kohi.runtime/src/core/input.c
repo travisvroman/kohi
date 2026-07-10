@@ -185,10 +185,14 @@ void input_process_key(keys key, b8 pressed, b8 is_repeat) {
 				}
 
 				if (pressed && binding->type & KEYMAP_BIND_TYPE_PRESS) {
-					state_ptr->app->on_action(state_ptr->app, binding->code);
+					if (binding->code && check_modifiers(binding->modifiers)) {
+						state_ptr->app->on_action(state_ptr->app, binding->code);
+					}
 				}
 				if (!pressed && binding->type & KEYMAP_BIND_TYPE_RELEASE && !is_repeat_state) {
-					state_ptr->app->on_action(state_ptr->app, binding->code);
+					if (binding->code && check_modifiers(binding->modifiers)) {
+						state_ptr->app->on_action(state_ptr->app, binding->code);
+					}
 				}
 
 				binding = binding->next;

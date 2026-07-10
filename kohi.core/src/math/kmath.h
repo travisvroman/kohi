@@ -480,6 +480,17 @@ KINLINE f32 vec2_length(vec2 vector) {
 }
 
 /**
+ * @brief Returns the square root of the sum of the vector's components.
+ * Often used to find the hypotenuse of a right triangle. This function
+ * has additional guards in place to safely prevent numeric under/overflow
+ * as opposed to just using length().
+ *
+ * @param v The vector whose components are to be used.
+ * @return The square root of the sum of the vector's components.
+ */
+KAPI f32 vec2_hypot(vec2 v);
+
+/**
  * @brief Normalizes the provided vector in place to a unit vector.
  *
  * @param vector A pointer to the vector to be normalized.
@@ -818,6 +829,17 @@ KINLINE f32 vec3_length_squared(vec3 vector) {
 KINLINE f32 vec3_length(vec3 vector) {
 	return ksqrt(vec3_length_squared(vector));
 }
+
+/**
+ * @brief Returns the square root of the sum of the vector's components.
+ * Often used to find the hypotenuse of a right triangle. This function
+ * has additional guards in place to safely prevent numeric under/overflow
+ * as opposed to just using length().
+ *
+ * @param v The vector whose components are to be used.
+ * @return The square root of the sum of the vector's components.
+ */
+KAPI f32 vec3_hypot(vec3 v);
 
 /**
  * @brief Normalizes the provided vector in place to a unit vector.

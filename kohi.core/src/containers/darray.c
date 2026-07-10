@@ -74,7 +74,7 @@ void* _darray_push(void* array, const void* value_ptr) {
 	return array;
 }
 
-void _darray_pop(void* array, void* dest) {
+void darray_pop(void* array, void* dest) {
 	u64 length = darray_length(array);
 	u64 stride = darray_stride(array);
 	if (length < 1) {

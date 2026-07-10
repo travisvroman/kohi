@@ -103,6 +103,38 @@ f32 kattenuation_min_max(f32 min, f32 max, f32 x) {
 	return att;
 }
 
+f32 vec2_hypot(vec2 v) {
+	f32 ax = kabs(v.x);
+	f32 ay = kabs(v.y);
+
+	f32 m = KMAX(ax, ay);
+	if (m == 0.0f) {
+		return 0.0f;
+	}
+
+	ax /= m;
+	ay /= m;
+
+	return m * ksqrt(ax * ax + ay * ay);
+}
+
+f32 vec3_hypot(vec3 v) {
+	f32 ax = kabs(v.x);
+	f32 ay = kabs(v.y);
+	f32 az = kabs(v.z);
+
+	f32 m = KMAX(ax, KMAX(ay, az));
+	if (m == 0.0f) {
+		return 0.0f;
+	}
+
+	ax /= m;
+	ay /= m;
+	az /= m;
+
+	return m * ksqrt(ax * ax + ay * ay + az * az);
+}
+
 plane_3d plane_3d_create(vec3 p1, vec3 norm) {
 	plane_3d p;
 	p.normal = vec3_normalized(norm);

@@ -430,4 +430,20 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  */
 #define PACK_U32_U16_AT(target, n, index) (target = (target | ((u32)n << ((1 - index) * 16))))
 
+/**
+ * @brief Indicates if val is within the range of [from-to] (inclusive). Flips from/to if needed.
+ * @param val The value to check.
+ * @param from The low end of the range. Should be <= to.
+ * @param to The high end of the range. Should be >= from.
+ * @returns True if within range; otherwise false.
+ */
 #define IS_IN_RANGE(val, from, to) ((from < to) ? (val >= from && val <= to) : (val <= from && val >= to))
+
+/**
+ * @brief Indicates if val is within the range of (from-to) (exclusive). Flips from/to if needed.
+ * @param val The value to check.
+ * @param from The low end of the range. Should be <= to.
+ * @param to The high end of the range. Should be >= from.
+ * @returns True if within range; otherwise false.
+ */
+#define IS_IN_RANGE_EX(val, from, to) ((from < to) ? (val >= from && val <= to) : (val <= from && val >= to))
