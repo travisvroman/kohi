@@ -17,18 +17,18 @@
 #include "kui_system.h"
 #include "renderer/kui_renderer.h"
 
-static b8 regenerate_label_geometry(kui_state* state, const kui_control self, font_geometry* pending_data);
+static b8 regenerate_label_geometry (kui_state *state, const kui_control self, font_geometry *pending_data);
 
-kui_control kui_label_control_create(kui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text) {
+kui_control kui_label_control_create (kui_state *state, const char *name, font_type type, kname font_name, u16 font_size, const char *text) {
 	return kui_label_control_create_ex(state, name, type, font_name, font_size, text, 0, KUI_LABEL_FLAG_NONE);
 }
 
-kui_control kui_label_control_create_ex(kui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text, f32 max_width, kui_label_flags flags) {
+kui_control kui_label_control_create_ex (kui_state *state, const char *name, font_type type, kname font_name, u16 font_size, const char *text, f32 max_width, kui_label_flags flags) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_LABEL);
 
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 
 	// Reasonable defaults.
 	typed_control->colour = vec4_one();
@@ -90,11 +90,11 @@ kui_control kui_label_control_create_ex(kui_state* state, const char* name, font
 	return handle;
 }
 
-void kui_label_control_destroy(kui_state* state, kui_control* self) {
+void kui_label_control_destroy (kui_state *state, kui_control *self) {
 	// unload
-	kui_base_control* base = kui_system_get_base(state, *self);
+	kui_base_control *base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 
 	if (typed_control->text) {
 		string_free(typed_control->text);
@@ -128,7 +128,7 @@ void kui_label_control_destroy(kui_state* state, kui_control* self) {
 	kui_base_control_destroy(state, self);
 }
 
-b8 kui_label_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_label_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
@@ -138,10 +138,10 @@ b8 kui_label_control_update(kui_state* state, kui_control self, struct frame_dat
 	return true;
 }
 
-b8 kui_label_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_label_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 
 	// render render_prepare
 
@@ -279,10 +279,10 @@ b8 kui_label_control_render(kui_state* state, kui_control self, struct frame_dat
 	return true;
 }
 
-void kui_label_text_set(kui_state* state, kui_control self, const char* text) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_label_text_set (kui_state *state, kui_control self, const char *text) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 
 	// If strings are already equal, don't do anything.
 	if (typed_control->text && strings_equal(text, typed_control->text)) {
@@ -313,24 +313,24 @@ void kui_label_text_set(kui_state* state, kui_control self, const char* text) {
 	}
 }
 
-const char* kui_label_text_get(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+const char *kui_label_text_get (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 	return typed_control->text;
 }
 
-void kui_label_colour_set(kui_state* state, kui_control self, vec4 colour) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_label_colour_set (kui_state *state, kui_control self, vec4 colour) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 	typed_control->colour = colour;
 }
 
-f32 kui_label_line_height_get(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+f32 kui_label_line_height_get (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 	if (typed_control->type == FONT_TYPE_BITMAP) {
 		return font_system_bitmap_font_line_height_get(state->font_system, typed_control->bitmap_font);
 	} else {
@@ -338,10 +338,10 @@ f32 kui_label_line_height_get(kui_state* state, kui_control self) {
 	}
 }
 
-vec2 kui_label_measure_string(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+vec2 kui_label_measure_string (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 	vec2 string_size = vec2_one();
 	if (typed_control->type == FONT_TYPE_BITMAP) {
 		font_system_bitmap_font_measure_string(state->font_system, typed_control->bitmap_font, typed_control->text, typed_control->max_width, &string_size);
@@ -354,10 +354,10 @@ vec2 kui_label_measure_string(kui_state* state, kui_control self) {
 	return string_size;
 }
 
-static b8 regenerate_label_geometry(kui_state* state, const kui_control self, font_geometry* pending_data) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 regenerate_label_geometry (kui_state *state, const kui_control self, font_geometry *pending_data) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_label_control* typed_control = (kui_label_control*)base;
+	kui_label_control *typed_control = (kui_label_control *)base;
 
 	b8 use_ellipsis = FLAG_GET(typed_control->flags, KUI_LABEL_FLAG_TRUNCATE_ELLIPSIS_BIT);
 	b8 truncate = use_ellipsis || FLAG_GET(typed_control->flags, KUI_LABEL_FLAG_TRUNCATE_BIT);

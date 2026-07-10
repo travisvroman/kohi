@@ -21,7 +21,7 @@ typedef struct vulkan_physical_device_requirements {
 	b8 compute;
 	b8 transfer;
 	// darray
-	const char** device_extension_names;
+	const char **device_extension_names;
 	b8 sampler_anisotropy;
 	b8 discrete_gpu;
 } vulkan_physical_device_requirements;
@@ -33,22 +33,22 @@ typedef struct vulkan_physical_device_queue_family_info {
 	i32 transfer_family_index;
 } vulkan_physical_device_queue_family_info;
 
-static b8 select_physical_device(vulkan_context* context, b8 require_discrete_gpu);
-static b8 physical_device_meets_requirements(
-	vulkan_context* context,
+static b8 select_physical_device (vulkan_context *context, b8 require_discrete_gpu);
+static b8 physical_device_meets_requirements (
+	vulkan_context *context,
 	VkPhysicalDevice device,
-	const VkPhysicalDeviceProperties* properties,
-	const VkPhysicalDeviceFeatures* features,
-	const vulkan_physical_device_requirements* requirements,
-	vulkan_physical_device_queue_family_info* out_queue_family_info,
-	vulkan_swapchain_support_info* out_swapchain_support);
+	const VkPhysicalDeviceProperties *properties,
+	const VkPhysicalDeviceFeatures *features,
+	const vulkan_physical_device_requirements *requirements,
+	vulkan_physical_device_queue_family_info *out_queue_family_info,
+	vulkan_swapchain_support_info *out_swapchain_support);
 
-b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
+b8 vulkan_device_create (vulkan_context *context, b8 require_discrete_gpu) {
 	if (!select_physical_device(context, require_discrete_gpu)) {
 		return false;
 	}
 
-	krhi_vulkan* rhi = &context->rhi;
+	krhi_vulkan *rhi = &context->rhi;
 
 	KINFO("Creating logical device...");
 	// NOTE: Do not create additional queues for shared indices.
@@ -107,7 +107,7 @@ b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
 
 	b8 portability_required = false;
 	u32 available_extension_count = 0;
-	VkExtensionProperties* available_extensions = 0;
+	VkExtensionProperties *available_extensions = 0;
 	VK_CHECK(rhi->kvkEnumerateDeviceExtensionProperties(context->device.physical_device, 0, &available_extension_count, 0));
 	if (available_extension_count != 0) {
 		available_extensions = kallocate(sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
@@ -123,7 +123,7 @@ b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
 	kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
 
 	// Setup an array large enough to hold all, even if we don't use them all.
-	const char* extension_names[6] = {0};
+	const char *extension_names[6] = {0};
 	u32 ext_idx = 0;
 	extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 	ext_idx++;
@@ -196,11 +196,11 @@ b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
 		descriptor_indexing_features.pNext = &line_rasterization_ext;
 	}
 
-// #if defined(VK_USE_PLATFORM_MACOS_MVK)
-// 	MVKPhysicalDeviceMetalFeatures metal_features = {
-// 		.sType = MKV
-// 	}
-// #endif
+	// #if defined(VK_USE_PLATFORM_MACOS_MVK)
+	// 	MVKPhysicalDeviceMetalFeatures metal_features = {
+	// 		.sType = MKV
+	// 	}
+	// #endif
 
 	VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
 	device_create_info.queueCreateInfoCount = index_count;
@@ -302,7 +302,7 @@ b8 vulkan_device_create(vulkan_context* context, b8 require_discrete_gpu) {
 	return true;
 }
 
-void vulkan_device_destroy(vulkan_context* context) {
+void vulkan_device_destroy (vulkan_context *context) {
 	// Unset queues
 	context->device.graphics_queue = 0;
 	context->device.present_queue = 0;
@@ -344,11 +344,11 @@ void vulkan_device_destroy(vulkan_context* context) {
 	context->device.transfer_queue_index = -1;
 }
 
-void vulkan_device_query_swapchain_support(
-	vulkan_context* context,
+void vulkan_device_query_swapchain_support (
+	vulkan_context *context,
 	VkPhysicalDevice physical_device,
 	VkSurfaceKHR surface,
-	vulkan_swapchain_support_info* out_support_info) {
+	vulkan_swapchain_support_info *out_support_info) {
 
 	if (out_support_info->formats) {
 		kfree(out_support_info->formats, sizeof(VkSurfaceFormatKHR) * out_support_info->format_count, MEMORY_TAG_RENDERER);
@@ -361,7 +361,7 @@ void vulkan_device_query_swapchain_support(
 		out_support_info->present_mode_count = 0;
 	}
 
-	krhi_vulkan* rhi = &context->rhi;
+	krhi_vulkan *rhi = &context->rhi;
 	// Surface capabilities
 	VkResult result = rhi->kvkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 		physical_device,
@@ -407,8 +407,8 @@ void vulkan_device_query_swapchain_support(
 	}
 }
 
-b8 vulkan_device_detect_depth_format(vulkan_context* context, vulkan_device* device) {
-	krhi_vulkan* rhi = &context->rhi;
+b8 vulkan_device_detect_depth_format (vulkan_context *context, vulkan_device *device) {
+	krhi_vulkan *rhi = &context->rhi;
 	// Format candidates
 	const u64 candidate_count = 2;
 	VkFormat candidates[2] = {
@@ -438,9 +438,9 @@ b8 vulkan_device_detect_depth_format(vulkan_context* context, vulkan_device* dev
 	return false;
 }
 
-static b8 select_physical_device(vulkan_context* context, b8 require_discrete_gpu) {
+static b8 select_physical_device (vulkan_context *context, b8 require_discrete_gpu) {
 	u32 physical_device_count = 0;
-	krhi_vulkan* rhi = &context->rhi;
+	krhi_vulkan *rhi = &context->rhi;
 	VK_CHECK(rhi->kvkEnumeratePhysicalDevices(context->instance, &physical_device_count, 0));
 	if (physical_device_count == 0) {
 		KFATAL("No devices which support Vulkan were found.");
@@ -467,7 +467,7 @@ static b8 select_physical_device(vulkan_context* context, b8 require_discrete_gp
 	requirements.discrete_gpu = require_discrete_gpu;
 #endif
 	KINFO("Vulkan: Discrete GPU is%s required.", require_discrete_gpu ? "" : " NOT");
-	requirements.device_extension_names = darray_create(const char*);
+	requirements.device_extension_names = darray_create(const char *);
 	darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
 	// Iterate physical devices to find one that fits the bill.
@@ -607,16 +607,16 @@ static b8 select_physical_device(vulkan_context* context, b8 require_discrete_gp
 	return true;
 }
 
-static b8 physical_device_meets_requirements(
-	vulkan_context* context,
+static b8 physical_device_meets_requirements (
+	vulkan_context *context,
 	VkPhysicalDevice device,
-	const VkPhysicalDeviceProperties* properties,
-	const VkPhysicalDeviceFeatures* features,
-	const vulkan_physical_device_requirements* requirements,
-	vulkan_physical_device_queue_family_info* out_queue_info,
-	vulkan_swapchain_support_info* out_swapchain_support) {
+	const VkPhysicalDeviceProperties *properties,
+	const VkPhysicalDeviceFeatures *features,
+	const vulkan_physical_device_requirements *requirements,
+	vulkan_physical_device_queue_family_info *out_queue_info,
+	vulkan_swapchain_support_info *out_swapchain_support) {
 
-	krhi_vulkan* rhi = &context->rhi;
+	krhi_vulkan *rhi = &context->rhi;
 	// Evaluate device properties to determine if it meets the needs of our applcation.
 	out_queue_info->graphics_family_index = -1;
 	out_queue_info->present_family_index = -1;
@@ -713,7 +713,7 @@ static b8 physical_device_meets_requirements(
 		// Device extensions.
 		if (requirements->device_extension_names) {
 			u32 available_extension_count = 0;
-			VkExtensionProperties* available_extensions = 0;
+			VkExtensionProperties *available_extensions = 0;
 			VK_CHECK(rhi->kvkEnumerateDeviceExtensionProperties(
 				device,
 				0,

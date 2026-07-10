@@ -3,7 +3,7 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 
-b8 ring_queue_create(u32 stride, u32 capacity, void* memory, ring_queue* out_queue) {
+b8 ring_queue_create (u32 stride, u32 capacity, void *memory, ring_queue *out_queue) {
 	if (!out_queue) {
 		KERROR("ring_queue_create requires a valid pointer to hold the queue.");
 		return false;
@@ -25,7 +25,7 @@ b8 ring_queue_create(u32 stride, u32 capacity, void* memory, ring_queue* out_que
 	return true;
 }
 
-void ring_queue_destroy(ring_queue* queue) {
+void ring_queue_destroy (ring_queue *queue) {
 	if (queue) {
 		if (queue->owns_memory) {
 			kfree(queue->block, queue->capacity * queue->stride, MEMORY_TAG_RING_QUEUE);
@@ -34,7 +34,7 @@ void ring_queue_destroy(ring_queue* queue) {
 	}
 }
 
-b8 ring_queue_enqueue(ring_queue* queue, void* value) {
+b8 ring_queue_enqueue (ring_queue *queue, void *value) {
 	if (queue && value) {
 		if (queue->length == queue->capacity) {
 			KERROR("ring_queue_enqueue - Attempted to enqueue value in full ring queue: %p", queue);
@@ -52,7 +52,7 @@ b8 ring_queue_enqueue(ring_queue* queue, void* value) {
 	return false;
 }
 
-b8 ring_queue_dequeue(ring_queue* queue, void* out_value) {
+b8 ring_queue_dequeue (ring_queue *queue, void *out_value) {
 	if (queue && out_value) {
 		if (queue->length == 0) {
 			KERROR("ring_queue_dequeue - Attempted to dequeue value in empty ring queue: %p", queue);
@@ -69,7 +69,7 @@ b8 ring_queue_dequeue(ring_queue* queue, void* out_value) {
 	return false;
 }
 
-b8 ring_queue_peek(const ring_queue* queue, void* out_value) {
+b8 ring_queue_peek (const ring_queue *queue, void *out_value) {
 	if (queue && out_value) {
 		if (queue->length == 0) {
 			KERROR("ring_queue_peek - Attempted to peek value in empty ring queue: %p", queue);

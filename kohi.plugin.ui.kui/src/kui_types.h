@@ -47,7 +47,7 @@ typedef struct kui_render_data {
 	u32 shader_set0_binding_instance_id;
 
 	u32 renderable_count;
-	kui_renderable* renderables;
+	kui_renderable *renderables;
 } kui_render_data;
 
 // Global UBO data for the KUI shader.
@@ -133,9 +133,9 @@ typedef u32 kui_control_flags;
  * The mouse event handler callback for a control.
  * @returns True if the event should be allowed to propagate to other controls; otherwise false.
  */
-typedef b8 (*PFN_mouse_event_callback)(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-typedef void (*PFN_keyboard_event_callback)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
-typedef void (*PFN_checkbox_event_callback)(struct kui_state* state, kui_control self, kui_checkbox_event event);
+typedef b8 (*PFN_mouse_event_callback)(struct kui_state *state, kui_control self, struct kui_mouse_event event);
+typedef void (*PFN_keyboard_event_callback)(struct kui_state *state, kui_control self, struct kui_keyboard_event event);
+typedef void (*PFN_checkbox_event_callback)(struct kui_state *state, kui_control self, kui_checkbox_event event);
 
 typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_NONE, // indicates a "free" slot in the internal arrays
@@ -158,7 +158,7 @@ typedef struct kui_base_control {
 	// A copy of the handle for reverse lookups.
 	kui_control handle;
 	ktransform ktransform;
-	char* name;
+	char *name;
 
 	kui_control_flags flags;
 
@@ -171,18 +171,18 @@ typedef struct kui_base_control {
 
 	kui_control parent;
 	// darray
-	kui_control* children;
+	kui_control *children;
 
 	memory_tag user_data_memory_tag;
-	void* user_data;
+	void *user_data;
 	u64 user_data_size;
 
-	void (*destroy)(struct kui_state* state, kui_control* self);
+	void (*destroy)(struct kui_state *state, kui_control *self);
 
-	b8 (*update)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data);
-	b8 (*render)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data, struct kui_render_data* reneder_data);
+	b8 (*update)(struct kui_state *state, kui_control self, struct frame_data *p_frame_data);
+	b8 (*render)(struct kui_state *state, kui_control self, struct frame_data *p_frame_data, struct kui_render_data *reneder_data);
 
-	void (*active_changed)(struct kui_state* state, kui_control self, b8 is_active);
+	void (*active_changed)(struct kui_state *state, kui_control self, b8 is_active);
 
 	/**
 	 * The click handler for a control.
@@ -201,8 +201,8 @@ typedef struct kui_base_control {
 	PFN_mouse_event_callback on_mouse_drag_end;
 	PFN_mouse_event_callback on_mouse_wheel;
 
-	void (*on_focus)(struct kui_state* state, kui_control self);
-	void (*on_unfocus)(struct kui_state* state, kui_control self);
+	void (*on_focus)(struct kui_state *state, kui_control self);
+	void (*on_unfocus)(struct kui_state *state, kui_control self);
 
 	PFN_mouse_event_callback internal_click;
 	PFN_mouse_event_callback internal_mouse_over;
@@ -254,7 +254,7 @@ typedef struct kui_label_control {
 	u64 index_buffer_offset;
 	u64 vertex_buffer_size;
 	u64 index_buffer_size;
-	char* text;
+	char *text;
 	u32 max_text_length;
 	u32 quad_count;
 	u32 max_quad_count;
@@ -288,7 +288,7 @@ typedef enum kui_textbox_type {
 } kui_textbox_type;
 
 typedef struct kui_textbox_event_listener {
-	struct kui_state* state;
+	struct kui_state *state;
 	kui_control control;
 } kui_textbox_event_listener;
 
@@ -310,7 +310,7 @@ typedef struct kui_textbox_control {
 	// Cached copy of the internal label's line height (taken in turn from its font.)
 	f32 label_line_height;
 
-	struct kui_textbox_event_listener* listener;
+	struct kui_textbox_event_listener *listener;
 } kui_textbox_control;
 
 typedef struct kui_frame_control {
@@ -342,7 +342,7 @@ typedef struct kui_tree_item_control {
 struct kui_scrollable_control;
 
 typedef struct kui_scrollbar {
-	struct kui_scrollable_control* owner;
+	struct kui_scrollable_control *owner;
 
 	f32 drag_button_offset_start;
 	f32 drag_button_mouse_offset;
@@ -376,7 +376,7 @@ typedef struct kui_scrollable_control {
 	vec2 min_offset;
 
 	// HACK: Use proper kui events so we don't have to do this
-	struct kui_state* kui_state;
+	struct kui_state *kui_state;
 } kui_scrollable_control;
 
 typedef struct kui_image_box_control {

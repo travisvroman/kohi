@@ -29,20 +29,20 @@ typedef struct macos_handle_info {
 } macos_handle_info;
 
 typedef struct kwindow_platform_state {
-	WindowDelegate* wnd_delegate;
-	NSWindow* handle;
-	ContentView* view;
-	CAMetalLayer* layer;
+	WindowDelegate *wnd_delegate;
+	NSWindow *handle;
+	ContentView *view;
+	CAMetalLayer *layer;
 	f32 device_pixel_ratio;
 } kwindow_platform_state;
 
-void vulkan_platform_get_required_extension_names(const char*** names_darray) {
+void vulkan_platform_get_required_extension_names (const char ***names_darray) {
 	darray_push(*names_darray, &"VK_EXT_metal_surface");
 	// Required for macos
 	darray_push(*names_darray, &VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 }
 
-b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow* window) {
+b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindow *window) {
 
 	VkMetalSurfaceCreateInfoEXT create_info = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
 	create_info.pLayer = window->platform_state->layer;
@@ -65,7 +65,7 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 	return true;
 }
 
-b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevice physical_device, u32 queue_family_index) {
+b8 vulkan_platform_presentation_support (vulkan_context *context, VkPhysicalDevice physical_device, u32 queue_family_index) {
 	// NOTE: According to the Vulkan spec this must always be supported for all devices.
 	// https://registry.khronos.org/vulkan/specs/1.3-extensions/html/chap34.html#_querying_for_wsi_support
 	// 34.4.10. macOS Platform
@@ -73,7 +73,7 @@ b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevic
 	return true;
 }
 
-b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+b8 vulkan_platform_initialize (krhi_vulkan *rhi) {
 	if (!rhi) {
 		return false;
 	}
@@ -81,7 +81,7 @@ b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
 	return platform_dynamic_library_load("vulkan.1", &rhi->vulkan_lib);
 }
 
-void vulkan_platform_shutdown(krhi_vulkan* rhi) {
+void vulkan_platform_shutdown (krhi_vulkan *rhi) {
 	if (rhi) {
 		platform_dynamic_library_unload(&rhi->vulkan_lib);
 	}

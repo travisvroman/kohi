@@ -27,34 +27,34 @@ typedef u32 ktransform_flag_bits;
 // Going with a SOA here so that like data is grouped together.
 typedef struct ktransform_system_state {
 	/** @brief The cached local matrices in the world, indexed by handle. */
-	mat4* local_matrices;
+	mat4 *local_matrices;
 
 	/** @brief The cached world matrices in the world, indexed by handle. */
-	mat4* world_matrices;
+	mat4 *world_matrices;
 
 	/** @brief The positions in the world, indexed by handle. */
-	vec3* positions;
+	vec3 *positions;
 
 	/** @brief The rotations in the world, indexed by handle. */
-	quat* rotations;
+	quat *rotations;
 
 	/** @brief The scales in the world, indexed by handle. */
-	vec3* scales;
+	vec3 *scales;
 
 	/** @brief The flags of the transforms, indexed by handle. */
-	ktransform_flag_bits* flags;
+	ktransform_flag_bits *flags;
 
 	/** @brief User data, typically a handle or pointer to something. */
-	u64* user;
+	u64 *user;
 
 	/** @brief Parent transforms, indexed by handle. KTRANSFORM_INVALID means no parent. */
-	ktransform* parents;
+	ktransform *parents;
 
 	/** @brief The depth of the transform in the hierarchy. Used for efficient recalculation of transforms. */
-	u8* depths;
+	u8 *depths;
 
 	/** @brief A list of handle ids that represent dirty local ktransforms. */
-	ktransform* local_dirty_handles;
+	ktransform *local_dirty_handles;
 	u32 local_dirty_count;
 
 	/** The number of slots available (capacity) (NOT the allocated space in bytes!) */
@@ -73,30 +73,30 @@ typedef struct ktransform_system_state {
  * @param state A pointer to the state.
  * @param slot_count The number of slots to ensure exist.
  */
-static void ensure_allocated(ktransform_system_state* state, u32 slot_count);
-static void dirty_list_reset(ktransform_system_state* state);
-static void dirty_list_add_r(ktransform_system_state* state, ktransform t);
-static ktransform handle_create(ktransform_system_state* state);
-static void handle_destroy(ktransform_system_state* state, ktransform* t);
+static void ensure_allocated (ktransform_system_state *state, u32 slot_count);
+static void dirty_list_reset (ktransform_system_state *state);
+static void dirty_list_add_r (ktransform_system_state *state, ktransform t);
+static ktransform handle_create (ktransform_system_state *state);
+static void handle_destroy (ktransform_system_state *state, ktransform *t);
 // Validates the handle itself, as well as compares it against the ktransform at the handle's index position.
-static b8 validate_handle(ktransform_system_state* state, ktransform handle);
-static void recalculate_world_r(ktransform t);
+static b8 validate_handle (ktransform_system_state *state, ktransform handle);
+static void recalculate_world_r (ktransform t);
 
-static void on_transform_dump(console_command_context context) {
-	ktransform_system_state* state = context.listener;
+static void on_transform_dump (console_command_context context) {
+	ktransform_system_state *state = context.listener;
 
 	KINFO("Transform system - allocated/capacity = %u/%u", state->allocated, state->capacity);
 }
 
-b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* config) {
+b8 ktransform_system_initialize (u64 *memory_requirement, void *state, void *config) {
 	*memory_requirement = sizeof(ktransform_system_state);
 
 	if (!state) {
 		return true;
 	}
 
-	ktransform_system_config* typed_config = config;
-	ktransform_system_state* typed_state = state;
+	ktransform_system_config *typed_config = config;
+	ktransform_system_state *typed_state = state;
 
 	kzero_memory(state, sizeof(ktransform_system_state));
 
@@ -125,9 +125,9 @@ b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* conf
 	return true;
 }
 
-void ktransform_system_shutdown(void* state) {
+void ktransform_system_shutdown (void *state) {
 	if (state) {
-		ktransform_system_state* typed_state = state;
+		ktransform_system_state *typed_state = state;
 
 		renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, typed_state->transform_global_ssbo);
 
@@ -166,11 +166,11 @@ void ktransform_system_shutdown(void* state) {
 	}
 }
 
-static i32 transform_depth_kquicksort_compare_internal(void* a, void* b, i32 mod) {
-	ktransform* a_typed = a;
-	ktransform* b_typed = b;
+static i32 transform_depth_kquicksort_compare_internal (void *a, void *b, i32 mod) {
+	ktransform *a_typed = a;
+	ktransform *b_typed = b;
 
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	u8 da = state->depths[*a_typed];
 	u8 db = state->depths[*b_typed];
 	if (da > db) {
@@ -181,14 +181,14 @@ static i32 transform_depth_kquicksort_compare_internal(void* a, void* b, i32 mod
 	return 0;
 }
 
-static i32 transform_depth_kquicksort_compare(void* a, void* b) {
+static i32 transform_depth_kquicksort_compare (void *a, void *b) {
 	return transform_depth_kquicksort_compare_internal(a, b, 1);
 }
-static i32 transform_depth_kquicksort_compare_desc(void* a, void* b) {
+static i32 transform_depth_kquicksort_compare_desc (void *a, void *b) {
 	return transform_depth_kquicksort_compare_internal(a, b, -1);
 }
 
-b8 ktransform_system_update(ktransform_system_state* state, struct frame_data* p_frame_data) {
+b8 ktransform_system_update (ktransform_system_state *state, struct frame_data *p_frame_data) {
 	// Sort the dirty list by depth.
 	kquick_sort(sizeof(ktransform), state->local_dirty_handles, 0, state->local_dirty_count - 1, transform_depth_kquicksort_compare);
 
@@ -201,17 +201,17 @@ b8 ktransform_system_update(ktransform_system_state* state, struct frame_data* p
 	dirty_list_reset(state);
 
 	// Update the data in the SSBO.
-	void* mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
-	mat4* mapped_transforms = (mat4*)mapped_memory;
+	void *mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
+	mat4 *mapped_transforms = (mat4 *)mapped_memory;
 
 	kcopy_memory(mapped_transforms, state->world_matrices, sizeof(mat4) * state->capacity);
 
 	return true;
 }
 
-ktransform ktransform_create(u64 user) {
+ktransform ktransform_create (u64 user) {
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = vec3_zero();
@@ -230,9 +230,9 @@ ktransform ktransform_create(u64 user) {
 	return handle;
 }
 
-ktransform ktransform_clone(ktransform original, u64 user) {
+ktransform ktransform_clone (ktransform original, u64 user) {
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = state->positions[original];
@@ -251,8 +251,8 @@ ktransform ktransform_clone(ktransform original, u64 user) {
 	return handle;
 }
 
-void ktransform_mark_dirty(ktransform transform) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_mark_dirty (ktransform transform) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, transform)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -260,9 +260,9 @@ void ktransform_mark_dirty(ktransform transform) {
 	}
 }
 
-ktransform ktransform_from_position(vec3 position, u64 user) {
+ktransform ktransform_from_position (vec3 position, u64 user) {
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = position;
@@ -282,9 +282,9 @@ ktransform ktransform_from_position(vec3 position, u64 user) {
 	return handle;
 }
 
-ktransform ktransform_from_rotation(quat rotation, u64 user) {
+ktransform ktransform_from_rotation (quat rotation, u64 user) {
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = vec3_zero();
@@ -304,9 +304,9 @@ ktransform ktransform_from_rotation(quat rotation, u64 user) {
 	return handle;
 }
 
-ktransform ktransform_from_position_rotation(vec3 position, quat rotation, u64 user) {
+ktransform ktransform_from_position_rotation (vec3 position, quat rotation, u64 user) {
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = position;
@@ -326,9 +326,9 @@ ktransform ktransform_from_position_rotation(vec3 position, quat rotation, u64 u
 	return handle;
 }
 
-ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale, u64 user) {
+ktransform ktransform_from_position_rotation_scale (vec3 position, quat rotation, vec3 scale, u64 user) {
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = position;
@@ -348,18 +348,18 @@ ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation,
 	return handle;
 }
 
-ktransform ktransform_from_matrix(mat4 m, u64 user) {
+ktransform ktransform_from_matrix (mat4 m, u64 user) {
 	// TODO: decompose matrix
 	KASSERT_MSG(false, "Not implemented.");
 	return KTRANSFORM_INVALID;
 }
 
-void ktransform_destroy(ktransform* t) {
+void ktransform_destroy (ktransform *t) {
 	handle_destroy(engine_systems_get()->ktransform_system, t);
 }
 
-b8 ktransform_is_identity(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+b8 ktransform_is_identity (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		return false;
 	}
@@ -376,8 +376,8 @@ b8 ktransform_is_identity(ktransform t) {
 	return true;
 }
 
-b8 ktransform_parent_set(ktransform t, ktransform parent) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+b8 ktransform_parent_set (ktransform t, ktransform parent) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		return false;
 	}
@@ -396,8 +396,8 @@ b8 ktransform_parent_set(ktransform t, ktransform parent) {
 	return true;
 }
 
-ktransform ktransform_parent_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+ktransform ktransform_parent_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		return KTRANSFORM_INVALID;
 	}
@@ -405,8 +405,8 @@ ktransform ktransform_parent_get(ktransform t) {
 	return state->parents[t];
 }
 
-vec3 ktransform_position_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+vec3 ktransform_position_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, returning zero vector as position.");
 		return vec3_zero();
@@ -414,8 +414,8 @@ vec3 ktransform_position_get(ktransform t) {
 	return state->positions[t];
 }
 
-vec3 ktransform_world_position_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+vec3 ktransform_world_position_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, returning zero vector as position.");
 		return vec3_zero();
@@ -423,8 +423,8 @@ vec3 ktransform_world_position_get(ktransform t) {
 	return mat4_position(state->world_matrices[t]);
 }
 
-void ktransform_position_set(ktransform t, vec3 position) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_position_set (ktransform t, vec3 position) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -433,8 +433,8 @@ void ktransform_position_set(ktransform t, vec3 position) {
 	}
 }
 
-void ktransform_translate(ktransform t, vec3 translation) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_translate (ktransform t, vec3 translation) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -443,8 +443,8 @@ void ktransform_translate(ktransform t, vec3 translation) {
 	}
 }
 
-quat ktransform_rotation_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+quat ktransform_rotation_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, returning identity quaternion as rotation.");
 		return quat_identity();
@@ -452,8 +452,8 @@ quat ktransform_rotation_get(ktransform t) {
 	return state->rotations[t];
 }
 
-quat ktransform_world_rotation_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+quat ktransform_world_rotation_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, returning identity quaternion as rotation.");
 		return quat_identity();
@@ -461,7 +461,7 @@ quat ktransform_world_rotation_get(ktransform t) {
 
 	// Climb the tree until a root is reached, then multiply the rotations all the way down.
 	// This ensures that scale data doesn't affect rotational data.
-	quat* rotations = darray_reserve(quat, 16);
+	quat *rotations = darray_reserve(quat, 16);
 	ktransform parent = state->parents[t];
 	while (parent != KTRANSFORM_INVALID) {
 		darray_push(rotations, state->rotations[parent]);
@@ -482,8 +482,8 @@ quat ktransform_world_rotation_get(ktransform t) {
 	return world;
 }
 
-void ktransform_rotation_set(ktransform t, quat rotation) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_rotation_set (ktransform t, quat rotation) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -492,9 +492,9 @@ void ktransform_rotation_set(ktransform t, quat rotation) {
 	}
 }
 
-void ktransform_rotate(ktransform t, quat rotation) {
+void ktransform_rotate (ktransform t, quat rotation) {
 	rotation = quat_normalize(rotation);
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -503,8 +503,8 @@ void ktransform_rotate(ktransform t, quat rotation) {
 	}
 }
 
-vec3 ktransform_scale_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+vec3 ktransform_scale_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, returning one vector as scale.");
 		return vec3_zero();
@@ -512,8 +512,8 @@ vec3 ktransform_scale_get(ktransform t) {
 	return state->scales[t];
 }
 
-vec3 ktransform_world_scale_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+vec3 ktransform_world_scale_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, returning one vector as scale.");
 		return vec3_one();
@@ -521,7 +521,7 @@ vec3 ktransform_world_scale_get(ktransform t) {
 
 	// Climb the tree until a root is reached, then multiply the scales all the way down.
 	// This ensures that rotational data doesn't affect scale data.
-	vec3* scales = darray_reserve(vec3, 16);
+	vec3 *scales = darray_reserve(vec3, 16);
 	ktransform parent = state->parents[t];
 	while (parent != KTRANSFORM_INVALID) {
 		darray_push(scales, state->scales[parent]);
@@ -539,8 +539,8 @@ vec3 ktransform_world_scale_get(ktransform t) {
 	return world;
 }
 
-void ktransform_scale_set(ktransform t, vec3 scale) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_scale_set (ktransform t, vec3 scale) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -549,8 +549,8 @@ void ktransform_scale_set(ktransform t, vec3 scale) {
 	}
 }
 
-void ktransform_scale(ktransform t, vec3 scale) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_scale (ktransform t, vec3 scale) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -559,8 +559,8 @@ void ktransform_scale(ktransform t, vec3 scale) {
 	}
 }
 
-void ktransform_position_rotation_set(ktransform t, vec3 position, quat rotation) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_position_rotation_set (ktransform t, vec3 position, quat rotation) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -570,8 +570,8 @@ void ktransform_position_rotation_set(ktransform t, vec3 position, quat rotation
 	}
 }
 
-void ktransform_position_rotation_scale_set(ktransform t, vec3 position, quat rotation, vec3 scale) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_position_rotation_scale_set (ktransform t, vec3 position, quat rotation, vec3 scale) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -582,8 +582,8 @@ void ktransform_position_rotation_scale_set(ktransform t, vec3 position, quat ro
 	}
 }
 
-void ktransform_translate_rotate(ktransform t, vec3 translation, quat rotation) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_translate_rotate (ktransform t, vec3 translation, quat rotation) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (!validate_handle(state, t)) {
 		KWARN("Invalid handle passed, nothing was done.");
 	} else {
@@ -593,8 +593,8 @@ void ktransform_translate_rotate(ktransform t, vec3 translation, quat rotation) 
 	}
 }
 
-void ktransform_calculate_local(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_calculate_local (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		u32 index = t;
 // TODO: investigate mat4_from_translation_rotation_scale
@@ -607,8 +607,8 @@ void ktransform_calculate_local(ktransform t) {
 	}
 }
 
-mat4 ktransform_world_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+mat4 ktransform_world_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		return state->world_matrices[t];
 	}
@@ -617,8 +617,8 @@ mat4 ktransform_world_get(ktransform t) {
 	return mat4_identity();
 }
 
-u64 ktransform_user_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+u64 ktransform_user_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		return state->user[t];
 	}
@@ -627,8 +627,8 @@ u64 ktransform_user_get(ktransform t) {
 	return INVALID_ID_U64;
 }
 
-void ktransform_user_set(ktransform t, u64 user) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+void ktransform_user_set (ktransform t, u64 user) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		state->user[t] = user;
 		return;
@@ -637,8 +637,8 @@ void ktransform_user_set(ktransform t, u64 user) {
 	KWARN("Invalid handle passed to %s. Nothing will be done.", __FUNCTION__);
 }
 
-mat4 ktransform_local_get(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+mat4 ktransform_local_get (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		u32 index = t;
 		return state->local_matrices[index];
@@ -648,8 +648,8 @@ mat4 ktransform_local_get(ktransform t) {
 	return mat4_identity();
 }
 
-const char* ktransform_to_string(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+const char *ktransform_to_string (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		u32 index = t;
 		vec3 position = state->positions[index];
@@ -674,7 +674,7 @@ const char* ktransform_to_string(ktransform t) {
 	return 0;
 }
 
-b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform) {
+b8 ktransform_from_string (const char *str, u64 user, ktransform *out_ktransform) {
 	if (!out_ktransform) {
 		KERROR("string_to_scene_ktransform_config requires a valid pointer to out_ktransform.");
 		return false;
@@ -726,7 +726,7 @@ b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform)
 	}
 
 	ktransform handle = {0};
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (state) {
 		handle = handle_create(state);
 		state->positions[handle] = position;
@@ -747,21 +747,21 @@ b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform)
 	return result;
 }
 
-static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
+static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 	// FIXME: Something about this repeatedly asks for larger and larger size.
 	KASSERT_MSG(slot_count % 8 == 0, "ensure_allocated requires new slot_count to be a multiple of 8.");
 
 	if (state->capacity < slot_count) {
 		// Setup the arrays of data, starting with the matrices. These should be 16-bit
 		// aligned so that SIMD is an easy addition later on.
-		mat4* new_local_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		mat4 *new_local_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_matrices) {
 			kcopy_memory(new_local_matrices, state->local_matrices, sizeof(mat4) * state->capacity);
 			kfree_aligned(state->local_matrices, sizeof(mat4) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->local_matrices = new_local_matrices;
 
-		mat4* new_world_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		mat4 *new_world_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->world_matrices) {
 			kcopy_memory(new_world_matrices, state->world_matrices, sizeof(mat4) * state->capacity);
 			kfree_aligned(state->world_matrices, sizeof(mat4) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -769,21 +769,21 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		state->world_matrices = new_world_matrices;
 
 		// Also align positions, rotations and scales for future SIMD purposes.
-		vec3* new_positions = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		vec3 *new_positions = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->positions) {
 			kcopy_memory(new_positions, state->positions, sizeof(vec3) * state->capacity);
 			kfree_aligned(state->positions, sizeof(vec3) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->positions = new_positions;
 
-		quat* new_rotations = kallocate_aligned(sizeof(quat) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		quat *new_rotations = kallocate_aligned(sizeof(quat) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->rotations) {
 			kcopy_memory(new_rotations, state->rotations, sizeof(quat) * state->capacity);
 			kfree_aligned(state->rotations, sizeof(quat) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
 		}
 		state->rotations = new_rotations;
 
-		vec3* new_scales = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		vec3 *new_scales = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->scales) {
 			kcopy_memory(new_scales, state->scales, sizeof(vec3) * state->capacity);
 			kfree_aligned(state->scales, sizeof(vec3) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -791,7 +791,7 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		state->scales = new_scales;
 
 		// Identifiers don't *need* to be aligned, but do it anyways since everythingaelse is.
-		ktransform_flag_bits* new_flags = kallocate_aligned(sizeof(ktransform_flag_bits) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		ktransform_flag_bits *new_flags = kallocate_aligned(sizeof(ktransform_flag_bits) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->flags) {
 			kcopy_memory(new_flags, state->flags, sizeof(ktransform_flag_bits) * state->capacity);
 			kfree_aligned(state->flags, sizeof(ktransform_flag_bits) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -803,7 +803,7 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		}
 
 		// User data
-		u64* new_user = kallocate_aligned(sizeof(u64) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		u64 *new_user = kallocate_aligned(sizeof(u64) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->user) {
 			kcopy_memory(new_user, state->user, sizeof(u64) * state->capacity);
 			kfree_aligned(state->user, sizeof(u64) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -811,7 +811,7 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		state->user = new_user;
 
 		// Parent data
-		ktransform* new_parent = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		ktransform *new_parent = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->parents) {
 			kcopy_memory(new_parent, state->parents, sizeof(ktransform) * state->capacity);
 			kfree_aligned(state->parents, sizeof(ktransform) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -823,7 +823,7 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		}
 
 		// Depths
-		u8* new_depth = kallocate_aligned(sizeof(u8) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		u8 *new_depth = kallocate_aligned(sizeof(u8) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->depths) {
 			kcopy_memory(new_depth, state->depths, sizeof(u8) * state->capacity);
 			kfree_aligned(state->depths, sizeof(u8) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -831,7 +831,7 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 		state->depths = new_depth;
 
 		// Dirty handle list doesn't *need* to be aligned, but do it anyways since everything else is.
-		u32* new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		u32 *new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_dirty_handles) {
 			kcopy_memory(new_dirty_handles, state->local_dirty_handles, sizeof(ktransform) * state->capacity);
 			kfree_aligned(state->local_dirty_handles, sizeof(ktransform) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
@@ -843,14 +843,14 @@ static void ensure_allocated(ktransform_system_state* state, u32 slot_count) {
 	}
 }
 
-static void dirty_list_reset(ktransform_system_state* state) {
+static void dirty_list_reset (ktransform_system_state *state) {
 	for (u32 i = 0; i < state->local_dirty_count; ++i) {
 		state->local_dirty_handles[i] = INVALID_ID;
 	}
 	state->local_dirty_count = 0;
 }
 
-static void dirty_list_add_r(ktransform_system_state* state, ktransform t) {
+static void dirty_list_add_r (ktransform_system_state *state, ktransform t) {
 	b8 do_add = true;
 	for (u32 i = 0; i < state->local_dirty_count; ++i) {
 		if (state->local_dirty_handles[i] == t) {
@@ -875,7 +875,7 @@ static void dirty_list_add_r(ktransform_system_state* state, ktransform t) {
 	}
 }
 
-static ktransform handle_create(ktransform_system_state* state) {
+static ktransform handle_create (ktransform_system_state *state) {
 	KASSERT_MSG(state, "ktransform_system state pointer accessed before initialized");
 
 	ktransform handle = KTRANSFORM_INVALID;
@@ -903,7 +903,7 @@ static ktransform handle_create(ktransform_system_state* state) {
 	return handle;
 }
 
-static void handle_destroy(ktransform_system_state* state, ktransform* t) {
+static void handle_destroy (ktransform_system_state *state, ktransform *t) {
 	KASSERT_MSG(state, "ktransform_system state pointer accessed before initialized");
 
 	if (*t != KTRANSFORM_INVALID) {
@@ -921,7 +921,7 @@ static void handle_destroy(ktransform_system_state* state, ktransform* t) {
 	}
 }
 
-static b8 validate_handle(ktransform_system_state* state, ktransform handle) {
+static b8 validate_handle (ktransform_system_state *state, ktransform handle) {
 	if (handle == KTRANSFORM_INVALID) {
 		KTRACE("Handle validation failed because the handle is invalid.");
 		return false;
@@ -936,8 +936,8 @@ static b8 validate_handle(ktransform_system_state* state, ktransform handle) {
 	return true;
 }
 
-static void recalculate_world_r(ktransform t) {
-	ktransform_system_state* state = engine_systems_get()->ktransform_system;
+static void recalculate_world_r (ktransform t) {
+	ktransform_system_state *state = engine_systems_get()->ktransform_system;
 	if (t != KTRANSFORM_INVALID) {
 		mat4 child_world;
 		ktransform_calculate_local(t);

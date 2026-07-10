@@ -21,7 +21,7 @@ typedef struct bitmap_font_header {
 	u32 face_name_len;
 } bitmap_font_header;
 
-void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_size) {
+void *kasset_bitmap_font_serialize (const kasset_bitmap_font *asset, u64 *out_size) {
 	if (!asset) {
 		KERROR("Cannot serialize without an asset, ya dingus!");
 		return 0;
@@ -39,9 +39,9 @@ void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_siz
 	// Always write the most current version.
 	header.base.version = 1;
 
-	kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)asset;
+	kasset_bitmap_font *typed_asset = (kasset_bitmap_font *)asset;
 
-	const char* face_str = kname_string_get(typed_asset->face);
+	const char *face_str = kname_string_get(typed_asset->face);
 	header.face_name_len = string_length(face_str);
 
 	header.font_size = typed_asset->size;
@@ -60,7 +60,7 @@ void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_siz
 
 	// Iterate pages and save the length, then the string asset name for each.
 	for (u32 i = 0; i < typed_asset->page_count; ++i) {
-		const char* str = kname_string_get(typed_asset->pages[i].image_asset_name);
+		const char *str = kname_string_get(typed_asset->pages[i].image_asset_name);
 		u32 len = string_length(str);
 		header.base.data_block_size += sizeof(u32); // For the length
 		header.base.data_block_size += len;			// For the actual string.
@@ -70,7 +70,7 @@ void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_siz
 	*out_size = sizeof(bitmap_font_header) + header.base.data_block_size;
 
 	// Allocate said block.
-	void* block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
+	void *block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
 	// Write the header.
 	kcopy_memory(block, &header, sizeof(bitmap_font_header));
 
@@ -94,7 +94,7 @@ void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_siz
 
 	// Pages need to write asset name string length, then the actual string.
 	for (u32 i = 0; i < typed_asset->page_count; ++i) {
-		const char* str = kname_string_get(typed_asset->pages[i].image_asset_name);
+		const char *str = kname_string_get(typed_asset->pages[i].image_asset_name);
 		u32 len = string_length(str);
 
 		kcopy_memory(block + offset, &len, sizeof(u32));
@@ -108,13 +108,13 @@ void* kasset_bitmap_font_serialize(const kasset_bitmap_font* asset, u64* out_siz
 	return block;
 }
 
-b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset_bitmap_font* out_asset) {
+b8 kasset_bitmap_font_deserialize (u64 size, const void *block, kasset_bitmap_font *out_asset) {
 	if (!size || !block || !out_asset) {
 		KERROR("Cannot deserialize without a nonzero size, block of memory and a kasset_bitmap_font to write to.");
 		return false;
 	}
 
-	const bitmap_font_header* header = block;
+	const bitmap_font_header *header = block;
 	if (header->base.magic != ASSET_MAGIC) {
 		KERROR("Memory is not a Kohi binary asset.");
 		return false;
@@ -128,7 +128,7 @@ b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset_bitmap_fon
 
 	/* out_asset->meta.version = header->base.version; */ // TODO: version
 
-	kasset_bitmap_font* typed_asset = (kasset_bitmap_font*)out_asset;
+	kasset_bitmap_font *typed_asset = (kasset_bitmap_font *)out_asset;
 	typed_asset->baseline = header->baseline;
 	typed_asset->line_height = header->line_height;
 	typed_asset->size = header->font_size;
@@ -153,7 +153,7 @@ b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset_bitmap_fon
 	u64 offset = sizeof(bitmap_font_header);
 
 	// Face name.
-	char* face_str = kallocate(header->face_name_len + 1, MEMORY_TAG_STRING);
+	char *face_str = kallocate(header->face_name_len + 1, MEMORY_TAG_STRING);
 	kcopy_memory(face_str, block + offset, header->face_name_len);
 	typed_asset->face = kname_create(face_str);
 	string_free(face_str);
@@ -183,7 +183,7 @@ b8 kasset_bitmap_font_deserialize(u64 size, const void* block, kasset_bitmap_fon
 			offset += sizeof(u32);
 
 			u64 alloc_size = sizeof(char) * len;
-			char* str = kallocate(alloc_size + 1, MEMORY_TAG_STRING);
+			char *str = kallocate(alloc_size + 1, MEMORY_TAG_STRING);
 			kcopy_memory(str, block + offset, alloc_size);
 			offset += len;
 

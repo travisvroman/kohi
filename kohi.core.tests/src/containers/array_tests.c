@@ -6,7 +6,7 @@
 #include <defines.h>
 #include <memory/kmemory.h>
 
-static u8 all_array_tests_after_create(void) {
+static u8 all_array_tests_after_create (void) {
 	// Test a basic type first.
 
 	array_u8 arr = array_u8_create(6);
@@ -36,7 +36,7 @@ static u8 all_array_tests_after_create(void) {
 	return true;
 }
 
-static u8 array_all_iterator_tests(void) {
+static u8 array_all_iterator_tests (void) {
 
 	array_iterator it;
 	u32 loop_count = 0;
@@ -66,7 +66,7 @@ static u8 array_all_iterator_tests(void) {
 		expect_should_be(1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 2) {
@@ -88,7 +88,7 @@ static u8 array_all_iterator_tests(void) {
 		expect_should_be(-1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 2) {
@@ -109,13 +109,13 @@ static u8 array_all_iterator_tests(void) {
 	return true;
 }
 
-static u8 array_string_type_test(void) {
+static u8 array_string_type_test (void) {
 
 	array_string arr = array_string_create(6);
 	// Verify that the memory was assigned.
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(6, arr.base.length);
-	expect_should_be(sizeof(const char*), arr.base.stride);
+	expect_should_be(sizeof(const char *), arr.base.stride);
 
 	// Set some data.
 	arr.data[0] = "test";
@@ -135,7 +135,7 @@ static u8 array_string_type_test(void) {
 	return true;
 }
 
-static u8 array_float_type_test(void) {
+static u8 array_float_type_test (void) {
 
 	array_f32 arr = array_f32_create(6);
 	// Verify that the memory was assigned.
@@ -161,7 +161,7 @@ static u8 array_float_type_test(void) {
 	return true;
 }
 
-void array_register_tests(void) {
+void array_register_tests (void) {
 	test_manager_register_test(all_array_tests_after_create, "All array tests after create");
 	test_manager_register_test(array_all_iterator_tests, "All array iterator tests");
 	test_manager_register_test(array_string_type_test, "array string type tests");

@@ -14,14 +14,14 @@
 typedef struct asset_entry {
 	kname name;
 	// If loaded from binary, this will be null.
-	const char* path;
+	const char *path;
 	// Should be populated if the asset was imported.
-	const char* source_path;
+	const char *source_path;
 
 	// Path relative to package.
-	const char* local_path;
+	const char *local_path;
 	// Source path relative to package.
-	const char* local_source_path;
+	const char *local_source_path;
 
 	kasset_type type;
 
@@ -32,12 +32,12 @@ typedef struct asset_entry {
 
 typedef struct kpackage_internal {
 	// darray of all asset entries.
-	asset_entry* entries;
+	asset_entry *entries;
 
-	asset_manifest_reference* references;
+	asset_manifest_reference *references;
 } kpackage_internal;
 
-b8 kpackage_create_from_manifest(const char* manifest_file_path, const asset_manifest* manifest, kpackage* out_package) {
+b8 kpackage_create_from_manifest (const char *manifest_file_path, const asset_manifest *manifest, kpackage *out_package) {
 	if (!manifest || !out_package) {
 		KERROR("kpackage_create_from_manifest requires valid pointers to manifest and out_package.");
 		return false;
@@ -67,7 +67,7 @@ b8 kpackage_create_from_manifest(const char* manifest_file_path, const asset_man
 	// Process manifest
 	u32 asset_count = darray_length(manifest->assets);
 	for (u32 i = 0; i < asset_count; ++i) {
-		asset_manifest_asset* asset = &manifest->assets[i];
+		asset_manifest_asset *asset = &manifest->assets[i];
 
 		asset_entry new_entry = {0};
 		new_entry.name = asset->name;
@@ -95,7 +95,7 @@ b8 kpackage_create_from_manifest(const char* manifest_file_path, const asset_man
 	return true;
 }
 
-b8 kpackage_create_from_binary(u64 size, void* bytes, kpackage* out_package) {
+b8 kpackage_create_from_binary (u64 size, void *bytes, kpackage *out_package) {
 	if (!size || !bytes || !out_package) {
 		KERROR("kpackage_create_from_binary requires valid pointers to bytes and out_package, and size must be nonzero.");
 		return false;
@@ -109,12 +109,12 @@ b8 kpackage_create_from_binary(u64 size, void* bytes, kpackage* out_package) {
 	return false;
 }
 
-void kpackage_destroy(kpackage* package) {
+void kpackage_destroy (kpackage *package) {
 	if (package) {
 		if (package->internal_data->entries) {
 			u32 entry_count = darray_length(package->internal_data->entries);
 			for (u32 j = 0; j < entry_count; ++j) {
-				asset_entry* entry = &package->internal_data->entries[j];
+				asset_entry *entry = &package->internal_data->entries[j];
 				string_free(entry->path);
 				string_free(entry->source_path);
 			}
@@ -129,20 +129,20 @@ void kpackage_destroy(kpackage* package) {
 	}
 }
 
-kname* kpackage_asset_names_by_type(const kpackage* package, kasset_type type, u32* out_count) {
+kname *kpackage_asset_names_by_type (const kpackage *package, kasset_type type, u32 *out_count) {
 	u32 entry_count = darray_length(package->internal_data->entries);
 	for (u32 j = 0; j < entry_count; ++j) {
-		asset_entry* entry = &package->internal_data->entries[j];
+		asset_entry *entry = &package->internal_data->entries[j];
 		if (entry->type == type) {
 			(*out_count)++;
 		}
 	}
-	kname* results = KNULL;
+	kname *results = KNULL;
 	if (*out_count) {
 		results = KALLOC_TYPE_CARRAY(kname, *out_count);
 		u32 idx = 0;
 		for (u32 j = 0; j < entry_count; ++j) {
-			asset_entry* entry = &package->internal_data->entries[j];
+			asset_entry *entry = &package->internal_data->entries[j];
 			if (entry->type == type) {
 				results[idx] = entry->name;
 				idx++;
@@ -152,11 +152,11 @@ kname* kpackage_asset_names_by_type(const kpackage* package, kasset_type type, u
 	return results;
 }
 
-static asset_entry* asset_entry_get(const kpackage* package, kname name) {
+static asset_entry *asset_entry_get (const kpackage *package, kname name) {
 	// Search the type lookup's entries for the matching name.
 	u32 entry_count = darray_length(package->internal_data->entries);
 	for (u32 j = 0; j < entry_count; ++j) {
-		asset_entry* entry = &package->internal_data->entries[j];
+		asset_entry *entry = &package->internal_data->entries[j];
 		if (entry->name == name) {
 			return entry;
 		}
@@ -166,11 +166,11 @@ static asset_entry* asset_entry_get(const kpackage* package, kname name) {
 	return 0;
 }
 
-static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kname name, u64* out_size, const void** out_data) {
+static kpackage_result asset_get_data (const kpackage *package, b8 is_binary, kname name, u64 *out_size, const void **out_data) {
 
-	const char* package_name = kname_string_get(package->name);
-	const char* name_str = kname_string_get(name);
-	asset_entry* entry = asset_entry_get(package, name);
+	const char *package_name = kname_string_get(package->name);
+	const char *name_str = kname_string_get(name);
+	asset_entry *entry = asset_entry_get(package, name);
 	if (!entry) {
 		return KPACKAGE_RESULT_ASSET_GET_FAILURE;
 	}
@@ -182,7 +182,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 		kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
 
 		// Validate asset path.
-		const char* asset_path = entry->path;
+		const char *asset_path = entry->path;
 		if (!asset_path) {
 			KTRACE("Package '%s': No path exists for asset '%s'.", package_name, name_str);
 			result = KPACKAGE_RESULT_ASSET_GET_FAILURE;
@@ -195,7 +195,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 			result = KPACKAGE_RESULT_ASSET_GET_FAILURE;
 			return result;
 		}
-		void* data = 0;
+		void *data = 0;
 
 		// load the file content from disk.
 		file_handle f = {0};
@@ -242,7 +242,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 		// This means that data is bigger than it needs to be, and that a smaller block of memory can be used.
 		if (read_size < original_file_size) {
 			KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, original_file_size);
-			void* temp = kallocate(read_size + (is_binary ? 0 : 1), MEMORY_TAG_ASSET);
+			void *temp = kallocate(read_size + (is_binary ? 0 : 1), MEMORY_TAG_ASSET);
 			kcopy_memory(temp, data, read_size);
 			kfree(data, actual_file_size, MEMORY_TAG_ASSET);
 			data = temp;
@@ -250,7 +250,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 			// Account for the null terminator for text files.
 			if (!is_binary) {
 				actual_file_size++;
-				((char*)data)[actual_file_size - 1] = 0;
+				((char *)data)[actual_file_size - 1] = 0;
 			}
 		}
 
@@ -275,7 +275,7 @@ static kpackage_result asset_get_data(const kpackage* package, b8 is_binary, kna
 	}
 }
 
-kpackage_result kpackage_asset_bytes_get(const kpackage* package, kname name, u64* out_size, const void** out_data) {
+kpackage_result kpackage_asset_bytes_get (const kpackage *package, kname name, u64 *out_size, const void **out_data) {
 	if (!package || !name || !out_size || !out_data) {
 		KERROR("kpackage_asset_bytes_get requires valid pointers to package, name, out_size, and out_data.");
 		return 0;
@@ -284,19 +284,19 @@ kpackage_result kpackage_asset_bytes_get(const kpackage* package, kname name, u6
 	return asset_get_data(package, true, name, out_size, out_data);
 }
 
-kpackage_result kpackage_asset_text_get(const kpackage* package, kname name, u64* out_size, const char** out_text) {
+kpackage_result kpackage_asset_text_get (const kpackage *package, kname name, u64 *out_size, const char **out_text) {
 	if (!package || !name || !out_size || !out_text) {
 		KERROR("kpackage_asset_text_get requires valid pointers to package, name, out_size, and out_text.");
 		return 0;
 	}
 
-	return asset_get_data(package, false, name, out_size, (const void**)out_text);
+	return asset_get_data(package, false, name, out_size, (const void **)out_text);
 }
 
-const char* kpackage_path_for_asset(const kpackage* package, kname name) {
+const char *kpackage_path_for_asset (const kpackage *package, kname name) {
 	u32 entry_count = darray_length(package->internal_data->entries);
 	for (u32 j = 0; j < entry_count; ++j) {
-		asset_entry* entry = &package->internal_data->entries[j];
+		asset_entry *entry = &package->internal_data->entries[j];
 		if (entry->name == name) {
 			if (package->is_binary) {
 				KERROR("binary packages not yet supported.");
@@ -309,10 +309,10 @@ const char* kpackage_path_for_asset(const kpackage* package, kname name) {
 	return 0;
 }
 
-const char* kpackage_source_path_for_asset(const kpackage* package, kname name) {
+const char *kpackage_source_path_for_asset (const kpackage *package, kname name) {
 	u32 entry_count = darray_length(package->internal_data->entries);
 	for (u32 j = 0; j < entry_count; ++j) {
-		asset_entry* entry = &package->internal_data->entries[j];
+		asset_entry *entry = &package->internal_data->entries[j];
 		if (entry->name == name) {
 			if (package->is_binary) {
 				KERROR("binary packages not yet supported.");
@@ -329,12 +329,12 @@ const char* kpackage_source_path_for_asset(const kpackage* package, kname name) 
 }
 
 // Writes file to disk for packages using the asset manifest, not binary packages.
-static b8 kpackage_asset_write_file_internal(kpackage* package, kname name, u64 size, const void* bytes, b8 is_binary) {
+static b8 kpackage_asset_write_file_internal (kpackage *package, kname name, u64 size, const void *bytes, b8 is_binary) {
 	file_handle f = {0};
 	// FIXME: Brute-force lookup, add a hash table or something better...
 	u32 entry_count = darray_length(package->internal_data->entries);
 	for (u32 i = 0; i < entry_count; ++i) {
-		asset_entry* entry = &package->internal_data->entries[i];
+		asset_entry *entry = &package->internal_data->entries[i];
 		if (entry->name == name) {
 			// Found a match.
 			if (!filesystem_open(entry->path, FILE_MODE_WRITE, is_binary, &f)) {
@@ -364,7 +364,7 @@ static b8 kpackage_asset_write_file_internal(kpackage* package, kname name, u64 
 	return false;
 }
 
-b8 kpackage_asset_bytes_write(kpackage* package, kname name, u64 size, const void* bytes) {
+b8 kpackage_asset_bytes_write (kpackage *package, kname name, u64 size, const void *bytes) {
 	if (!package || !name || !size || !bytes) {
 		KERROR("kpackage_asset_bytes_write requires valid pointers to package, name and bytes, and a nonzero size");
 		return false;
@@ -384,7 +384,7 @@ b8 kpackage_asset_bytes_write(kpackage* package, kname name, u64 size, const voi
 	return true;
 }
 
-b8 kpackage_asset_text_write(kpackage* package, kname name, u64 size, const char* text) {
+b8 kpackage_asset_text_write (kpackage *package, kname name, u64 size, const char *text) {
 	if (!package || !name || !size || !text) {
 		KERROR("kpackage_asset_text_write requires valid pointers to package, name and bytes, and a nonzero size");
 		return false;
@@ -396,7 +396,7 @@ b8 kpackage_asset_text_write(kpackage* package, kname name, u64 size, const char
 		return false;
 	}
 
-	if (!kpackage_asset_write_file_internal(package, name, size, (void*)text, false)) {
+	if (!kpackage_asset_write_file_internal(package, name, size, (void *)text, false)) {
 		KERROR("Failed to write asset.");
 		return false;
 	}
@@ -404,14 +404,14 @@ b8 kpackage_asset_text_write(kpackage* package, kname name, u64 size, const char
 	return true;
 }
 
-b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest) {
+b8 kpackage_parse_manifest_file_content (const char *path, asset_manifest *out_manifest) {
 	if (!path || !out_manifest) {
 		KERROR("kpackage_parse_manifest_file_content requires valid pointers to path and out_manifest, ya dingus!");
 		return false;
 	}
 
 	b8 success = false;
-	const char* file_content = filesystem_read_entire_text_file(path);
+	const char *file_content = filesystem_read_entire_text_file(path);
 	if (!file_content) {
 		KERROR("Failed to load asset manifest '%s'.", path);
 		return false;
@@ -458,7 +458,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 				asset_manifest_reference ref = {0};
 
 				// Reference name.
-				const char* ref_name;
+				const char *ref_name;
 				if (!kson_object_property_value_get_string(&ref_obj, "name", &ref_name)) {
 					KWARN("Failed to get reference name at array index %u. Skipping.", i);
 					string_free(ref_name);
@@ -505,7 +505,7 @@ b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_ma
 					continue;
 				}
 
-				const char* type_str;
+				const char *type_str;
 				if (!kson_object_property_value_get_string(&asset_obj, "type", &type_str)) {
 					KWARN("Failed to get asset type at array index %u. Skipping.", i);
 					continue;
@@ -565,14 +565,14 @@ kpackage_parse_cleanup:
 	return success;
 }
 
-void kpackage_manifest_destroy(asset_manifest* manifest) {
+void kpackage_manifest_destroy (asset_manifest *manifest) {
 	if (manifest) {
 		string_free(manifest->path);
 		string_free(manifest->file_path);
 		if (manifest->references) {
 			u32 ref_count = darray_length(manifest->references);
 			for (u32 i = 0; i < ref_count; ++i) {
-				asset_manifest_reference* ref = &manifest->references[i];
+				asset_manifest_reference *ref = &manifest->references[i];
 				string_free(ref->path);
 			}
 			darray_destroy(manifest->references);
@@ -581,7 +581,7 @@ void kpackage_manifest_destroy(asset_manifest* manifest) {
 		if (manifest->assets) {
 			u32 ref_count = darray_length(manifest->assets);
 			for (u32 i = 0; i < ref_count; ++i) {
-				asset_manifest_asset* asset = &manifest->assets[i];
+				asset_manifest_asset *asset = &manifest->assets[i];
 				string_free(asset->path);
 				string_free(asset->source_path);
 				string_free(asset->local_path);
@@ -594,7 +594,7 @@ void kpackage_manifest_destroy(asset_manifest* manifest) {
 }
 
 #if KOHI_DEBUG
-b8 kpackage_add_asset(kpackage* package, const asset_manifest_asset* asset) {
+b8 kpackage_add_asset (kpackage *package, const asset_manifest_asset *asset) {
 	// Add to internal asset list for the package.
 	asset_entry new_entry = {
 		.name = asset->name,
@@ -611,7 +611,7 @@ b8 kpackage_add_asset(kpackage* package, const asset_manifest_asset* asset) {
 	return true;
 }
 
-b8 kpackage_save(kpackage* package) {
+b8 kpackage_save (kpackage *package) {
 	// Create an asset manifest struct from the package
 	u32 asset_count = darray_length(package->internal_data->entries);
 	asset_manifest manifest = {
@@ -621,8 +621,8 @@ b8 kpackage_save(kpackage* package) {
 		.name = package->name,
 		.assets = KALLOC_TYPE_CARRAY(asset_manifest_asset, asset_count)};
 	for (u32 i = 0; i < asset_count; ++i) {
-		asset_entry* entry = &package->internal_data->entries[i];
-		asset_manifest_asset* a = &manifest.assets[i];
+		asset_entry *entry = &package->internal_data->entries[i];
+		asset_manifest_asset *a = &manifest.assets[i];
 
 		a->name = entry->name;
 		a->path = entry->path;
@@ -651,10 +651,10 @@ b8 kpackage_save(kpackage* package) {
 	kson_array assets = kson_array_create();
 	for (u32 i = 0; i < asset_count; ++i) {
 		kson_object asset_obj = kson_object_create();
-		asset_manifest_asset* ma = &manifest.assets[i];
+		asset_manifest_asset *ma = &manifest.assets[i];
 		kson_object_value_add_kname_as_string(&asset_obj, "name", ma->name);
 
-		const char* type_str = kasset_type_to_string(ma->type);
+		const char *type_str = kasset_type_to_string(ma->type);
 		kson_object_value_add_string(&asset_obj, "type", type_str);
 		string_free(type_str);
 
@@ -668,7 +668,7 @@ b8 kpackage_save(kpackage* package) {
 	}
 	kson_object_value_add_array(&tree.root, "assets", assets);
 
-	const char* serialized = kson_tree_to_string(&tree);
+	const char *serialized = kson_tree_to_string(&tree);
 
 	kson_tree_cleanup(&tree);
 

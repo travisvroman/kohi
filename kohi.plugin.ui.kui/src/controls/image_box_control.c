@@ -15,11 +15,11 @@
 #include "systems/kshader_system.h"
 #include "systems/texture_system.h"
 
-kui_control kui_image_box_control_create(kui_state* state, const char* name, vec2i size) {
+kui_control kui_image_box_control_create (kui_state *state, const char *name, vec2i size) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_IMAGE_BOX);
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 
 	// Assign function pointers.
 	base->destroy = kui_image_box_control_destroy;
@@ -44,27 +44,27 @@ kui_control kui_image_box_control_create(kui_state* state, const char* name, vec
 
 	return handle;
 }
-void kui_image_box_control_destroy(kui_state* state, kui_control* self) {
-	kui_base_control* base = kui_system_get_base(state, *self);
+void kui_image_box_control_destroy (kui_state *state, kui_control *self) {
+	kui_base_control *base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 	renderer_geometry_destroy(&typed_data->geometry);
 	geometry_destroy(&typed_data->geometry);
 
 	kui_base_control_destroy(state, self);
 }
 
-void kui_image_box_control_height_set(kui_state* state, kui_control self, i32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_image_box_control_height_set (kui_state *state, kui_control self, i32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 
-	vertex_2d* verts = typed_data->geometry.vertices;
+	vertex_2d *verts = typed_data->geometry.vertices;
 	verts[1].position.y = height;
 	verts[2].position.y = height;
 
 	// Upload the new vertex data.
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	u32 size = typed_data->geometry.vertex_element_size * typed_data->geometry.vertex_count;
 	if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, typed_data->geometry.vertex_buffer_offset, size, typed_data->geometry.vertices, false)) {
@@ -72,27 +72,27 @@ void kui_image_box_control_height_set(kui_state* state, kui_control self, i32 he
 	}
 }
 
-void kui_image_box_control_width_set(kui_state* state, kui_control self, i32 width) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_image_box_control_width_set (kui_state *state, kui_control self, i32 width) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 
-	vertex_2d* verts = typed_data->geometry.vertices;
+	vertex_2d *verts = typed_data->geometry.vertices;
 	verts[1].position.x = width;
 	verts[3].position.x = width;
 
 	// Upload the new vertex data.
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	u32 size = typed_data->geometry.vertex_element_size * typed_data->geometry.vertex_count;
 	if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, typed_data->geometry.vertex_buffer_offset, size, typed_data->geometry.vertices, false)) {
 		KERROR("renderer_renderbuffer_load_range failed to upload to the vertex buffer!");
 	}
 }
-b8 kui_image_box_control_texture_set_by_name(kui_state* state, kui_control self, kname image_asset_name, kname image_asset_package_name) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_image_box_control_texture_set_by_name (kui_state *state, kui_control self, kname image_asset_name, kname image_asset_package_name) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 
 	// HACK: trying sync
 	ktexture t = texture_acquire_from_package_sync(image_asset_name, image_asset_package_name);
@@ -103,10 +103,10 @@ b8 kui_image_box_control_texture_set_by_name(kui_state* state, kui_control self,
 
 	return false;
 }
-b8 kui_image_box_control_texture_set(kui_state* state, kui_control self, ktexture texture) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_image_box_control_texture_set (kui_state *state, kui_control self, ktexture texture) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 	if (texture != INVALID_KTEXTURE) {
 		typed_data->texture = texture;
 		return true;
@@ -114,17 +114,17 @@ b8 kui_image_box_control_texture_set(kui_state* state, kui_control self, ktextur
 
 	return false;
 }
-ktexture kui_image_box_control_texture_get(kui_state* state, const kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+ktexture kui_image_box_control_texture_get (kui_state *state, const kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 	return typed_data->texture;
 }
 
-void kui_image_box_control_set_rect(kui_state* state, kui_control self, rect_2di rect) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_image_box_control_set_rect (kui_state *state, kui_control self, rect_2di rect) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 
 	u32 width, height;
 	if (typed_data->texture == INVALID_KTEXTURE) {
@@ -134,7 +134,7 @@ void kui_image_box_control_set_rect(kui_state* state, kui_control self, rect_2di
 		texture_dimensions_get(typed_data->texture, &width, &height);
 	}
 
-	vertex_2d* verts = typed_data->geometry.vertices;
+	vertex_2d *verts = typed_data->geometry.vertices;
 	// top left
 	verts[0].texcoord.x = (rect.x / (f32)width);
 	verts[0].texcoord.y = (rect.y / (f32)height);
@@ -152,7 +152,7 @@ void kui_image_box_control_set_rect(kui_state* state, kui_control self, rect_2di
 	verts[3].texcoord.y = (rect.y / (f32)height);
 
 	// Upload the new vertex data.
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	u32 size = typed_data->geometry.vertex_element_size * typed_data->geometry.vertex_count;
 	if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, typed_data->geometry.vertex_buffer_offset, size, typed_data->geometry.vertices, false)) {
@@ -160,7 +160,7 @@ void kui_image_box_control_set_rect(kui_state* state, kui_control self, rect_2di
 	}
 }
 
-b8 kui_image_box_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_image_box_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
@@ -168,14 +168,14 @@ b8 kui_image_box_control_update(kui_state* state, kui_control self, struct frame
 	return true;
 }
 
-b8 kui_image_box_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_image_box_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!kui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_image_box_control* typed_data = (kui_image_box_control*)base;
+	kui_image_box_control *typed_data = (kui_image_box_control *)base;
 
 	if (typed_data->geometry.vertices) {
 		kui_renderable renderable = {0};

@@ -63,18 +63,18 @@
 #	include "kfeatures_runtime.h"
 
 typedef struct linux_handle_info {
-	xcb_connection_t* connection;
-	xcb_screen_t* screen;
+	xcb_connection_t *connection;
+	xcb_screen_t *screen;
 } linux_handle_info;
 
 typedef struct linux_file_watch {
 	u32 id;
-	const char* file_path;
+	const char *file_path;
 	b8 is_binary;
 	platform_filewatcher_file_written_callback watcher_written_callback;
-	void* watcher_written_context;
+	void *watcher_written_context;
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback;
-	void* watcher_deleted_context;
+	void *watcher_deleted_context;
 	long last_write_time;
 	u32 update_poll_count;
 } linux_file_watch;
@@ -107,41 +107,41 @@ typedef struct internal_clipboard_state {
 	// Owned content for copying
 	kclipboard_content_type owned_type;
 	u32 owned_size;
-	void* owned_data;
+	void *owned_data;
 	b8 clipboard_owned;
 
 } internal_clipboard_state;
 
-typedef int (*PFN_sd_bus_open_user)(sd_bus** ret);
-typedef int (*PFN_sd_bus_call_method)(sd_bus* bus, const char* destination, const char* path, const char* interface, const char* member, sd_bus_error* reterr_error, sd_bus_message** ret_reply, const char* types, ...);
-typedef int (*PFN_sd_bus_message_new_method_call)(sd_bus* bus, sd_bus_message** ret, const char* destination, const char* path, const char* interface, const char* member);
-typedef int (*PFN_sd_bus_call)(sd_bus* bus, sd_bus_message* m, uint64_t usec, sd_bus_error* reterr_error, sd_bus_message** ret_reply);
-typedef int (*PFN_sd_bus_message_read)(sd_bus_message* m, const char* types, ...);
-typedef int (*PFN_sd_bus_message_skip)(sd_bus_message* m, const char* types);
-typedef int (*PFN_sd_bus_message_append)(sd_bus_message* m, const char* types, ...);
-typedef int (*PFN_sd_bus_message_append_array)(sd_bus_message* m, char type, const void* ptr, size_t size);
-typedef int (*PFN_sd_bus_add_match)(sd_bus* bus, sd_bus_slot** ret_slot, const char* match, sd_bus_message_handler_t callback, void* userdata);
-typedef int (*PFN_sd_bus_process)(sd_bus* bus, sd_bus_message** ret);
-typedef int (*PFN_sd_bus_wait)(sd_bus* bus, uint64_t timeout_usec);
-typedef sd_bus* (*PFN_sd_bus_unref)(sd_bus* bus);
-typedef int (*PFN_sd_bus_message_enter_container)(sd_bus_message* m, char type, const char* contents);
-typedef int (*PFN_sd_bus_message_exit_container)(sd_bus_message* m);
-typedef int (*PFN_sd_bus_message_open_container)(sd_bus_message* m, char type, const char* contents);
-typedef int (*PFN_sd_bus_message_close_container)(sd_bus_message* m);
+typedef int (*PFN_sd_bus_open_user)(sd_bus **ret);
+typedef int (*PFN_sd_bus_call_method)(sd_bus *bus, const char *destination, const char *path, const char *interface, const char *member, sd_bus_error *reterr_error, sd_bus_message **ret_reply, const char *types, ...);
+typedef int (*PFN_sd_bus_message_new_method_call)(sd_bus *bus, sd_bus_message **ret, const char *destination, const char *path, const char *interface, const char *member);
+typedef int (*PFN_sd_bus_call)(sd_bus *bus, sd_bus_message *m, uint64_t usec, sd_bus_error *reterr_error, sd_bus_message **ret_reply);
+typedef int (*PFN_sd_bus_message_read)(sd_bus_message *m, const char *types, ...);
+typedef int (*PFN_sd_bus_message_skip)(sd_bus_message *m, const char *types);
+typedef int (*PFN_sd_bus_message_append)(sd_bus_message *m, const char *types, ...);
+typedef int (*PFN_sd_bus_message_append_array)(sd_bus_message *m, char type, const void *ptr, size_t size);
+typedef int (*PFN_sd_bus_add_match)(sd_bus *bus, sd_bus_slot **ret_slot, const char *match, sd_bus_message_handler_t callback, void *userdata);
+typedef int (*PFN_sd_bus_process)(sd_bus *bus, sd_bus_message **ret);
+typedef int (*PFN_sd_bus_wait)(sd_bus *bus, uint64_t timeout_usec);
+typedef sd_bus *(*PFN_sd_bus_unref)(sd_bus *bus);
+typedef int (*PFN_sd_bus_message_enter_container)(sd_bus_message *m, char type, const char *contents);
+typedef int (*PFN_sd_bus_message_exit_container)(sd_bus_message *m);
+typedef int (*PFN_sd_bus_message_open_container)(sd_bus_message *m, char type, const char *contents);
+typedef int (*PFN_sd_bus_message_close_container)(sd_bus_message *m);
 
 typedef struct platform_state {
-	Display* display;
+	Display *display;
 	linux_handle_info handle;
 	// NOTE: May need to be part of window.
-	xcb_screen_t* screen;
+	xcb_screen_t *screen;
 	xcb_atom_t wm_protocols;
 	xcb_atom_t wm_delete_win;
 	i32 screen_count;
 	// darray
-	linux_file_watch* watches;
+	linux_file_watch *watches;
 
 	// darray of pointers to created windows (owned by the application);
-	kwindow** windows;
+	kwindow **windows;
 	platform_window_closed_callback window_closed_callback;
 	platform_window_resized_callback window_resized_callback;
 	platform_process_key process_key;
@@ -155,7 +155,7 @@ typedef struct platform_state {
 
 	internal_clipboard_state clipboard;
 
-	void* sd_bus_lib;
+	void *sd_bus_lib;
 	b8 kill_sd_bus_loop;
 	PFN_sd_bus_open_user ksd_bus_open_user;
 	PFN_sd_bus_call_method ksd_bus_call_method;
@@ -173,20 +173,20 @@ typedef struct platform_state {
 	PFN_sd_bus_message_exit_container ksd_bus_message_exit_container;
 	PFN_sd_bus_message_open_container ksd_bus_message_open_container;
 	PFN_sd_bus_message_close_container ksd_bus_message_close_container;
-	const char** ofd_files_temp;
+	const char **ofd_files_temp;
 } platform_state;
 
-static platform_state* state_ptr;
+static platform_state *state_ptr;
 
-static void platform_update_watches(void);
-static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev);
+static void platform_update_watches (void);
+static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev);
 // Key translation
-static keys translate_keycode(u32 x_keycode);
-static kwindow* window_from_handle(xcb_window_t window);
+static keys translate_keycode (u32 x_keycode);
+static kwindow *window_from_handle (xcb_window_t window);
 
-static xcb_atom_t intern_atom(xcb_connection_t* conn, const char* name) {
+static xcb_atom_t intern_atom (xcb_connection_t *conn, const char *name) {
 	xcb_intern_atom_cookie_t cookie = xcb_intern_atom(conn, 0, string_length(name), name);
-	xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(conn, cookie, KNULL);
+	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, cookie, KNULL);
 
 	xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
 	free(reply);
@@ -194,16 +194,16 @@ static xcb_atom_t intern_atom(xcb_connection_t* conn, const char* name) {
 	return atom;
 }
 
-static const char* atom_name(xcb_connection_t* conn, xcb_atom_t atom) {
+static const char *atom_name (xcb_connection_t *conn, xcb_atom_t atom) {
 	xcb_get_atom_name_cookie_t cookie = xcb_get_atom_name(conn, atom);
-	xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(conn, cookie, KNULL);
+	xcb_get_atom_name_reply_t *reply = xcb_get_atom_name_reply(conn, cookie, KNULL);
 
 	if (!reply) {
 		return KNULL;
 	}
 
 	i32 len = xcb_get_atom_name_name_length(reply);
-	char* name = kallocate(len + 1, MEMORY_TAG_STRING);
+	char *name = kallocate(len + 1, MEMORY_TAG_STRING);
 	kcopy_memory(name, xcb_get_atom_name_name(reply), len);
 	name[len] = 0;
 
@@ -212,10 +212,10 @@ static const char* atom_name(xcb_connection_t* conn, xcb_atom_t atom) {
 	return name;
 }
 
-static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
+static b8 enable_detectable_autorepeat (xcb_connection_t *conn) {
 	// Initialize xkb extension
 	xcb_xkb_use_extension_cookie_t uc = xcb_xkb_use_extension(conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
-	xcb_xkb_use_extension_reply_t* ur = xcb_xkb_use_extension_reply(conn, uc, NULL);
+	xcb_xkb_use_extension_reply_t *ur = xcb_xkb_use_extension_reply(conn, uc, NULL);
 	if (!ur) {
 		return false;
 	}
@@ -233,7 +233,7 @@ static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
 		XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
 		XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
 		0, 0, 0);
-	xcb_xkb_per_client_flags_reply_t* pfr = xcb_xkb_per_client_flags_reply(conn, pcfc, NULL);
+	xcb_xkb_per_client_flags_reply_t *pfr = xcb_xkb_per_client_flags_reply(conn, pcfc, NULL);
 	if (!pfr) {
 		return false;
 	}
@@ -243,7 +243,7 @@ static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
 	return turned_on;
 }
 
-b8 platform_system_startup(u64* memory_requirement, struct platform_state* state, platform_system_config* config) {
+b8 platform_system_startup (u64 *memory_requirement, struct platform_state *state, platform_system_config *config) {
 	*memory_requirement = sizeof(platform_state);
 	if (state == 0) {
 		return true;
@@ -266,7 +266,7 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 	KINFO("XCB: %s detectable auto-repeat.", detectable_repeat ? "Enabled " : "Could not enable ");
 
 	// Get data from the X server
-	const struct xcb_setup_t* setup = xcb_get_setup(state->handle.connection);
+	const struct xcb_setup_t *setup = xcb_get_setup(state->handle.connection);
 
 	// TODO: Does this need to be associated with the window?
 	// Loop through screens using iterator
@@ -286,7 +286,7 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 	state->screen = it.data;
 	state->handle.screen = state->screen;
 
-	state->windows = darray_create(kwindow*);
+	state->windows = darray_create(kwindow *);
 
 	state->kill_sd_bus_loop = false;
 	state->sd_bus_lib = dlopen("libsystemd.so", RTLD_LOCAL | RTLD_NOW);
@@ -313,7 +313,7 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 	return true;
 }
 
-void platform_system_shutdown(struct platform_state* state) {
+void platform_system_shutdown (struct platform_state *state) {
 	if (state) {
 		if (state->windows) {
 			u32 len = darray_length(state->windows);
@@ -341,7 +341,7 @@ void platform_system_shutdown(struct platform_state* state) {
 	}
 }
 
-b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately) {
+b8 platform_window_create (const kwindow_config *config, struct kwindow *window, b8 show_immediately) {
 	if (!window) {
 		return false;
 	}
@@ -491,8 +491,8 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 	// attempts to destroy the window.
 	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
 	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_PROTOCOLS"), "WM_PROTOCOLS");
-	xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_delete_cookie, NULL);
-	xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_protocols_cookie, NULL);
+	xcb_intern_atom_reply_t *wm_delete_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_delete_cookie, NULL);
+	xcb_intern_atom_reply_t *wm_protocols_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_protocols_cookie, NULL);
 	state_ptr->wm_delete_win = wm_delete_reply->atom;
 	state_ptr->wm_protocols = wm_protocols_reply->atom;
 
@@ -539,7 +539,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 	return true;
 }
 
-void platform_window_destroy(struct kwindow* window) {
+void platform_window_destroy (struct kwindow *window) {
 	if (window) {
 		u32 len = darray_length(state_ptr->windows);
 		for (u32 i = 0; i < len; ++i) {
@@ -559,7 +559,7 @@ void platform_window_destroy(struct kwindow* window) {
 	}
 }
 
-b8 platform_window_show(struct kwindow* window) {
+b8 platform_window_show (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
@@ -575,7 +575,7 @@ b8 platform_window_show(struct kwindow* window) {
 	return true;
 }
 
-b8 platform_window_hide(struct kwindow* window) {
+b8 platform_window_hide (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
@@ -592,14 +592,14 @@ b8 platform_window_hide(struct kwindow* window) {
 	return true;
 }
 
-const char* platform_window_title_get(const struct kwindow* window) {
+const char *platform_window_title_get (const struct kwindow *window) {
 	if (window && window->title) {
 		return string_duplicate(window->title);
 	}
 	return 0;
 }
 
-b8 platform_window_title_set(struct kwindow* window, const char* title) {
+b8 platform_window_title_set (struct kwindow *window, const char *title) {
 	if (!window) {
 		return false;
 	}
@@ -611,10 +611,10 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 	}
 
 	xcb_intern_atom_cookie_t utf8_string_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, 11, "UTF8_STRING");
-	xcb_intern_atom_reply_t* utf8_string_reply = xcb_intern_atom_reply(state_ptr->handle.connection, utf8_string_cookie, 0);
+	xcb_intern_atom_reply_t *utf8_string_reply = xcb_intern_atom_reply(state_ptr->handle.connection, utf8_string_cookie, 0);
 
 	xcb_intern_atom_cookie_t net_wm_name_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, 12, "_NET_WM_NAME");
-	xcb_intern_atom_reply_t* net_wm_name_reply = xcb_intern_atom_reply(state_ptr->handle.connection, net_wm_name_cookie, 0);
+	xcb_intern_atom_reply_t *net_wm_name_reply = xcb_intern_atom_reply(state_ptr->handle.connection, net_wm_name_cookie, 0);
 
 	// Change the title
 	xcb_change_property(
@@ -643,7 +643,7 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 	return true;
 }
 
-static void clipboard_retry_next_target(internal_clipboard_state* cb) {
+static void clipboard_retry_next_target (internal_clipboard_state *cb) {
 
 	cb->request_index++;
 	if (cb->request_index >= cb->request_count) {
@@ -662,10 +662,10 @@ static void clipboard_retry_next_target(internal_clipboard_state* cb) {
 	xcb_flush(state_ptr->handle.connection);
 }
 
-b8 platform_pump_messages(void) {
+b8 platform_pump_messages (void) {
 	if (state_ptr) {
-		xcb_generic_event_t* event;
-		xcb_client_message_event_t* cm;
+		xcb_generic_event_t *event;
+		xcb_client_message_event_t *cm;
 
 		b8 quit_flagged = false;
 
@@ -676,7 +676,7 @@ b8 platform_pump_messages(void) {
 			case XCB_KEY_PRESS:
 			case XCB_KEY_RELEASE: {
 				// Key press event - xcb_key_press_event_t and xcb_key_release_event_t are the same
-				xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
+				xcb_key_press_event_t *kb_event = (xcb_key_press_event_t *)event;
 				b8 pressed = event->response_type == XCB_KEY_PRESS;
 				xcb_keycode_t code = kb_event->detail;
 				KeySym key_sym = XkbKeycodeToKeysym(
@@ -694,7 +694,7 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_BUTTON_PRESS:
 			case XCB_BUTTON_RELEASE: {
-				xcb_button_press_event_t* mouse_event = (xcb_button_press_event_t*)event;
+				xcb_button_press_event_t *mouse_event = (xcb_button_press_event_t *)event;
 				b8 pressed = event->response_type == XCB_BUTTON_PRESS;
 				mouse_buttons mouse_button = MOUSE_BUTTON_MAX;
 
@@ -731,7 +731,7 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_MOTION_NOTIFY: {
 				// Mouse move
-				xcb_motion_notify_event_t* move_event = (xcb_motion_notify_event_t*)event;
+				xcb_motion_notify_event_t *move_event = (xcb_motion_notify_event_t *)event;
 
 				// Pass over to the input subsystem.
 				state_ptr->process_mouse_move(move_event->event_x, move_event->event_y);
@@ -740,12 +740,12 @@ b8 platform_pump_messages(void) {
 				// Resizing - note that this is also triggered by moving the window, but should be
 				// passed anyway since a change in the x/y could mean an upper-left resize.
 				// The application layer can decide what to do with this.
-				xcb_configure_notify_event_t* configure_event = (xcb_configure_notify_event_t*)event;
+				xcb_configure_notify_event_t *configure_event = (xcb_configure_notify_event_t *)event;
 
 				u16 width = configure_event->width;
 				u16 height = configure_event->height;
 
-				kwindow* w = window_from_handle(configure_event->window);
+				kwindow *w = window_from_handle(configure_event->window);
 				if (!w) {
 					KERROR("Recieved a window resize event for a non-registered window!");
 					return 0;
@@ -768,7 +768,7 @@ b8 platform_pump_messages(void) {
 			} break;
 
 			case XCB_CLIENT_MESSAGE: {
-				cm = (xcb_client_message_event_t*)event;
+				cm = (xcb_client_message_event_t *)event;
 
 				// Window close
 				if (cm->data.data32[0] == state_ptr->wm_delete_win) {
@@ -779,7 +779,7 @@ b8 platform_pump_messages(void) {
 
 				// Clipboard ownership lost (another app copied)
 
-				xcb_selection_clear_event_t* clear_event = (xcb_selection_clear_event_t*)event;
+				xcb_selection_clear_event_t *clear_event = (xcb_selection_clear_event_t *)event;
 				if (clear_event->selection == state_ptr->clipboard.clipboard) {
 
 					state_ptr->clipboard.clipboard_owned = false;
@@ -796,9 +796,9 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_SELECTION_NOTIFY: {
 
-				internal_clipboard_state* cb = &state_ptr->clipboard;
+				internal_clipboard_state *cb = &state_ptr->clipboard;
 
-				xcb_selection_notify_event_t* selection_event = (xcb_selection_notify_event_t*)event;
+				xcb_selection_notify_event_t *selection_event = (xcb_selection_notify_event_t *)event;
 
 				if (selection_event->requestor == cb->requesting_window) {
 					if (cb->paste_pending) {
@@ -818,7 +818,7 @@ b8 platform_pump_messages(void) {
 							0,
 							UINT32_MAX);
 
-						xcb_get_property_reply_t* prop = xcb_get_property_reply(state_ptr->handle.connection, prop_cookie, KNULL);
+						xcb_get_property_reply_t *prop = xcb_get_property_reply(state_ptr->handle.connection, prop_cookie, KNULL);
 
 						if (!prop) {
 							clipboard_retry_next_target(cb);
@@ -826,7 +826,7 @@ b8 platform_pump_messages(void) {
 						}
 
 						i32 len = xcb_get_property_value_length(prop);
-						const void* val = xcb_get_property_value(prop);
+						const void *val = xcb_get_property_value(prop);
 
 						if (len > 0 && val) {
 
@@ -840,8 +840,8 @@ b8 platform_pump_messages(void) {
 							// For strings, be sure to null-terminate them.
 							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 								ctx.content = kallocate(len + 1, MEMORY_TAG_STRING);
-								kcopy_memory((void*)ctx.content, val, len);
-								((char*)ctx.content)[len] = 0;
+								kcopy_memory((void *)ctx.content, val, len);
+								((char *)ctx.content)[len] = 0;
 							} else {
 								ctx.content = val;
 								ctx.size = len;
@@ -852,7 +852,7 @@ b8 platform_pump_messages(void) {
 							}
 
 							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
-								kfree((void*)ctx.content, len + 1, MEMORY_TAG_STRING);
+								kfree((void *)ctx.content, len + 1, MEMORY_TAG_STRING);
 							}
 
 							cb->paste_pending = false;
@@ -867,8 +867,8 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_SELECTION_REQUEST: {
 				// Paste from external app requested.
-				internal_clipboard_state* cb = &state_ptr->clipboard;
-				xcb_selection_request_event_t* request_event = (xcb_selection_request_event_t*)event;
+				internal_clipboard_state *cb = &state_ptr->clipboard;
+				xcb_selection_request_event_t *request_event = (xcb_selection_request_event_t *)event;
 				if (cb->clipboard) {
 					// Paste request (our app is the owner of the data)
 
@@ -922,7 +922,7 @@ b8 platform_pump_messages(void) {
 						0,
 						request_event->requestor,
 						0,
-						(const char*)&reply);
+						(const char *)&reply);
 				}
 			} break;
 			default:
@@ -941,37 +941,37 @@ b8 platform_pump_messages(void) {
 	return true;
 }
 
-void* platform_allocate(u64 size, b8 aligned) {
+void *platform_allocate (u64 size, b8 aligned) {
 	return malloc(size);
 }
-void platform_free(void* block, b8 aligned) {
+void platform_free (void *block, b8 aligned) {
 	free(block);
 }
-void* platform_zero_memory(void* block, u64 size) {
+void *platform_zero_memory (void *block, u64 size) {
 	return memset(block, 0, size);
 }
-void* platform_copy_memory(void* dest, const void* source, u64 size) {
+void *platform_copy_memory (void *dest, const void *source, u64 size) {
 	return memcpy(dest, source, size);
 }
-void* platform_set_memory(void* dest, i32 value, u64 size) {
+void *platform_set_memory (void *dest, i32 value, u64 size) {
 	return memset(dest, value, size);
 }
 
-void platform_console_write(struct platform_state* platform, log_level level, const char* message) {
+void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
 	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
-	FILE* console_handle = is_error ? stderr : stdout;
+	FILE *console_handle = is_error ? stderr : stdout;
 	// FATAL,ERROR,WARN,INFO,DEBUG,TRACE
-	const char* colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
+	const char *colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
 	fprintf(console_handle, "\033[%sm%s\033[0m", colour_strings[level], message);
 }
 
-f64 platform_get_absolute_time(void) {
+f64 platform_get_absolute_time (void) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 	return now.tv_sec + now.tv_nsec * 0.000000001;
 }
 
-void platform_sleep(u64 ms) {
+void platform_sleep (u64 ms) {
 #	if _POSIX_C_SOURCE >= 199309L
 	struct timespec ts;
 	ts.tv_sec = ms / 1000;
@@ -985,7 +985,7 @@ void platform_sleep(u64 ms) {
 #	endif
 }
 
-i32 platform_get_processor_count(void) {
+i32 platform_get_processor_count (void) {
 	// Load processor info.
 	i32 processor_count = get_nprocs_conf();
 	i32 processors_available = get_nprocs();
@@ -993,7 +993,7 @@ i32 platform_get_processor_count(void) {
 	return processors_available;
 }
 
-void platform_get_handle_info(u64* out_size, void* memory) {
+void platform_get_handle_info (u64 *out_size, void *memory) {
 	*out_size = sizeof(linux_handle_info);
 	if (!memory) {
 		return;
@@ -1002,46 +1002,46 @@ void platform_get_handle_info(u64* out_size, void* memory) {
 	kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(const struct kwindow* window) {
+f32 platform_device_pixel_ratio (const struct kwindow *window) {
 	return window->platform_state->device_pixel_ratio;
 }
 
-const char* platform_dynamic_library_extension(void) {
+const char *platform_dynamic_library_extension (void) {
 	return ".so";
 }
 
-const char* platform_dynamic_library_prefix(void) {
+const char *platform_dynamic_library_prefix (void) {
 	return "./lib";
 }
 
-void platform_register_window_closed_callback(platform_window_closed_callback callback) {
+void platform_register_window_closed_callback (platform_window_closed_callback callback) {
 	state_ptr->window_closed_callback = callback;
 }
 
-void platform_register_window_resized_callback(platform_window_resized_callback callback) {
+void platform_register_window_resized_callback (platform_window_resized_callback callback) {
 	state_ptr->window_resized_callback = callback;
 }
 
-void platform_register_process_key(platform_process_key callback) {
+void platform_register_process_key (platform_process_key callback) {
 	state_ptr->process_key = callback;
 }
 
-void platform_register_process_mouse_button_callback(platform_process_mouse_button callback) {
+void platform_register_process_mouse_button_callback (platform_process_mouse_button callback) {
 	state_ptr->process_mouse_button = callback;
 }
 
-void platform_register_process_mouse_move_callback(platform_process_mouse_move callback) {
+void platform_register_process_mouse_move_callback (platform_process_mouse_move callback) {
 	state_ptr->process_mouse_move = callback;
 }
 
-void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
+void platform_register_process_mouse_wheel_callback (platform_process_mouse_wheel callback) {
 	state_ptr->process_mouse_wheel = callback;
 }
-void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback) {
 	state_ptr->on_paste = callback;
 }
 
-platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
+platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
 	platform_error_code ret_code = PLATFORM_ERROR_SUCCESS;
 	i32 source_fd = -1;
 	i32 dest_fd = -1;
@@ -1142,14 +1142,14 @@ close_handles:
 	return ret_code;
 }
 
-static b8 register_watch(
-	const char* file_path,
+static b8 register_watch (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 
 	if (!state_ptr || !file_path || !out_watch_id) {
 		if (out_watch_id) {
@@ -1174,7 +1174,7 @@ static b8 register_watch(
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		linux_file_watch* w = &state_ptr->watches[i];
+		linux_file_watch *w = &state_ptr->watches[i];
 		if (w->id == INVALID_ID) {
 			// Found a free slot to use.
 			w->id = i;
@@ -1200,7 +1200,7 @@ static b8 register_watch(
 	return true;
 }
 
-static b8 unregister_watch(u32 watch_id) {
+static b8 unregister_watch (u32 watch_id) {
 	if (!state_ptr || !state_ptr->watches) {
 		return false;
 	}
@@ -1210,24 +1210,24 @@ static b8 unregister_watch(u32 watch_id) {
 		return false;
 	}
 
-	linux_file_watch* w = &state_ptr->watches[watch_id];
+	linux_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
 	u32 len = string_length(w->file_path);
-	kfree((void*)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+	kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(long));
 
 	return true;
 }
 
-b8 platform_watch_file(
-	const char* file_path,
+b8 platform_watch_file (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 	return register_watch(
 		file_path,
 		is_binary,
@@ -1238,18 +1238,18 @@ b8 platform_watch_file(
 		out_watch_id);
 }
 
-b8 platform_unwatch_file(u32 watch_id) {
+b8 platform_unwatch_file (u32 watch_id) {
 	return unregister_watch(watch_id);
 }
 
-static void platform_update_watches(void) {
+static void platform_update_watches (void) {
 	if (!state_ptr || !state_ptr->watches) {
 		return;
 	}
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		linux_file_watch* f = &state_ptr->watches[i];
+		linux_file_watch *f = &state_ptr->watches[i];
 		if (f->id != INVALID_ID) {
 			struct stat info;
 			int result = stat(f->file_path, &info);
@@ -1294,7 +1294,7 @@ static void platform_update_watches(void) {
 }
 
 static inline kunix_time_ns
-unix_time_from_stat(const struct stat* s) {
+unix_time_from_stat (const struct stat *s) {
 #	if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 	return (kunix_time_ns)s->st_mtim.tv_sec * 1000000000ULL +
 		   (kunix_time_ns)s->st_mtim.tv_nsec;
@@ -1303,7 +1303,7 @@ unix_time_from_stat(const struct stat* s) {
 #	endif
 }
 
-kunix_time_ns platform_get_file_mtime(const char* path) {
+kunix_time_ns platform_get_file_mtime (const char *path) {
 	struct stat s;
 	if (stat(path, &s) != 0) {
 		return 0;
@@ -1317,8 +1317,8 @@ typedef struct linux_core_id {
 	i32 core_id;
 } linux_core_id;
 
-static u32 linux_physical_core_count(void) {
-	FILE* f = fopen("/proc/cpuinfo", "r");
+static u32 linux_physical_core_count (void) {
+	FILE *f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
 		return 0;
 	}
@@ -1365,8 +1365,8 @@ static u32 linux_physical_core_count(void) {
 	return core_count;
 }
 
-static u32 linux_ram_speed_mhz(void) {
-	FILE* f;
+static u32 linux_ram_speed_mhz (void) {
+	FILE *f;
 	char path[256];
 	char buf[64];
 	u32 speed = 0;
@@ -1397,8 +1397,8 @@ static u32 linux_ram_speed_mhz(void) {
 	return 0; /* unknown */
 }
 
-static void linux_cpu(ksystem_info* s) {
-	FILE* f = fopen("/proc/cpuinfo", "r");
+static void linux_cpu (ksystem_info *s) {
+	FILE *f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
 		return;
 	}
@@ -1426,10 +1426,10 @@ static void linux_cpu(ksystem_info* s) {
 
 	// Attempt to get the base CPU clock speed mhz.
 	{
-		DIR* dir = opendir("/sys/devices/system/cpu/");
+		DIR *dir = opendir("/sys/devices/system/cpu/");
 		if (dir) {
 
-			struct dirent* entry;
+			struct dirent *entry;
 			u32 freq_khz = 0;
 			while ((entry = readdir(dir)) != NULL) {
 				if (strncmp(entry->d_name, "cpu", 3) == 0 && isdigit(entry->d_name[3])) {
@@ -1438,7 +1438,7 @@ static void linux_cpu(ksystem_info* s) {
 							 "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
 							 entry->d_name);
 
-					FILE* f = fopen(path, "r");
+					FILE *f = fopen(path, "r");
 					if (!f)
 						continue;
 
@@ -1460,7 +1460,7 @@ static void linux_cpu(ksystem_info* s) {
 	detect_arm_features(&s->features);
 }
 
-static void linux_ram(ksystem_info* s) {
+static void linux_ram (ksystem_info *s) {
 	struct sysinfo info;
 	sysinfo(&info);
 	s->ram_total_bytes = (u64)info.totalram * info.mem_unit;
@@ -1468,14 +1468,14 @@ static void linux_ram(ksystem_info* s) {
 	s->ram_speed_mhz = linux_ram_speed_mhz();
 }
 
-static void linux_os(ksystem_info* s) {
+static void linux_os (ksystem_info *s) {
 	struct utsname u;
 	uname(&u);
 
 	strcpy(s->os_name, "Linux");
 	strcpy(s->kernel_version, u.release);
 
-	FILE* f = fopen("/etc/os-release", "r");
+	FILE *f = fopen("/etc/os-release", "r");
 	if (!f) {
 		return;
 	}
@@ -1488,8 +1488,8 @@ static void linux_os(ksystem_info* s) {
 	}
 	fclose(f);
 }
-static int file_read_string(const char* path, char* out, size_t out_size) {
-	FILE* f = fopen(path, "r");
+static int file_read_string (const char *path, char *out, size_t out_size) {
+	FILE *f = fopen(path, "r");
 	if (!f)
 		return 0;
 	if (!fgets(out, (int)out_size, f)) {
@@ -1502,8 +1502,8 @@ static int file_read_string(const char* path, char* out, size_t out_size) {
 	return 1;
 }
 
-static int file_read_int(const char* path, int* out) {
-	FILE* f = fopen(path, "r");
+static int file_read_int (const char *path, int *out) {
+	FILE *f = fopen(path, "r");
 	if (!f)
 		return 0;
 	int v = 0;
@@ -1514,10 +1514,10 @@ static int file_read_int(const char* path, int* out) {
 	*out = v;
 	return 1;
 }
-static kdrive_type linux_classify_drive(
-	const char* device,		 // /dev/sda1
-	const char* mount_point, // /
-	const char* fs_type		 // ext4, tmpfs, nfs, ...
+static kdrive_type linux_classify_drive (
+	const char *device,		 // /dev/sda1
+	const char *mount_point, // /
+	const char *fs_type		 // ext4, tmpfs, nfs, ...
 ) {
 	// 1. No mount point
 	if (!mount_point || !mount_point[0])
@@ -1573,10 +1573,10 @@ static kdrive_type linux_classify_drive(
 	return KDRIVE_TYPE_UNKNOWN;
 }
 
-static void linux_query_storage(ksystem_info* s) {
+static void linux_query_storage (ksystem_info *s) {
 	s->storage_count = 0;
 
-	FILE* f = fopen("/proc/self/mounts", "r");
+	FILE *f = fopen("/proc/self/mounts", "r");
 	if (f) {
 
 		char line[1024];
@@ -1605,7 +1605,7 @@ static void linux_query_storage(ksystem_info* s) {
 			if (statvfs(mount, &vfs) != 0)
 				continue;
 
-			kstorage_info* m = &s->storage[s->storage_count++];
+			kstorage_info *m = &s->storage[s->storage_count++];
 			strncpy(m->name, device, sizeof(m->name));
 			strncpy(m->mount_point, mount, sizeof(m->mount_point));
 			m->total_bytes = (u64)vfs.f_blocks * vfs.f_frsize;
@@ -1616,12 +1616,12 @@ static void linux_query_storage(ksystem_info* s) {
 		fclose(f);
 	}
 }
-static u32 linux_get_ram_speed_mhz(void) {
-	DIR* dir = opendir("/sys/firmware/dmi/entries");
+static u32 linux_get_ram_speed_mhz (void) {
+	DIR *dir = opendir("/sys/firmware/dmi/entries");
 	if (!dir)
 		return 0;
 
-	struct dirent* ent;
+	struct dirent *ent;
 	u32 max_speed = 0;
 
 	while ((ent = readdir(dir)) != NULL) {
@@ -1634,7 +1634,7 @@ static u32 linux_get_ram_speed_mhz(void) {
 				 "/sys/firmware/dmi/entries/%s/raw",
 				 ent->d_name);
 
-		FILE* f = fopen(path, "rb");
+		FILE *f = fopen(path, "rb");
 		if (!f)
 			continue;
 
@@ -1656,7 +1656,7 @@ static u32 linux_get_ram_speed_mhz(void) {
 	return max_speed;
 }
 
-b8 platform_system_info_collect(ksystem_info* out_info) {
+b8 platform_system_info_collect (ksystem_info *out_info) {
 	kzero_memory(out_info, sizeof(*out_info));
 
 	linux_cpu(out_info);
@@ -1676,13 +1676,13 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	return true;
 }
 
-void platform_request_clipboard_content(kwindow* window) {
+void platform_request_clipboard_content (kwindow *window) {
 	if (!state_ptr->clipboard.initialized) {
 		KWARN("Clipboard not yet initialized, unable to begin new request.");
 		return;
 	}
 
-	internal_clipboard_state* cb = &state_ptr->clipboard;
+	internal_clipboard_state *cb = &state_ptr->clipboard;
 
 	if (cb->paste_pending) {
 		KWARN("Clipboard currently processing, unable to begin new request.");
@@ -1711,8 +1711,8 @@ void platform_request_clipboard_content(kwindow* window) {
 	xcb_flush(state_ptr->handle.connection);
 }
 
-void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
-	internal_clipboard_state* cb = &state_ptr->clipboard;
+void platform_clipboard_content_set (kwindow *window, kclipboard_content_type type, u32 size, void *content) {
+	internal_clipboard_state *cb = &state_ptr->clipboard;
 	if (cb->owned_data) {
 		if (cb->owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 			string_free(cb->owned_data);
@@ -1745,7 +1745,7 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 	xcb_flush(state_ptr->handle.connection);
 }
 
-static i32 openfiledialog_on_response(sd_bus_message* m, void* user_data, sd_bus_error* error) {
+static i32 openfiledialog_on_response (sd_bus_message *m, void *user_data, sd_bus_error *error) {
 	u32 response;
 	state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_STRUCT, "u a{sv}");
 
@@ -1760,16 +1760,16 @@ static i32 openfiledialog_on_response(sd_bus_message* m, void* user_data, sd_bus
 	// Read the results dictionary
 	state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
 
-	state_ptr->ofd_files_temp = darray_create(const char*);
+	state_ptr->ofd_files_temp = darray_create(const char *);
 
-	const char* key;
+	const char *key;
 	while (state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv")) {
 		state_ptr->ksd_bus_message_read(m, "s", &key);
 		if (strings_equal(key, "uris")) {
 			state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_VARIANT, "as");
 			state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "s");
 
-			const char* uri;
+			const char *uri;
 			while (state_ptr->ksd_bus_message_read(m, "s", &uri)) {
 				// Add to selection list, sanitizing "file://" from the front.
 				// TODO: May need to decode this path too, to handle spaces, etc.
@@ -1792,17 +1792,17 @@ static i32 openfiledialog_on_response(sd_bus_message* m, void* user_data, sd_bus
 }
 
 typedef struct open_file_filter_type_data {
-	const char* description;
+	const char *description;
 	u8 extension_count;
-	const char** extensions;
+	const char **extensions;
 } open_file_filter_type_data;
 
-static open_file_filter_type_data* parse_open_file_filters(const char* filter_str, u8* out_count) {
+static open_file_filter_type_data *parse_open_file_filters (const char *filter_str, u8 *out_count) {
 	if (!filter_str || !out_count) {
 		return KNULL;
 	}
 
-	char** parts = darray_create(char*);
+	char **parts = darray_create(char *);
 	u32 parts_count = string_split(filter_str, '|', &parts, true, false, false);
 	if (parts_count < 2) {
 		KERROR("Invalid open file filter string '%s'. Must have at least 2 parts.");
@@ -1811,15 +1811,15 @@ static open_file_filter_type_data* parse_open_file_filters(const char* filter_st
 	}
 
 	u32 type_count = parts_count / 2;
-	open_file_filter_type_data* types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
+	open_file_filter_type_data *types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
 	for (u32 i = 0; i < type_count; ++i) {
-		char** extensions = darray_create(char*);
+		char **extensions = darray_create(char *);
 		u32 extensions_count = string_split(parts[(i * 2) + 1], ';', &extensions, true, false, false);
 		open_file_filter_type_data type_data = {
 			.description = string_duplicate(parts[(i * 2)]),
 			.extension_count = (u8)extensions_count,
 		};
-		type_data.extensions = KALLOC_TYPE_CARRAY(const char*, extensions_count);
+		type_data.extensions = KALLOC_TYPE_CARRAY(const char *, extensions_count);
 		for (u8 j = 0; j < extensions_count; ++j) {
 			type_data.extensions[j] = string_duplicate(extensions[j]);
 		}
@@ -1834,7 +1834,7 @@ static open_file_filter_type_data* parse_open_file_filters(const char* filter_st
 	return types;
 }
 
-platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options) {
+platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
 	platform_open_file_dialog_result result = {
 		.file_count = 0,
 		.file_paths = KNULL,
@@ -1847,9 +1847,9 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 
 	state_ptr->kill_sd_bus_loop = false;
 
-	sd_bus* bus = KNULL;
-	sd_bus_message* m = KNULL;
-	sd_bus_message* reply = KNULL;
+	sd_bus *bus = KNULL;
+	sd_bus_message *m = KNULL;
+	sd_bus_message *reply = KNULL;
 	sd_bus_error err = SD_BUS_ERROR_NULL;
 
 	i32 r = state_ptr->ksd_bus_open_user(&bus);
@@ -1867,7 +1867,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 		"OpenFile");
 
 	// Parent and title
-	const char* title = (options.title) ? options.title : "Open File";
+	const char *title = (options.title) ? options.title : "Open File";
 	state_ptr->ksd_bus_message_append(m, "ss", "", title);
 
 	// Options dictionary
@@ -1885,7 +1885,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 
 	// starting_dir
 	{
-		const char* path = options.starting_dir ? options.starting_dir : ".";
+		const char *path = options.starting_dir ? options.starting_dir : ".";
 
 		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
 		state_ptr->ksd_bus_message_append(m, "s", "current_folder");
@@ -1898,7 +1898,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 	// Filters, if included. If not, a default of *.*/all files is assumed.
 	if (options.filter) {
 		u8 type_count = 0;
-		open_file_filter_type_data* types = parse_open_file_filters(options.filter, &type_count);
+		open_file_filter_type_data *types = parse_open_file_filters(options.filter, &type_count);
 		if (type_count > 0) {
 			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
 			state_ptr->ksd_bus_message_append(m, "s", "filters");
@@ -1907,7 +1907,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 
 			// Each type
 			for (u8 i = 0; i < type_count; ++i) {
-				open_file_filter_type_data* type = &types[i];
+				open_file_filter_type_data *type = &types[i];
 				state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_STRUCT, "sa(us)");
 				state_ptr->ksd_bus_message_append(m, "s", type->description);
 				KTRACE("Type desc: '%s'", type->description);
@@ -1916,7 +1916,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 
 				// Each extension for the type.
 				for (u8 j = 0; j < type->extension_count; ++j) {
-					const char* ext = type->extensions[j];
+					const char *ext = type->extensions[j];
 					KTRACE("ext: '%s'", ext);
 					state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_STRUCT, "us");
 					state_ptr->ksd_bus_message_append(m, "u", 0);
@@ -1945,7 +1945,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 	}
 
 	// Read returned object path.
-	const char* request_path = KNULL;
+	const char *request_path = KNULL;
 	state_ptr->ksd_bus_message_read(reply, "o", &request_path);
 
 	KTRACE("Request path: '%s'", request_path);
@@ -1973,7 +1973,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 	result.success = state_ptr->ofd_files_temp != KNULL;
 	result.file_count = (u8)darray_length(state_ptr->ofd_files_temp);
 	if (result.success) {
-		KDUPLICATE_TYPE_CARRAY(result.file_paths, state_ptr->ofd_files_temp, const char*, result.file_count);
+		KDUPLICATE_TYPE_CARRAY(result.file_paths, state_ptr->ofd_files_temp, const char *, result.file_count);
 	}
 	darray_destroy(state_ptr->ofd_files_temp);
 	state_ptr->ofd_files_temp = KNULL;
@@ -1982,10 +1982,10 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 	return result;
 }
 
-static kwindow* window_from_handle(xcb_window_t window) {
+static kwindow *window_from_handle (xcb_window_t window) {
 	u32 len = darray_length(state_ptr->windows);
 	for (u32 i = 0; i < len; ++i) {
-		kwindow* w = state_ptr->windows[i];
+		kwindow *w = state_ptr->windows[i];
 		if (w && w->platform_state->window == window) {
 			return state_ptr->windows[i];
 		}
@@ -1993,7 +1993,7 @@ static kwindow* window_from_handle(xcb_window_t window) {
 	return 0;
 }
 
-static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev) {
+static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev) {
 	b8 repeat = (ev->detail == state->last_keycode) && (ev->time == state->last_key_time); // Some servers send identical timestamps for repeats
 
 	state->last_keycode = ev->detail;
@@ -2003,7 +2003,7 @@ static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev) 
 }
 
 // Key translation
-static keys translate_keycode(u32 x_keycode) {
+static keys translate_keycode (u32 x_keycode) {
 	switch (x_keycode) {
 	case XK_BackSpace:
 		return KEY_BACKSPACE;

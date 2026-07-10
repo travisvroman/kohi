@@ -46,7 +46,7 @@ typedef enum log_level {
 } log_level;
 
 // A function pointer for a console to hook into the logger.
-typedef void (*PFN_console_write)(log_level level, const char* message);
+typedef void (*PFN_console_write)(log_level level, const char *message);
 
 /**
  * @brief Provides a hook to a console (perhaps from Kohi Runtime or elsewhere) that the
@@ -57,7 +57,7 @@ typedef void (*PFN_console_write)(log_level level, const char* message);
  *
  * @param hook A function pointer from the console hook.
  */
-KAPI void logger_console_write_hook_set(PFN_console_write hook);
+KAPI void logger_console_write_hook_set (PFN_console_write hook);
 
 /**
  * @brief Outputs logging at the given level. NOTE: This should not be called directly.
@@ -65,7 +65,7 @@ KAPI void logger_console_write_hook_set(PFN_console_write hook);
  * @param message The message to be logged.
  * @param ... Any formatted data that should be included in the log entry.
  */
-KAPI void _log_output(log_level level, const char* message, ...);
+KAPI void _log_output (log_level level, const char *message, ...);
 
 /**
  * @brief Logs a fatal-level message. Should be used to stop the application when hit.

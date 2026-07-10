@@ -7,7 +7,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 
-b8 application_config_parse_file_content(const char* file_content, application_config* out_config) {
+b8 application_config_parse_file_content (const char *file_content, application_config *out_config) {
 	if (!file_content || !out_config) {
 		KERROR("application_config_parse_file_content requires valid pointers to file_content and out_config.");
 		return false;
@@ -95,7 +95,7 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 			}
 
 			// Resolution
-			const char* res_str = 0;
+			const char *res_str = 0;
 			if (kson_object_property_value_get_string(&window_config, "resolution", &res_str)) {
 				vec2 resolution;
 				if (string_to_vec2(res_str, &resolution)) {
@@ -112,7 +112,7 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 			}
 
 			// Starting position.
-			const char* sp_str = 0;
+			const char *sp_str = 0;
 			if (kson_object_property_value_get_string(&window_config, "position", &sp_str)) {
 				vec2 start_position;
 				if (string_to_vec2(sp_str, &start_position)) {
@@ -197,7 +197,7 @@ b8 application_config_parse_file_content(const char* file_content, application_c
 	return true;
 }
 
-void application_config_destroy(application_config* config) {
+void application_config_destroy (application_config *config) {
 	KASSERT(config);
 
 	string_free(config->name);
@@ -223,7 +223,7 @@ void application_config_destroy(application_config* config) {
 	}
 }
 
-b8 application_config_system_config_get(const application_config* config, const char* system_name, application_system_config* out_sys_config) {
+b8 application_config_system_config_get (const application_config *config, const char *system_name, application_system_config *out_sys_config) {
 	if (!config || !system_name || !out_sys_config) {
 		return false;
 	}

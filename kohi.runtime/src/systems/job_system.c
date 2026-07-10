@@ -29,7 +29,7 @@ typedef struct job_result_entry {
 	u16 id;
 	pfn_job_on_complete callback;
 	u32 param_size;
-	void* params;
+	void *params;
 } job_result_entry;
 
 // The max number of job results that can be stored at once.
@@ -42,7 +42,7 @@ typedef struct job_system_state {
 
 	u16 current_job_id;
 	// TODO: This is a massive waste of memory - combine 8 at a time into each bool.
-	b8* job_statuses;
+	b8 *job_statuses;
 	kmutex job_status_mutex;
 
 	ring_queue low_priority_queue;
@@ -59,9 +59,9 @@ typedef struct job_system_state {
 	// A mutex for the result array
 } job_system_state;
 
-static job_system_state* state_ptr;
+static job_system_state *state_ptr;
 
-static void store_result(pfn_job_on_complete callback, u32 param_size, void* params) {
+static void store_result (pfn_job_on_complete callback, u32 param_size, void *params) {
 	// Create the new entry.
 	job_result_entry entry;
 	entry.id = INVALID_ID_U16;
@@ -91,9 +91,9 @@ static void store_result(pfn_job_on_complete callback, u32 param_size, void* par
 	}
 }
 
-static u32 job_thread_run(void* params) {
-	u32 index = *(u32*)params;
-	job_thread* thread = &state_ptr->job_threads[index];
+static u32 job_thread_run (void *params) {
+	u32 index = *(u32 *)params;
+	job_thread *thread = &state_ptr->job_threads[index];
 	KTRACE("Starting job thread #%i (id=%#x, type=%#x).", thread->index, thread->thread.thread_id, thread->type_mask);
 
 	// A mutex to lock info for this thread.
@@ -183,8 +183,8 @@ static u32 job_thread_run(void* params) {
 	return 1;
 }
 
-b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* config) {
-	job_system_config* typed_config = (job_system_config*)config;
+b8 job_system_initialize (u64 *job_system_memory_requirement, void *state, void *config) {
+	job_system_config *typed_config = (job_system_config *)config;
 	*job_system_memory_requirement = sizeof(job_system_state) + (sizeof(u8) * (INVALID_ID_U16 - 1));
 	if (state == 0) {
 		return true;
@@ -194,7 +194,7 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* 
 
 	state_ptr = state;
 	state_ptr->running = true;
-	state_ptr->job_statuses = (void*)((u64)state_ptr + sizeof(job_system_state));
+	state_ptr->job_statuses = (void *)((u64)state_ptr + sizeof(job_system_state));
 
 	ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->low_priority_queue);
 	ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->normal_priority_queue);
@@ -245,7 +245,7 @@ b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* 
 	return true;
 }
 
-void job_system_shutdown(void* state) {
+void job_system_shutdown (void *state) {
 	if (state_ptr) {
 		state_ptr->running = false;
 
@@ -276,7 +276,7 @@ void job_system_shutdown(void* state) {
 	}
 }
 
-static void process_queue(ring_queue* queue, kmutex* queue_mutex) {
+static void process_queue (ring_queue *queue, kmutex *queue_mutex) {
 	u64 thread_count = state_ptr->thread_count;
 
 	// Check for a free thread first.
@@ -304,7 +304,7 @@ static void process_queue(ring_queue* queue, kmutex* queue_mutex) {
 
 		b8 thread_found = false;
 		for (u8 i = 0; i < thread_count; ++i) {
-			job_thread* thread = &state_ptr->job_threads[i];
+			job_thread *thread = &state_ptr->job_threads[i];
 			if ((thread->type_mask & info.type) == 0) {
 				continue;
 			}
@@ -346,7 +346,7 @@ static void process_queue(ring_queue* queue, kmutex* queue_mutex) {
 	}
 }
 
-b8 job_system_update(void* state, struct frame_data* p_frame_data) {
+b8 job_system_update (void *state, struct frame_data *p_frame_data) {
 	if (!state_ptr || !state_ptr->running) {
 		return false;
 	}
@@ -389,10 +389,10 @@ b8 job_system_update(void* state, struct frame_data* p_frame_data) {
 	return true;
 }
 
-void job_system_submit(job_info info) {
+void job_system_submit (job_info info) {
 	u64 thread_count = state_ptr->thread_count;
-	ring_queue* queue = &state_ptr->normal_priority_queue;
-	kmutex* queue_mutex = &state_ptr->normal_pri_queue_mutex;
+	ring_queue *queue = &state_ptr->normal_priority_queue;
+	kmutex *queue_mutex = &state_ptr->normal_pri_queue_mutex;
 
 	// If the job is high priority, try to kick it off immediately.
 	if (info.priority == JOB_PRIORITY_HIGH) {
@@ -401,7 +401,7 @@ void job_system_submit(job_info info) {
 
 		// Check for a free thread that supports the job type first.
 		for (u8 i = 0; i < thread_count; ++i) {
-			job_thread* thread = &state_ptr->job_threads[i];
+			job_thread *thread = &state_ptr->job_threads[i];
 			if (state_ptr->job_threads[i].type_mask & info.type) {
 				b8 found = false;
 				if (!kmutex_lock(&thread->info_mutex)) {
@@ -440,29 +440,29 @@ void job_system_submit(job_info info) {
 	KTRACE("Job queued.");
 }
 
-job_info job_create(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size) {
+job_info job_create (pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void *param_data, u32 param_data_size, u32 result_data_size) {
 	return job_create_priority(entry_point, on_success, on_fail, param_data, param_data_size, result_data_size, JOB_TYPE_GENERAL, JOB_PRIORITY_NORMAL);
 }
 
-job_info job_create_type(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size, job_type type) {
+job_info job_create_type (pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void *param_data, u32 param_data_size, u32 result_data_size, job_type type) {
 	return job_create_priority(entry_point, on_success, on_fail, param_data, param_data_size, result_data_size, type, JOB_PRIORITY_NORMAL);
 }
 
-job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size, job_type type, job_priority priority) {
+job_info job_create_priority (pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void *param_data, u32 param_data_size, u32 result_data_size, job_type type, job_priority priority) {
 	return job_create_with_dependencies(entry_point, on_success, on_fail, param_data, param_data_size, result_data_size, type, priority, 0, 0);
 }
 
-job_info job_create_with_dependencies(
+job_info job_create_with_dependencies (
 	pfn_job_start entry_point,
 	pfn_job_on_complete on_success,
 	pfn_job_on_complete on_fail,
-	void* param_data,
+	void *param_data,
 	u32 param_data_size,
 	u32 result_data_size,
 	job_type type,
 	job_priority priority,
 	u8 dependency_count,
-	u16* dependencies) {
+	u16 *dependencies) {
 	job_info job;
 	job.entry_point = entry_point;
 	job.on_success = on_success;
@@ -511,7 +511,7 @@ job_info job_create_with_dependencies(
 	return job;
 }
 
-b8 job_system_query_job_complete(u16 job_id) {
+b8 job_system_query_job_complete (u16 job_id) {
 	b8 status = INVALID_ID;
 	if (!kmutex_lock(&state_ptr->job_status_mutex)) {
 		KERROR("Failed to lock job status mutex!");
@@ -523,6 +523,6 @@ b8 job_system_query_job_complete(u16 job_id) {
 	return status;
 }
 
-b8 job_system_wait_for_jobs(u8 job_count, u16 job_ids) {
+b8 job_system_wait_for_jobs (u8 job_count, u16 job_ids) {
 	return true;
 }

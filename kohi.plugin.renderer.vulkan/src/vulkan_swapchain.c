@@ -17,37 +17,37 @@
 #include <vulkan_types.h>
 #include <vulkan_utils.h>
 
-static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_config_flags flags, vulkan_swapchain* swapchain);
-static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain);
+static b8 create (renderer_backend_interface *backend, kwindow *window, renderer_config_flags flags, vulkan_swapchain *swapchain);
+static void destroy (renderer_backend_interface *backend, vulkan_swapchain *swapchain);
 
-b8 vulkan_swapchain_create(
-	struct renderer_backend_interface* backend,
-	kwindow* window,
+b8 vulkan_swapchain_create (
+	struct renderer_backend_interface *backend,
+	kwindow *window,
 	renderer_config_flags flags,
-	vulkan_swapchain* out_swapchain) {
+	vulkan_swapchain *out_swapchain) {
 	// Simply create a new one.
 	out_swapchain->swapchain_colour_texture = INVALID_KTEXTURE;
 	return create(backend, window, flags, out_swapchain);
 }
 
-b8 vulkan_swapchain_recreate(
-	struct renderer_backend_interface* backend,
-	kwindow* window,
-	vulkan_swapchain* swapchain) {
+b8 vulkan_swapchain_recreate (
+	struct renderer_backend_interface *backend,
+	kwindow *window,
+	vulkan_swapchain *swapchain) {
 	// Destroy the old and create a new one.
 	destroy(backend, swapchain);
 	return create(backend, window, swapchain->flags, swapchain);
 }
 
-void vulkan_swapchain_destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain) {
+void vulkan_swapchain_destroy (renderer_backend_interface *backend, vulkan_swapchain *swapchain) {
 	destroy(backend, swapchain);
 }
 
-static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_config_flags flags, vulkan_swapchain* swapchain) {
-	vulkan_context* context = backend->internal_context;
-	krhi_vulkan* rhi = &context->rhi;
-	kwindow_renderer_state* window_internal = window->renderer_state;
-	kwindow_renderer_backend_state* window_backend = window_internal->backend_state;
+static b8 create (renderer_backend_interface *backend, kwindow *window, renderer_config_flags flags, vulkan_swapchain *swapchain) {
+	vulkan_context *context = backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+	kwindow_renderer_state *window_internal = window->renderer_state;
+	kwindow_renderer_backend_state *window_backend = window_internal->backend_state;
 
 	VkExtent2D swapchain_extent = {window->width, window->height};
 
@@ -151,7 +151,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 	// Verify the swapchain creation.
 	VkResult result = rhi->kvkCreateSwapchainKHR(context->device.logical_device, &swapchain_create_info, context->allocator, &swapchain->handle);
 	if (!vulkan_result_is_success(result)) {
-		const char* result_str = vulkan_result_string(result, true);
+		const char *result_str = vulkan_result_string(result, true);
 		KFATAL("Failed to create Vulkan swapchain with the error: '%s'.", result_str);
 		return false;
 	}
@@ -160,7 +160,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 	swapchain->image_count = 0;
 	result = rhi->kvkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0);
 	if (!vulkan_result_is_success(result)) {
-		const char* result_str = vulkan_result_string(result, true);
+		const char *result_str = vulkan_result_string(result, true);
 		KFATAL("Failed to obtain image count from Vulkan swapchain with the error: '%s'.", result_str);
 		return false;
 	}
@@ -169,7 +169,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 	VkImage swapchain_images[32];
 	result = rhi->kvkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain_images);
 	if (!vulkan_result_is_success(result)) {
-		const char* result_str = vulkan_result_string(result, true);
+		const char *result_str = vulkan_result_string(result, true);
 		KFATAL("Failed to obtain images from Vulkan swapchain with the error: '%s'.", result_str);
 		return false;
 	}
@@ -215,7 +215,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 
 	// Get the texture_internal_data based on the existing or newly-created handle above.
 	// Use that to setup the internal images/views for the colourbuffer texture.
-	vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture];
+	vulkan_texture_handle_data *texture_data = &context->textures[swapchain->swapchain_colour_texture];
 	if (!texture_data) {
 		KFATAL("Unable to get internal data for swapchain colour image. Swapchain creation failed.");
 		return false;
@@ -223,7 +223,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 
 	if (texture_data->image_count && texture_data->images) {
 		for (u32 i = 0; i < swapchain->image_count; ++i) {
-			vulkan_image* image = &texture_data->images[i];
+			vulkan_image *image = &texture_data->images[i];
 			string_free(image->name);
 			rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
 		}
@@ -236,7 +236,7 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 
 	// Set initial parameters for each.
 	for (u32 i = 0; i < texture_data->image_count; ++i) {
-		vulkan_image* image = &texture_data->images[i];
+		vulkan_image *image = &texture_data->images[i];
 
 		// Construct a unique name for each image.
 		image->name = string_format("__internal_vulkan_swapchain_image_%u__", i);
@@ -274,15 +274,15 @@ static b8 create(renderer_backend_interface* backend, kwindow* window, renderer_
 	return true;
 }
 
-static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapchain) {
-	vulkan_context* context = backend->internal_context;
-	krhi_vulkan* rhi = &context->rhi;
+static void destroy (renderer_backend_interface *backend, vulkan_swapchain *swapchain) {
+	vulkan_context *context = backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
 
 	if (swapchain->swapchain_colour_texture == INVALID_KTEXTURE) {
 		KFATAL("Swapchain internal colour texture has an invalid handle.");
 	}
 
-	vulkan_texture_handle_data* texture_data = &context->textures[swapchain->swapchain_colour_texture];
+	vulkan_texture_handle_data *texture_data = &context->textures[swapchain->swapchain_colour_texture];
 	if (!texture_data) {
 		KFATAL("Unable to get internal data for colourbuffer image. Swapchain destruction failed.");
 		return;
@@ -293,7 +293,7 @@ static void destroy(renderer_backend_interface* backend, vulkan_swapchain* swapc
 	// Only destroy the colourbuffer views, not the images, since those are owned by the swapchain and are thus
 	// destroyed when it is.
 	for (u32 i = 0; i < swapchain->image_count; ++i) {
-		vulkan_image* image = &texture_data->images[i];
+		vulkan_image *image = &texture_data->images[i];
 		string_free(image->name);
 		rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
 	}

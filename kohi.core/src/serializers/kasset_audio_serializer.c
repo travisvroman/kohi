@@ -15,13 +15,13 @@ typedef struct binary_audio_header {
 	u64 pcm_data_size;
 } binary_audio_header;
 
-KAPI void* kasset_audio_serialize(const kasset_audio* asset, u64* out_size) {
+KAPI void *kasset_audio_serialize (const kasset_audio *asset, u64 *out_size) {
 	if (!asset) {
 		KERROR("Cannot serialize without an asset, ya dingus!");
 		return 0;
 	}
 
-	kasset_audio* typed_asset = (kasset_audio*)asset;
+	kasset_audio *typed_asset = (kasset_audio *)asset;
 
 	binary_audio_header header = {0};
 	// Base attributes.
@@ -38,20 +38,20 @@ KAPI void* kasset_audio_serialize(const kasset_audio* asset, u64* out_size) {
 
 	*out_size = sizeof(binary_audio_header) + typed_asset->pcm_data_size;
 
-	void* block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
+	void *block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
 	kcopy_memory(block, &header, sizeof(binary_audio_header));
-	kcopy_memory(((u8*)block) + sizeof(binary_audio_header), typed_asset->pcm_data, typed_asset->pcm_data_size);
+	kcopy_memory(((u8 *)block) + sizeof(binary_audio_header), typed_asset->pcm_data, typed_asset->pcm_data_size);
 
 	return block;
 }
 
-KAPI b8 kasset_audio_deserialize(u64 size, const void* block, kasset_audio* out_asset) {
+KAPI b8 kasset_audio_deserialize (u64 size, const void *block, kasset_audio *out_asset) {
 	if (!size || !block || !out_asset) {
 		KERROR("Cannot deserialize without a nonzero size, block of memory and an asset to write to.");
 		return false;
 	}
 
-	const binary_audio_header* header = block;
+	const binary_audio_header *header = block;
 	if (header->base.magic != ASSET_MAGIC) {
 		KERROR("Memory is not a Kohi binary asset.");
 		return false;
@@ -69,7 +69,7 @@ KAPI b8 kasset_audio_deserialize(u64 size, const void* block, kasset_audio* out_
 		return false;
 	}
 
-	kasset_audio* out_audio = (kasset_audio*)out_asset;
+	kasset_audio *out_audio = (kasset_audio *)out_asset;
 
 	out_audio->channels = header->channels;
 	out_audio->total_sample_count = header->total_sample_count;
@@ -78,7 +78,7 @@ KAPI b8 kasset_audio_deserialize(u64 size, const void* block, kasset_audio* out_
 
 	// Copy the actual audio data block.
 	out_audio->pcm_data = kallocate(out_audio->pcm_data_size, MEMORY_TAG_ASSET);
-	kcopy_memory(out_audio->pcm_data, ((u8*)block) + sizeof(binary_audio_header), header->base.data_block_size);
+	kcopy_memory(out_audio->pcm_data, ((u8 *)block) + sizeof(binary_audio_header), header->base.data_block_size);
 
 	return true;
 }

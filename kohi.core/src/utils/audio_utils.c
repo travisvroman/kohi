@@ -4,7 +4,7 @@
 #include "memory/kmemory.h"
 #include "strings/kstring.h"
 
-kaudio_space string_to_audio_space(const char* str) {
+kaudio_space string_to_audio_space (const char *str) {
 	if (strings_equali(str, "2d")) {
 		return KAUDIO_SPACE_2D;
 	} else if (strings_equali(str, "3d")) {
@@ -13,7 +13,7 @@ kaudio_space string_to_audio_space(const char* str) {
 	return KAUDIO_SPACE_2D;
 }
 
-const char* audio_space_to_string(kaudio_space space) {
+const char *audio_space_to_string (kaudio_space space) {
 	switch (space) {
 	case KAUDIO_SPACE_2D:
 		return "2D";
@@ -22,7 +22,7 @@ const char* audio_space_to_string(kaudio_space space) {
 	}
 }
 
-kaudio_attenuation_model string_to_attenuation_model(const char* str) {
+kaudio_attenuation_model string_to_attenuation_model (const char *str) {
 	if (strings_equali(str, "linear")) {
 		return KAUDIO_ATTENUATION_MODEL_LINEAR;
 	} else if (strings_equali(str, "exponential")) {
@@ -35,7 +35,7 @@ kaudio_attenuation_model string_to_attenuation_model(const char* str) {
 	return KAUDIO_ATTENUATION_MODEL_LINEAR;
 }
 
-const char* attenuation_model_to_string(kaudio_attenuation_model model) {
+const char *attenuation_model_to_string (kaudio_attenuation_model model) {
 	switch (model) {
 	case KAUDIO_ATTENUATION_MODEL_LINEAR:
 		return "linear";
@@ -48,7 +48,7 @@ const char* attenuation_model_to_string(kaudio_attenuation_model model) {
 	}
 }
 
-f32 calculate_spatial_gain(f32 distance, f32 inner_radius, f32 outer_radius, f32 falloff_factor, kaudio_attenuation_model model) {
+f32 calculate_spatial_gain (f32 distance, f32 inner_radius, f32 outer_radius, f32 falloff_factor, kaudio_attenuation_model model) {
 	if (distance <= inner_radius) {
 		return 1.0f; // Play at full volume.
 	}
@@ -84,13 +84,13 @@ f32 calculate_spatial_gain(f32 distance, f32 inner_radius, f32 outer_radius, f32
 	return gain;
 }
 
-i16* kaudio_downmix_stereo_to_mono(const i16* stereo_data, u32 sample_count) {
+i16 *kaudio_downmix_stereo_to_mono (const i16 *stereo_data, u32 sample_count) {
 	if (!stereo_data || !sample_count) {
 		return 0;
 	}
 
 	u32 mono_sample_count = sample_count / 2;
-	i16* mono_data = kallocate(mono_sample_count * sizeof(u16), MEMORY_TAG_AUDIO);
+	i16 *mono_data = kallocate(mono_sample_count * sizeof(u16), MEMORY_TAG_AUDIO);
 	if (!mono_data) {
 		return 0;
 	}

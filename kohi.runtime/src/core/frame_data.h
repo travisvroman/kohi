@@ -24,9 +24,9 @@ typedef struct frame_data {
 	frame_allocator_int allocator;
 
 	/** @brief Application level frame specific data. Optional, up to the app to know how to use this if needed. */
-	struct application_frame_data* app_frame_data;
+	struct application_frame_data *app_frame_data;
 
-	struct kui_render_data* kui_render_data;
-	struct kforward_renderer_render_data* render_data;
+	struct kui_render_data *kui_render_data;
+	struct kforward_renderer_render_data *render_data;
 
 } frame_data;

@@ -13,16 +13,16 @@
 
 #define kentity_unpack(entity, out_type, out_type_index, out_reserved, out_reserved2) UNPACK_U64_U16S(entity, out_type, out_type_index, out_reserved, out_reserved2)
 
-KAPI kentity_type kentity_type_from_string(const char* str);
+KAPI kentity_type kentity_type_from_string (const char *str);
 
-KAPI const char* kentity_type_to_string(kentity_type type);
+KAPI const char *kentity_type_to_string (kentity_type type);
 
-KAPI b8 kentity_type_ignores_scale(kentity_type type);
+KAPI b8 kentity_type_ignores_scale (kentity_type type);
 
-KAPI kshape_type kshape_type_from_string(const char* str);
+KAPI kshape_type kshape_type_from_string (const char *str);
 
-KAPI const char* kshape_type_to_string(kshape_type type);
+KAPI const char *kshape_type_to_string (kshape_type type);
 
-KAPI kscene_volume_type scene_volume_type_from_string(const char* str);
+KAPI kscene_volume_type scene_volume_type_from_string (const char *str);
 
-KAPI const char* scene_volume_type_to_string(kscene_volume_type type);
+KAPI const char *scene_volume_type_to_string (kscene_volume_type type);

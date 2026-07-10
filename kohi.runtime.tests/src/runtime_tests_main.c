@@ -3,7 +3,7 @@
 #include "test_manager.h"
 #include "world/kscene_tests.h"
 
-int main(void) {
+int main (void) {
 	// Always initalize the test manager first.
 	test_manager_init();
 

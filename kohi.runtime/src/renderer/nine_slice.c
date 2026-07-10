@@ -13,7 +13,7 @@ typedef struct nine_slice_pos_tc {
 	f32 posx_min, posy_min, posx_max, posy_max;
 } nine_slice_pos_tc;
 
-b8 nine_slice_update(nine_slice* nslice, vertex_2d* vertices) {
+b8 nine_slice_update (nine_slice *nslice, vertex_2d *vertices) {
 	if (!nslice) {
 		return false;
 	}
@@ -250,14 +250,14 @@ b8 nine_slice_update(nine_slice* nslice, vertex_2d* vertices) {
 	return true;
 }
 
-void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data* p_frame_data) {
+void nine_slice_render_frame_prepare (nine_slice *nslice, const struct frame_data *p_frame_data) {
 	if (!nslice) {
 		return;
 	}
 
 	if (nslice->is_dirty) {
 		// Upload the new vertex data.
-		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+		struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 		u32 size = nslice->vertex_data.element_size * nslice->vertex_data.element_count;
 		if (!renderer_renderbuffer_load_range(renderer_system, vertex_buffer, nslice->vertex_data.buffer_offset, size, nslice->vertex_data.elements, false)) {
@@ -268,7 +268,7 @@ void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data
 	}
 }
 
-b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i atlas_px_min, vec2i atlas_px_max, vec2i corner_px_size, vec2i corner_size, nine_slice* out_nine_slice) {
+b8 nine_slice_create (const char *name, vec2i size, vec2i atlas_px_size, vec2i atlas_px_min, vec2i atlas_px_max, vec2i corner_px_size, vec2i corner_size, nine_slice *out_nine_slice) {
 	if (!out_nine_slice) {
 		return false;
 	}
@@ -293,7 +293,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
 	out_nine_slice->index_data.elements = kallocate(idx_size * idx_count, MEMORY_TAG_ARRAY);
 	out_nine_slice->index_data.buffer_offset = INVALID_ID_U64;
 
-	u32* indices = (u32*)out_nine_slice->index_data.elements;
+	u32 *indices = (u32 *)out_nine_slice->index_data.elements;
 
 	// Generate index data for the 9 quads.
 	for (u32 i = 0; i < 9; ++i) {
@@ -314,7 +314,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
 		KERROR("Failed to update nine slice. See logs for more details.");
 	}
 
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 
 	// Vertex data.
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
@@ -349,7 +349,7 @@ b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i at
 	return true;
 }
 
-void nine_slice_destroy(nine_slice* nslice) {
+void nine_slice_destroy (nine_slice *nslice) {
 	if (!nslice) {
 		return;
 	}
@@ -361,7 +361,7 @@ void nine_slice_destroy(nine_slice* nslice) {
 	const u32 idx_count = 6 * 9;
 	kfree(nslice->index_data.elements, idx_size * idx_count, MEMORY_TAG_ARRAY);
 
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	renderer_renderbuffer_free(renderer_system, vertex_buffer, vert_size * vert_count, nslice->vertex_data.buffer_offset);

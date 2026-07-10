@@ -7,15 +7,15 @@
 #define RHI_INSTANCE_FUNCTION(name) rhi->k##name = (PFN_##name)rhi->kvkGetInstanceProcAddr(rhi->instance, #name)
 #define RHI_DEVICE_FUNCTION(name) rhi->k##name = (PFN_##name)rhi->kvkGetDeviceProcAddr(rhi->device, #name)
 
-b8 vulkan_loader_initialize(krhi_vulkan* rhi) {
+b8 vulkan_loader_initialize (krhi_vulkan *rhi) {
 	return vulkan_platform_initialize(rhi);
 }
 
-void vulkan_loader_shutdown(krhi_vulkan* rhi) {
+void vulkan_loader_shutdown (krhi_vulkan *rhi) {
 	vulkan_platform_shutdown(rhi);
 }
 
-b8 vulkan_loader_load_core(krhi_vulkan* rhi) {
+b8 vulkan_loader_load_core (krhi_vulkan *rhi) {
 	if (!rhi) {
 		return false;
 	}
@@ -30,7 +30,7 @@ b8 vulkan_loader_load_core(krhi_vulkan* rhi) {
 	return rhi->kvkGetInstanceProcAddr != 0;
 }
 
-b8 vulkan_loader_load_instance(krhi_vulkan* rhi, VkInstance instance) {
+b8 vulkan_loader_load_instance (krhi_vulkan *rhi, VkInstance instance) {
 	if (!rhi) {
 		return false;
 	}
@@ -54,7 +54,7 @@ b8 vulkan_loader_load_instance(krhi_vulkan* rhi, VkInstance instance) {
 
 	return true;
 }
-b8 vulkan_loader_load_device(krhi_vulkan* rhi, VkDevice device) {
+b8 vulkan_loader_load_device (krhi_vulkan *rhi, VkDevice device) {
 	if (!rhi) {
 		return false;
 	}
@@ -127,7 +127,7 @@ b8 vulkan_loader_load_device(krhi_vulkan* rhi, VkDevice device) {
 	RHI_DEVICE_FUNCTION(vkCmdSetDepthBiasEnable);
 	// FIXME: for macOS, need to get this from extension, or always enable perhaps.
 	// Because MoltenVK apparently doesn't provide this.
-	if(!rhi->kvkCmdSetDepthBiasEnable) {
+	if (!rhi->kvkCmdSetDepthBiasEnable) {
 		rhi->kvkCmdSetDepthBiasEnable = (PFN_vkCmdSetDepthBiasEnable)rhi->kvkGetDeviceProcAddr(rhi->device, "vkCmdSetDepthBiasEnableEXT");
 	}
 	RHI_DEVICE_FUNCTION(vkCmdSetStencilReference);

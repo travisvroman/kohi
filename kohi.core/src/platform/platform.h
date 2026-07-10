@@ -21,23 +21,23 @@ typedef u64 kunix_time_ns;
 
 typedef struct platform_system_config {
 	/** @brief application_name The name of the application. */
-	const char* application_name;
+	const char *application_name;
 } platform_system_config;
 
 typedef struct dynamic_library_function {
-	const char* name;
-	void* pfn;
+	const char *name;
+	void *pfn;
 } dynamic_library_function;
 
 typedef struct dynamic_library {
-	const char* name;
-	const char* filename;
+	const char *name;
+	const char *filename;
 	u64 internal_data_size;
-	void* internal_data;
+	void *internal_data;
 	u32 watch_id;
 
 	// darray
-	dynamic_library_function* functions;
+	dynamic_library_function *functions;
 } dynamic_library;
 
 typedef enum platform_error_code {
@@ -58,8 +58,8 @@ typedef struct kwindow_config {
 	i32 position_y;
 	u32 width;
 	u32 height;
-	const char* title;
-	const char* name;
+	const char *title;
+	const char *name;
 } kwindow_config;
 
 struct kwindow_platform_state;
@@ -70,9 +70,9 @@ struct kwindow_renderer_state;
  */
 typedef struct kwindow {
 	/** @brief The internal name of the window. */
-	const char* name;
+	const char *name;
 	/** @brief The title of the window. */
-	const char* title;
+	const char *title;
 
 	/** @brief The width of the window in pixels */
 	u16 width;
@@ -91,10 +91,10 @@ typedef struct kwindow {
 	u16 frames_since_resize;
 
 	/** @brief Holds platform-specific data. */
-	struct kwindow_platform_state* platform_state;
+	struct kwindow_platform_state *platform_state;
 
 	/** @brief Holds renderer-specific data. */
-	struct kwindow_renderer_state* renderer_state;
+	struct kwindow_renderer_state *renderer_state;
 } kwindow;
 
 typedef enum ksystem_info_flags {
@@ -134,7 +134,7 @@ typedef enum kdrive_type {
 	KDRIVE_TYPE_RAMDISK = 6
 } kdrive_type;
 
-KINLINE const char* kdrive_type_to_string(kdrive_type type) {
+KINLINE const char *kdrive_type_to_string (kdrive_type type) {
 	switch (type) {
 	default:
 	case KDRIVE_TYPE_UNKNOWN:
@@ -195,15 +195,15 @@ typedef enum kclipboard_content_type {
 
 typedef struct kclipboard_context {
 	kclipboard_content_type content_type;
-	kwindow* requesting_window;
+	kwindow *requesting_window;
 	u64 size;
-	const void* content;
+	const void *content;
 } kclipboard_context;
 
-typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void* context);
-typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
-typedef void (*platform_window_closed_callback)(const struct kwindow* window);
-typedef void (*platform_window_resized_callback)(const struct kwindow* window);
+typedef void (*platform_filewatcher_file_deleted_callback)(u32 watcher_id, void *context);
+typedef void (*platform_filewatcher_file_written_callback)(u32 watcher_id, const char *file_path, b8 is_binary, void *context);
+typedef void (*platform_window_closed_callback)(const struct kwindow *window);
+typedef void (*platform_window_resized_callback)(const struct kwindow *window);
 typedef void (*platform_process_key)(keys key, b8 pressed, b8 is_repeat);
 typedef void (*platform_process_mouse_button)(mouse_buttons button, b8 pressed);
 typedef void (*platform_process_mouse_move)(i16 x, i16 y);
@@ -220,14 +220,14 @@ typedef void (*platform_clipboard_on_paste_callback)(kclipboard_context context)
  * @param config A pointer to a configuration platform_system_config structure required by this system.
  * @return True on success; otherwise false.
  */
-KAPI b8 platform_system_startup(u64* memory_requirement, struct platform_state* state, platform_system_config* config);
+KAPI b8 platform_system_startup (u64 *memory_requirement, struct platform_state *state, platform_system_config *config);
 
 /**
  * @brief Shuts down the platform layer.
  *
  * @param state A pointer to the platform layer state.
  */
-KAPI void platform_system_shutdown(struct platform_state* state);
+KAPI void platform_system_shutdown (struct platform_state *state);
 
 /**
  * @brief Creates a new window from the given config and optionally opens it immediately.
@@ -237,14 +237,14 @@ KAPI void platform_system_shutdown(struct platform_state* state);
  * @param show_immediately Indicates whether the window should open immediately upon creation.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately);
+KAPI b8 platform_window_create (const kwindow_config *config, struct kwindow *window, b8 show_immediately);
 
 /**
  * @brief Destroys the given window.
  *
  * @param window A pointer to the window to be destroyed.
  */
-KAPI void platform_window_destroy(struct kwindow* window);
+KAPI void platform_window_destroy (struct kwindow *window);
 
 /**
  * @brief Shows the given window. Has no effect if the window is already shown.
@@ -252,7 +252,7 @@ KAPI void platform_window_destroy(struct kwindow* window);
  * @param window A pointer to the window to be shown.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 platform_window_show(struct kwindow* window);
+KAPI b8 platform_window_show (struct kwindow *window);
 
 /**
  * @brief Hides the given window. Has no effect if the window is already hidden.
@@ -261,7 +261,7 @@ KAPI b8 platform_window_show(struct kwindow* window);
  * @param window A pointer to the window to be hidden.
  * @return b8 True on success; otherwise false.
  */
-KAPI b8 platform_window_hide(struct kwindow* window);
+KAPI b8 platform_window_hide (struct kwindow *window);
 
 /**
  * @brief Obtains the window title from the given window, if it exists.
@@ -270,7 +270,7 @@ KAPI b8 platform_window_hide(struct kwindow* window);
  * @param window A pointer to the window whose title to get.
  * @return A constant copy of the window's title, or 0 if there is no title or the window doesn't exist.
  */
-KAPI const char* platform_window_title_get(const struct kwindow* window);
+KAPI const char *platform_window_title_get (const struct kwindow *window);
 
 /**
  * @brief Sets the given window's title, if it exists.
@@ -279,7 +279,7 @@ KAPI const char* platform_window_title_get(const struct kwindow* window);
  * @param title The title to be set.
  * @return KAPI True on success; otherwise false.
  */
-KAPI b8 platform_window_title_set(struct kwindow* window, const char* title);
+KAPI b8 platform_window_title_set (struct kwindow *window, const char *title);
 
 /**
  * @brief Performs any platform-specific message pumping that is required
@@ -287,7 +287,7 @@ KAPI b8 platform_window_title_set(struct kwindow* window, const char* title);
  *
  * @return True on success; otherwise false.
  */
-KAPI b8 platform_pump_messages(void);
+KAPI b8 platform_pump_messages (void);
 
 /**
  * @brief Performs platform-specific memory allocation of the given size.
@@ -296,7 +296,7 @@ KAPI b8 platform_pump_messages(void);
  * @param aligned Indicates if the allocation should be aligned.
  * @return A pointer to a block of allocated memory.
  */
-KAPI void* platform_allocate(u64 size, b8 aligned);
+KAPI void *platform_allocate (u64 size, b8 aligned);
 
 /**
  * @brief Frees the given block of memory.
@@ -304,7 +304,7 @@ KAPI void* platform_allocate(u64 size, b8 aligned);
  * @param block The block to be freed.
  * @param aligned Indicates if the block of memory is aligned.
  */
-KAPI void platform_free(void* block, b8 aligned);
+KAPI void platform_free (void *block, b8 aligned);
 
 /**
  * @brief Performs platform-specific zeroing out of the given block of memory.
@@ -313,7 +313,7 @@ KAPI void platform_free(void* block, b8 aligned);
  * @param size The size of data to zero out.
  * @return A pointer to the zeroed out block of memory.
  */
-KAPI void* platform_zero_memory(void* block, u64 size);
+KAPI void *platform_zero_memory (void *block, u64 size);
 
 /**
  * @brief Copies the bytes of memory in source to dest, of the given size.
@@ -323,7 +323,7 @@ KAPI void* platform_zero_memory(void* block, u64 size);
  * @param size The size of data to be copied.
  * @return A pointer to the destination block of memory.
  */
-KAPI void* platform_copy_memory(void* dest, const void* source, u64 size);
+KAPI void *platform_copy_memory (void *dest, const void *source, u64 size);
 
 /**
  * @brief Sets the bytes of memory to the given value.
@@ -333,7 +333,7 @@ KAPI void* platform_copy_memory(void* dest, const void* source, u64 size);
  * @param size The size of data to set.
  * @return A pointer to the set block of memory.
  */
-KAPI void* platform_set_memory(void* dest, i32 value, u64 size);
+KAPI void *platform_set_memory (void *dest, i32 value, u64 size);
 
 /**
  * @brief Performs platform-specific printing to the console of the given
@@ -343,14 +343,14 @@ KAPI void* platform_set_memory(void* dest, i32 value, u64 size);
  * @param message The message to be printed.
  * @param colour The colour to print the text in (if supported).
  */
-KAPI void platform_console_write(struct platform_state* platform, log_level level, const char* message);
+KAPI void platform_console_write (struct platform_state *platform, log_level level, const char *message);
 
 /**
  * @brief Gets the absolute time since the application started.
  *
  * @return The absolute time since the application started.
  */
-KAPI f64 platform_get_absolute_time(void);
+KAPI f64 platform_get_absolute_time (void);
 
 /**
  * @brief Sleep on the thread for the provided milliseconds. This blocks the main thread.
@@ -359,14 +359,14 @@ KAPI f64 platform_get_absolute_time(void);
  *
  * @param ms The number of milliseconds to sleep for.
  */
-KAPI void platform_sleep(u64 ms);
+KAPI void platform_sleep (u64 ms);
 
 /**
  * @brief Obtains the number of logical processor cores.
  *
  * @return The number of logical processor cores.
  */
-KAPI i32 platform_get_processor_count(void);
+KAPI i32 platform_get_processor_count (void);
 
 /**
  * @brief Obtains the required memory amount for platform-specific handle data,
@@ -376,14 +376,14 @@ KAPI i32 platform_get_processor_count(void);
  * @param out_size A pointer to hold the memory requirement.
  * @param memory Allocated block of memory.
  */
-KAPI void platform_get_handle_info(u64* out_size, void* memory);
+KAPI void platform_get_handle_info (u64 *out_size, void *memory);
 
 /**
  * @brief Returns the device pixel ratio of the supplied window.
  * @param window A constant pointer to the window to retrieve device pixel ratio for.
  * @return The device pixel ratio.
  */
-KAPI f32 platform_device_pixel_ratio(const struct kwindow* window);
+KAPI f32 platform_device_pixel_ratio (const struct kwindow *window);
 
 /**
  * @brief Loads a dynamic library.
@@ -392,7 +392,7 @@ KAPI f32 platform_device_pixel_ratio(const struct kwindow* window);
  * @param out_library A pointer to hold the loaded library. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library);
+KAPI b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library);
 
 /**
  * @brief Unloads the given dynamic library.
@@ -400,7 +400,7 @@ KAPI b8 platform_dynamic_library_load(const char* name, dynamic_library* out_lib
  * @param library A pointer to the loaded library. Required.
  * @return True on success; otherwise false.
  */
-KAPI b8 platform_dynamic_library_unload(dynamic_library* library);
+KAPI b8 platform_dynamic_library_unload (dynamic_library *library);
 
 /**
  * @brief Loads an exported function of the given name from the provided loaded library.
@@ -409,17 +409,17 @@ KAPI b8 platform_dynamic_library_unload(dynamic_library* library);
  * @param library A pointer to the library to load the function from.
  * @return A pointer to the loaded function if it exists; otherwise 0/null.
  */
-KAPI void* platform_dynamic_library_load_function(const char* name, dynamic_library* library);
+KAPI void *platform_dynamic_library_load_function (const char *name, dynamic_library *library);
 
 /**
  * @brief Returns the file extension for the current platform.
  */
-KAPI const char* platform_dynamic_library_extension(void);
+KAPI const char *platform_dynamic_library_extension (void);
 
 /**
  * @brief Returns a file prefix for libraries for the current platform.
  */
-KAPI const char* platform_dynamic_library_prefix(void);
+KAPI const char *platform_dynamic_library_prefix (void);
 
 /**
  * @brief Copies file at source to destination, optionally overwriting.
@@ -429,21 +429,21 @@ KAPI const char* platform_dynamic_library_prefix(void);
  * @param overwrite_if_exists Indicates if the file should be overwritten if it exists.
  * @return An error code indicating success or failure.
  */
-KAPI platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists);
+KAPI platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists);
 
 /**
  * @brief Registers the system-level handler for a window being closed.
  *
  * @param callback A pointer to the handler function.
  */
-KAPI void platform_register_window_closed_callback(platform_window_closed_callback callback);
+KAPI void platform_register_window_closed_callback (platform_window_closed_callback callback);
 
 /**
  * @brief Registers the system-level handler for a window being resized.
  *
  * @param callback A pointer to the handler function.
  */
-KAPI void platform_register_window_resized_callback(platform_window_resized_callback callback);
+KAPI void platform_register_window_resized_callback (platform_window_resized_callback callback);
 
 /**
  * @brief Registers the system-level handler for a keyboard key being pressed.
@@ -451,35 +451,35 @@ KAPI void platform_register_window_resized_callback(platform_window_resized_call
  * @param callback A pointer to the handler function.
  * @return KAPI
  */
-KAPI void platform_register_process_key(platform_process_key callback);
+KAPI void platform_register_process_key (platform_process_key callback);
 
 /**
  * @brief Registers the system-level handler for a mouse button being pressed.
  *
  * @param callback A pointer to the handler function.
  */
-KAPI void platform_register_process_mouse_button_callback(platform_process_mouse_button callback);
+KAPI void platform_register_process_mouse_button_callback (platform_process_mouse_button callback);
 
 /**
  * @brief Registers the system-level handler for a mouse being moved.
  *
  * @param callback A pointer to the handler function.
  */
-KAPI void platform_register_process_mouse_move_callback(platform_process_mouse_move callback);
+KAPI void platform_register_process_mouse_move_callback (platform_process_mouse_move callback);
 
 /**
  * @brief Registers the system-level handler for a mouse wheel being scrolled.
  *
  * @param callback A pointer to the handler function.
  */
-KAPI void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback);
+KAPI void platform_register_process_mouse_wheel_callback (platform_process_mouse_wheel callback);
 
 /**
  * @brief Registers the system-level handler for content being ready to paste from the clipboard.
  *
  * @param callback A pointer to the handler function.
  */
-KAPI void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback);
+KAPI void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback);
 
 /**
  * @brief Watch a file at the given path.
@@ -493,40 +493,40 @@ KAPI void platform_register_clipboard_paste_callback(platform_clipboard_on_paste
  * @param out_watch_id A pointer to hold the watch identifier.
  * @return True on success; otherwise false.
  */
-KAPI b8 platform_watch_file(
-	const char* file_path,
+KAPI b8 platform_watch_file (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id);
+	void *watcher_deleted_context,
+	u32 *out_watch_id);
 /**
  * @brief Stops watching the file with the given watch identifier.
  *
  * @param watch_id The watch identifier
  * @return True on success; otherwise false.
  */
-KAPI b8 platform_unwatch_file(u32 watch_id);
+KAPI b8 platform_unwatch_file (u32 watch_id);
 
 /**
  * @brief Returns the last-modified timestamp in unix time, or 0 if the file is not found.
  */
-KAPI kunix_time_ns platform_get_file_mtime(const char* path);
+KAPI kunix_time_ns platform_get_file_mtime (const char *path);
 
-KAPI b8 platform_system_info_collect(ksystem_info* out_info);
+KAPI b8 platform_system_info_collect (ksystem_info *out_info);
 
 // Used for pasting into the application.
-KAPI void platform_request_clipboard_content(kwindow* window);
+KAPI void platform_request_clipboard_content (kwindow *window);
 
 // Used for copying from the application.
-KAPI void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content);
+KAPI void platform_clipboard_content_set (kwindow *window, kclipboard_content_type type, u32 size, void *content);
 
 typedef struct platform_open_file_dialog_options {
 	// window title. If null, "Open File" is used.
-	const char* title;
+	const char *title;
 	// starting directory. If null, "." is used.
-	const char* starting_dir;
+	const char *starting_dir;
 	// Allow multiple files to be selected.
 	b8 allow_multiselect;
 
@@ -534,13 +534,13 @@ typedef struct platform_open_file_dialog_options {
 	// "Image Files (*.bmp;*.jpg;*.gif;*.png)|*.bmp;*.jpg;*.gif;*.png|All files (*.*)|*.*"
 	// The format of the string is "<group 1 description>|<group 1 exts delim by ;>|<group 2 description>|<group 2 exts delim by ;>"
 	// If any part of this is invalid, the filter is ignored.
-	const char* filter;
+	const char *filter;
 } platform_open_file_dialog_options;
 
 typedef struct platform_open_file_dialog_result {
 	b8 success;
 	u8 file_count;
-	const char** file_paths;
+	const char **file_paths;
 } platform_open_file_dialog_result;
 
-KAPI platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options);
+KAPI platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options);

@@ -24,7 +24,7 @@ typedef struct kshadow_pass_data {
 	kshader staticmesh_shader;
 	u32 sm_set0_instance_id;
 	u32 sm_set1_max_instances;
-	u32* sm_set1_instance_ids;
+	u32 *sm_set1_instance_ids;
 	// Used for opaque material rendering. Typically the first instance of the above list.
 	u32 sm_default_instance_id;
 
@@ -77,10 +77,10 @@ typedef struct kforward_renderer {
 	ktexture colour_buffer;
 	ktexture depth_stencil_buffer;
 
-	struct renderer_system_state* renderer_state;
-	struct kmaterial_system_state* material_system;
-	struct kmaterial_renderer* material_renderer;
-	struct texture_system_state* texture_system;
+	struct renderer_system_state *renderer_state;
+	struct kmaterial_system_state *material_system;
+	struct kmaterial_renderer *material_renderer;
+	struct texture_system_state *texture_system;
 
 	kdepth_prepass_data depth_prepass;
 	kshadow_pass_data shadow_pass;
@@ -137,7 +137,7 @@ typedef struct kmaterial_render_data {
 	// The number of geometries.
 	u32 geometry_count;
 	// An array of geometries using the material.
-	kgeometry_render_data* geometries;
+	kgeometry_render_data *geometries;
 } kmaterial_render_data;
 
 typedef struct hm_terrain_chunk_render_data {
@@ -152,7 +152,7 @@ typedef struct hm_terrain_render_data {
 	kmaterial_instance material_instance;
 	ktransform transform;
 	u32 chunk_count;
-	hm_terrain_chunk_render_data* chunks;
+	hm_terrain_chunk_render_data *chunks;
 } hm_terrain_render_data;
 
 typedef struct kshadow_pass_cascade_render_data {
@@ -163,29 +163,29 @@ typedef struct kshadow_pass_render_data {
 	klight dir_light;
 
 	u32 cascade_count;
-	kshadow_pass_cascade_render_data* cascades;
+	kshadow_pass_cascade_render_data *cascades;
 
 	// The number of opaque geometries.
 	u16 opaque_geometry_count;
 	// An array of geometries whose materials are opaque and can thus be rendered with the defualt group.
-	kgeometry_render_data* opaque_geometries;
+	kgeometry_render_data *opaque_geometries;
 
 	// Static mesh geo data organized by transparent material.
 	u16 transparent_geometries_by_material_count;
-	kmaterial_render_data* transparent_geometries_by_material;
+	kmaterial_render_data *transparent_geometries_by_material;
 
 	// The number of animated opaque geometries.
 	u16 animated_opaque_geometry_count;
 	// An array of animated geometries whose materials are opaque and can thus be rendered with the defualt group.
-	kgeometry_render_data* animated_opaque_geometries;
+	kgeometry_render_data *animated_opaque_geometries;
 
 	// Animated mesh geo data organized by transparent material.
 	u16 animated_transparent_geometries_by_material_count;
-	kmaterial_render_data* animated_transparent_geometries_by_material;
+	kmaterial_render_data *animated_transparent_geometries_by_material;
 
 	// Terrain geo data
 	u16 terrain_count;
-	hm_terrain_render_data* terrains;
+	hm_terrain_render_data *terrains;
 
 	hf_terrain_render_data hf_terrain_data;
 
@@ -200,23 +200,23 @@ typedef struct kscene_pass_render_data {
 
 	// Opaque static mesh geo data organized by material.
 	u16 opaque_meshes_by_material_count;
-	kmaterial_render_data* opaque_meshes_by_material;
+	kmaterial_render_data *opaque_meshes_by_material;
 
 	// Transparent static mesh geo data organized by material.
 	u16 transparent_meshes_by_material_count;
-	kmaterial_render_data* transparent_meshes_by_material;
+	kmaterial_render_data *transparent_meshes_by_material;
 
 	// Opaque animated mesh geo data organized by material.
 	u16 animated_opaque_meshes_by_material_count;
-	kmaterial_render_data* animated_opaque_meshes_by_material;
+	kmaterial_render_data *animated_opaque_meshes_by_material;
 
 	// Transparent animated mesh geo data organized by material.
 	u16 animated_transparent_meshes_by_material_count;
-	kmaterial_render_data* animated_transparent_meshes_by_material;
+	kmaterial_render_data *animated_transparent_meshes_by_material;
 
 	// Terrain geo data
 	u16 terrain_count;
-	hm_terrain_render_data* terrains;
+	hm_terrain_render_data *terrains;
 
 	hf_terrain_render_data hf_terrain_data;
 } kscene_pass_render_data;
@@ -279,7 +279,7 @@ typedef struct kforward_pass_render_data {
 
 	// Water planes
 	u16 water_plane_count;
-	kforward_pass_water_plane_render_data* water_planes;
+	kforward_pass_water_plane_render_data *water_planes;
 
 	// Data to be used after reflection/refraction passes.
 	kscene_pass_render_data standard_pass;
@@ -302,7 +302,7 @@ typedef struct kworld_debug_pass_render_data {
 	// The number of geometries.
 	u16 geometry_count;
 	// An array of geometries.
-	kdebug_geometry_render_data* geometries;
+	kdebug_geometry_render_data *geometries;
 
 	b8 draw_grid;
 	kdebug_geometry_render_data grid_geometry;
@@ -325,7 +325,7 @@ typedef struct kforward_renderer_render_data {
 #endif
 } kforward_renderer_render_data;
 
-KAPI b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer* out_renderer);
-KAPI void kforward_renderer_destroy(kforward_renderer* renderer);
+KAPI b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer);
+KAPI void kforward_renderer_destroy (kforward_renderer *renderer);
 
-KAPI b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_frame_data, kforward_renderer_render_data* render_data);
+KAPI b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_frame_data, kforward_renderer_render_data *render_data);

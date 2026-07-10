@@ -41,23 +41,23 @@
 #	include "threads/kthread.h"
 
 typedef struct nix_semaphore_internal {
-	sem_t* semaphore;
-	char* name;
+	sem_t *semaphore;
+	char *name;
 } nix_semaphore_internal;
 
 static u32 semaphore_id = 0;
 
 // NOTE: Begin threads.
 
-typedef void* (*kthread_work_callback)(void*);
+typedef void *(*kthread_work_callback)(void *);
 
-b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_detach, kthread* out_thread) {
+b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
 	if (!start_function_ptr) {
 		return false;
 	}
 
 	// pthread_create uses a function pointer that returns void*, so cold-cast to this type.
-	i32 result = pthread_create((pthread_t*)&out_thread->thread_id, 0, (kthread_work_callback)start_function_ptr, params);
+	i32 result = pthread_create((pthread_t *)&out_thread->thread_id, 0, (kthread_work_callback)start_function_ptr, params);
 	if (result != 0) {
 		switch (result) {
 		case EAGAIN:
@@ -76,7 +76,7 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 	// Only save off the handle if not auto-detaching.
 	if (!auto_detach) {
 		out_thread->internal_data = platform_allocate(sizeof(u64), false);
-		*(u64*)out_thread->internal_data = out_thread->thread_id;
+		*(u64 *)out_thread->internal_data = out_thread->thread_id;
 	} else {
 		// If immediately detaching, make sure the operation is a success.
 		result = pthread_detach((pthread_t)out_thread->thread_id);
@@ -98,15 +98,15 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 	return true;
 }
 
-void kthread_destroy(kthread* thread) {
+void kthread_destroy (kthread *thread) {
 	if (thread->internal_data) {
 		kthread_cancel(thread);
 	}
 }
 
-void kthread_detach(kthread* thread) {
+void kthread_detach (kthread *thread) {
 	if (thread->internal_data) {
-		i32 result = pthread_detach(*(pthread_t*)thread->internal_data);
+		i32 result = pthread_detach(*(pthread_t *)thread->internal_data);
 		if (result != 0) {
 			switch (result) {
 			case EINVAL:
@@ -126,9 +126,9 @@ void kthread_detach(kthread* thread) {
 	}
 }
 
-void kthread_cancel(kthread* thread) {
+void kthread_cancel (kthread *thread) {
 	if (thread->internal_data) {
-		i32 result = pthread_cancel(*(pthread_t*)thread->internal_data);
+		i32 result = pthread_cancel(*(pthread_t *)thread->internal_data);
 		if (result != 0) {
 			switch (result) {
 			case ESRCH:
@@ -145,18 +145,18 @@ void kthread_cancel(kthread* thread) {
 	}
 }
 
-b8 kthread_is_active(kthread* thread) {
+b8 kthread_is_active (kthread *thread) {
 	// TODO: Find a better way to verify this.
 	return thread->internal_data != 0;
 }
 
-void kthread_sleep(kthread* thread, u64 ms) {
+void kthread_sleep (kthread *thread, u64 ms) {
 	platform_sleep(ms);
 }
 
-b8 kthread_wait(kthread* thread) {
+b8 kthread_wait (kthread *thread) {
 	if (thread && thread->internal_data) {
-		i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
+		i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
 		// When a thread is joined, its lifecycle ends.
 		platform_free(thread->internal_data, false);
 		thread->internal_data = 0;
@@ -168,11 +168,11 @@ b8 kthread_wait(kthread* thread) {
 	return false;
 }
 
-b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
+b8 kthread_wait_timeout (kthread *thread, u64 wait_ms) {
 	if (thread && thread->internal_data) {
 		KWARN("kthread_wait_timeout - timeout not supported on this platform.");
 		// LEFTOFF: Need a wait/notify loop to support timeout.
-		i32 result = pthread_join(*(pthread_t*)thread->internal_data, 0);
+		i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
 		// When a thread is joined, its lifecycle ends.
 		platform_free(thread->internal_data, false);
 		thread->internal_data = 0;
@@ -184,13 +184,13 @@ b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
 	return false;
 }
 
-u64 platform_current_thread_id(void) {
+u64 platform_current_thread_id (void) {
 	return (u64)pthread_self();
 }
 // NOTE: End threads.
 
 // NOTE: Begin mutexes
-b8 kmutex_create(kmutex* out_mutex) {
+b8 kmutex_create (kmutex *out_mutex) {
 	if (!out_mutex) {
 		return false;
 	}
@@ -208,14 +208,14 @@ b8 kmutex_create(kmutex* out_mutex) {
 
 	// Save off the mutex handle.
 	out_mutex->internal_data = platform_allocate(sizeof(pthread_mutex_t), false);
-	*(pthread_mutex_t*)out_mutex->internal_data = mutex;
+	*(pthread_mutex_t *)out_mutex->internal_data = mutex;
 
 	return true;
 }
 
-void kmutex_destroy(kmutex* mutex) {
+void kmutex_destroy (kmutex *mutex) {
 	if (mutex) {
-		i32 result = pthread_mutex_destroy((pthread_mutex_t*)mutex->internal_data);
+		i32 result = pthread_mutex_destroy((pthread_mutex_t *)mutex->internal_data);
 		switch (result) {
 		case 0:
 			// KTRACE("Mutex destroyed.");
@@ -236,12 +236,12 @@ void kmutex_destroy(kmutex* mutex) {
 	}
 }
 
-b8 kmutex_lock(kmutex* mutex) {
+b8 kmutex_lock (kmutex *mutex) {
 	if (!mutex) {
 		return false;
 	}
 	// Lock
-	i32 result = pthread_mutex_lock((pthread_mutex_t*)mutex->internal_data);
+	i32 result = pthread_mutex_lock((pthread_mutex_t *)mutex->internal_data);
 	switch (result) {
 	case 0:
 		// Success, everything else is a failure.
@@ -265,12 +265,12 @@ b8 kmutex_lock(kmutex* mutex) {
 	}
 }
 
-b8 kmutex_unlock(kmutex* mutex) {
+b8 kmutex_unlock (kmutex *mutex) {
 	if (!mutex) {
 		return false;
 	}
 	if (mutex->internal_data) {
-		i32 result = pthread_mutex_unlock((pthread_mutex_t*)mutex->internal_data);
+		i32 result = pthread_mutex_unlock((pthread_mutex_t *)mutex->internal_data);
 		switch (result) {
 		case 0:
 			// KTRACE("Freed mutex lock.");
@@ -291,7 +291,7 @@ b8 kmutex_unlock(kmutex* mutex) {
 }
 // NOTE: End mutexes
 
-b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) {
+b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count) {
 	if (!out_semaphore) {
 		return false;
 	}
@@ -301,7 +301,7 @@ b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) 
 	semaphore_id++;
 
 	out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
-	nix_semaphore_internal* internal = out_semaphore->internal_data;
+	nix_semaphore_internal *internal = out_semaphore->internal_data;
 
 	if ((internal->semaphore = sem_open(name_buf, O_CREAT, 0664, 1)) == SEM_FAILED) {
 		KERROR("Failed to open semaphore");
@@ -312,12 +312,12 @@ b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) 
 	return true;
 }
 
-void ksemaphore_destroy(ksemaphore* semaphore) {
+void ksemaphore_destroy (ksemaphore *semaphore) {
 	if (!semaphore) {
 		return;
 	}
 
-	nix_semaphore_internal* internal = semaphore->internal_data;
+	nix_semaphore_internal *internal = semaphore->internal_data;
 	if (sem_close(internal->semaphore) == -1) {
 		KERROR("Failed to close semaphore.");
 	}
@@ -331,12 +331,12 @@ void ksemaphore_destroy(ksemaphore* semaphore) {
 	semaphore->internal_data = 0;
 }
 
-b8 ksemaphore_signal(ksemaphore* semaphore) {
+b8 ksemaphore_signal (ksemaphore *semaphore) {
 	if (!semaphore || !semaphore->internal_data) {
 		return false;
 	}
 
-	nix_semaphore_internal* internal = semaphore->internal_data;
+	nix_semaphore_internal *internal = semaphore->internal_data;
 	if (sem_post(internal->semaphore) != 0) {
 		KERROR("Semaphore failed to post!");
 		return false;
@@ -350,12 +350,12 @@ b8 ksemaphore_signal(ksemaphore* semaphore) {
  * semaphore is considered unsignaled and this call blocks until the
  * semaphore is signaled by ksemaphore_signal.
  */
-b8 ksemaphore_wait(ksemaphore* semaphore, u64 timeout_ms) {
+b8 ksemaphore_wait (ksemaphore *semaphore, u64 timeout_ms) {
 	if (!semaphore || !semaphore->internal_data) {
 		return false;
 	}
 
-	nix_semaphore_internal* internal = semaphore->internal_data;
+	nix_semaphore_internal *internal = semaphore->internal_data;
 	// TODO: handle timeout value using sem_timedwait()
 	if (sem_wait(internal->semaphore) != 0) {
 		KERROR("Semaphore failed to wait!");
@@ -365,7 +365,7 @@ b8 ksemaphore_wait(ksemaphore* semaphore, u64 timeout_ms) {
 	return true;
 }
 
-b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library) {
+b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library) {
 	if (!out_library) {
 		return false;
 	}
@@ -374,13 +374,13 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
 		return false;
 	}
 
-	const char* extension = platform_dynamic_library_extension();
-	const char* prefix = platform_dynamic_library_prefix();
+	const char *extension = platform_dynamic_library_extension();
+	const char *prefix = platform_dynamic_library_prefix();
 
-	const char* filename = string_format("%s%s%s", prefix, name, extension);
+	const char *filename = string_format("%s%s%s", prefix, name, extension);
 	KTRACE("Trying local path '%s' first.", filename);
 
-	void* library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
+	void *library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
 	if (!library) {
 		KTRACE("Trying fallback path '%s' because of error: '%s'", filename, dlerror());
 
@@ -425,7 +425,7 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
 	return true;
 }
 
-b8 platform_dynamic_library_unload(dynamic_library* library) {
+b8 platform_dynamic_library_unload (dynamic_library *library) {
 	if (!library) {
 		return false;
 	}
@@ -446,7 +446,7 @@ b8 platform_dynamic_library_unload(dynamic_library* library) {
 	if (library->functions) {
 		u32 count = darray_length(library->functions);
 		for (u32 i = 0; i < count; ++i) {
-			dynamic_library_function* f = &library->functions[i];
+			dynamic_library_function *f = &library->functions[i];
 			string_free(f->name);
 		}
 
@@ -459,7 +459,7 @@ b8 platform_dynamic_library_unload(dynamic_library* library) {
 	return true;
 }
 
-void* platform_dynamic_library_load_function(const char* name, dynamic_library* library) {
+void *platform_dynamic_library_load_function (const char *name, dynamic_library *library) {
 	if (!name || !library) {
 		return false;
 	}
@@ -468,7 +468,7 @@ void* platform_dynamic_library_load_function(const char* name, dynamic_library* 
 		return false;
 	}
 
-	void* f_addr = dlsym(library->internal_data, name);
+	void *f_addr = dlsym(library->internal_data, name);
 	if (!f_addr) {
 		return false;
 	}

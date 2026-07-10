@@ -34,41 +34,41 @@ typedef struct kmaterial_system_state {
 	kmaterial_system_config config;
 
 	// collection of materials, indexed by material resource index.
-	kmaterial_data* materials;
+	kmaterial_data *materials;
 	// darray of material instances, indexed first by material index, then by instance index.
-	kmaterial_instance_data** instances;
+	kmaterial_instance_data **instances;
 
 	// A default material for each type of material.
-	kmaterial_data* default_standard_material;
-	kmaterial_data* default_water_material;
-	kmaterial_data* default_blended_material;
+	kmaterial_data *default_standard_material;
+	kmaterial_data *default_water_material;
+	kmaterial_data *default_blended_material;
 
 	// Keep a pointer to the renderer state for quick access.
-	struct renderer_system_state* renderer;
-	struct texture_system_state* texture_system;
+	struct renderer_system_state *renderer;
+	struct texture_system_state *texture_system;
 
 	// Runtime package name pre-hashed and kept here for convenience.
 	kname runtime_package_name;
 } kmaterial_system_state;
 
-static b8 create_default_standard_material(kmaterial_system_state* state);
-static b8 create_default_water_material(kmaterial_system_state* state);
-static b8 create_default_blended_material(kmaterial_system_state* state);
-static void on_material_system_dump(console_command_context context);
-static kmaterial material_handle_create(kmaterial_system_state* state, kname name);
-static u16 kmaterial_instance_handle_create(kmaterial_system_state* state, kmaterial material_handle);
-static b8 material_create(kmaterial_system_state* state, kmaterial material_handle, const kasset_material* asset);
-static void material_destroy(kmaterial_system_state* state, kmaterial_data* material, u32 material_index);
-static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial base_material, u16* out_instance_id);
-static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_data* base_material, kmaterial_instance_data* inst);
-static u16 material_asset_loaded(kmaterial_system_state* state, kasset_material* asset, kmaterial new_handle, b8 create_instance);
-static kmaterial_instance default_kmaterial_instance_get(kmaterial_system_state* state, kmaterial_data* base_material);
-static kmaterial_data* get_material_data(kmaterial_system_state* state, kmaterial material_handle);
-static kmaterial_instance_data* get_kmaterial_instance_data(kmaterial_system_state* state, kmaterial_instance instance);
-static b8 material_on_event(u16 code, void* sender, void* listener_inst, event_context data);
+static b8 create_default_standard_material (kmaterial_system_state *state);
+static b8 create_default_water_material (kmaterial_system_state *state);
+static b8 create_default_blended_material (kmaterial_system_state *state);
+static void on_material_system_dump (console_command_context context);
+static kmaterial material_handle_create (kmaterial_system_state *state, kname name);
+static u16 kmaterial_instance_handle_create (kmaterial_system_state *state, kmaterial material_handle);
+static b8 material_create (kmaterial_system_state *state, kmaterial material_handle, const kasset_material *asset);
+static void material_destroy (kmaterial_system_state *state, kmaterial_data *material, u32 material_index);
+static b8 kmaterial_instance_create (kmaterial_system_state *state, kmaterial base_material, u16 *out_instance_id);
+static void kmaterial_instance_destroy (kmaterial_system_state *state, kmaterial_data *base_material, kmaterial_instance_data *inst);
+static u16 material_asset_loaded (kmaterial_system_state *state, kasset_material *asset, kmaterial new_handle, b8 create_instance);
+static kmaterial_instance default_kmaterial_instance_get (kmaterial_system_state *state, kmaterial_data *base_material);
+static kmaterial_data *get_material_data (kmaterial_system_state *state, kmaterial material_handle);
+static kmaterial_instance_data *get_kmaterial_instance_data (kmaterial_system_state *state, kmaterial_instance instance);
+static b8 material_on_event (u16 code, void *sender, void *listener_inst, event_context data);
 
-b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* state, const kmaterial_system_config* config) {
-	kmaterial_system_config* typed_config = (kmaterial_system_config*)config;
+b8 kmaterial_system_initialize (u64 *memory_requirement, kmaterial_system_state *state, const kmaterial_system_config *config) {
+	kmaterial_system_config *typed_config = (kmaterial_system_config *)config;
 	if (typed_config->max_material_count == 0) {
 		KFATAL("material_system_initialize - config.max_material_count must be > 0.");
 		return false;
@@ -85,7 +85,7 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
 	state->runtime_package_name = kname_create(PACKAGE_NAME_RUNTIME);
 
 	// Keep a pointer to the renderer system state for quick access.
-	const engine_system_states* states = engine_systems_get();
+	const engine_system_states *states = engine_systems_get();
 	state->renderer = states->renderer_system;
 	state->texture_system = states->texture_system;
 
@@ -93,7 +93,7 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
 
 	state->materials = darray_reserve(kmaterial_data, config->max_material_count);
 	// An array for each material will be created when a material is created.
-	state->instances = darray_reserve(kmaterial_instance_data*, config->max_material_count);
+	state->instances = darray_reserve(kmaterial_instance_data *, config->max_material_count);
 
 	// Register a console command to dump list of materials/references.
 	console_command_register("material_system_dump", 0, 0, state, on_material_system_dump);
@@ -101,7 +101,7 @@ b8 kmaterial_system_initialize(u64* memory_requirement, kmaterial_system_state* 
 	return true;
 }
 
-b8 kmaterial_system_setup_defaults(struct kmaterial_system_state* state) {
+b8 kmaterial_system_setup_defaults (struct kmaterial_system_state *state) {
 	// NOTE: Material shaders have to be loaded before this point, which is handled by the renderer.
 
 	// Load up some default materials.
@@ -124,7 +124,7 @@ b8 kmaterial_system_setup_defaults(struct kmaterial_system_state* state) {
 	return true;
 }
 
-void kmaterial_system_shutdown(struct kmaterial_system_state* state) {
+void kmaterial_system_shutdown (struct kmaterial_system_state *state) {
 	if (state) {
 		// Destroy default materials.
 		material_destroy(state, state->default_standard_material, 0);
@@ -141,7 +141,7 @@ void kmaterial_system_shutdown(struct kmaterial_system_state* state) {
 	}
 }
 
-b8 kmaterial_system_get_handle(struct kmaterial_system_state* state, kname name, kmaterial* out_material) {
+b8 kmaterial_system_get_handle (struct kmaterial_system_state *state, kname name, kmaterial *out_material) {
 	if (state) {
 		u16 length = darray_length(state->materials);
 		for (u16 i = 0; i < length; ++i) {
@@ -155,7 +155,7 @@ b8 kmaterial_system_get_handle(struct kmaterial_system_state* state, kname name,
 	return false;
 }
 
-b8 kmaterial_is_loaded_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_is_loaded_get (struct kmaterial_system_state *state, kmaterial material) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return false;
 	}
@@ -163,12 +163,12 @@ b8 kmaterial_is_loaded_get(struct kmaterial_system_state* state, kmaterial mater
 	return state->materials[material].state == KMATERIAL_STATE_LOADED;
 }
 
-ktexture kmaterial_texture_get(struct kmaterial_system_state* state, kmaterial material, kmaterial_texture_input tex_input) {
+ktexture kmaterial_texture_get (struct kmaterial_system_state *state, kmaterial material, kmaterial_texture_input tex_input) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return false;
 	}
 
-	kmaterial_data* data = &state->materials[material];
+	kmaterial_data *data = &state->materials[material];
 
 	switch (tex_input) {
 	case KMATERIAL_TEXTURE_INPUT_BASE_COLOUR:
@@ -202,12 +202,12 @@ ktexture kmaterial_texture_get(struct kmaterial_system_state* state, kmaterial m
 	}
 }
 
-void kmaterial_texture_set(struct kmaterial_system_state* state, kmaterial material, kmaterial_texture_input tex_input, ktexture texture) {
+void kmaterial_texture_set (struct kmaterial_system_state *state, kmaterial material, kmaterial_texture_input tex_input, ktexture texture) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return;
 	}
 
-	kmaterial_data* data = &state->materials[material];
+	kmaterial_data *data = &state->materials[material];
 
 	switch (tex_input) {
 	case KMATERIAL_TEXTURE_INPUT_BASE_COLOUR:
@@ -241,113 +241,113 @@ void kmaterial_texture_set(struct kmaterial_system_state* state, kmaterial mater
 	}
 }
 
-b8 kmaterial_has_transparency_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_has_transparency_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT);
 }
-void kmaterial_has_transparency_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_has_transparency_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_HAS_TRANSPARENCY_BIT, value);
 }
 
-b8 kmaterial_double_sided_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_double_sided_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_DOUBLE_SIDED_BIT);
 }
-void kmaterial_double_sided_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_double_sided_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_DOUBLE_SIDED_BIT, value);
 }
 
-b8 kmaterial_recieves_shadow_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_recieves_shadow_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_RECIEVES_SHADOW_BIT);
 }
-void kmaterial_recieves_shadow_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_recieves_shadow_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_RECIEVES_SHADOW_BIT, value);
 }
 
-b8 kmaterial_casts_shadow_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_casts_shadow_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_CASTS_SHADOW_BIT);
 }
-void kmaterial_casts_shadow_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_casts_shadow_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_CASTS_SHADOW_BIT, value);
 }
 
-b8 kmaterial_normal_enabled_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_normal_enabled_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_NORMAL_ENABLED_BIT);
 }
-void kmaterial_normal_enabled_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_normal_enabled_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_NORMAL_ENABLED_BIT, value);
 }
 
-b8 kmaterial_ao_enabled_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_ao_enabled_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_AO_ENABLED_BIT);
 }
-void kmaterial_ao_enabled_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_ao_enabled_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_AO_ENABLED_BIT, value);
 }
 
-b8 kmaterial_emissive_enabled_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_emissive_enabled_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT);
 }
-void kmaterial_emissive_enabled_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_emissive_enabled_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_EMISSIVE_ENABLED_BIT, value);
 }
 
-b8 kmaterial_refraction_enabled_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_refraction_enabled_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_REFRACTION_ENABLED_BIT);
 }
-void kmaterial_refraction_enabled_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_refraction_enabled_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_REFRACTION_ENABLED_BIT, value);
 }
 
-f32 kmaterial_refraction_scale_get(struct kmaterial_system_state* state, kmaterial material) {
+f32 kmaterial_refraction_scale_get (struct kmaterial_system_state *state, kmaterial material) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return 0;
 	}
 
-	kmaterial_data* data = &state->materials[material];
+	kmaterial_data *data = &state->materials[material];
 	return data->refraction_scale;
 }
-void material_refraction_scale_set(struct kmaterial_system_state* state, kmaterial material, f32 value) {
+void material_refraction_scale_set (struct kmaterial_system_state *state, kmaterial material, f32 value) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return;
 	}
 
-	kmaterial_data* data = &state->materials[material];
+	kmaterial_data *data = &state->materials[material];
 	data->refraction_scale = value;
 }
 
-b8 kmaterial_use_vertex_colour_as_base_colour_get(struct kmaterial_system_state* state, kmaterial material) {
+b8 kmaterial_use_vertex_colour_as_base_colour_get (struct kmaterial_system_state *state, kmaterial material) {
 	return kmaterial_flag_get(state, material, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT);
 }
-void kmaterial_use_vertex_colour_as_base_colour_set(struct kmaterial_system_state* state, kmaterial material, b8 value) {
+void kmaterial_use_vertex_colour_as_base_colour_set (struct kmaterial_system_state *state, kmaterial material, b8 value) {
 	kmaterial_flag_set(state, material, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT, value);
 }
 
-b8 kmaterial_flag_set(struct kmaterial_system_state* state, kmaterial material, kmaterial_flag_bits flag, b8 value) {
+b8 kmaterial_flag_set (struct kmaterial_system_state *state, kmaterial material, kmaterial_flag_bits flag, b8 value) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return false;
 	}
 
-	kmaterial_data* data = &state->materials[material];
+	kmaterial_data *data = &state->materials[material];
 
 	FLAG_SET(data->flags, flag, value);
 	return true;
 }
 
-b8 kmaterial_flag_get(struct kmaterial_system_state* state, kmaterial material, kmaterial_flag_bits flag) {
+b8 kmaterial_flag_get (struct kmaterial_system_state *state, kmaterial material, kmaterial_flag_bits flag) {
 	if (!state || material == KMATERIAL_INVALID) {
 		return false;
 	}
 
-	kmaterial_data* data = &state->materials[material];
+	kmaterial_data *data = &state->materials[material];
 
 	return FLAG_GET(data->flags, (u32)flag);
 }
 
-b8 kmaterial_system_acquire(kmaterial_system_state* state, kname name, kmaterial_instance* out_instance) {
+b8 kmaterial_system_acquire (kmaterial_system_state *state, kname name, kmaterial_instance *out_instance) {
 	KASSERT_MSG(out_instance, "out_instance is required.");
 
 	u16 material_count = darray_length(state->materials);
 	for (u16 i = 0; i < material_count; ++i) {
-		kmaterial_data* material = &state->materials[i];
+		kmaterial_data *material = &state->materials[i];
 		if (material->name == name) {
 			// Material exists, create an instance and boot.
 			out_instance->base_material = i;
@@ -368,11 +368,11 @@ b8 kmaterial_system_acquire(kmaterial_system_state* state, kname name, kmaterial
 	kmaterial new_handle = material_handle_create(state, name);
 	out_instance->base_material = new_handle;
 
-	kmaterial_data* material = &state->materials[new_handle];
+	kmaterial_data *material = &state->materials[new_handle];
 	material->state = KMATERIAL_STATE_LOADING;
 
 	// Request the asset synchronously so there's never a need to check it's properties.
-	kasset_material* asset = asset_system_request_material_sync(engine_systems_get()->asset_state, kname_string_get(name));
+	kasset_material *asset = asset_system_request_material_sync(engine_systems_get()->asset_state, kname_string_get(name));
 
 	out_instance->instance_id = material_asset_loaded(state, asset, new_handle, true);
 
@@ -381,15 +381,15 @@ b8 kmaterial_system_acquire(kmaterial_system_state* state, kname name, kmaterial
 	return true;
 }
 
-void kmaterial_system_release(kmaterial_system_state* state, kmaterial_instance* instance) {
+void kmaterial_system_release (kmaterial_system_state *state, kmaterial_instance *instance) {
 	if (!state) {
 		return;
 	}
 
 	// Getting the material instance data successfully performs all handle checks for
 	// the material and instance. This means it's safe to destroy.
-	kmaterial_data* base_material = get_material_data(state, instance->base_material);
-	kmaterial_instance_data* inst = get_kmaterial_instance_data(state, *instance);
+	kmaterial_data *base_material = get_material_data(state, instance->base_material);
+	kmaterial_instance_data *inst = get_kmaterial_instance_data(state, *instance);
 	if (base_material && inst) {
 		kmaterial_instance_destroy(state, base_material, inst);
 		// Invalidate both handles.
@@ -398,20 +398,20 @@ void kmaterial_system_release(kmaterial_system_state* state, kmaterial_instance*
 	}
 }
 
-const kmaterial_data* kmaterial_get_base_material_data(kmaterial_system_state* state, kmaterial base_material) {
+const kmaterial_data *kmaterial_get_base_material_data (kmaterial_system_state *state, kmaterial base_material) {
 	return &state->materials[base_material];
 }
 
-const kmaterial_data* kmaterial_system_get_all_base_materials(struct kmaterial_system_state* state) {
+const kmaterial_data *kmaterial_system_get_all_base_materials (struct kmaterial_system_state *state) {
 	return state->materials;
 }
 
-const kmaterial_instance_data* kmaterial_get_material_instance_data(kmaterial_system_state* state, kmaterial_instance instance) {
+const kmaterial_instance_data *kmaterial_get_material_instance_data (kmaterial_system_state *state, kmaterial_instance instance) {
 	return &state->instances[instance.base_material][instance.instance_id];
 }
 
-b8 kmaterial_instance_flag_set(struct kmaterial_system_state* state, kmaterial_instance instance, kmaterial_flag_bits flag, b8 value) {
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+b8 kmaterial_instance_flag_set (struct kmaterial_system_state *state, kmaterial_instance instance, kmaterial_flag_bits flag, b8 value) {
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -421,8 +421,8 @@ b8 kmaterial_instance_flag_set(struct kmaterial_system_state* state, kmaterial_i
 	return true;
 }
 
-b8 kmaterial_instance_flag_get(struct kmaterial_system_state* state, kmaterial_instance instance, kmaterial_flag_bits flag) {
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+b8 kmaterial_instance_flag_get (struct kmaterial_system_state *state, kmaterial_instance instance, kmaterial_flag_bits flag) {
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -430,12 +430,12 @@ b8 kmaterial_instance_flag_get(struct kmaterial_system_state* state, kmaterial_i
 	return FLAG_GET(data->flags, (u32)flag);
 }
 
-b8 kmaterial_instance_base_colour_get(struct kmaterial_system_state* state, kmaterial_instance instance, vec4* out_value) {
+b8 kmaterial_instance_base_colour_get (struct kmaterial_system_state *state, kmaterial_instance instance, vec4 *out_value) {
 	if (!out_value) {
 		return false;
 	}
 
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -443,8 +443,8 @@ b8 kmaterial_instance_base_colour_get(struct kmaterial_system_state* state, kmat
 	*out_value = data->base_colour;
 	return true;
 }
-b8 kmaterial_instance_base_colour_set(struct kmaterial_system_state* state, kmaterial_instance instance, vec4 value) {
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+b8 kmaterial_instance_base_colour_set (struct kmaterial_system_state *state, kmaterial_instance instance, vec4 value) {
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -453,12 +453,12 @@ b8 kmaterial_instance_base_colour_set(struct kmaterial_system_state* state, kmat
 	return true;
 }
 
-b8 kmaterial_instance_uv_offset_get(struct kmaterial_system_state* state, kmaterial_instance instance, vec3* out_value) {
+b8 kmaterial_instance_uv_offset_get (struct kmaterial_system_state *state, kmaterial_instance instance, vec3 *out_value) {
 	if (!out_value) {
 		return false;
 	}
 
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -466,8 +466,8 @@ b8 kmaterial_instance_uv_offset_get(struct kmaterial_system_state* state, kmater
 	*out_value = data->uv_offset;
 	return true;
 }
-b8 kmaterial_instance_uv_offset_set(struct kmaterial_system_state* state, kmaterial_instance instance, vec3 value) {
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+b8 kmaterial_instance_uv_offset_set (struct kmaterial_system_state *state, kmaterial_instance instance, vec3 value) {
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -476,12 +476,12 @@ b8 kmaterial_instance_uv_offset_set(struct kmaterial_system_state* state, kmater
 	return true;
 }
 
-b8 kmaterial_instance_uv_scale_get(struct kmaterial_system_state* state, kmaterial_instance instance, vec3* out_value) {
+b8 kmaterial_instance_uv_scale_get (struct kmaterial_system_state *state, kmaterial_instance instance, vec3 *out_value) {
 	if (!out_value) {
 		return false;
 	}
 
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -490,8 +490,8 @@ b8 kmaterial_instance_uv_scale_get(struct kmaterial_system_state* state, kmateri
 	return true;
 }
 
-b8 kmaterial_instance_uv_scale_set(struct kmaterial_system_state* state, kmaterial_instance instance, vec3 value) {
-	kmaterial_instance_data* data = get_kmaterial_instance_data(state, instance);
+b8 kmaterial_instance_uv_scale_set (struct kmaterial_system_state *state, kmaterial_instance instance, vec3 value) {
+	kmaterial_instance_data *data = get_kmaterial_instance_data(state, instance);
 	if (!data) {
 		return false;
 	}
@@ -500,28 +500,28 @@ b8 kmaterial_instance_uv_scale_set(struct kmaterial_system_state* state, kmateri
 	return true;
 }
 
-kmaterial_instance kmaterial_system_get_default_standard(kmaterial_system_state* state) {
+kmaterial_instance kmaterial_system_get_default_standard (kmaterial_system_state *state) {
 	return default_kmaterial_instance_get(state, state->default_standard_material);
 }
 
-kmaterial_instance kmaterial_system_get_default_water(kmaterial_system_state* state) {
+kmaterial_instance kmaterial_system_get_default_water (kmaterial_system_state *state) {
 	return default_kmaterial_instance_get(state, state->default_water_material);
 }
 
-kmaterial_instance kmaterial_system_get_default_blended(kmaterial_system_state* state) {
+kmaterial_instance kmaterial_system_get_default_blended (kmaterial_system_state *state) {
 	return default_kmaterial_instance_get(state, state->default_blended_material);
 }
 
-void kmaterial_system_dump(kmaterial_system_state* state) {
+void kmaterial_system_dump (kmaterial_system_state *state) {
 	u32 material_count = darray_length(state->materials);
 	for (u32 i = 0; i < material_count; ++i) {
-		kmaterial_data* m = &state->materials[i];
+		kmaterial_data *m = &state->materials[i];
 		// Skip "free" slots.
 		if (m->state == KMATERIAL_STATE_UNINITIALIZED) {
 			continue;
 		}
 
-		kmaterial_instance_data* instance_array = state->instances[i];
+		kmaterial_instance_data *instance_array = state->instances[i];
 		// Get a count of active instances.
 		u32 instance_count = darray_length(instance_array);
 		u32 active_instance_count = 0;
@@ -535,7 +535,7 @@ void kmaterial_system_dump(kmaterial_system_state* state) {
 	}
 }
 
-static b8 create_default_standard_material(kmaterial_system_state* state) {
+static b8 create_default_standard_material (kmaterial_system_state *state) {
 	KTRACE("Creating default standard material...");
 	kname material_name = kname_create(KMATERIAL_STANDARD_NAME_DEFAULT);
 
@@ -571,7 +571,7 @@ static b8 create_default_standard_material(kmaterial_system_state* state) {
 	return true;
 }
 
-static b8 create_default_water_material(kmaterial_system_state* state) {
+static b8 create_default_water_material (kmaterial_system_state *state) {
 	KTRACE("Creating default water material...");
 	kname material_name = kname_create(KMATERIAL_WATER_NAME_DEFAULT);
 
@@ -616,7 +616,7 @@ static b8 create_default_water_material(kmaterial_system_state* state) {
 	return true;
 }
 
-static b8 create_default_blended_material(kmaterial_system_state* state) {
+static b8 create_default_blended_material (kmaterial_system_state *state) {
 
 	// FIXME: figure out how the layers should look for this material type.
 	//
@@ -642,11 +642,11 @@ static b8 create_default_blended_material(kmaterial_system_state* state) {
 	return true;
 }
 
-static void on_material_system_dump(console_command_context context) {
+static void on_material_system_dump (console_command_context context) {
 	kmaterial_system_dump(engine_systems_get()->material_system);
 }
 
-static kmaterial material_handle_create(kmaterial_system_state* state, kname name) {
+static kmaterial material_handle_create (kmaterial_system_state *state, kname name) {
 	u32 resource_index = INVALID_ID;
 
 	// Attempt to find a free "slot", or create a new entry if there isn't one.
@@ -662,7 +662,7 @@ static kmaterial material_handle_create(kmaterial_system_state* state, kname nam
 		resource_index = material_count;
 		darray_push(state->materials, (kmaterial_data){0});
 		// This also means a new entry needs to be created at this index for instances.
-		kmaterial_instance_data* new_inst_array = darray_create(kmaterial_instance_data);
+		kmaterial_instance_data *new_inst_array = darray_create(kmaterial_instance_data);
 		darray_push(state->instances, new_inst_array);
 	}
 
@@ -671,7 +671,7 @@ static kmaterial material_handle_create(kmaterial_system_state* state, kname nam
 	return resource_index;
 }
 
-static u16 kmaterial_instance_handle_create(kmaterial_system_state* state, kmaterial material_handle) {
+static u16 kmaterial_instance_handle_create (kmaterial_system_state *state, kmaterial material_handle) {
 	u16 instance_index = KMATERIAL_INSTANCE_INVALID;
 
 	// Attempt to find a free "slot", or create a new entry if there isn't one.
@@ -691,8 +691,8 @@ static u16 kmaterial_instance_handle_create(kmaterial_system_state* state, kmate
 	return instance_index;
 }
 
-static b8 material_create(kmaterial_system_state* state, kmaterial material_handle, const kasset_material* asset) {
-	kmaterial_data* material = &state->materials[material_handle];
+static b8 material_create (kmaterial_system_state *state, kmaterial material_handle, const kasset_material *asset) {
+	kmaterial_data *material = &state->materials[material_handle];
 
 	material->index = material_handle;
 	/* KTRACE("Material system - Creating material at index '%u'...", material_handle); */
@@ -807,16 +807,16 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 		// textures for each) as opposed to the typical route of requesting via config.
 
 		// Get the current window size as the dimensions of these textures will be based on this.
-		kwindow* window = engine_active_window_get();
+		kwindow *window = engine_active_window_get();
 		// TODO: should probably cut this in half.
 		u32 tex_width = window->width;
 		u32 tex_height = window->height;
 
-		const char* material_name = kname_string_get(material->name);
+		const char *material_name = kname_string_get(material->name);
 
 		// Create reflection/refraction textures.
 		{
-			char* formatted_name = string_format("__%s_reflection_colour__", material_name);
+			char *formatted_name = string_format("__%s_reflection_colour__", material_name);
 			ktexture_load_options options = {
 				.name = kname_create(formatted_name),
 				.type = KTEXTURE_TYPE_2D,
@@ -837,7 +837,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 		}
 
 		{
-			char* formatted_name = string_format("__%s_reflection_depth__", material_name);
+			char *formatted_name = string_format("__%s_reflection_depth__", material_name);
 			ktexture_load_options options = {
 				.name = kname_create(formatted_name),
 				.type = KTEXTURE_TYPE_2D,
@@ -860,7 +860,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 		}
 
 		{
-			char* formatted_name = string_format("__%s_refraction_colour__", material_name);
+			char *formatted_name = string_format("__%s_refraction_colour__", material_name);
 			ktexture_load_options options = {
 				.name = kname_create(formatted_name),
 				.type = KTEXTURE_TYPE_2D,
@@ -880,7 +880,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 		}
 
 		{
-			char* formatted_name = string_format("__%s_refraction_depth__", material_name);
+			char *formatted_name = string_format("__%s_refraction_depth__", material_name);
 			ktexture_load_options options = {
 				.name = kname_create(formatted_name),
 				.type = KTEXTURE_TYPE_2D,
@@ -931,7 +931,7 @@ static b8 material_create(kmaterial_system_state* state, kmaterial material_hand
 	return true;
 }
 
-static void material_destroy(kmaterial_system_state* state, kmaterial_data* material, u32 material_index) {
+static void material_destroy (kmaterial_system_state *state, kmaterial_data *material, u32 material_index) {
 	KASSERT_MSG(material, "Tried to destroy null material.");
 
 	// Immediately mark it as unavailable for use.
@@ -989,7 +989,7 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
 	// Destroy instances.
 	u32 instance_count = darray_length(state->instances[material_index]);
 	for (u32 i = 0; i < instance_count; ++i) {
-		kmaterial_instance_data* inst = &state->instances[material_index][i];
+		kmaterial_instance_data *inst = &state->instances[material_index][i];
 		if (inst->material != KMATERIAL_INVALID) {
 			kmaterial_instance_destroy(state, material, inst);
 		}
@@ -1001,15 +1001,15 @@ static void material_destroy(kmaterial_system_state* state, kmaterial_data* mate
 	material->state = KMATERIAL_STATE_UNINITIALIZED;
 }
 
-static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial base_material, u16* out_instance_id) {
+static b8 kmaterial_instance_create (kmaterial_system_state *state, kmaterial base_material, u16 *out_instance_id) {
 	*out_instance_id = kmaterial_instance_handle_create(state, base_material);
 	if (*out_instance_id == KMATERIAL_INSTANCE_INVALID) {
 		KERROR("Failed to create material instance handle. Instance will not be created.");
 		return false;
 	}
 
-	kmaterial_data* material = &state->materials[base_material];
-	kmaterial_instance_data* inst = &state->instances[base_material][*out_instance_id];
+	kmaterial_data *material = &state->materials[base_material];
+	kmaterial_instance_data *inst = &state->instances[base_material][*out_instance_id];
 	inst->state = KMATERIAL_INSTANCE_STATE_UNINITIALIZED;
 
 	inst->state = KMATERIAL_INSTANCE_STATE_LOADING;
@@ -1025,7 +1025,7 @@ static b8 kmaterial_instance_create(kmaterial_system_state* state, kmaterial bas
 	return true;
 }
 
-static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_data* base_material, kmaterial_instance_data* inst) {
+static void kmaterial_instance_destroy (kmaterial_system_state *state, kmaterial_data *base_material, kmaterial_instance_data *inst) {
 	if (base_material && inst && inst->material != KMATERIAL_INVALID) {
 
 		kzero_memory(inst, sizeof(kmaterial_instance_data));
@@ -1035,7 +1035,7 @@ static void kmaterial_instance_destroy(kmaterial_system_state* state, kmaterial_
 	}
 }
 
-static kmaterial_instance default_kmaterial_instance_get(kmaterial_system_state* state, kmaterial_data* base_material) {
+static kmaterial_instance default_kmaterial_instance_get (kmaterial_system_state *state, kmaterial_data *base_material) {
 	kmaterial_instance instance = {0};
 	instance.base_material = base_material->index;
 
@@ -1052,7 +1052,7 @@ static kmaterial_instance default_kmaterial_instance_get(kmaterial_system_state*
 	return instance;
 }
 
-static kmaterial_data* get_material_data(kmaterial_system_state* state, kmaterial material_handle) {
+static kmaterial_data *get_material_data (kmaterial_system_state *state, kmaterial material_handle) {
 	if (!state) {
 		return 0;
 	}
@@ -1066,12 +1066,12 @@ static kmaterial_data* get_material_data(kmaterial_system_state* state, kmateria
 	return &state->materials[material_handle];
 }
 
-static kmaterial_instance_data* get_kmaterial_instance_data(kmaterial_system_state* state, kmaterial_instance instance) {
+static kmaterial_instance_data *get_kmaterial_instance_data (kmaterial_system_state *state, kmaterial_instance instance) {
 	if (!state) {
 		return 0;
 	}
 
-	kmaterial_data* material = get_material_data(state, instance.base_material);
+	kmaterial_data *material = get_material_data(state, instance.base_material);
 	if (!material) {
 		KERROR("Attempted to get material instance data for a non-existant material. See logs for details.");
 		return 0;
@@ -1086,7 +1086,7 @@ static kmaterial_instance_data* get_kmaterial_instance_data(kmaterial_system_sta
 	return &state->instances[instance.base_material][instance.instance_id];
 }
 
-static b8 material_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
+static b8 material_on_event (u16 code, void *sender, void *listener_inst, event_context context) {
 	if (code == EVENT_CODE_WINDOW_RESIZED) {
 		// Resize textures to match new frame buffer.
 		// TODO: Scale texture to be smaller based on some global setting.
@@ -1094,7 +1094,7 @@ static b8 material_on_event(u16 code, void* sender, void* listener_inst, event_c
 		u16 height = context.data.u16[1];
 
 		// const kwindow* window = sender;
-		kmaterial_data* material = listener_inst;
+		kmaterial_data *material = listener_inst;
 
 		if (material->reflection_texture != INVALID_KTEXTURE) {
 			if (!texture_resize(material->reflection_texture, width, height, true)) {
@@ -1123,7 +1123,7 @@ static b8 material_on_event(u16 code, void* sender, void* listener_inst, event_c
 	return false;
 }
 
-static u16 material_asset_loaded(kmaterial_system_state* state, kasset_material* asset, kmaterial new_handle, b8 create_instance) {
+static u16 material_asset_loaded (kmaterial_system_state *state, kasset_material *asset, kmaterial new_handle, b8 create_instance) {
 	u16 out_instance_id = KMATERIAL_INSTANCE_INVALID;
 	if (asset) {
 		/* KTRACE("Material system - Resource '%s' loaded. Creating material...", kname_string_get(asset->name)); */

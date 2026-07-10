@@ -93,7 +93,7 @@ typedef struct light_global_ssbo_data {
 typedef struct light_system_state {
 	krenderbuffer lighting_global_ssbo;
 
-	klight_data* lights;
+	klight_data *lights;
 } light_system_state;
 
 /**
@@ -106,30 +106,30 @@ typedef struct light_system_state {
  * @param config Configuration for this system. Currently unused.
  * @return True on success; otherwise false.
  */
-b8 light_system_initialize(u64* memory_requirement, light_system_state* memory, void* config);
+b8 light_system_initialize (u64 *memory_requirement, light_system_state *memory, void *config);
 
 /**
  * @brief Shuts down the light system, releasing all resources.
  *
  * @param state The state/memory block for the system.
  */
-void light_system_shutdown(light_system_state* state);
+void light_system_shutdown (light_system_state *state);
 
-void light_system_frame_prepare(light_system_state* state, frame_data* p_frame_data);
+void light_system_frame_prepare (light_system_state *state, frame_data *p_frame_data);
 
-KAPI klight point_light_create(light_system_state* state, vec3 position, colour3 colour, f32 constant_f, f32 linear, f32 quadratic);
-KAPI klight directional_light_create(light_system_state* state, vec3 direction, colour3 colour);
+KAPI klight point_light_create (light_system_state *state, vec3 position, colour3 colour, f32 constant_f, f32 linear, f32 quadratic);
+KAPI klight directional_light_create (light_system_state *state, vec3 direction, colour3 colour);
 
-KAPI vec3 directional_light_get_direction(light_system_state* state, klight light);
-KAPI colour3 directional_light_get_colour(light_system_state* state, klight light);
-KAPI vec3 point_light_get_position(light_system_state* state, klight light);
-KAPI colour3 point_light_get_colour(light_system_state* state, klight light);
+KAPI vec3 directional_light_get_direction (light_system_state *state, klight light);
+KAPI colour3 directional_light_get_colour (light_system_state *state, klight light);
+KAPI vec3 point_light_get_position (light_system_state *state, klight light);
+KAPI colour3 point_light_get_colour (light_system_state *state, klight light);
 
-KAPI void directional_light_set_direction(light_system_state* state, klight light, vec3 direction);
-KAPI void point_light_set_position(light_system_state* state, klight light, vec3 position);
-KAPI void point_light_set_colour(light_system_state* state, klight light, colour3 colour);
-KAPI f32 point_light_radius_get(light_system_state* state, klight light);
+KAPI void directional_light_set_direction (light_system_state *state, klight light, vec3 direction);
+KAPI void point_light_set_position (light_system_state *state, klight light, vec3 position);
+KAPI void point_light_set_colour (light_system_state *state, klight light, colour3 colour);
+KAPI f32 point_light_radius_get (light_system_state *state, klight light);
 
-KAPI void light_destroy(light_system_state* state, klight light);
+KAPI void light_destroy (light_system_state *state, klight light);
 
-KAPI klight_data light_get_data(light_system_state* state, klight light);
+KAPI klight_data light_get_data (light_system_state *state, klight light);

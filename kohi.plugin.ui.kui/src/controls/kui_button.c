@@ -19,14 +19,14 @@
 #include "strings/kname.h"
 #include "systems/ktransform_system.h"
 
-static b8 kui_button_internal_mouse_out(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_button_internal_mouse_over(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_button_internal_mouse_down(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_button_internal_mouse_up(kui_state* state, kui_control self, struct kui_mouse_event event);
-static void recenter_text(kui_state* state, kui_control self);
+static b8 kui_button_internal_mouse_out (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_button_internal_mouse_over (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_button_internal_mouse_down (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_button_internal_mouse_up (kui_state *state, kui_control self, struct kui_mouse_event event);
+static void recenter_text (kui_state *state, kui_control self);
 
-void button_create_internal(kui_state* state, kui_button_control* typed_data, kui_button_type button_type) {
-	kui_base_control* base = (kui_base_control*)typed_data;
+void button_create_internal (kui_state *state, kui_button_control *typed_data, kui_button_type button_type) {
+	kui_base_control *base = (kui_base_control *)typed_data;
 
 	// Reasonable defaults.
 	typed_data->colour = vec4_one();
@@ -48,7 +48,7 @@ void button_create_internal(kui_state* state, kui_button_control* typed_data, ku
 	base->bounds.width = 200;
 	base->bounds.height = 40;
 
-	kui_atlas_button_control_config* atlas_config = &state->atlas.button;
+	kui_atlas_button_control_config *atlas_config = &state->atlas.button;
 	switch (button_type) {
 	case KUI_BUTTON_TYPE_BASIC:
 	case KUI_BUTTON_TYPE_TEXT:
@@ -83,54 +83,54 @@ void button_create_internal(kui_state* state, kui_button_control* typed_data, ku
 	KASSERT(typed_data->binding_instance_id != INVALID_ID);
 }
 
-kui_control kui_button_control_create(kui_state* state, const char* name) {
+kui_control kui_button_control_create (kui_state *state, const char *name) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_BUTTON);
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 
 	button_create_internal(state, typed_data, KUI_BUTTON_TYPE_BASIC);
 
 	return handle;
 }
 
-kui_control kui_button_control_create_uparrow(kui_state* state, const char* name) {
+kui_control kui_button_control_create_uparrow (kui_state *state, const char *name) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_BUTTON);
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 
 	button_create_internal(state, typed_data, KUI_BUTTON_TYPE_UPARROW);
 
 	return handle;
 }
 
-kui_control kui_button_control_create_downarrow(kui_state* state, const char* name) {
+kui_control kui_button_control_create_downarrow (kui_state *state, const char *name) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_BUTTON);
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 
 	button_create_internal(state, typed_data, KUI_BUTTON_TYPE_DOWNARROW);
 
 	return handle;
 }
 
-kui_control kui_button_control_create_with_text(kui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text_content) {
+kui_control kui_button_control_create_with_text (kui_state *state, const char *name, font_type type, kname font_name, u16 font_size, const char *text_content) {
 	kui_control handle = kui_button_control_create(state, name);
 
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 
 	typed_data->button_type = KUI_BUTTON_TYPE_TEXT;
 
 	// Add a label control.
-	char* buffer = string_format("%s_text_label", name);
+	char *buffer = string_format("%s_text_label", name);
 	typed_data->label = kui_label_control_create(state, buffer, type, font_name, font_size, text_content);
 	string_free(buffer);
 
-	kui_base_control* label_base = kui_system_get_base(state, typed_data->label);
+	kui_base_control *label_base = kui_system_get_base(state, typed_data->label);
 	KASSERT(label_base);
 
 	FLAG_SET(label_base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, false);
@@ -141,19 +141,19 @@ kui_control kui_button_control_create_with_text(kui_state* state, const char* na
 	return handle;
 }
 
-void kui_button_control_destroy(kui_state* state, kui_control* self) {
-	kui_base_control* base = kui_system_get_base(state, *self);
+void kui_button_control_destroy (kui_state *state, kui_control *self) {
+	kui_base_control *base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 	nine_slice_destroy(&typed_data->nslice);
 
 	kui_base_control_destroy(state, self);
 }
 
-b8 kui_button_control_height_set(kui_state* state, kui_control self, i32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_button_control_height_set (kui_state *state, kui_control self, i32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 
 	typed_data->nslice.size.y = height;
 
@@ -166,10 +166,10 @@ b8 kui_button_control_height_set(kui_state* state, kui_control self, i32 height)
 	return true;
 }
 
-b8 kui_button_control_width_set(kui_state* state, kui_control self, i32 width) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_button_control_width_set (kui_state *state, kui_control self, i32 width) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 	typed_data->nslice.size.x = width;
 
 	base->bounds.width = width;
@@ -181,10 +181,10 @@ b8 kui_button_control_width_set(kui_state* state, kui_control self, i32 width) {
 	return true;
 }
 
-b8 kui_button_control_text_set(kui_state* state, kui_control self, const char* text) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_button_control_text_set (kui_state *state, kui_control self, const char *text) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 	if (typed_data->button_type == KUI_BUTTON_TYPE_TEXT) {
 		kui_label_text_set(state, typed_data->label, text);
 		recenter_text(state, self);
@@ -196,14 +196,14 @@ b8 kui_button_control_text_set(kui_state* state, kui_control self, const char* t
 	return true;
 }
 
-const char* kui_button_control_text_get(kui_state* state, const kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+const char *kui_button_control_text_get (kui_state *state, const kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 	return kui_label_text_get(state, typed_data->label);
 }
 
-b8 kui_button_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_button_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
@@ -213,14 +213,14 @@ b8 kui_button_control_update(kui_state* state, kui_control self, struct frame_da
 	return true;
 }
 
-b8 kui_button_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_button_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!kui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 	nine_slice_render_frame_prepare(&typed_data->nslice, p_frame_data);
 
 	if (typed_data->nslice.vertex_data.elements) {
@@ -242,7 +242,7 @@ b8 kui_button_control_render(kui_state* state, kui_control self, struct frame_da
 	}
 
 	if (typed_data->button_type == KUI_BUTTON_TYPE_TEXT) {
-		kui_base_control* label_base = kui_system_get_base(state, typed_data->label);
+		kui_base_control *label_base = kui_system_get_base(state, typed_data->label);
 		if (!label_base->render(state, typed_data->label, p_frame_data, render_data)) {
 			KERROR("Failed to render content label for button '%s'", base->name);
 			return false;
@@ -252,7 +252,7 @@ b8 kui_button_control_render(kui_state* state, kui_control self, struct frame_da
 	return true;
 }
 
-static kui_atlas_button_control_config* get_button_atlas_config_for_type(kui_state* state, kui_button_type button_type) {
+static kui_atlas_button_control_config *get_button_atlas_config_for_type (kui_state *state, kui_button_type button_type) {
 	switch (button_type) {
 	case KUI_BUTTON_TYPE_BASIC:
 	case KUI_BUTTON_TYPE_TEXT:
@@ -264,11 +264,11 @@ static kui_atlas_button_control_config* get_button_atlas_config_for_type(kui_sta
 	}
 }
 
-static b8 kui_button_internal_mouse_out(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 kui_button_internal_mouse_out (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
-	kui_atlas_button_control_mode_config* mode = &get_button_atlas_config_for_type(state, typed_data->button_type)->normal;
+	kui_button_control *typed_data = (kui_button_control *)base;
+	kui_atlas_button_control_mode_config *mode = &get_button_atlas_config_for_type(state, typed_data->button_type)->normal;
 	typed_data->nslice.atlas_px_min.x = mode->extents.min.x;
 	typed_data->nslice.atlas_px_min.y = mode->extents.min.y;
 	typed_data->nslice.atlas_px_max.x = mode->extents.max.x;
@@ -279,11 +279,11 @@ static b8 kui_button_internal_mouse_out(kui_state* state, kui_control self, stru
 	return base->on_mouse_out ? base->on_mouse_out(state, self, event) : true;
 }
 
-static b8 kui_button_internal_mouse_over(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 kui_button_internal_mouse_over (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
-	kui_atlas_button_control_mode_config* mode = &get_button_atlas_config_for_type(state, typed_data->button_type)->hover;
+	kui_button_control *typed_data = (kui_button_control *)base;
+	kui_atlas_button_control_mode_config *mode = &get_button_atlas_config_for_type(state, typed_data->button_type)->hover;
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_PRESSED_BIT)) {
 		mode = &state->atlas.button.pressed;
 	}
@@ -296,11 +296,11 @@ static b8 kui_button_internal_mouse_over(kui_state* state, kui_control self, str
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_over ? base->on_mouse_over(state, self, event) : false;
 }
-static b8 kui_button_internal_mouse_down(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 kui_button_internal_mouse_down (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
-	kui_atlas_button_control_mode_config* mode = &get_button_atlas_config_for_type(state, typed_data->button_type)->pressed;
+	kui_button_control *typed_data = (kui_button_control *)base;
+	kui_atlas_button_control_mode_config *mode = &get_button_atlas_config_for_type(state, typed_data->button_type)->pressed;
 	typed_data->nslice.atlas_px_min.x = mode->extents.min.x;
 	typed_data->nslice.atlas_px_min.y = mode->extents.min.y;
 	typed_data->nslice.atlas_px_max.x = mode->extents.max.x;
@@ -309,12 +309,12 @@ static b8 kui_button_internal_mouse_down(kui_state* state, kui_control self, str
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_down ? base->on_mouse_down(state, self, event) : false;
 }
-static b8 kui_button_internal_mouse_up(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 kui_button_internal_mouse_up (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
-	kui_atlas_button_control_config* atlas_config = get_button_atlas_config_for_type(state, typed_data->button_type);
-	kui_atlas_button_control_mode_config* mode = &atlas_config->normal;
+	kui_button_control *typed_data = (kui_button_control *)base;
+	kui_atlas_button_control_config *atlas_config = get_button_atlas_config_for_type(state, typed_data->button_type);
+	kui_atlas_button_control_mode_config *mode = &atlas_config->normal;
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_HOVERED_BIT)) {
 		mode = &atlas_config->hover;
 	}
@@ -327,10 +327,10 @@ static b8 kui_button_internal_mouse_up(kui_state* state, kui_control self, struc
 	return base->on_mouse_up ? base->on_mouse_up(state, self, event) : false;
 }
 
-static void recenter_text(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static void recenter_text (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_button_control* typed_data = (kui_button_control*)base;
+	kui_button_control *typed_data = (kui_button_control *)base;
 
 	if (typed_data->button_type == KUI_BUTTON_TYPE_TEXT) {
 		// Center the text. If the text is larger than the button, left-justify and clip it.
@@ -341,7 +341,7 @@ static void recenter_text(kui_state* state, kui_control self) {
 		// FIXME: This shouldn't be needed, but works for now...
 		offsety *= -1.0f;
 
-		kui_base_control* label_base = kui_system_get_base(state, typed_data->label);
+		kui_base_control *label_base = kui_system_get_base(state, typed_data->label);
 		KASSERT(label_base);
 
 		vec3 pos = ktransform_position_get(label_base->ktransform);

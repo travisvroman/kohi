@@ -30,16 +30,16 @@ typedef struct input_state {
 	// keymap active_keymap;
 	b8 allow_key_repeats;
 
-	struct application* app;
+	struct application *app;
 } input_state;
 
 // Internal input state pointer
 // FIXME: Get rid of this static rubbish
-static input_state* state_ptr;
+static input_state *state_ptr;
 
-static b8 check_modifiers(keymap_modifier modifiers);
+static b8 check_modifiers (keymap_modifier modifiers);
 
-b8 input_system_initialize(u64* memory_requirement, void* state, void* config, struct application* app) {
+b8 input_system_initialize (u64 *memory_requirement, void *state, void *config, struct application *app) {
 	*memory_requirement = sizeof(input_state);
 	if (state == 0) {
 		return true;
@@ -59,12 +59,12 @@ b8 input_system_initialize(u64* memory_requirement, void* state, void* config, s
 	return true;
 }
 
-void input_system_shutdown(void* state) {
+void input_system_shutdown (void *state) {
 	// TODO: Add shutdown routines when needed.
 	state_ptr = 0;
 }
 
-void input_update(const struct frame_data* p_frame_data) {
+void input_update (const struct frame_data *p_frame_data) {
 	if (!state_ptr) {
 		return;
 	}
@@ -74,10 +74,10 @@ void input_update(const struct frame_data* p_frame_data) {
 		keys key = (keys)k;
 		if (input_is_key_down(key) && input_was_key_down(key)) {
 			u32 map_count = state_ptr->keymap_stack.element_count;
-			keymap* maps = (keymap*)state_ptr->keymap_stack.memory;
+			keymap *maps = (keymap *)state_ptr->keymap_stack.memory;
 			for (i32 m = map_count - 1; m >= 0; --m) {
-				keymap* map = &maps[m];
-				keymap_binding* binding = &map->entries[key].bindings[0];
+				keymap *map = &maps[m];
+				keymap_binding *binding = &map->entries[key].bindings[0];
 				b8 unset = false;
 				while (binding) {
 					// If an unset is detected, stop processing.
@@ -105,7 +105,7 @@ void input_update(const struct frame_data* p_frame_data) {
 	kcopy_memory(&state_ptr->mouse_previous, &state_ptr->mouse_current, sizeof(mouse_state));
 }
 
-static b8 check_modifiers(keymap_modifier modifiers) {
+static b8 check_modifiers (keymap_modifier modifiers) {
 	if (modifiers & KEYMAP_MODIFIER_SHIFT_BIT) {
 		if (!input_is_key_down(KEY_SHIFT) && !input_is_key_down(KEY_LSHIFT) && !input_is_key_down(KEY_RSHIFT)) {
 			return false;
@@ -138,7 +138,7 @@ static b8 check_modifiers(keymap_modifier modifiers) {
 	return true;
 }
 
-void input_process_key(keys key, b8 pressed, b8 is_repeat) {
+void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 	if (!state_ptr) {
 		return;
 	}
@@ -172,10 +172,10 @@ void input_process_key(keys key, b8 pressed, b8 is_repeat) {
 		// Check for key bindings
 		// Iterate keymaps top-down on the stack.
 		u32 map_count = state_ptr->keymap_stack.element_count;
-		keymap* maps = (keymap*)state_ptr->keymap_stack.memory;
+		keymap *maps = (keymap *)state_ptr->keymap_stack.memory;
 		for (i32 m = map_count - 1; m >= 0; --m) {
-			keymap* map = &maps[m];
-			keymap_binding* binding = &map->entries[key].bindings[0];
+			keymap *map = &maps[m];
+			keymap_binding *binding = &map->entries[key].bindings[0];
 			b8 unset = false;
 			while (binding) {
 				// If an unset is detected, stop processing.
@@ -211,7 +211,7 @@ void input_process_key(keys key, b8 pressed, b8 is_repeat) {
 	}
 }
 
-void input_process_button(mouse_buttons button, b8 pressed) {
+void input_process_button (mouse_buttons button, b8 pressed) {
 	// If the state changed, fire an event.
 	if (state_ptr->mouse_current.buttons[button] != pressed) {
 		state_ptr->mouse_current.buttons[button] = pressed;
@@ -256,7 +256,7 @@ void input_process_button(mouse_buttons button, b8 pressed) {
 	}
 }
 
-void input_process_mouse_move(i16 x, i16 y) {
+void input_process_mouse_move (i16 x, i16 y) {
 	// Only process if actually different
 	if (state_ptr->mouse_current.x != x || state_ptr->mouse_current.y != y) {
 		// NOTE: Enable this if debugging.
@@ -306,7 +306,7 @@ void input_process_mouse_move(i16 x, i16 y) {
 	}
 }
 
-void input_process_mouse_wheel(i8 z_delta) {
+void input_process_mouse_wheel (i8 z_delta) {
 	// NOTE: no internal state to update.
 
 	// Fire the event.
@@ -319,34 +319,34 @@ void input_process_mouse_wheel(i8 z_delta) {
 	event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
 }
 
-void input_key_repeats_enable(b8 enable) {
+void input_key_repeats_enable (b8 enable) {
 	if (state_ptr) {
 		state_ptr->allow_key_repeats = enable;
 	}
 }
 
-b8 input_is_key_down(keys key) {
+b8 input_is_key_down (keys key) {
 	if (!state_ptr) {
 		return false;
 	}
 	return state_ptr->keyboard_current.keys[key] == true;
 }
 
-b8 input_is_key_up(keys key) {
+b8 input_is_key_up (keys key) {
 	if (!state_ptr) {
 		return true;
 	}
 	return state_ptr->keyboard_current.keys[key] == false;
 }
 
-b8 input_was_key_down(keys key) {
+b8 input_was_key_down (keys key) {
 	if (!state_ptr) {
 		return false;
 	}
 	return state_ptr->keyboard_previous.keys[key] == true;
 }
 
-b8 input_was_key_up(keys key) {
+b8 input_was_key_up (keys key) {
 	if (!state_ptr) {
 		return true;
 	}
@@ -354,35 +354,35 @@ b8 input_was_key_up(keys key) {
 }
 
 // mouse input
-b8 input_is_button_down(mouse_buttons button) {
+b8 input_is_button_down (mouse_buttons button) {
 	if (!state_ptr) {
 		return false;
 	}
 	return state_ptr->mouse_current.buttons[button] == true;
 }
 
-b8 input_is_button_up(mouse_buttons button) {
+b8 input_is_button_up (mouse_buttons button) {
 	if (!state_ptr) {
 		return true;
 	}
 	return state_ptr->mouse_current.buttons[button] == false;
 }
 
-b8 input_was_button_down(mouse_buttons button) {
+b8 input_was_button_down (mouse_buttons button) {
 	if (!state_ptr) {
 		return false;
 	}
 	return state_ptr->mouse_previous.buttons[button] == true;
 }
 
-b8 input_was_button_up(mouse_buttons button) {
+b8 input_was_button_up (mouse_buttons button) {
 	if (!state_ptr) {
 		return true;
 	}
 	return state_ptr->mouse_previous.buttons[button] == false;
 }
 
-b8 input_is_button_dragging(mouse_buttons button) {
+b8 input_is_button_dragging (mouse_buttons button) {
 	if (!state_ptr) {
 		return false;
 	}
@@ -390,7 +390,7 @@ b8 input_is_button_dragging(mouse_buttons button) {
 	return state_ptr->mouse_current.dragging[button];
 }
 
-void input_get_mouse_position(i32* x, i32* y) {
+void input_get_mouse_position (i32 *x, i32 *y) {
 	if (!state_ptr) {
 		*x = 0;
 		*y = 0;
@@ -400,7 +400,7 @@ void input_get_mouse_position(i32* x, i32* y) {
 	*y = state_ptr->mouse_current.y;
 }
 
-void input_get_previous_mouse_position(i32* x, i32* y) {
+void input_get_previous_mouse_position (i32 *x, i32 *y) {
 	if (!state_ptr) {
 		*x = 0;
 		*y = 0;
@@ -410,7 +410,7 @@ void input_get_previous_mouse_position(i32* x, i32* y) {
 	*y = state_ptr->mouse_previous.y;
 }
 
-const char* input_keycode_str(keys key) {
+const char *input_keycode_str (keys key) {
 	switch (key) {
 	case KEY_BACKSPACE:
 		return "backspace";
@@ -689,17 +689,17 @@ const char* input_keycode_str(keys key) {
 	}
 }
 
-void input_keymap_push(const keymap* map) {
+void input_keymap_push (const keymap *map) {
 	if (state_ptr && map) {
 		// Add the keymap to the stack, then apply it.
-		if (!stack_push(&state_ptr->keymap_stack, (void*)map)) {
+		if (!stack_push(&state_ptr->keymap_stack, (void *)map)) {
 			KERROR("Failed to push keymap!");
 			return;
 		}
 	}
 }
 
-b8 input_keymap_pop(void) {
+b8 input_keymap_pop (void) {
 	if (state_ptr) {
 		// Pop the keymap from the stack, then re-apply the stack.
 		keymap popped;

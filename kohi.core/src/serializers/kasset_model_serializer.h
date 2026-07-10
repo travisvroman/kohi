@@ -12,7 +12,7 @@
  * @param exporter_version Specifies the version of the exporter for debugging purposes.
  * @returns A block of memory containing the serialized asset on success; 0 on failure.
  */
-KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, u8 exporter_version, u64* out_size);
+KAPI void *kasset_model_serialize (const kasset_model *asset, u32 exporter_type, u8 exporter_version, u64 *out_size);
 
 /**
  * @brief Attempts to deserialize the given block of memory into an model asset.
@@ -22,4 +22,4 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
  * @param out_asset A pointer to the asset to deserialize to. Required.
  * @returns True on success; otherwise false.
  */
-KAPI b8 kasset_model_deserialize(u64 size, const void* block, kasset_model* out_asset);
+KAPI b8 kasset_model_deserialize (u64 size, const void *block, kasset_model *out_asset);

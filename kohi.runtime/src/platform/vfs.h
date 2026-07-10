@@ -20,8 +20,8 @@ struct kasset_metadata;
 struct vfs_state;
 
 typedef struct vfs_config {
-	const char** text_user_types;
-	const char* manifest_file_path;
+	const char **text_user_types;
+	const char *manifest_file_path;
 } vfs_config;
 
 typedef enum vfs_asset_flag_bits {
@@ -57,15 +57,15 @@ typedef struct vfs_asset_data {
 	/** @brief The name of the package containing the asset, stored as a kname. */
 	kname package_name;
 	/** @brief A copy of the asset path. */
-	const char* path;
+	const char *path;
 
 	/** @brief The size of the asset in bytes. */
 	u64 size;
 	union {
 		/** The asset data as a string, if a text asset. Zero-terminated. */
-		const char* text;
+		const char *text;
 		/** The binary asset data, if a binary asset. */
-		const void* bytes;
+		const void *bytes;
 	};
 	/** @brief Various flags for the given asset. */
 	vfs_asset_flags flags;
@@ -77,14 +77,14 @@ typedef struct vfs_asset_data {
 	u32 context_size;
 
 	/** The context passed in from the original request. */
-	void* context;
+	void *context;
 } vfs_asset_data;
 
-typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state* vfs, vfs_asset_data asset_data);
+typedef void (*PFN_on_asset_loaded_callback)(struct vfs_state *vfs, vfs_asset_data asset_data);
 
 typedef struct vfs_state {
 	// darray
-	struct kpackage* packages;
+	struct kpackage *packages;
 } vfs_state;
 
 /**
@@ -100,7 +100,7 @@ typedef struct vfs_request_info {
 	/** @brief The size of the context in bytes. */
 	u32 context_size;
 	/** @param context A constant pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important. */
-	const void* context;
+	const void *context;
 
 	PFN_on_asset_loaded_callback vfs_callback;
 } vfs_request_info;
@@ -114,14 +114,14 @@ typedef struct vfs_request_info {
  * @param config A pointer to the config. Required unless only getting memory requirement.
  * @return True on success; otherwise false.
  */
-KAPI b8 vfs_initialize(u64* memory_requirement, vfs_state* out_state, const vfs_config* config);
+KAPI b8 vfs_initialize (u64 *memory_requirement, vfs_state *out_state, const vfs_config *config);
 
 /**
  * @brief Shuts down the VFS.
  *
  * @param state A pointer to the system state.
  */
-KAPI void vfs_shutdown(vfs_state* state);
+KAPI void vfs_shutdown (vfs_state *state);
 
 /**
  * @brief Returns an array of names of assets for a given asset type.
@@ -132,7 +132,7 @@ KAPI void vfs_shutdown(vfs_state* state);
  * @param out_count A pointer to hold the number of results found. Required.
  * @returns An array of names of assets of the given type if found, or KNULL if none were found.
  */
-KAPI kname* vfs_asset_names_by_type(vfs_state* state, kasset_type type, kname package_name, u32* out_count);
+KAPI kname *vfs_asset_names_by_type (vfs_state *state, kasset_type type, kname package_name, u32 *out_count);
 
 /**
  * @brief Requests an asset from the VFS, issuing the callback when complete. This call is asynchronous.
@@ -141,7 +141,7 @@ KAPI kname* vfs_asset_names_by_type(vfs_state* state, kasset_type type, kname pa
  * @param info The information detailing specifics about the VFS asset request.
  * @param callback The callback to be made once the asset load is complete. Required.
  */
-KAPI void vfs_request_asset(vfs_state* state, vfs_request_info info);
+KAPI void vfs_request_asset (vfs_state *state, vfs_request_info info);
 
 /**
  * @brief Requests an asset from the VFS synchronously. NOTE: This should be used sparingly as it performs device I/O directly.
@@ -151,7 +151,7 @@ KAPI void vfs_request_asset(vfs_state* state, vfs_request_info info);
  * @param info The information detailing specifics about the VFS asset request.
  * @param out_data A pointer to hold the loaded asset data. Required.
  */
-KAPI vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info);
+KAPI vfs_asset_data vfs_request_asset_sync (vfs_state *state, vfs_request_info info);
 
 /**
  * @brief Attempts to retrieve the path for the given asset, if it exists.
@@ -161,7 +161,7 @@ KAPI vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info in
  * @param asset_name The name of the asset to request.
  * @returns The path for the asset, if it exists. Otherwise 0/null.
  */
-KAPI const char* vfs_path_for_asset(vfs_state* state, kname package_name, kname asset_name);
+KAPI const char *vfs_path_for_asset (vfs_state *state, kname package_name, kname asset_name);
 
 /**
  * @brief Attempts to retrieve the source path for the given asset, if one exists.
@@ -171,7 +171,7 @@ KAPI const char* vfs_path_for_asset(vfs_state* state, kname package_name, kname 
  * @param asset_name The name of the asset to request.
  * @returns The source path for the asset, if it exists. Otherwise 0/null.
  */
-KAPI const char* vfs_source_path_for_asset(vfs_state* state, kname package_name, kname asset_name);
+KAPI const char *vfs_source_path_for_asset (vfs_state *state, kname package_name, kname asset_name);
 
 /**
  * @brief Requests an asset directly a disk path via the VFS, issuing the callback when complete. This call is asynchronous.
@@ -183,7 +183,7 @@ KAPI const char* vfs_source_path_for_asset(vfs_state* state, kname package_name,
  * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
  * @param callback The callback to be made once the asset load is complete. Required.
  */
-KAPI void vfs_request_direct_from_disk(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback);
+KAPI void vfs_request_direct_from_disk (vfs_state *state, const char *path, b8 is_binary, u32 context_size, const void *context, PFN_on_asset_loaded_callback callback);
 
 /**
  * @brief Requests an asset directly a disk path via the VFS synchronously. NOTE: This should be used sparingly as it performs device I/O directly.
@@ -196,7 +196,7 @@ KAPI void vfs_request_direct_from_disk(vfs_state* state, const char* path, b8 is
  * @param context A pointer to the context to be used for this call. This is passed through to the result callback. NOTE: A copy of this is taken immediately, so lifetime of this isn't important.
  * @param out_data A pointer to hold the loaded asset data. Required.
  */
-KAPI void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, vfs_asset_data* out_data);
+KAPI void vfs_request_direct_from_disk_sync (vfs_state *state, const char *path, b8 is_binary, u32 context_size, const void *context, vfs_asset_data *out_data);
 
 /**
  * @brief Attempts to write the provided binary data to the VFS (or package).
@@ -208,7 +208,7 @@ KAPI void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, 
  * @param data A constant pointer to the block of data to be written.
  * @returns True on success; otherwise false.
  */
-KAPI b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package_name, u64 size, const void* data);
+KAPI b8 vfs_asset_write_binary (vfs_state *state, kname asset_name, kname package_name, u64 size, const void *data);
 
 /**
  * @brief Attempts to write the provided text data to the VFS (or package).
@@ -220,14 +220,14 @@ KAPI b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package
  * @param data A constant pointer to the block of data to be written.
  * @returns True on success; otherwise false.
  */
-KAPI b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, const char* text);
+KAPI b8 vfs_asset_write_text (vfs_state *state, kname asset_name, kname package_name, const char *text);
 
 /**
  * @brief Releases resources held by data. NOTE: This does _NOT_ account for any dynamic allocations made within said context!
  *
  * @param data A pointer to the VFS data to be released.
  */
-KAPI void vfs_asset_data_cleanup(vfs_asset_data* data);
+KAPI void vfs_asset_data_cleanup (vfs_asset_data *data);
 
 /**
  * @brief Attempts to get a pointer to a package with the given name.
@@ -236,7 +236,7 @@ KAPI void vfs_asset_data_cleanup(vfs_asset_data* data);
  * @param package_name The name of the package to get.
  * @returns A pointer to a package if found; otherwise KNULL.
  */
-KAPI struct kpackage* vfs_package_get(vfs_state* state, kname package_name);
+KAPI struct kpackage *vfs_package_get (vfs_state *state, kname package_name);
 
 #if KOHI_HOT_RELOAD
 /**
@@ -248,7 +248,7 @@ KAPI struct kpackage* vfs_package_get(vfs_state* state, kname package_name);
  * @param is_binary Indicates if the asset being watched is a binary asset.
  * @return A watch id associated with the file watch. INVALID_ID_U32 if the watch failed for any reason (i.e. invalid asset/package name).
  */
-KAPI u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name, b8 is_binary);
+KAPI u32 vfs_asset_watch (vfs_state *state, kname asset_name, kname package_name, b8 is_binary);
 
 /**
  * @brief Unwatches an asset with the given id.
@@ -257,5 +257,5 @@ KAPI u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name,
  * @param watch_id The id of the watch to stop.
  * @return True if successful; otherwise false.
  */
-KAPI b8 vfs_asset_unwatch(vfs_state* state, u32 watch_id);
+KAPI b8 vfs_asset_unwatch (vfs_state *state, u32 watch_id);
 #endif

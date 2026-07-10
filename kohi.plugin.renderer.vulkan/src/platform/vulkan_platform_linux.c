@@ -17,26 +17,26 @@
 #	include "vulkan_types.h"
 
 typedef struct linux_handle_info {
-	xcb_connection_t* connection;
-	xcb_screen_t* screen;
+	xcb_connection_t *connection;
+	xcb_screen_t *screen;
 } linux_handle_info;
 
 typedef struct kwindow_platform_state {
 	xcb_window_t window;
 } kwindow_platform_state;
 
-void vulkan_platform_get_required_extension_names(const char*** names_darray) {
+void vulkan_platform_get_required_extension_names (const char ***names_darray) {
 	darray_push(*names_darray, &"VK_KHR_xcb_surface"); // VK_KHR_xlib_surface?
 }
 
 // Surface creation for Vulkan
-b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow* window) {
+b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindow *window) {
 	u64 size = 0;
 	platform_get_handle_info(&size, 0);
-	void* block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
+	void *block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
 	platform_get_handle_info(&size, block);
 
-	linux_handle_info* handle = (linux_handle_info*)block;
+	linux_handle_info *handle = (linux_handle_info *)block;
 
 	VkXcbSurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
 	create_info.connection = handle->connection;
@@ -57,13 +57,13 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 	return true;
 }
 
-b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevice physical_device, u32 queue_family_index) {
+b8 vulkan_platform_presentation_support (vulkan_context *context, VkPhysicalDevice physical_device, u32 queue_family_index) {
 	u64 size = 0;
 	platform_get_handle_info(&size, 0);
-	void* block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
+	void *block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
 	platform_get_handle_info(&size, block);
 
-	linux_handle_info* handle = (linux_handle_info*)block;
+	linux_handle_info *handle = (linux_handle_info *)block;
 
 	PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR kvkGetPhysicalDeviceXcbPresentationSupportKHR = platform_dynamic_library_load_function("vkGetPhysicalDeviceXcbPresentationSupportKHR", &context->rhi.vulkan_lib);
 	b8 result = (b8)kvkGetPhysicalDeviceXcbPresentationSupportKHR(physical_device, queue_family_index, handle->connection, handle->screen->root_visual);
@@ -71,7 +71,7 @@ b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevic
 	return result;
 }
 
-b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+b8 vulkan_platform_initialize (krhi_vulkan *rhi) {
 	if (!rhi) {
 		return false;
 	}
@@ -79,7 +79,7 @@ b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
 	return platform_dynamic_library_load("vulkan", &rhi->vulkan_lib);
 }
 
-void vulkan_platform_shutdown(krhi_vulkan* rhi) {
+void vulkan_platform_shutdown (krhi_vulkan *rhi) {
 	if (rhi) {
 		platform_dynamic_library_unload(&rhi->vulkan_lib);
 	}

@@ -20,7 +20,7 @@
 // Uncomment this for debug tracing.
 #define HF_TERRAIN_TRACE 0
 
-static void generate_normals(u32 vertex_count, hf_vertex_3d* vertices, u32 index_count, u32* indices) {
+static void generate_normals (u32 vertex_count, hf_vertex_3d *vertices, u32 index_count, u32 *indices) {
 	for (u32 i = 0; i < index_count; i += 3) {
 		u32 i0 = indices[i + 0];
 		u32 i1 = indices[i + 1];
@@ -39,7 +39,7 @@ static void generate_normals(u32 vertex_count, hf_vertex_3d* vertices, u32 index
 	}
 }
 
-static void generate_tangents(u32 vertex_count, hf_vertex_3d* vertices, u32 index_count, u32* indices) {
+static void generate_tangents (u32 vertex_count, hf_vertex_3d *vertices, u32 index_count, u32 *indices) {
 	for (u32 i = 0; i < index_count; i += 3) {
 		u32 i0 = indices[i + 0];
 		u32 i1 = indices[i + 1];
@@ -75,7 +75,7 @@ static void generate_tangents(u32 vertex_count, hf_vertex_3d* vertices, u32 inde
 	}
 }
 
-void generate_chunk(hf_terrain* t, kasset_hf_terrain_vertex* asset_vertices, kasset_hf_terrain_chunk* asset_chunk, hf_chunk* chunk, u16 chunk_x, u16 chunk_z, u16 block_x, u16 block_z, u16 z_dim) {
+void generate_chunk (hf_terrain *t, kasset_hf_terrain_vertex *asset_vertices, kasset_hf_terrain_chunk *asset_chunk, hf_chunk *chunk, u16 chunk_x, u16 chunk_z, u16 block_x, u16 block_z, u16 z_dim) {
 	chunk->x = chunk_x;
 	chunk->z = chunk_z;
 	chunk->index = (chunk_z * HF_BLOCK_CHUNK_DIM) + chunk_x;
@@ -101,7 +101,7 @@ void generate_chunk(hf_terrain* t, kasset_hf_terrain_vertex* asset_vertices, kas
 		for (u8 x = 0; x < HF_VERTEX_STRIDE; ++x) {
 			u32 index = chunk_offset + (z * HF_VERTEX_STRIDE) + x;
 
-			hf_vertex_3d* v = &t->vertices[index];
+			hf_vertex_3d *v = &t->vertices[index];
 
 			v->position.x = chunk_base_x + (x * HF_QUAD_SCALE);
 			v->position.z = chunk_base_z + (z * HF_QUAD_SCALE);
@@ -172,7 +172,7 @@ void generate_chunk(hf_terrain* t, kasset_hf_terrain_vertex* asset_vertices, kas
 	}
 }
 
-void generate_block(hf_terrain* t, kasset_hf_terrain_vertex* asset_vertices, kasset_hf_terrain_block* asset_block, hf_block* block, u16 block_x, u16 block_z, u16 z_dim) {
+void generate_block (hf_terrain *t, kasset_hf_terrain_vertex *asset_vertices, kasset_hf_terrain_block *asset_block, hf_block *block, u16 block_x, u16 block_z, u16 z_dim) {
 
 #if HF_TERRAIN_TRACE
 	static u32 g_block_count = 0;
@@ -202,7 +202,7 @@ void generate_block(hf_terrain* t, kasset_hf_terrain_vertex* asset_vertices, kas
 	kname name = kname_format("hf_terrain_splatmap_block_%u_%u", block_z, block_x);
 
 	u64 pixel_array_size = HF_TERRAIN_SPLATMAP_RESOLUTION * HF_TERRAIN_SPLATMAP_RESOLUTION * 4;
-	u8* pixels = KALLOC_TYPE_CARRAY(u8, pixel_array_size);
+	u8 *pixels = KALLOC_TYPE_CARRAY(u8, pixel_array_size);
 
 	if (asset_block) {
 		kcopy_memory(pixels, asset_block->splatmap_pixels, sizeof(u8) * pixel_array_size);
@@ -226,7 +226,7 @@ void generate_block(hf_terrain* t, kasset_hf_terrain_vertex* asset_vertices, kas
 	block->editor_aabb.max.y = 999999.0;
 }
 
-hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z) {
+hf_terrain hf_terrain_generate (u16 blocks_x, u16 blocks_z) {
 	KASSERT(blocks_x > 0 && blocks_z > 0);
 
 	hf_terrain t = {0};
@@ -267,7 +267,7 @@ hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z) {
 	KASSERT_DEBUG(t.hf_terrain_shader != KSHADER_INVALID);
 
 	// Acquire the vertex/index buffers.
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 
@@ -333,7 +333,7 @@ hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z) {
 	for (u8 z = 0; z < blocks_z; ++z) {
 		for (u8 x = 0; x < blocks_x; ++x) {
 			u32 index = (z * blocks_z) + x;
-			hf_block* block = &t.blocks[index];
+			hf_block *block = &t.blocks[index];
 			generate_block(&t, KNULL, KNULL, block, x, z, blocks_z);
 
 			t.aabb.min = vec3_min(block->aabb.min, t.aabb.min);
@@ -358,7 +358,7 @@ hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z) {
 	return t;
 }
 
-hf_terrain hf_terrain_create_from_asset(const kasset_hf_terrain* asset) {
+hf_terrain hf_terrain_create_from_asset (const kasset_hf_terrain *asset) {
 	KASSERT(asset->block_count_x > 0 && asset->block_count_z > 0);
 
 	hf_terrain t = {0};
@@ -397,7 +397,7 @@ hf_terrain hf_terrain_create_from_asset(const kasset_hf_terrain* asset) {
 	KASSERT_DEBUG(t.hf_terrain_shader != KSHADER_INVALID);
 
 	// Acquire the vertex/index buffers.
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 
@@ -441,7 +441,7 @@ hf_terrain hf_terrain_create_from_asset(const kasset_hf_terrain* asset) {
 	for (u8 z = 0; z < asset->block_count_z; ++z) {
 		for (u8 x = 0; x < asset->block_count_x; ++x) {
 			u32 index = (z * asset->block_count_z) + x;
-			hf_block* block = &t.blocks[index];
+			hf_block *block = &t.blocks[index];
 			generate_block(&t, asset->vertices, &asset->blocks[index], block, x, z, asset->block_count_z);
 
 			t.aabb.min = vec3_min(block->aabb.min, t.aabb.min);
@@ -458,11 +458,11 @@ hf_terrain hf_terrain_create_from_asset(const kasset_hf_terrain* asset) {
 	return t;
 }
 
-void hf_terrain_destroy(hf_terrain* t) {
+void hf_terrain_destroy (hf_terrain *t) {
 	if (t) {
 		u32 block_count = t->block_count_z * t->block_count_x;
 		for (u32 b = 0; b < block_count; ++b) {
-			hf_block* block = &t->blocks[b];
+			hf_block *block = &t->blocks[b];
 
 			texture_release(block->splatmap);
 			u64 pixel_array_size = HF_TERRAIN_SPLATMAP_RESOLUTION * HF_TERRAIN_SPLATMAP_RESOLUTION * 4;
@@ -481,7 +481,7 @@ void hf_terrain_destroy(hf_terrain* t) {
 		texture_release(t->normal_texture_array);
 		texture_release(t->mra_texture_array);
 
-		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+		struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 		krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 
@@ -498,7 +498,7 @@ void hf_terrain_destroy(hf_terrain* t) {
 	}
 }
 
-void hf_terrain_get_render_data(const hf_terrain* t, frame_data* p_frame_data, hf_terrain_render_data* render_data) {
+void hf_terrain_get_render_data (const hf_terrain *t, frame_data *p_frame_data, hf_terrain_render_data *render_data) {
 	KASSERT(t);
 
 	if (t->blocks) {
@@ -516,8 +516,8 @@ void hf_terrain_get_render_data(const hf_terrain* t, frame_data* p_frame_data, h
 			for (u32 x = 0; x < t->block_count_z; ++x) {
 				// TODO: frustum cull the block
 				u32 block_index = (t->block_count_z * z) + x;
-				hf_block* block = &t->blocks[block_index];
-				hf_terrain_block_render_data* brd = &render_data->blocks[block_index];
+				hf_block *block = &t->blocks[block_index];
+				hf_terrain_block_render_data *brd = &render_data->blocks[block_index];
 
 				brd->chunk_count = HF_BLOCK_CHUNK_COUNT;
 				brd->chunks = p_frame_data->allocator.allocate(sizeof(hf_terrain_chunk_render_data) * brd->chunk_count);
@@ -526,8 +526,8 @@ void hf_terrain_get_render_data(const hf_terrain* t, frame_data* p_frame_data, h
 
 				// TODO: frustum culling within this block
 				for (u32 i = 0; i < brd->chunk_count; ++i) {
-					hf_chunk* chunk = &block->chunks[i];
-					hf_terrain_chunk_render_data* crd = &brd->chunks[i];
+					hf_chunk *chunk = &block->chunks[i];
+					hf_terrain_chunk_render_data *crd = &brd->chunks[i];
 
 					// TODO: LOD
 					crd->vertex_count = HF_CHUNK_VERTEX_COUNT;
@@ -543,21 +543,21 @@ void hf_terrain_get_render_data(const hf_terrain* t, frame_data* p_frame_data, h
 	}
 }
 
-hf_block* hf_terrain_get_block_at(const hf_terrain* t, u8 x, u8 z) {
+hf_block *hf_terrain_get_block_at (const hf_terrain *t, u8 x, u8 z) {
 	if (!t || x >= t->block_count_x || z >= t->block_count_z) {
 		return KNULL;
 	}
 	return &t->blocks[(z * t->block_count_z) + x];
 }
 
-hf_chunk* hf_terrain_block_get_chunk_at(hf_block* block, u8 x, u8 z) {
+hf_chunk *hf_terrain_block_get_chunk_at (hf_block *block, u8 x, u8 z) {
 	if (!block) {
 		return KNULL;
 	}
 	return &block->chunks[(z * HF_BLOCK_CHUNK_DIM) + x];
 }
 
-i32 hf_terrain_chunk_get_vert_index_at(const hf_chunk* chunk, u8 x, u8 z) {
+i32 hf_terrain_chunk_get_vert_index_at (const hf_chunk *chunk, u8 x, u8 z) {
 	if (!chunk || x >= HF_VERTEX_STRIDE || z >= HF_VERTEX_STRIDE) {
 		return -1;
 	}
@@ -565,10 +565,10 @@ i32 hf_terrain_chunk_get_vert_index_at(const hf_chunk* chunk, u8 x, u8 z) {
 	return chunk->vertex_offset + (z * HF_VERTEX_STRIDE) + x;
 }
 
-void hf_terrain_recalculate_vertices(hf_terrain* t) {
+void hf_terrain_recalculate_vertices (hf_terrain *t) {
 	u16 block_count = t->block_count_z * t->block_count_x;
 	for (u16 b = 0; b < block_count; ++b) {
-		hf_block* block = &t->blocks[b];
+		hf_block *block = &t->blocks[b];
 		for (u16 c = 0; c < HF_BLOCK_CHUNK_COUNT; ++c) {
 			u32 chunk_offset = block->chunks[c].vertex_offset;
 			generate_normals(HF_CHUNK_VERTEX_COUNT, t->vertices + chunk_offset, HF_INDEX_COUNT, t->indices);
@@ -577,7 +577,7 @@ void hf_terrain_recalculate_vertices(hf_terrain* t) {
 	}
 }
 
-void hf_terrain_chunk_recalculate_vertices(hf_terrain* t, hf_chunk* chunk) {
+void hf_terrain_chunk_recalculate_vertices (hf_terrain *t, hf_chunk *chunk) {
 	u32 chunk_offset = chunk->vertex_offset;
 	generate_normals(HF_CHUNK_VERTEX_COUNT, t->vertices + chunk_offset, HF_INDEX_COUNT, t->indices);
 	generate_tangents(HF_CHUNK_VERTEX_COUNT, t->vertices + chunk_offset, HF_INDEX_COUNT, t->indices);
@@ -588,7 +588,7 @@ void hf_terrain_chunk_recalculate_vertices(hf_terrain* t, hf_chunk* chunk) {
 	}
 }
 
-void hf_terrain_material_texture_set(hf_terrain* t, u8 material_index, hf_terrain_material_map map, ktexture texture) {
+void hf_terrain_material_texture_set (hf_terrain *t, u8 material_index, hf_terrain_material_map map, ktexture texture) {
 	ktexture array_texture = INVALID_KTEXTURE;
 	switch (map) {
 	case HF_TERRAIN_MATERIAL_MAP_ALBEDO:
@@ -612,7 +612,7 @@ void hf_terrain_material_texture_set(hf_terrain* t, u8 material_index, hf_terrai
 		KERROR("%s - Failed to update terrain texture layer", __FUNCTION__);
 	}
 }
-b8 hf_terrain_get_height_at(const hf_terrain* t, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal) {
+b8 hf_terrain_get_height_at (const hf_terrain *t, f32 world_x, f32 world_z, vec3 *out_pos, vec3 *out_normal) {
 	if (!t || !aabb_contains_point((vec3){world_x, 0.0f, world_z}, t->aabb)) {
 		return false;
 	}
@@ -622,7 +622,7 @@ b8 hf_terrain_get_height_at(const hf_terrain* t, f32 world_x, f32 world_z, vec3*
 	// FIXME: Brute-forced like a dingus...
 	u32 block_count = t->block_count_z * t->block_count_x;
 	for (u32 b = 0; b < block_count; ++b) {
-		hf_block* block = &t->blocks[b];
+		hf_block *block = &t->blocks[b];
 
 		f32 tmin = 0.0f;
 		f32 tmaxi = r.max_distance;
@@ -654,13 +654,13 @@ b8 hf_terrain_get_height_at(const hf_terrain* t, f32 world_x, f32 world_z, vec3*
 	return false;
 }
 
-hf_vertex_3d* hf_terrain_chunk_get_closest_vertex(const hf_terrain* terrain, const hf_block* block, const hf_chunk* chunk, vec3 pos, u32* out_x, u32* out_z, i64* out_index) {
+hf_vertex_3d *hf_terrain_chunk_get_closest_vertex (const hf_terrain *terrain, const hf_block *block, const hf_chunk *chunk, vec3 pos, u32 *out_x, u32 *out_z, i64 *out_index) {
 	// Get closest vertex.
 	// FIXME: optimize this.
 	f32 shortest_dist = 9999990.0f;
 	i64 index = -1;
 
-	hf_vertex_3d* v = KNULL;
+	hf_vertex_3d *v = KNULL;
 
 	u32 z = 0;
 	u32 x = 0;

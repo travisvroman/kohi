@@ -48,7 +48,7 @@ typedef struct vkbuffer_info {
 	VkBuffer handle;
 	VkDeviceMemory memory;
 	// 0 unless buffer has been mapped to it.
-	void* mapped_memory;
+	void *mapped_memory;
 } vkbuffer_info;
 
 /**
@@ -58,7 +58,7 @@ typedef struct vkbuffer_info {
 typedef struct vulkan_buffer {
 	u8 handle_count;
 	/** @brief An array of vulkan buffer infos, 3 if triple-buffering, otherwise 1 */
-	vkbuffer_info* infos;
+	vkbuffer_info *infos;
 	/** @brief The usage flags. */
 	VkBufferUsageFlags usage;
 	/** @brief Indicates if the buffer's memory is currently locked. */
@@ -84,11 +84,11 @@ typedef struct vulkan_swapchain_support_info {
 	/** @brief The number of available surface formats. */
 	u32 format_count;
 	/** @brief An array of the available surface formats. */
-	VkSurfaceFormatKHR* formats;
+	VkSurfaceFormatKHR *formats;
 	/** @brief The number of available presentation modes. */
 	u32 present_mode_count;
 	/** @brief An array of available presentation modes. */
-	VkPresentModeKHR* present_modes;
+	VkPresentModeKHR *present_modes;
 } vulkan_swapchain_support_info;
 
 typedef enum vulkan_device_support_flag_bits {
@@ -180,9 +180,9 @@ typedef struct vulkan_image {
 	VkImageSubresourceRange view_subresource_range;
 	VkImageViewCreateInfo view_create_info;
 	/** @brief If there are multiple layers, one view per layer exists here. */
-	VkImageView* layer_views;
-	VkImageSubresourceRange* layer_view_subresource_ranges;
-	VkImageViewCreateInfo* layer_view_create_infos;
+	VkImageView *layer_views;
+	VkImageSubresourceRange *layer_view_subresource_ranges;
+	VkImageViewCreateInfo *layer_view_create_infos;
 	/** @brief The GPU memory requirements for this image. */
 	VkMemoryRequirements memory_requirements;
 	/** @brief Memory property flags */
@@ -196,7 +196,7 @@ typedef struct vulkan_image {
 	/** @brief The number of layers in this image. */
 	u16 layer_count;
 	/** @brief The name of the image. */
-	char* name;
+	char *name;
 	/** @brief texture flag bits */
 	ktexture_flag_bits flags;
 	/** The number of mipmaps to be generated for this image. Must always be at least 1. */
@@ -261,7 +261,7 @@ typedef struct vulkan_command_buffer {
 
 #if KOHI_DEBUG
 	// Name, kept for debugging purposes.
-	const char* name;
+	const char *name;
 #endif
 
 	/** @brief Command buffer state. */
@@ -273,7 +273,7 @@ typedef struct vulkan_command_buffer {
 	/** @brief The number of secondary buffers that are children to this one. Primary buffer use only. */
 	u16 secondary_count;
 	/** @brief An array of secondary buffers that are children to this one. Primary buffer use only. */
-	struct vulkan_command_buffer* secondary_buffers;
+	struct vulkan_command_buffer *secondary_buffers;
 
 	/** @brief The currently selected secondary buffer index. */
 	u16 secondary_buffer_index;
@@ -281,7 +281,7 @@ typedef struct vulkan_command_buffer {
 	b8 in_secondary;
 
 	/** A pointer to the parent (primary) command buffer, if there is one. Only applies to secondary buffers. */
-	struct vulkan_command_buffer* parent;
+	struct vulkan_command_buffer *parent;
 
 	// Current attachments.
 	u8 colour_attachment_count;
@@ -324,22 +324,22 @@ typedef struct vulkan_pipeline {
 typedef struct vulkan_vertex_layout_pipeline {
 	/** @brief The number of stages in this vertex layout (vertex, fragment, etc). */
 	u8 stage_count;
-	vulkan_shader_stage* stages;
-	VkPipelineShaderStageCreateInfo* stage_create_infos;
+	vulkan_shader_stage *stages;
+	VkPipelineShaderStageCreateInfo *stage_create_infos;
 	// Shallow copy of config'd stage sources.
-	const char** stage_sources;
+	const char **stage_sources;
 
 	/** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
 	u32 attribute_stride;
 	/** @brief The number of attributes. */
 	u32 attribute_count;
 	/** @brief An array of attributes. */
-	VkVertexInputAttributeDescription* attributes;
+	VkVertexInputAttributeDescription *attributes;
 
 	/** @brief An array of pipelines associated with this vertex layout (one per topology class). */
-	vulkan_pipeline* pipelines;
+	vulkan_pipeline *pipelines;
 	/** @brief An array of wireframe pipelines associated with this vertex layout (one per topology class). */
-	vulkan_pipeline* wireframe_pipelines;
+	vulkan_pipeline *wireframe_pipelines;
 
 	/** @brief The currently bound pipeline index. */
 	u8 bound_pipeline_index;
@@ -351,35 +351,35 @@ typedef struct vulkan_vertex_layout_pipeline {
  */
 typedef struct vulkan_pipeline_config {
 	/** @brief The name of the pipeline. Used primarily for debugging purposes. */
-	char* name;
+	char *name;
 	/** @brief The number of stages in this vertex layout (vertex, fragment, etc). */
 	u8 stage_count;
-	vulkan_shader_stage* stages;
-	VkPipelineShaderStageCreateInfo* stage_create_infos;
+	vulkan_shader_stage *stages;
+	VkPipelineShaderStageCreateInfo *stage_create_infos;
 
 	/** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
 	u32 attribute_stride;
 	/** @brief The number of attributes. */
 	u32 attribute_count;
 	/** @brief An array of attributes. */
-	VkVertexInputAttributeDescription* attributes;
+	VkVertexInputAttributeDescription *attributes;
 
 	/** @brief The number of descriptor set layouts. */
 	u32 descriptor_set_layout_count;
 	/** @brief An array of descriptor set layouts. */
-	VkDescriptorSetLayout* descriptor_set_layouts;
+	VkDescriptorSetLayout *descriptor_set_layouts;
 	u32 shader_flags;
 	/** @brief The number of push constant data ranges. */
 	u32 push_constant_range_count;
 	/** @brief An array of push constant data ranges. */
-	krange* push_constant_ranges;
+	krange *push_constant_ranges;
 	/** @brief Collection of topology types to be supported on this pipeline. */
 	u32 topology_types;
 	/** @brief The vertex winding order used to determine the front face of triangles. */
 	renderer_winding winding;
 
 	u32 colour_attachment_count;
-	VkFormat* colour_attachment_formats;
+	VkFormat *colour_attachment_formats;
 	VkFormat depth_attachment_format;
 	VkFormat stencil_attachment_format;
 } vulkan_pipeline_config;
@@ -409,7 +409,7 @@ typedef struct vulkan_descriptor_set_config {
 	/** @brief The number of bindings in this set. */
 	u8 binding_count;
 	/** @brief An array of binding layouts for this set. */
-	VkDescriptorSetLayoutBinding* bindings;
+	VkDescriptorSetLayoutBinding *bindings;
 } vulkan_descriptor_set_config;
 
 /**
@@ -429,12 +429,12 @@ typedef struct vulkan_sampler_state {
 	 * @brief An array of sampler handles. Count matches uniform array_count.
 	 * Element count matches array_size.
 	 */
-	ksampler_backend* sampler_handles;
+	ksampler_backend *sampler_handles;
 
 	/**
 	 * @brief A descriptor state per sampler. Count matches uniform array_count.
 	 */
-	vulkan_descriptor_state* descriptor_states;
+	vulkan_descriptor_state *descriptor_states;
 
 	u8 array_size;
 } vulkan_sampler_state;
@@ -446,13 +446,13 @@ typedef struct vulkan_texture_state {
 	 * @brief An array of handles to texture resources.
 	 * Element count matches array_size.
 	 */
-	ktexture* texture_handles;
+	ktexture *texture_handles;
 
 	/**
 	 * @brief A descriptor state per descriptor, which in turn handles frames.
 	 * Count is managed in shader config.
 	 */
-	vulkan_descriptor_state* descriptor_states;
+	vulkan_descriptor_state *descriptor_states;
 
 	u8 array_size;
 } vulkan_texture_state;
@@ -494,13 +494,13 @@ typedef struct vulkan_shader_binding_set_instance_state {
 	vulkan_descriptor_state ubo_descriptor_state;
 
 	// SSBO descriptor states for this set.
-	vulkan_ssbo_state* ssbo_states;
+	vulkan_ssbo_state *ssbo_states;
 
 	// A mapping of samplers to descriptors.
-	vulkan_sampler_state* sampler_states;
+	vulkan_sampler_state *sampler_states;
 
 	// A mapping of textures to descriptors.
-	vulkan_texture_state* texture_states;
+	vulkan_texture_state *texture_states;
 
 	// Used to determine if this instance state has already been updated for a given frame.
 	u16 renderer_frame_number;
@@ -518,12 +518,12 @@ typedef struct vulkan_shader_binding_set_state {
 	// Total number of uses.
 	u32 max_instance_count;
 	// Binding set state per use. Array size = max_use_count
-	vulkan_shader_binding_set_instance_state* instances;
+	vulkan_shader_binding_set_instance_state *instances;
 
 	// The number of bindings in this set.
 	u8 binding_count;
 	// A lookup table of bindings for this binding set.
-	vulkan_shader_binding* bindings;
+	vulkan_shader_binding *bindings;
 
 	/** @brief the number of texture bindings for this binding set. */
 	u8 texture_binding_count;
@@ -551,11 +551,11 @@ typedef struct vulkan_shader {
 	 */
 	u8 descriptor_set_count;
 	/** @brief Array of descriptor sets, matches binding set count. */
-	vulkan_descriptor_set_config* descriptor_set_configs;
+	vulkan_descriptor_set_config *descriptor_set_configs;
 	/** @brief Descriptor set layouts, matches binding set count. */
-	VkDescriptorSetLayout* descriptor_set_layouts;
+	VkDescriptorSetLayout *descriptor_set_layouts;
 	/** @brief Binding set states, matches binding set count. */
-	vulkan_shader_binding_set_state* binding_set_states;
+	vulkan_shader_binding_set_state *binding_set_states;
 
 	/** @brief The topology types for the shader pipeline. See primitive_topology_type. Defaults to "triangle list" if unspecified. */
 	primitive_topology_type topology_types;
@@ -575,14 +575,14 @@ typedef struct vulkan_shader {
 	krenderbuffer uniform_buffer;
 
 	u8 colour_attachment_count;
-	VkFormat* colour_attachments;
+	VkFormat *colour_attachments;
 
 	VkFormat depth_attachment;
 	VkFormat stencil_attachment;
 
 	u8 vertex_layout_pipeline_count;
 	// One per vertex layout
-	vulkan_vertex_layout_pipeline* vertex_layout_pipelines;
+	vulkan_vertex_layout_pipeline *vertex_layout_pipelines;
 	// Index into the vertex_layout_pipelines array.
 	u8 vertex_layout_index;
 
@@ -623,28 +623,28 @@ typedef struct kwindow_renderer_backend_state {
 	b8 recreating_swapchain;
 
 	/** @brief The graphics command buffers, one per frame-in-flight. */
-	vulkan_command_buffer* graphics_command_buffers;
+	vulkan_command_buffer *graphics_command_buffers;
 
 	/** @brief The semaphores used to indicate image availability, one per frame in flight. */
-	VkSemaphore* acquire_semaphores;
+	VkSemaphore *acquire_semaphores;
 
 	/** @brief The semaphores used to indicate queue availability, one per swapchain image. */
-	VkSemaphore* submit_semaphores;
+	VkSemaphore *submit_semaphores;
 
 	/**
 	 * @brief The in-flight fences, used to indicate to the application when a frame is
 	 * busy/ready. One per frame in flight.
 	 */
-	VkFence* in_flight_fences;
+	VkFence *in_flight_fences;
 
 	/** @brief Resusable staging buffers (one per frame in flight) to transfer data from a resource to a GPU-only buffer. */
-	krenderbuffer* staging;
+	krenderbuffer *staging;
 
 	/**
 	 * @brief Array of darrays of handles to textures that were updated as part of a frame's workload.
 	 * One list per frame in flight.
 	 */
-	ktexture** frame_texture_updated_list;
+	ktexture **frame_texture_updated_list;
 
 	u64 framebuffer_size_generation;
 	u64 framebuffer_previous_size_generation;
@@ -671,7 +671,7 @@ typedef struct vulkan_texture_handle_data {
 	// requires the frame_count to be taken into account.
 	u32 image_count;
 	// Array of images. See image_count.
-	vulkan_image* images;
+	vulkan_image *images;
 } vulkan_texture_handle_data;
 
 /**
@@ -704,7 +704,7 @@ typedef struct vulkan_context {
 	/** @brief The handle to the internal Vulkan instance. */
 	VkInstance instance;
 	/** @brief The internal Vulkan allocator. */
-	VkAllocationCallbacks* allocator;
+	VkAllocationCallbacks *allocator;
 
 	/** @brief The debug messenger, if active.. */
 	VkDebugUtilsMessengerEXT debug_messenger;
@@ -722,7 +722,7 @@ typedef struct vulkan_context {
 	vulkan_device device;
 
 	/** @brief A pointer to the current window whose resources should be used as default to render to. */
-	struct kwindow* current_window;
+	struct kwindow *current_window;
 
 	b8 render_flag_changed;
 
@@ -735,14 +735,14 @@ typedef struct vulkan_context {
 	b8 triple_buffering_enabled;
 
 	/** @brief Collection of samplers. darray */
-	vulkan_sampler_handle_data* samplers;
+	vulkan_sampler_handle_data *samplers;
 
 	u32 max_texture_count;
 	/** @brief Collection of textures. Matches max texture size on frontend. */
-	vulkan_texture_handle_data* textures;
+	vulkan_texture_handle_data *textures;
 
 	/** @brief Collection of vulkan shaders (internal shader data). Matches size of shader array in shader system. */
-	vulkan_shader* shaders;
+	vulkan_shader *shaders;
 
 	PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT;
 	PFN_vkCmdSetFrontFaceEXT vkCmdSetFrontFaceEXT;
@@ -762,7 +762,7 @@ typedef struct vulkan_context {
 	kshader bound_shader;
 
 	// Darray of vulkan buffers, which matches up to the frontend's krenderbuffers.
-	vulkan_buffer* renderbuffers;
+	vulkan_buffer *renderbuffers;
 
 	// Cached handles to renderbuffers.
 	kname standard_vertex_buffer_name;
@@ -771,5 +771,5 @@ typedef struct vulkan_context {
 	/**
 	 * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)
 	 */
-	struct shaderc_compiler* shader_compiler;
+	struct shaderc_compiler *shader_compiler;
 } vulkan_context;

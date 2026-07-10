@@ -33,17 +33,17 @@ typedef struct skybox {
  * @param out_skybox A pointer to hold the newly-created skybox.
  * @return True on success; otherwise false.
  */
-KAPI b8 skybox_create(skybox_config config, skybox* out_skybox);
+KAPI b8 skybox_create (skybox_config config, skybox *out_skybox);
 
-KAPI b8 skybox_initialize(skybox* sb);
+KAPI b8 skybox_initialize (skybox *sb);
 
-KAPI b8 skybox_load(skybox* sb);
+KAPI b8 skybox_load (skybox *sb);
 
-KAPI b8 skybox_unload(skybox* sb);
+KAPI b8 skybox_unload (skybox *sb);
 
 /**
  * @brief Destroys the provided skybox.
  *
  * @param sb A pointer to the skybox to be destroyed.
  */
-KAPI void skybox_destroy(skybox* sb);
+KAPI void skybox_destroy (skybox *sb);

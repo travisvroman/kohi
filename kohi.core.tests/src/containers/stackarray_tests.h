@@ -1,4 +1,4 @@
 
 #pragma once
 
-void stackarray_register_tests(void);
+void stackarray_register_tests (void);

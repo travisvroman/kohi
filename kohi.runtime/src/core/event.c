@@ -6,13 +6,13 @@
 #include "memory/kmemory.h"
 
 typedef struct registered_event {
-	void* listener;
+	void *listener;
 	PFN_on_event callback;
 	b8 is_single;
 } registered_event;
 
 typedef struct event_code_entry {
-	registered_event* events;
+	registered_event *events;
 } event_code_entry;
 
 // This should be more than enough codes...
@@ -27,9 +27,9 @@ typedef struct event_system_state {
 /**
  * Event system internal state_ptr->
  */
-static event_system_state* state_ptr;
+static event_system_state *state_ptr;
 
-b8 event_system_initialize(u64* memory_requirement, void* state, void* config) {
+b8 event_system_initialize (u64 *memory_requirement, void *state, void *config) {
 	*memory_requirement = sizeof(event_system_state);
 	if (state == 0) {
 		return true;
@@ -43,7 +43,7 @@ b8 event_system_initialize(u64* memory_requirement, void* state, void* config) {
 	return true;
 }
 
-void event_system_shutdown(void* state) {
+void event_system_shutdown (void *state) {
 	if (state_ptr) {
 		// Free the events arrays. And objects pointed to should be destroyed on their own.
 		for (u16 i = 0; i < MAX_MESSAGE_CODES; ++i) {
@@ -56,7 +56,7 @@ void event_system_shutdown(void* state) {
 	state_ptr = 0;
 }
 
-static b8 internal_register(u16 code, void* listener, PFN_on_event on_event, b8 is_single) {
+static b8 internal_register (u16 code, void *listener, PFN_on_event on_event, b8 is_single) {
 	if (!state_ptr) {
 		return false;
 	}
@@ -88,15 +88,15 @@ static b8 internal_register(u16 code, void* listener, PFN_on_event on_event, b8 
 	return true;
 }
 
-b8 event_register(u16 code, void* listener, PFN_on_event on_event) {
+b8 event_register (u16 code, void *listener, PFN_on_event on_event) {
 	return internal_register(code, listener, on_event, false);
 }
 
-b8 event_register_single(u16 code, void* listener, PFN_on_event on_event) {
+b8 event_register_single (u16 code, void *listener, PFN_on_event on_event) {
 	return internal_register(code, listener, on_event, true);
 }
 
-b8 event_unregister(u16 code, void* listener, PFN_on_event on_event) {
+b8 event_unregister (u16 code, void *listener, PFN_on_event on_event) {
 	if (!state_ptr) {
 		return false;
 	}
@@ -122,7 +122,7 @@ b8 event_unregister(u16 code, void* listener, PFN_on_event on_event) {
 	return false;
 }
 
-b8 event_fire(u16 code, void* sender, event_context context) {
+b8 event_fire (u16 code, void *sender, event_context context) {
 	if (!state_ptr) {
 		return false;
 	}
@@ -133,7 +133,7 @@ b8 event_fire(u16 code, void* sender, event_context context) {
 	}
 
 	u64 registered_count = darray_length(state_ptr->registered[code].events);
-	registered_event* singles = KNULL;
+	registered_event *singles = KNULL;
 	for (u64 i = 0; i < registered_count; ++i) {
 		registered_event e = state_ptr->registered[code].events[i];
 		// This fires once for every listener/callback combo.

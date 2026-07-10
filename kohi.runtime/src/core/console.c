@@ -11,43 +11,43 @@
 
 typedef struct console_consumer {
 	PFN_console_consumer_write callback;
-	void* instance;
+	void *instance;
 } console_consumer;
 
 typedef struct console_command {
-	const char* name;
+	const char *name;
 	u8 min_arg_count;
 	u8 max_arg_count;
 	PFN_console_command func;
-	void* listener;
+	void *listener;
 } console_command;
 
 typedef struct console_object {
-	const char* name;
+	const char *name;
 	console_object_type type;
-	void* block;
+	void *block;
 	// darray
-	struct console_object* properties;
+	struct console_object *properties;
 } console_object;
 
 typedef struct console_state {
 	// darray of registered console consumers.
-	console_consumer* consumers;
+	console_consumer *consumers;
 
 	// darray of registered commands.
-	console_command* registered_commands;
+	console_command *registered_commands;
 
 	// darray of registered console objects.
-	console_object* registered_objects;
+	console_object *registered_objects;
 
 	kmutex write_mutex;
 } console_state;
 
-static b8 on_exec(console_state* state, const char* exec_text);
+static b8 on_exec (console_state *state, const char *exec_text);
 
-static console_state* state_ptr;
+static console_state *state_ptr;
 
-b8 console_initialize(u64* memory_requirement, struct console_state* state, void* config) {
+b8 console_initialize (u64 *memory_requirement, struct console_state *state, void *config) {
 	*memory_requirement = sizeof(console_state);
 
 	if (!state) {
@@ -69,7 +69,7 @@ b8 console_initialize(u64* memory_requirement, struct console_state* state, void
 	return true;
 }
 
-void console_shutdown(struct console_state* state) {
+void console_shutdown (struct console_state *state) {
 	if (state) {
 		kmutex_lock(&state->write_mutex);
 		u32 command_count = darray_length(state->registered_commands);
@@ -91,7 +91,7 @@ void console_shutdown(struct console_state* state) {
 	state_ptr = 0;
 }
 
-void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id) {
+void console_consumer_register (void *inst, PFN_console_consumer_write callback, u8 *out_consumer_id) {
 	if (state_ptr) {
 		kmutex_lock(&state_ptr->write_mutex);
 		*out_consumer_id = INVALID_ID_U8;
@@ -107,40 +107,40 @@ void console_consumer_register(void* inst, PFN_console_consumer_write callback, 
 			*out_consumer_id = len;
 		}
 
-		console_consumer* consumer = &state_ptr->consumers[*out_consumer_id];
+		console_consumer *consumer = &state_ptr->consumers[*out_consumer_id];
 		consumer->instance = inst;
 		consumer->callback = callback;
 		kmutex_unlock(&state_ptr->write_mutex);
 	}
 }
 
-void console_consumer_unregister(u8 consumer_id) {
+void console_consumer_unregister (u8 consumer_id) {
 	if (state_ptr) {
 		kmutex_lock(&state_ptr->write_mutex);
-		console_consumer* consumer = &state_ptr->consumers[consumer_id];
+		console_consumer *consumer = &state_ptr->consumers[consumer_id];
 		consumer->instance = KNULL;
 		consumer->callback = KNULL;
 		kmutex_unlock(&state_ptr->write_mutex);
 	}
 }
 
-void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_write callback) {
+void console_consumer_update (u8 consumer_id, void *inst, PFN_console_consumer_write callback) {
 	if (state_ptr) {
 		KASSERT_MSG(consumer_id < darray_length(state_ptr->consumers), "Consumer id is invalid.");
 
-		console_consumer* consumer = &state_ptr->consumers[consumer_id];
+		console_consumer *consumer = &state_ptr->consumers[consumer_id];
 		consumer->instance = inst;
 		consumer->callback = callback;
 	}
 }
 
-void console_write(log_level level, const char* message) {
+void console_write (log_level level, const char *message) {
 	if (state_ptr) {
 		kmutex_lock(&state_ptr->write_mutex);
 		// Notify each consumer that a line has been added.
 		u8 len = darray_length(state_ptr->consumers);
 		for (u8 i = 0; i < len; ++i) {
-			console_consumer* consumer = &state_ptr->consumers[i];
+			console_consumer *consumer = &state_ptr->consumers[i];
 			if (consumer->callback) {
 				consumer->callback(consumer->instance, level, message);
 			}
@@ -149,7 +149,7 @@ void console_write(log_level level, const char* message) {
 	}
 }
 
-b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_count, void* listener, PFN_console_command func) {
+b8 console_command_register (const char *command, u8 min_arg_count, u8 max_arg_count, void *listener, PFN_console_command func) {
 	KASSERT_MSG(state_ptr && command, "console_register_command requires state and valid command");
 	KASSERT(string_length(command));
 
@@ -175,7 +175,7 @@ b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_co
 	return true;
 }
 
-b8 console_command_unregister(const char* command) {
+b8 console_command_unregister (const char *command) {
 	KASSERT_MSG(state_ptr && command, "console_update_command requires state and valid command");
 
 	// Make sure it doesn't already exist.
@@ -195,11 +195,11 @@ b8 console_command_unregister(const char* command) {
 	return false;
 }
 
-static console_object* console_object_get(console_object* parent, const char* name) {
+static console_object *console_object_get (console_object *parent, const char *name) {
 	if (parent) {
 		u32 property_count = darray_length(parent->properties);
 		for (u32 i = 0; i < property_count; ++i) {
-			console_object* obj = &parent->properties[i];
+			console_object *obj = &parent->properties[i];
 			if (strings_equali(obj->name, name)) {
 				return obj;
 			}
@@ -207,7 +207,7 @@ static console_object* console_object_get(console_object* parent, const char* na
 	} else {
 		u32 registered_object_len = darray_length(state_ptr->registered_objects);
 		for (u32 i = 0; i < registered_object_len; ++i) {
-			console_object* obj = &state_ptr->registered_objects[i];
+			console_object *obj = &state_ptr->registered_objects[i];
 			if (strings_equali(obj->name, name)) {
 				return obj;
 			}
@@ -229,7 +229,7 @@ static b8 console_object_to_b8(const console_object* obj) {
 	return *((b8*)obj->block);
 } */
 
-static void console_object_print(u8 indent, console_object* obj) {
+static void console_object_print (u8 indent, console_object *obj) {
 	char indent_buffer[513] = {0};
 	u16 idx = 0;
 	for (; idx < (indent * 2); idx += 2) {
@@ -240,16 +240,16 @@ static void console_object_print(u8 indent, console_object* obj) {
 
 	switch (obj->type) {
 	case CONSOLE_OBJECT_TYPE_INT32:
-		KINFO("%s%i", indent_buffer, *((i32*)obj->block));
+		KINFO("%s%i", indent_buffer, *((i32 *)obj->block));
 		break;
 	case CONSOLE_OBJECT_TYPE_UINT32:
-		KINFO("%s%u", indent_buffer, *((u32*)obj->block));
+		KINFO("%s%u", indent_buffer, *((u32 *)obj->block));
 		break;
 	case CONSOLE_OBJECT_TYPE_F32:
-		KINFO("%s%f", indent_buffer, *((f32*)obj->block));
+		KINFO("%s%f", indent_buffer, *((f32 *)obj->block));
 		break;
 	case CONSOLE_OBJECT_TYPE_BOOL: {
-		b8 val = *((b8*)obj->block);
+		b8 val = *((b8 *)obj->block);
 		KINFO("%s%s", indent_buffer, val ? "true" : "false");
 	} break;
 	case CONSOLE_OBJECT_TYPE_STRUCT:
@@ -265,7 +265,7 @@ static void console_object_print(u8 indent, console_object* obj) {
 	}
 }
 
-b8 console_command_execute(const char* command) {
+b8 console_command_execute (const char *command) {
 	if (!command) {
 		return false;
 	}
@@ -274,7 +274,7 @@ b8 console_command_execute(const char* command) {
 	// by the exec processor.
 	if (strings_nequali(command, "exec ", 5)) {
 		u32 len = string_length(command);
-		char* exec_text = KALLOC_TYPE_CARRAY(char, len - 5 + 1);
+		char *exec_text = KALLOC_TYPE_CARRAY(char, len - 5 + 1);
 		for (u32 i = 0; i < len - 5; ++i) {
 			exec_text[i] = command[i + 5];
 		}
@@ -286,8 +286,8 @@ b8 console_command_execute(const char* command) {
 
 	// Otherwise, process this the normal way.
 	b8 has_error = true;
-	char* temp = 0;
-	char** parts = darray_create(char*);
+	char *temp = 0;
+	char **parts = darray_create(char *);
 	u32 part_count = string_split(command, ' ', &parts, true, false, true);
 	if (part_count < 1) {
 		has_error = true;
@@ -305,7 +305,7 @@ b8 console_command_execute(const char* command) {
 	u32 command_count = darray_length(state_ptr->registered_commands);
 	// Look through registered commands for a match.
 	for (u32 i = 0; i < command_count; ++i) {
-		console_command* cmd = &state_ptr->registered_commands[i];
+		console_command *cmd = &state_ptr->registered_commands[i];
 		if (strings_equali(cmd->name, parts[0])) {
 			command_found = true;
 			u8 arg_count = part_count - 1;
@@ -353,7 +353,7 @@ console_command_execute_cleanup:
 	return !has_error;
 }
 
-b8 console_object_register(const char* object_name, void* object, console_object_type type) {
+b8 console_object_register (const char *object_name, void *object, console_object_type type) {
 	if (!object || !object_name) {
 		KERROR("console_object_register requires a valid pointer to object and object_name");
 		return false;
@@ -378,7 +378,7 @@ b8 console_object_register(const char* object_name, void* object, console_object
 	return true;
 }
 
-b8 console_object_unregister(const char* object_name) {
+b8 console_object_unregister (const char *object_name) {
 	if (!object_name) {
 		KERROR("console_object_register requires a valid pointer object_name");
 		return false;
@@ -398,7 +398,7 @@ b8 console_object_unregister(const char* object_name) {
 	return false;
 }
 
-b8 console_object_add_property(const char* object_name, const char* property_name, void* property, console_object_type type) {
+b8 console_object_add_property (const char *object_name, const char *property_name, void *property, console_object_type type) {
 	if (!property || !object_name || !property_name) {
 		KERROR("console_object_add_property requires a valid pointer to property, property_name and object_name");
 		return false;
@@ -408,7 +408,7 @@ b8 console_object_add_property(const char* object_name, const char* property_nam
 	u32 object_count = darray_length(state_ptr->registered_objects);
 	for (u32 i = 0; i < object_count; ++i) {
 		if (strings_equali(state_ptr->registered_objects[i].name, object_name)) {
-			console_object* obj = &state_ptr->registered_objects[i];
+			console_object *obj = &state_ptr->registered_objects[i];
 			// Found the object, now make sure a property with that name does not exist.
 			if (obj->properties) {
 				u32 property_count = darray_length(obj->properties);
@@ -438,8 +438,8 @@ b8 console_object_add_property(const char* object_name, const char* property_nam
 	return false;
 }
 
-static void console_object_destroy(console_object* obj) {
-	string_free((char*)obj->name);
+static void console_object_destroy (console_object *obj) {
+	string_free((char *)obj->name);
 	obj->block = 0;
 	if (obj->properties) {
 		u32 len = darray_length(obj->properties);
@@ -451,7 +451,7 @@ static void console_object_destroy(console_object* obj) {
 	}
 }
 
-b8 console_object_remove_property(const char* object_name, const char* property_name) {
+b8 console_object_remove_property (const char *object_name, const char *property_name) {
 	if (!object_name || !property_name) {
 		KERROR("console_object_remove_property requires a valid pointer to property, property_name and object_name");
 		return false;
@@ -461,7 +461,7 @@ b8 console_object_remove_property(const char* object_name, const char* property_
 	u32 object_count = darray_length(state_ptr->registered_objects);
 	for (u32 i = 0; i < object_count; ++i) {
 		if (strings_equali(state_ptr->registered_objects[i].name, object_name)) {
-			console_object* obj = &state_ptr->registered_objects[i];
+			console_object *obj = &state_ptr->registered_objects[i];
 			// Found the object, now make sure a property with that name does not exist.
 			if (obj->properties) {
 				u32 property_count = darray_length(obj->properties);
@@ -536,7 +536,7 @@ typedef struct ctoken {
 	// Position within the line.
 	u32 col_num;
 #if KOHI_DEBUG
-	const char* content;
+	const char *content;
 #endif
 } ctoken;
 
@@ -544,28 +544,28 @@ struct cproperty;
 struct cfunction;
 
 typedef struct cobject {
-	const char* name;
+	const char *name;
 	kstring_id name_id;
 
-	struct cproperty* properties;
-	struct cfunction* functions;
+	struct cproperty *properties;
+	struct cfunction *functions;
 } cobject;
 
 typedef struct console_parser {
-	const char* content;
+	const char *content;
 	u32 position;
 	u32 current_line;
 	u32 current_col;
 
 	// darray
-	ctoken* tokens;
+	ctoken *tokens;
 } console_parser;
 
 typedef union cproperty_value {
 	b8 b;
 	i64 i;
 	f32 f;
-	const char* s;
+	const char *s;
 	cobject o;
 } cproperty_value;
 
@@ -573,7 +573,7 @@ typedef struct cproperty {
 	cvar_type type;
 	kstring_id name;
 #if KOHI_DEBUG
-	const char* name_str;
+	const char *name_str;
 #endif
 } cproperty;
 
@@ -588,7 +588,7 @@ typedef enum ctokenize_mode {
 } ctokenize_mode;
 
 // Resets both the current token type and the tokenize mode to unknown.
-static void reset_current_token_and_mode(ctoken* current_token, ctokenize_mode* mode) {
+static void reset_current_token_and_mode (ctoken *current_token, ctokenize_mode *mode) {
 	current_token->type = CTOKEN_TYPE_UNKNOWN;
 	current_token->start = 0;
 	current_token->end = 0;
@@ -600,7 +600,7 @@ static void reset_current_token_and_mode(ctoken* current_token, ctokenize_mode* 
 }
 
 #if KOHI_DEBUG
-static void _populate_token_content(ctoken* t, const char* source) {
+static void _populate_token_content (ctoken *t, const char *source) {
 	KASSERT_MSG(t->start <= t->end, "Token start comes after token end, ya dingus!");
 	char buffer[512] = {0};
 	KASSERT_MSG((t->end - t->start) < 512, "token won't fit in buffer.");
@@ -614,22 +614,22 @@ static void _populate_token_content(ctoken* t, const char* source) {
 #endif
 
 // Pushes the current token, if not of unknown type.
-static void push_token(ctoken* t, console_parser* parser) {
+static void push_token (ctoken *t, console_parser *parser) {
 	if (t->type != CTOKEN_TYPE_UNKNOWN && (t->end - t->start > 0)) {
 		POPULATE_TOKEN_CONTENT(t, parser->content);
 		darray_push(parser->tokens, *t);
 	}
 }
 
-static void report_warning(const console_parser* parser, const char* message) {
+static void report_warning (const console_parser *parser, const char *message) {
 	KWARN("%s at position %u. (line=%u, char=%u).", parser->position, parser->current_line, parser->current_col);
 }
 
-static void report_error(const console_parser* parser, const char* message) {
+static void report_error (const console_parser *parser, const char *message) {
 	KERROR("%s at position %u. (line=%u, char=%u).", parser->position, parser->current_line, parser->current_col);
 }
 
-static b8 tokenize_exec(console_parser* parser, const char* source) {
+static b8 tokenize_exec (console_parser *parser, const char *source) {
 	b8 success = false;
 	parser->content = string_duplicate(source);
 
@@ -983,7 +983,7 @@ static b8 tokenize_exec(console_parser* parser, const char* source) {
 					current_token.end += advance;
 				} else {
 					// Check first to see if it's possibly a boolean definition.
-					const char* str = source + parser->position;
+					const char *str = source + parser->position;
 					u8 bool_advance = 0;
 					if (strings_nequali(str, "true", 4)) {
 						bool_advance = 4;
@@ -1047,13 +1047,13 @@ tokenize_cleanup:
 	return success;
 }
 
-static b8 parse_exec(console_state* state, console_parser* parser) {
+static b8 parse_exec (console_state *state, console_parser *parser) {
 	// TODO: Parse into a collection of statements. Functions, recursions, etc
 	// will have to come later. In other words, an AST.
 	return true;
 }
 
-static b8 on_exec(console_state* state, const char* exec_text) {
+static b8 on_exec (console_state *state, const char *exec_text) {
 	console_parser parser = {
 		.content = 0,
 		.position = 0,

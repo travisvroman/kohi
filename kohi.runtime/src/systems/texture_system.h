@@ -74,16 +74,16 @@ typedef struct ktexture_properties {
  * @param config The configuration (texture_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 texture_system_initialize(u64* memory_requirement, void* state, void* config);
+b8 texture_system_initialize (u64 *memory_requirement, void *state, void *config);
 
 /**
  * @brief Shuts down the texture system.
 
  * @param state The state block of memory for this system.
  */
-void texture_system_shutdown(void* state);
+void texture_system_shutdown (void *state);
 
-typedef void (*PFN_texture_loaded_callback)(ktexture texture, void* listener);
+typedef void (*PFN_texture_loaded_callback)(ktexture texture, void *listener);
 
 /**
  * @brief Attempts to acquire a texture using the given image asset name. Asynchronous.
@@ -102,7 +102,7 @@ typedef void (*PFN_texture_loaded_callback)(ktexture texture, void* listener);
  * @param callback The callback to be made once the texture is loaded. Optional.
  * @return The texture to be loaded. The default texture if not found. INVALID_KTEXTURE if error. May/may not be loaded yet on return.
  */
-KAPI ktexture texture_acquire(kname image_asset_name, void* listener, PFN_texture_loaded_callback callback);
+KAPI ktexture texture_acquire (kname image_asset_name, void *listener, PFN_texture_loaded_callback callback);
 
 /**
  * @brief Attempts to acquire a texture using the given image asset name. Synchronous.
@@ -119,14 +119,14 @@ KAPI ktexture texture_acquire(kname image_asset_name, void* listener, PFN_textur
  * @param image_asset_name The name of the image asset to load and use for the texture.
  * @return The loaded texture. Can be the default texture if not found. INVALID_KTEXTURE if error.
  */
-KAPI ktexture texture_acquire_sync(kname image_asset_name);
+KAPI ktexture texture_acquire_sync (kname image_asset_name);
 
 /**
  * @brief Releases resources for the given texture.
  *
  * @param t A pointer to the texture to be released.
  */
-KAPI void texture_release(ktexture texture);
+KAPI void texture_release (ktexture texture);
 
 /**
  * @brief Attempts to acquire a texture using the given image asset name, loaded from the provided package. Asynchronous.
@@ -146,7 +146,7 @@ KAPI void texture_release(ktexture texture);
  * @param callback The callback to be made once the texture is loaded. Optional.
  * @return The texture to be loaded. The default texture if not found. INVALID_KTEXTURE if error. May/may not be loaded yet on return.
  */
-KAPI ktexture texture_acquire_from_package(kname image_asset_name, kname package_name, void* listener, PFN_texture_loaded_callback callback);
+KAPI ktexture texture_acquire_from_package (kname image_asset_name, kname package_name, void *listener, PFN_texture_loaded_callback callback);
 
 /**
  * @brief Attempts to acquire a texture using the given image asset name, loaded from the provided package. Synchronous.
@@ -164,7 +164,7 @@ KAPI ktexture texture_acquire_from_package(kname image_asset_name, kname package
  * @param package_name The name of the package to load the texture image asset from.
  * @return The loaded texture. Can be the default texture if not found. INVALID_KTEXTURE if error.
  */
-KAPI ktexture texture_acquire_from_package_sync(kname image_asset_name, kname package_name);
+KAPI ktexture texture_acquire_from_package_sync (kname image_asset_name, kname package_name);
 
 /**
  * @brief Attempts to acquire a cubemap texture with the given image asset name. Asynchronous.
@@ -189,7 +189,7 @@ KAPI ktexture texture_acquire_from_package_sync(kname image_asset_name, kname pa
  * @param callback The callback to be made once the resource is loaded. Optional.
  * @return The texture to be loaded. The default texture if not found. INVALID_KTEXTURE if error. May/may not be loaded yet on return.
  */
-KAPI ktexture texture_cubemap_acquire(kname image_asset_name_prefix, void* listener, PFN_texture_loaded_callback callback);
+KAPI ktexture texture_cubemap_acquire (kname image_asset_name_prefix, void *listener, PFN_texture_loaded_callback callback);
 
 /**
  * @brief Attempts to acquire a cubemap texture with the given image asset name. Synchronous.
@@ -212,7 +212,7 @@ KAPI ktexture texture_cubemap_acquire(kname image_asset_name_prefix, void* liste
  * @param image_asset_name_prefix The prefix of the name of the image assets to load and use for the texture.
  * @return The loaded texture. Can be the default texture if not found. INVALID_KTEXTURE if error.
  */
-KAPI ktexture texture_cubemap_acquire_sync(kname image_asset_name_prefix);
+KAPI ktexture texture_cubemap_acquire_sync (kname image_asset_name_prefix);
 
 /**
  * @brief Attempts to acquire a cubemap texture with the given image asset name from the provided package. Asynchronous.
@@ -238,7 +238,7 @@ KAPI ktexture texture_cubemap_acquire_sync(kname image_asset_name_prefix);
  * @param callback The callback to be made once the resource is loaded. Optional.
  * @return The texture to be loaded. The default texture if not found. INVALID_KTEXTURE if error. May/may not be loaded yet on return.
  */
-KAPI ktexture texture_cubemap_acquire_from_package(kname image_asset_name_prefix, kname package_name, void* listener, PFN_texture_loaded_callback callback);
+KAPI ktexture texture_cubemap_acquire_from_package (kname image_asset_name_prefix, kname package_name, void *listener, PFN_texture_loaded_callback callback);
 
 /**
  * @brief Attempts to acquire a cubemap texture with the given image asset name from the provided package. Synchronous.
@@ -262,14 +262,14 @@ KAPI ktexture texture_cubemap_acquire_from_package(kname image_asset_name_prefix
  * @param package_name The name of the package from which to load the image assets from.
  * @return The loaded texture. Can be the default texture if not found. INVALID_KTEXTURE if error.
  */
-KAPI ktexture texture_cubemap_acquire_from_package_sync(kname image_asset_name_prefix, kname package_name);
+KAPI ktexture texture_cubemap_acquire_from_package_sync (kname image_asset_name_prefix, kname package_name);
 
 // Easier idea? synchronous. auto_release=true, default options
-KAPI ktexture texture_acquire_from_image(const kasset_image* image, kname name);
+KAPI ktexture texture_acquire_from_image (const kasset_image *image, kname name);
 
-KAPI ktexture texture_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, kname name);
+KAPI ktexture texture_acquire_from_pixel_data (kpixel_format format, u32 pixel_array_size, void *pixels, u32 width, u32 height, kname name);
 
-KAPI ktexture texture_cubemap_acquire_from_pixel_data(kpixel_format format, u32 pixel_array_size, void* pixels, u32 width, u32 height, kname name);
+KAPI ktexture texture_cubemap_acquire_from_pixel_data (kpixel_format format, u32 pixel_array_size, void *pixels, u32 width, u32 height, kname name);
 
 /**
  * @brief Attempts to acquire a layered texture using the given image asset/package names. Synchronous.
@@ -289,7 +289,7 @@ KAPI ktexture texture_cubemap_acquire_from_pixel_data(kpixel_format format, u32 
  * @param package_names An array of package names to be used when loading. One per layer, aligns with asset_names. Length of array must be equal to layer_count.
  * @return The loaded texture. Can be a layered texture loaded with default pixel data if not found. INVALID_KTEXTURE if error.
  */
-KAPI ktexture texture_acquire_layered_sync(kname texture_name, u32 layer_count, kname* asset_names, kname* package_names);
+KAPI ktexture texture_acquire_layered_sync (kname texture_name, u32 layer_count, kname *asset_names, kname *package_names);
 
 /* KAPI ktexture texture_cubemap_acquire_from_images(const struct kasset_image* images[6]); */
 
@@ -317,18 +317,18 @@ typedef struct ktexture_load_options {
 	// The name of the image asset to load for the texture. Optional. Only used for single-layer textures and cubemaps. Ignored for layered textures.
 	kname package_name;
 	// Names of layer image assets, only used for array/layered textures. Element count must be layer_count.
-	kname* layer_image_asset_names;
+	kname *layer_image_asset_names;
 	// Names of packages containing layer image assets, only used for array/layered textures. Element count must be layer_count. Use null/0 to load from application package.
-	kname* layer_package_names;
+	kname *layer_package_names;
 
 	// Block of pixel data, which can be multiple layers as defined by layer_count. The pixel data for all layers should be contiguous. Layout interpreted based on format.
-	void* pixel_data;
+	void *pixel_data;
 	// The size of the pixel_data array in bytes (NOT pixel count!)
 	u32 pixel_array_size;
 } ktexture_load_options;
 
-KAPI ktexture texture_acquire_with_options(ktexture_load_options options, void* listener, PFN_texture_loaded_callback callback);
-KAPI ktexture texture_acquire_with_options_sync(ktexture_load_options options);
+KAPI ktexture texture_acquire_with_options (ktexture_load_options options, void *listener, PFN_texture_loaded_callback callback);
+KAPI ktexture texture_acquire_with_options_sync (ktexture_load_options options);
 
 /**
  * @brief Resizes the given texture. May only be done on writeable textures.
@@ -340,7 +340,7 @@ KAPI ktexture texture_acquire_with_options_sync(ktexture_load_options options);
  * @param regenerate_internal_data Indicates if the internal data should be regenerated.
  * @return True on success; otherwise false.
  */
-KAPI b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal_data);
+KAPI b8 texture_resize (ktexture t, u32 width, u32 height, b8 regenerate_internal_data);
 
 /**
  * @brief Writes the given data to the provided texture. May only be used on
@@ -352,7 +352,7 @@ KAPI b8 texture_resize(ktexture t, u32 width, u32 height, b8 regenerate_internal
  * @param data A pointer to the data to be written.
  * @return True on success; otherwise false.
  */
-KAPI b8 texture_write_data(ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, void* data, b8 defer_to_next_frame);
+KAPI b8 texture_write_data (ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, void *data, b8 defer_to_next_frame);
 
 /**
  * @brief Writes the src texture's pixel data to the provided dest texture on the given layer. May only be used on
@@ -363,19 +363,19 @@ KAPI b8 texture_write_data(ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u
  * @param src The texture whose pixel data is to be written to dest.
  * @return True on success; otherwise false.
  */
-KAPI b8 texture_set_layer_data_from_texture(ktexture dest, u16 layer, ktexture src);
+KAPI b8 texture_set_layer_data_from_texture (ktexture dest, u16 layer, ktexture src);
 
 // NOTE: does not increase internal reference count, and should not be used for actual texture references (i.e. during
 // rendering). Use this to obtain texture properties, for example.
-KAPI ktexture texture_get_by_name(kname name);
-KAPI kname texture_name_get(ktexture t);
+KAPI ktexture texture_get_by_name (kname name);
+KAPI kname texture_name_get (ktexture t);
 
-KAPI u32 texture_width_get(ktexture t);
-KAPI u32 texture_height_get(ktexture t);
-KAPI b8 texture_dimensions_get(ktexture t, u32* out_width, u32* out_height);
+KAPI u32 texture_width_get (ktexture t);
+KAPI u32 texture_height_get (ktexture t);
+KAPI b8 texture_dimensions_get (ktexture t, u32 *out_width, u32 *out_height);
 
-KAPI ktexture_flag_bits texture_flags_get(ktexture t);
+KAPI ktexture_flag_bits texture_flags_get (ktexture t);
 
-KAPI b8 texture_properties_get(ktexture t, ktexture_properties* out_properties);
+KAPI b8 texture_properties_get (ktexture t, ktexture_properties *out_properties);
 
-KAPI b8 texture_is_loaded(ktexture t);
+KAPI b8 texture_is_loaded (ktexture t);

@@ -11,19 +11,19 @@
 #include "math/math_types.h"
 #include "strings/kstring.h"
 
-static b8 is_checked(kui_checkbox_control* typed_data);
-static b8 is_state_active(kui_checkbox_control* typed_data);
-static b8 is_active(kui_checkbox_control* typed_data);
-static kui_checkbox_state get_state(b8 active, b8 checked);
-static void set_state(kui_state* state, kui_checkbox_control* typed_data, kui_checkbox_state cb_state);
-static b8 on_click(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static void active_changed(struct kui_state* state, kui_control self, b8 is_active);
+static b8 is_checked (kui_checkbox_control *typed_data);
+static b8 is_state_active (kui_checkbox_control *typed_data);
+static b8 is_active (kui_checkbox_control *typed_data);
+static kui_checkbox_state get_state (b8 active, b8 checked);
+static void set_state (kui_state *state, kui_checkbox_control *typed_data, kui_checkbox_state cb_state);
+static b8 on_click (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static void active_changed (struct kui_state *state, kui_control self, b8 is_active);
 
-kui_control kui_checkbox_control_create(kui_state* state, const char* name, font_type type, kname font_name, u16 font_size, const char* text) {
+kui_control kui_checkbox_control_create (kui_state *state, const char *name, font_type type, kname font_name, u16 font_size, const char *text) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_CHECKBOX);
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_checkbox_control* typed_data = (kui_checkbox_control*)base;
+	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	base->on_click = on_click;
 
@@ -35,7 +35,7 @@ kui_control kui_checkbox_control_create(kui_state* state, const char* name, font
 	base->render = kui_checkbox_control_render;
 	base->active_changed = active_changed;
 
-	char* buffer = KNULL;
+	char *buffer = KNULL;
 
 	// Image box
 	buffer = string_format("%s_checkbox_image", name);
@@ -63,7 +63,7 @@ kui_control kui_checkbox_control_create(kui_state* state, const char* name, font
 
 	return handle;
 }
-void kui_checkbox_control_destroy(kui_state* state, kui_control* self) {
+void kui_checkbox_control_destroy (kui_state *state, kui_control *self) {
 	/* kui_base_control* base = kui_system_get_base(state, *self);
 	KASSERT(base);
 	kui_checkbox_control* typed_data = (kui_checkbox_control*)base; */
@@ -71,38 +71,38 @@ void kui_checkbox_control_destroy(kui_state* state, kui_control* self) {
 	kui_base_control_destroy(state, self);
 }
 
-void kui_checkbox_set_checked(kui_state* state, kui_control self, b8 checked) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_checkbox_set_checked (kui_state *state, kui_control self, b8 checked) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_checkbox_control* typed_data = (kui_checkbox_control*)base;
+	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	kui_checkbox_state new_state = get_state(true, checked);
 	set_state(state, typed_data, new_state);
 }
-b8 kui_checkbox_get_checked(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_checkbox_get_checked (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_checkbox_control* typed_data = (kui_checkbox_control*)base;
+	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	return is_checked(typed_data);
 }
 
-void kui_checkbox_set_on_checked(kui_state* state, kui_control self, PFN_checkbox_event_callback callback) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_checkbox_set_on_checked (kui_state *state, kui_control self, PFN_checkbox_event_callback callback) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_checkbox_control* typed_data = (kui_checkbox_control*)base;
+	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	typed_data->on_checked_changed = callback;
 }
 
-b8 kui_checkbox_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_checkbox_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
 
 	return true;
 }
-b8 kui_checkbox_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_checkbox_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!kui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
@@ -110,19 +110,19 @@ b8 kui_checkbox_control_render(kui_state* state, kui_control self, struct frame_
 	return true;
 }
 
-static b8 is_checked(kui_checkbox_control* typed_data) {
+static b8 is_checked (kui_checkbox_control *typed_data) {
 	return typed_data->state == KUI_CHECKBOX_STATE_ENABLED_CHECKED || typed_data->state == KUI_CHECKBOX_STATE_DISABLED_CHECKED;
 }
 
-static b8 is_state_active(kui_checkbox_control* typed_data) {
+static b8 is_state_active (kui_checkbox_control *typed_data) {
 	return typed_data->state == KUI_CHECKBOX_STATE_ENABLED_UNCHECKED || typed_data->state == KUI_CHECKBOX_STATE_ENABLED_CHECKED;
 }
 
-static b8 is_active(kui_checkbox_control* typed_data) {
+static b8 is_active (kui_checkbox_control *typed_data) {
 	return FLAG_GET(typed_data->base.flags, KUI_CONTROL_FLAG_ACTIVE_BIT);
 }
 
-static kui_checkbox_state get_state(b8 active, b8 checked) {
+static kui_checkbox_state get_state (b8 active, b8 checked) {
 	if (active) {
 		return checked ? KUI_CHECKBOX_STATE_ENABLED_CHECKED : KUI_CHECKBOX_STATE_ENABLED_UNCHECKED;
 	} else {
@@ -130,7 +130,7 @@ static kui_checkbox_state get_state(b8 active, b8 checked) {
 	}
 }
 
-static void set_state(kui_state* state, kui_checkbox_control* typed_data, kui_checkbox_state cb_state) {
+static void set_state (kui_state *state, kui_checkbox_control *typed_data, kui_checkbox_state cb_state) {
 	typed_data->state = cb_state;
 	switch (cb_state) {
 	case KUI_CHECKBOX_STATE_ENABLED_UNCHECKED:
@@ -148,10 +148,10 @@ static void set_state(kui_state* state, kui_checkbox_control* typed_data, kui_ch
 	}
 }
 
-static b8 on_click(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 on_click (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_checkbox_control* typed_data = (kui_checkbox_control*)base;
+	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	// Only bother with this if actually active.
 	if (is_state_active(typed_data)) {
@@ -170,10 +170,10 @@ static b8 on_click(struct kui_state* state, kui_control self, struct kui_mouse_e
 	return false;
 }
 
-static void active_changed(struct kui_state* state, kui_control self, b8 is_active) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static void active_changed (struct kui_state *state, kui_control self, b8 is_active) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_checkbox_control* typed_data = (kui_checkbox_control*)base;
+	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	KTRACE("active changed called");
 

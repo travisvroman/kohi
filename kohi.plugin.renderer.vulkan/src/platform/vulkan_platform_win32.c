@@ -23,18 +23,18 @@ typedef struct kwindow_platform_state {
 	HWND hwnd;
 } kwindow_platform_state;
 
-void vulkan_platform_get_required_extension_names(const char*** names_darray) {
+void vulkan_platform_get_required_extension_names (const char ***names_darray) {
 	darray_push(*names_darray, &"VK_KHR_win32_surface");
 }
 
 // Surface creation for Vulkan
-b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow* window) {
+b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindow *window) {
 	u64 size = 0;
 	platform_get_handle_info(&size, 0);
-	void* block = kallocate(size, MEMORY_TAG_RENDERER);
+	void *block = kallocate(size, MEMORY_TAG_RENDERER);
 	platform_get_handle_info(&size, block);
 
-	win32_handle_info* handle = (win32_handle_info*)block;
+	win32_handle_info *handle = (win32_handle_info *)block;
 
 	if (!handle) {
 		return false;
@@ -59,12 +59,12 @@ b8 vulkan_platform_create_vulkan_surface(vulkan_context* context, struct kwindow
 	return true;
 }
 
-b8 vulkan_platform_presentation_support(vulkan_context* context, VkPhysicalDevice physical_device, u32 queue_family_index) {
+b8 vulkan_platform_presentation_support (vulkan_context *context, VkPhysicalDevice physical_device, u32 queue_family_index) {
 	PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR kvkGetPhysicalDeviceWin32PresentationSupportKHR = platform_dynamic_library_load_function("vkGetPhysicalDeviceWin32PresentationSupportKHR", &context->rhi.vulkan_lib);
 	return (b8)kvkGetPhysicalDeviceWin32PresentationSupportKHR(physical_device, queue_family_index);
 }
 
-b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
+b8 vulkan_platform_initialize (krhi_vulkan *rhi) {
 	if (!rhi) {
 		return false;
 	}
@@ -72,7 +72,7 @@ b8 vulkan_platform_initialize(krhi_vulkan* rhi) {
 	return platform_dynamic_library_load("vulkan-1", &rhi->vulkan_lib);
 }
 
-void vulkan_platform_shutdown(krhi_vulkan* rhi) {
+void vulkan_platform_shutdown (krhi_vulkan *rhi) {
 	if (rhi) {
 		platform_dynamic_library_unload(&rhi->vulkan_lib);
 	}

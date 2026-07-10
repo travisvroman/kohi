@@ -154,9 +154,9 @@ typedef struct kmaterial_renderer {
 	kshader material_blended_shader;
 
 	// Keep a pointer to various system states for quick access.
-	struct renderer_system_state* renderer;
-	struct texture_system_state* texture_system;
-	struct kmaterial_system_state* material_state;
+	struct renderer_system_state *renderer;
+	struct texture_system_state *texture_system;
+	struct kmaterial_system_state *material_state;
 
 	u32 max_material_count;
 
@@ -169,25 +169,25 @@ typedef struct kmaterial_renderer {
 	b8 current_uses_animated;
 } kmaterial_renderer;
 
-KAPI b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material_count, u32 max_material_instance_count);
-KAPI void kmaterial_renderer_shutdown(kmaterial_renderer* state);
+KAPI b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_material_count, u32 max_material_instance_count);
+KAPI void kmaterial_renderer_shutdown (kmaterial_renderer *state);
 
-KAPI void kmaterial_renderer_update(kmaterial_renderer* state);
+KAPI void kmaterial_renderer_update (kmaterial_renderer *state);
 
-KAPI void kmaterial_renderer_set_fog_colour(kmaterial_renderer* state, colour4 colour);
-KAPI void kmaterial_renderer_set_fog_near_far(kmaterial_renderer* state, f32 near, f32 far);
+KAPI void kmaterial_renderer_set_fog_colour (kmaterial_renderer *state, colour4 colour);
+KAPI void kmaterial_renderer_set_fog_near_far (kmaterial_renderer *state, f32 near, f32 far);
 
 // Sets material_data->group_id;
-KAPI void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* material_data);
-KAPI void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial_data* material_data);
+KAPI void kmaterial_renderer_register_base (kmaterial_renderer *state, kmaterial_data *material_data);
+KAPI void kmaterial_renderer_unregister_base (kmaterial_renderer *state, kmaterial_data *material_data);
 
-KAPI void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* state, u8 count, ktexture* irradiance_cubemap_textures);
+KAPI void kmaterial_renderer_set_irradiance_cubemap_textures (kmaterial_renderer *state, u8 count, ktexture *irradiance_cubemap_textures);
 
-KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
+KAPI void kmaterial_renderer_apply_globals (kmaterial_renderer *state);
 
 // Updates and binds base material.
-KAPI void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base);
-KAPI void kmaterial_renderer_set_animated(kmaterial_renderer* state, b8 is_animated);
+KAPI void kmaterial_renderer_bind_base (kmaterial_renderer *state, kmaterial base);
+KAPI void kmaterial_renderer_set_animated (kmaterial_renderer *state, b8 is_animated);
 
 // Updates material instance immediates using the provided data.
-KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates);
+KAPI void kmaterial_renderer_apply_immediates (kmaterial_renderer *state, kmaterial_instance instance, const kmaterial_render_immediate_data *immediates);

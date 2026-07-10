@@ -31,18 +31,18 @@
 #include "strings/kstring.h"
 #include "systems/kmodel_system.h"
 
-static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert);
-static void get_material_texture_data_by_type(kname package_name, const struct aiMaterial* material, enum aiTextureType texture_type, kasset_material* new_material, kmaterial_texture_input_config* input);
-static mat4 mat4_from_ai(const struct aiMatrix4x4* source);
-static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory, b8 force_pbr);
-static const struct aiScene* assimp_open_file(const char* source_path);
-static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_model* out_asset);
-static void anim_asset_destroy(kasset_model* asset);
+static void skinned_vertex_3d_defaults (skinned_vertex_3d *vert);
+static void get_material_texture_data_by_type (kname package_name, const struct aiMaterial *material, enum aiTextureType texture_type, kasset_material *new_material, kmaterial_texture_input_config *input);
+static mat4 mat4_from_ai (const struct aiMatrix4x4 *source);
+static b8 materials_from_assimp (const struct aiScene *scene, kname package_name, const char *output_directory, b8 force_pbr);
+static const struct aiScene *assimp_open_file (const char *source_path);
+static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_name, kasset_model *out_asset);
+static void anim_asset_destroy (kasset_model *asset);
 
-b8 kasset_model_assimp_import(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
+b8 kasset_model_assimp_import (const char *source_path, const char *target_path, const char *material_target_dir, const char *package_name) {
 	kasset_model new_asset = {0};
 
-	const struct aiScene* scene = assimp_open_file(source_path);
+	const struct aiScene *scene = assimp_open_file(source_path);
 
 	kname pkg_name = kname_create(package_name);
 
@@ -56,7 +56,7 @@ b8 kasset_model_assimp_import(const char* source_path, const char* target_path, 
 
 	// Serialize animation asset.
 	u64 serialized_size = 0;
-	void* serialized_data = kasset_model_serialize(&new_asset, KASSET_EXPORTER_TYPE_KOHI_IMPORTER, KASSET_EXPORTER_TYPE_KOHI_IMPORTER_VERSION, &serialized_size);
+	void *serialized_data = kasset_model_serialize(&new_asset, KASSET_EXPORTER_TYPE_KOHI_IMPORTER, KASSET_EXPORTER_TYPE_KOHI_IMPORTER_VERSION, &serialized_size);
 	if (!serialized_size || !serialized_data) {
 		KERROR("Failed to serialize animated mesh asset '%s'.", target_path);
 		goto ai_import_cleanup;
@@ -84,14 +84,14 @@ ai_import_cleanup:
 	return success;
 }
 
-static void skinned_vertex_3d_defaults(skinned_vertex_3d* vert) {
+static void skinned_vertex_3d_defaults (skinned_vertex_3d *vert) {
 	for (u8 i = 0; i < 4; ++i) {
 		vert->bone_ids.elements[i] = -1;
 		vert->weights.elements[i] = 0.0f;
 	}
 }
 
-static void get_material_texture_data_by_type(kname package_name, const struct aiMaterial* material, enum aiTextureType texture_type, kasset_material* new_material, kmaterial_texture_input_config* input) {
+static void get_material_texture_data_by_type (kname package_name, const struct aiMaterial *material, enum aiTextureType texture_type, kasset_material *new_material, kmaterial_texture_input_config *input) {
 	if (aiGetMaterialTextureCount(material, texture_type)) {
 		const u32 index = 0; // NOTE: Only get the first one.
 		struct aiString path;
@@ -105,7 +105,7 @@ static void get_material_texture_data_by_type(kname package_name, const struct a
 		if (result != aiReturn_SUCCESS) {
 			KWARN("Failed reading base colour texture.");
 		} else {
-			const char* asset_name = string_filename_no_extension_from_path(path.data);
+			const char *asset_name = string_filename_no_extension_from_path(path.data);
 			input->resource_name = kname_create(asset_name);
 			string_free(asset_name);
 			input->package_name = package_name;
@@ -136,7 +136,7 @@ static void get_material_texture_data_by_type(kname package_name, const struct a
 	}
 }
 
-static mat4 mat4_from_ai(const struct aiMatrix4x4* source) {
+static mat4 mat4_from_ai (const struct aiMatrix4x4 *source) {
 	// NOTE: Kohi expects column-major, and assimp uses row-major.
 	// Therefore, transpose the matrix here before returning.
 	mat4 m = {0};
@@ -161,10 +161,10 @@ static mat4 mat4_from_ai(const struct aiMatrix4x4* source) {
 }
 
 // Import all materials from an assimp scene.
-static b8 materials_from_assimp(const struct aiScene* scene, kname package_name, const char* output_directory, b8 force_pbr) {
+static b8 materials_from_assimp (const struct aiScene *scene, kname package_name, const char *output_directory, b8 force_pbr) {
 
 	for (u32 i = 0; i < scene->mNumMaterials; ++i) {
-		struct aiMaterial* material = scene->mMaterials[i];
+		struct aiMaterial *material = scene->mMaterials[i];
 		enum aiReturn result;
 
 		kasset_material new_material = {0};
@@ -313,7 +313,7 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
 		}
 
 		// Serialize the material.
-		const char* serialized_text = kasset_material_serialize(&new_material);
+		const char *serialized_text = kasset_material_serialize(&new_material);
 		if (!serialized_text) {
 			KWARN("Failed to serialize material '%s'. See logs for details.", kname_string_get(new_material.name));
 			string_free(serialized_text);
@@ -321,7 +321,7 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
 		}
 
 		// Write out kmt file.
-		const char* out_path = string_format("%s/%s.%s", output_directory, kname_string_get(new_material.name), "kmt");
+		const char *out_path = string_format("%s/%s.%s", output_directory, kname_string_get(new_material.name), "kmt");
 		if (!filesystem_write_entire_text_file(out_path, serialized_text)) {
 			KERROR("Failed to write serialized material to disk. See logs for details.");
 		}
@@ -332,13 +332,13 @@ static b8 materials_from_assimp(const struct aiScene* scene, kname package_name,
 	return true;
 }
 
-static const struct aiScene* assimp_open_file(const char* source_path) {
-	struct aiPropertyStore* store = aiCreatePropertyStore();
+static const struct aiScene *assimp_open_file (const char *source_path) {
+	struct aiPropertyStore *store = aiCreatePropertyStore();
 	aiSetImportPropertyFloat(store, AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE, 60.0f); // less is sharper, more is smoother, 0-180 degrees.
-	const struct aiScene* scene = aiImportFileExWithProperties(
+	const struct aiScene *scene = aiImportFileExWithProperties(
 		source_path,
 		// aiProcess_GenNormals |
-			aiProcess_Triangulate |
+		aiProcess_Triangulate |
 			aiProcess_GenSmoothNormals |
 			aiProcess_JoinIdenticalVertices |
 			aiProcess_LimitBoneWeights |
@@ -358,7 +358,7 @@ typedef struct vertex_weight_accumulator {
 	f32 weights[4];
 } vertex_weight_accumulator;
 
-static void add_bone_weight(vertex_weight_accumulator* a, i32 bone_id, f32 weight) {
+static void add_bone_weight (vertex_weight_accumulator *a, i32 bone_id, f32 weight) {
 	for (u8 i = 0; i < 4; ++i) {
 		if (a->weights[i] == 0.0f) {
 			a->bone_ids[i] = bone_id;
@@ -380,7 +380,7 @@ static void add_bone_weight(vertex_weight_accumulator* a, i32 bone_id, f32 weigh
 	}
 }
 
-static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name, kasset_model* out_asset) {
+static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_name, kasset_model *out_asset) {
 	KASSERT(scene);
 
 	kzero_memory(out_asset, sizeof(kasset_model));
@@ -391,11 +391,11 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 	kasset_model_bone bones[KANIMATION_MAX_BONES] = {0};
 	u32 bone_count = 0;
 	for (u32 m = 0; m < scene->mNumMeshes; ++m) {
-		struct aiMesh* mesh = scene->mMeshes[m];
+		struct aiMesh *mesh = scene->mMeshes[m];
 		// Extract the bones from it.
 		for (u32 b = 0; b < mesh->mNumBones; ++b) {
-			struct aiBone* ai_bone = mesh->mBones[b];
-			kasset_model_bone* bone = &bones[bone_count];
+			struct aiBone *ai_bone = mesh->mBones[b];
+			kasset_model_bone *bone = &bones[bone_count];
 			kname ai_bone_name = kname_create(ai_bone->mName.data);
 
 			b8 found = false;
@@ -425,22 +425,22 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 		KCOPY_TYPE_CARRAY(out_asset->bones, bones, kasset_model_bone, bone_count);
 	}
 	// Flatten the node structure into a single array and reference by index instead.
-	kasset_model_node* nodes = darray_create(kasset_model_node);
+	kasset_model_node *nodes = darray_create(kasset_model_node);
 
 	typedef struct node_map_entry {
-		const struct aiNode* node;
+		const struct aiNode *node;
 		u16 index;
 	} node_map_entry;
 
-	node_map_entry* node_map = darray_create(node_map_entry);
+	node_map_entry *node_map = darray_create(node_map_entry);
 
 	// Push the root first
-	const struct aiNode* root = scene->mRootNode;
-	const struct aiNode* stack_nodes[1024];
+	const struct aiNode *root = scene->mRootNode;
+	const struct aiNode *stack_nodes[1024];
 	u32 stack_top = 0;
 	stack_nodes[stack_top++] = root;
 	while (stack_top) {
-		const struct aiNode* current = stack_nodes[--stack_top];
+		const struct aiNode *current = stack_nodes[--stack_top];
 
 		// Add to flat nodes list.
 		kasset_model_node new_node = {
@@ -467,10 +467,10 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 	// Set parent/child by re-iterating the map.
 	u16 node_map_count = darray_length(node_map);
 	for (u16 i = 0; i < node_map_count; ++i) {
-		const struct aiNode* current = node_map[i].node;
+		const struct aiNode *current = node_map[i].node;
 		u16 index = node_map[i].index;
 		for (u16 c = 0; c < current->mNumChildren; c++) {
-			const struct aiNode* child = current->mChildren[c];
+			const struct aiNode *child = current->mChildren[c];
 			u16 child_index = INVALID_ID_U16;
 			for (u16 s = 0; s < node_map_count; ++s) {
 				if (node_map[s].node == child) {
@@ -479,7 +479,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				}
 			}
 			if (child_index != INVALID_ID_U16) {
-				kasset_model_node* cn = &nodes[index];
+				kasset_model_node *cn = &nodes[index];
 				cn->children = KREALLOC_TYPE_CARRAY(cn->children, u16, cn->child_count, cn->child_count + 1);
 				cn->children[cn->child_count] = child_index;
 				cn->child_count++;
@@ -502,16 +502,16 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 	if (out_asset->animation_count) {
 		out_asset->animations = KALLOC_TYPE_CARRAY(kasset_model_animation, out_asset->animation_count);
 		for (u16 a = 0; a < out_asset->animation_count; ++a) {
-			struct aiAnimation* anim = scene->mAnimations[a];
-			kasset_model_animation* out = &out_asset->animations[a];
+			struct aiAnimation *anim = scene->mAnimations[a];
+			kasset_model_animation *out = &out_asset->animations[a];
 			out->name = kname_create(anim->mName.data);
 			out->duration = anim->mDuration;
 			out->ticks_per_second = anim->mTicksPerSecond;
 			out->channel_count = anim->mNumChannels;
 			out->channels = KALLOC_TYPE_CARRAY(kasset_model_channel, out->channel_count);
 			for (u16 c = 0; c < out->channel_count; c++) {
-				struct aiNodeAnim* chn = anim->mChannels[c];
-				kasset_model_channel* oc = &out->channels[c];
+				struct aiNodeAnim *chn = anim->mChannels[c];
+				kasset_model_channel *oc = &out->channels[c];
 				kzero_memory(oc, sizeof(kmodel_channel));
 				oc->name = kname_create(chn->mNodeName.data);
 
@@ -520,7 +520,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				if (oc->pos_count) {
 					oc->positions = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->pos_count);
 					for (u32 k = 0; k < oc->pos_count; ++k) {
-						struct aiVectorKey* vk = &chn->mPositionKeys[k];
+						struct aiVectorKey *vk = &chn->mPositionKeys[k];
 						oc->positions[k].time = vk->mTime;
 						oc->positions[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
 					}
@@ -533,7 +533,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				if (oc->rot_count) {
 					oc->rotations = KALLOC_TYPE_CARRAY(kasset_model_key_quat, oc->rot_count);
 					for (u32 k = 0; k < oc->rot_count; ++k) {
-						struct aiQuatKey* vk = &chn->mRotationKeys[k];
+						struct aiQuatKey *vk = &chn->mRotationKeys[k];
 						oc->rotations[k].time = vk->mTime;
 						oc->rotations[k].value = (quat){vk->mValue.x, vk->mValue.y, vk->mValue.z, vk->mValue.w};
 					}
@@ -546,7 +546,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				if (oc->scale_count) {
 					oc->scales = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, oc->scale_count);
 					for (u32 k = 0; k < oc->scale_count; ++k) {
-						struct aiVectorKey* vk = &chn->mScalingKeys[k];
+						struct aiVectorKey *vk = &chn->mScalingKeys[k];
 						oc->scales[k].time = vk->mTime;
 						oc->scales[k].value = (vec3){vk->mValue.x, vk->mValue.y, vk->mValue.z};
 					}
@@ -562,10 +562,10 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 	if (out_asset->submesh_count) {
 		out_asset->submeshes = KALLOC_TYPE_CARRAY(kasset_model_submesh_data, out_asset->submesh_count);
 		for (u32 m = 0; m < scene->mNumMeshes; ++m) {
-			struct aiMesh* mesh = scene->mMeshes[m];
-			kasset_model_submesh_data* target = &out_asset->submeshes[m];
+			struct aiMesh *mesh = scene->mMeshes[m];
+			kasset_model_submesh_data *target = &out_asset->submeshes[m];
 
-			vertex_weight_accumulator* bone_data = 0;
+			vertex_weight_accumulator *bone_data = 0;
 			if (mesh->mNumBones) {
 				bone_data = KALLOC_TYPE_CARRAY(vertex_weight_accumulator, mesh->mNumVertices);
 
@@ -573,7 +573,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				// NOTE: It's possible this might not line up index-wise to the global bones array.
 				// May need to reconcile this later if this is an issue.
 				for (u32 b = 0; b < mesh->mNumBones; ++b) {
-					struct aiBone* ai_bone = mesh->mBones[b];
+					struct aiBone *ai_bone = mesh->mBones[b];
 					kname ai_bone_name = kname_create(ai_bone->mName.data);
 
 					for (u32 w = 0; w < ai_bone->mNumWeights; ++w) {
@@ -601,7 +601,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 			target->name = kname_create(mesh->mName.data);
 
 			// Material name.
-			struct aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+			struct aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
 
 			// Base properties
 			struct aiString ai_name;
@@ -619,25 +619,25 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
 			// Process all vertices
 			for (u32 i = 0; i < mesh->mNumVertices; ++i) {
-				struct aiVector3D* v = &mesh->mVertices[i];
+				struct aiVector3D *v = &mesh->mVertices[i];
 
 				// Extract base vertex properties first.
-				vertex_3d* target_vert = 0;
+				vertex_3d *target_vert = 0;
 				if (mesh->mNumBones) {
-					skinned_vertex_3d* sv = &((skinned_vertex_3d*)target->vertices)[i];
-					target_vert = (vertex_3d*)sv;
+					skinned_vertex_3d *sv = &((skinned_vertex_3d *)target->vertices)[i];
+					target_vert = (vertex_3d *)sv;
 				} else {
-					target_vert = &((vertex_3d*)target->vertices)[i];
+					target_vert = &((vertex_3d *)target->vertices)[i];
 				}
 
 				target_vert->position = vec3_create(v->x, v->y, v->z);
 				if (mesh->mNormals) {
-					struct aiVector3D* n = &mesh->mNormals[i];
+					struct aiVector3D *n = &mesh->mNormals[i];
 					target_vert->normal = vec3_create(n->x, n->y, n->z);
 				}
 				if (mesh->mTangents && mesh->mBitangents) {
-					struct aiVector3D* at = &mesh->mTangents[i];
-					struct aiVector3D* ab = &mesh->mBitangents[i];
+					struct aiVector3D *at = &mesh->mTangents[i];
+					struct aiVector3D *ab = &mesh->mBitangents[i];
 					vec3 t = vec3_create(at->x, at->y, at->z);
 					vec3 b = vec3_create(ab->x, ab->y, ab->z);
 					vec3 n = target_vert->normal;
@@ -651,7 +651,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 				}
 
 				if (mesh->mColors[0]) {
-					struct aiColor4D* c = &mesh->mColors[0][i];
+					struct aiColor4D *c = &mesh->mColors[0][i];
 					target_vert->colour = vec4_create(c->r, c->g, c->b, c->a);
 				} else {
 					target_vert->colour = vec4_one();
@@ -659,7 +659,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 
 				// Extract bone data, if it exists.
 				if (mesh->mNumBones) {
-					skinned_vertex_3d* out_v = &((skinned_vertex_3d*)target->vertices)[i];
+					skinned_vertex_3d *out_v = &((skinned_vertex_3d *)target->vertices)[i];
 					kcopy_memory(out_v->bone_ids.elements, bone_data[i].bone_ids, sizeof(i32) * 4);
 					kcopy_memory(out_v->weights.elements, bone_data[i].weights, sizeof(f32) * 4);
 
@@ -675,7 +675,7 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 			// Process all Indices
 			u32 idx = 0;
 			for (u32 f = 0; f < mesh->mNumFaces; ++f) {
-				const struct aiFace* face = &mesh->mFaces[f];
+				const struct aiFace *face = &mesh->mFaces[f];
 				for (u32 k = 0; k < face->mNumIndices; ++k) {
 					target->indices[idx] = face->mIndices[k];
 					idx++;
@@ -687,15 +687,15 @@ static b8 anim_asset_from_assimp(const struct aiScene* scene, kname package_name
 	return true;
 }
 
-static void anim_asset_destroy(kasset_model* asset) {
+static void anim_asset_destroy (kasset_model *asset) {
 	if (!asset) {
 		return;
 	}
 
 	for (u16 i = 0; i < asset->animation_count; ++i) {
-		kasset_model_animation* a = &asset->animations[i];
+		kasset_model_animation *a = &asset->animations[i];
 		for (u16 c = 0; c < a->channel_count; c++) {
-			kasset_model_channel* ch = &a->channels[c];
+			kasset_model_channel *ch = &a->channels[c];
 			KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
 			KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
 			KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);

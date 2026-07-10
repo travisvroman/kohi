@@ -42,42 +42,42 @@
 #include "renderer/kui_renderer.h"
 #include "systems/asset_system.h"
 
-static b8 kui_base_internal_mouse_down(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_up(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_click(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_over(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_out(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_move(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_wheel(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_drag_begin(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_drag(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 kui_base_internal_mouse_drag_end(kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_down (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_up (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_click (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_over (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_out (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_move (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_wheel (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_drag_begin (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_drag (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 kui_base_internal_mouse_drag_end (kui_state *state, kui_control self, struct kui_mouse_event event);
 
-static b8 control_and_ancestors_active_r(kui_state* state, const kui_base_control* control);
-static b8 control_and_ancestors_visible_r(kui_state* state, const kui_base_control* control);
-static b8 control_and_ancestors_active_and_visible_r(kui_state* state, const kui_base_control* control);
-static i32 kui_control_depth_compare_desc(void* a, void* b, void* context);
-static b8 control_event_intersects(kui_state* typed_state, kui_control control, kui_mouse_event evt);
-static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_context context);
+static b8 control_and_ancestors_active_r (kui_state *state, const kui_base_control *control);
+static b8 control_and_ancestors_visible_r (kui_state *state, const kui_base_control *control);
+static b8 control_and_ancestors_active_and_visible_r (kui_state *state, const kui_base_control *control);
+static i32 kui_control_depth_compare_desc (void *a, void *b, void *context);
+static b8 control_event_intersects (kui_state *typed_state, kui_control control, kui_mouse_event evt);
+static b8 kui_system_mouse_down (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_system_mouse_up (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_system_click (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_system_mouse_move (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_system_mouse_wheel (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_system_drag (u16 code, void *sender, void *listener_inst, event_context context);
 
-static void register_control(kui_state* state, kui_control control);
-static void unregister_control(kui_state* state, kui_control control);
+static void register_control (kui_state *state, kui_control control);
+static void unregister_control (kui_state *state, kui_control control);
 
-static kui_control encode_handle(kui_control_type type, u16 type_index);
-static b8 decode_handle(kui_control handle, kui_control_type* out_type, u16* out_type_index);
-static kui_base_control* get_base(kui_state* state, kui_control control);
+static kui_control encode_handle (kui_control_type type, u16 type_index);
+static b8 decode_handle (kui_control handle, kui_control_type *out_type, u16 *out_type_index);
+static kui_base_control *get_base (kui_state *state, kui_control control);
 
-static kui_control create_handle(kui_state* state, kui_control_type type);
-static void release_handle(kui_state* state, kui_control* handle);
+static kui_control create_handle (kui_state *state, kui_control_type type);
+static void release_handle (kui_state *state, kui_control *handle);
 
-static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_config);
+static b8 parse_atlas_config (const char *config_source, kui_atlas_config *out_config);
 
-b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_config* config) {
+b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_config *config) {
 	if (!memory_requirement) {
 		KERROR("kui_system_initialize requires a valid pointer to memory_requirement.");
 		return false;
@@ -97,7 +97,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	state->focused_base_colour = KCOLOUR4_WHITE;
 	state->unfocused_base_colour = KCOLOUR4_WHITE;
 
-	kasset_text* atlas_asset = asset_system_request_text_from_package_sync(engine_systems_get()->asset_state, PACKAGE_NAME_KUI, KUI_DEFAULT_ATLAS_ASSET_NAME);
+	kasset_text *atlas_asset = asset_system_request_text_from_package_sync(engine_systems_get()->asset_state, PACKAGE_NAME_KUI, KUI_DEFAULT_ATLAS_ASSET_NAME);
 	b8 asset_parse_result = parse_atlas_config(atlas_asset->content, &state->atlas);
 	asset_system_release_text(engine_systems_get()->asset_state, atlas_asset);
 
@@ -162,7 +162,7 @@ b8 kui_system_initialize(u64* memory_requirement, kui_state* state, kui_system_c
 	return true;
 }
 
-void kui_system_shutdown(kui_state* state) {
+void kui_system_shutdown (kui_state *state) {
 	if (state) {
 
 		state->running = false;
@@ -283,7 +283,7 @@ void kui_system_shutdown(kui_state* state) {
 	}
 }
 
-b8 kui_system_update(kui_state* state, struct frame_data* p_frame_data) {
+b8 kui_system_update (kui_state *state, struct frame_data *p_frame_data) {
 	if (!state || !state->running) {
 		return false;
 	}
@@ -291,14 +291,14 @@ b8 kui_system_update(kui_state* state, struct frame_data* p_frame_data) {
 	u32 len = darray_length(state->active_controls);
 	for (u32 i = 0; i < len; ++i) {
 		kui_control handle = state->active_controls[i];
-		kui_base_control* c = get_base(state, handle);
+		kui_base_control *c = get_base(state, handle);
 		c->update(state, handle, p_frame_data);
 	}
 
 	return true;
 }
 
-b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_system_render (kui_state *state, kui_control root, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!state || !state->running) {
 		return false;
 	}
@@ -310,7 +310,7 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 	render_data->ui_atlas = state->atlas_texture;
 	render_data->shader_set0_binding_instance_id = state->shader_set0_binding_instance_id;
 
-	kui_base_control* base = get_base(state, root);
+	kui_base_control *base = get_base(state, root);
 	if (!base) {
 		return false;
 	}
@@ -341,7 +341,7 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 		u32 length = darray_length(base->children);
 		for (u32 i = 0; i < length; ++i) {
 			kui_control handle = base->children[i];
-			kui_base_control* c = get_base(state, handle);
+			kui_base_control *c = get_base(state, handle);
 			if (!FLAG_GET(c->flags, KUI_CONTROL_FLAG_VISIBLE_BIT)) {
 				continue;
 			}
@@ -362,21 +362,21 @@ b8 kui_system_render(kui_state* state, kui_control root, struct frame_data* p_fr
 	return true;
 }
 
-kui_base_control* kui_system_get_base(kui_state* state, kui_control control) {
+kui_base_control *kui_system_get_base (kui_state *state, kui_control control) {
 	return get_base(state, control);
 }
 
-b8 toggle_active(kui_state* state, kui_control control) {
+b8 toggle_active (kui_state *state, kui_control control) {
 	if (!state) {
 		return false;
 	}
 
-	kui_base_control* base = get_base(state, control);
+	kui_base_control *base = get_base(state, control);
 	b8 control_is_active = FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT);
 
-	kui_control** src_array = control_is_active ? &state->active_controls : &state->inactive_controls;
+	kui_control **src_array = control_is_active ? &state->active_controls : &state->inactive_controls;
 	u32 src_count = darray_length(*src_array);
-	kui_control** dst_array = control_is_active ? &state->inactive_controls : &state->active_controls;
+	kui_control **dst_array = control_is_active ? &state->inactive_controls : &state->active_controls;
 	u32 dst_count = darray_length(*dst_array);
 	for (u32 i = 0; i < src_count; ++i) {
 		if ((*src_array)[i].val == control.val) {
@@ -403,12 +403,12 @@ b8 toggle_active(kui_state* state, kui_control control) {
 	return false;
 }
 
-static void fix_child_levels_r(kui_state* state, kui_control parent) {
+static void fix_child_levels_r (kui_state *state, kui_control parent) {
 	if (parent.val != INVALID_KUI_CONTROL.val) {
-		kui_base_control* parent_base = get_base(state, parent);
+		kui_base_control *parent_base = get_base(state, parent);
 		u32 len = parent_base->children ? darray_length(parent_base->children) : 0;
 		for (u32 i = 0; i < len; ++i) {
-			kui_base_control* child_base = get_base(state, parent_base->children[i]);
+			kui_base_control *child_base = get_base(state, parent_base->children[i]);
 			child_base->depth = parent_base->depth + 1;
 
 			// Ensure the clips children/clipped by parent flag is set.
@@ -421,7 +421,7 @@ static void fix_child_levels_r(kui_state* state, kui_control parent) {
 	}
 }
 
-b8 kui_system_control_add_child(kui_state* state, kui_control parent, kui_control child) {
+b8 kui_system_control_add_child (kui_state *state, kui_control parent, kui_control child) {
 	KASSERT(parent.val != child.val);
 	if (child.val == INVALID_KUI_CONTROL.val) {
 		return false;
@@ -431,8 +431,8 @@ b8 kui_system_control_add_child(kui_state* state, kui_control parent, kui_contro
 		parent = state->root;
 	}
 
-	kui_base_control* parent_base = get_base(state, parent);
-	kui_base_control* child_base = get_base(state, child);
+	kui_base_control *parent_base = get_base(state, parent);
+	kui_base_control *child_base = get_base(state, child);
 
 	if (!parent_base->children) {
 		parent_base->children = darray_create(kui_control);
@@ -460,13 +460,13 @@ b8 kui_system_control_add_child(kui_state* state, kui_control parent, kui_contro
 	return true;
 }
 
-b8 kui_system_control_remove_child(kui_state* state, kui_control parent, kui_control child) {
+b8 kui_system_control_remove_child (kui_state *state, kui_control parent, kui_control child) {
 	if (parent.val == INVALID_KUI_CONTROL.val || child.val == INVALID_KUI_CONTROL.val) {
 		return false;
 	}
 
-	kui_base_control* parent_base = get_base(state, parent);
-	kui_base_control* child_base = get_base(state, child);
+	kui_base_control *parent_base = get_base(state, parent);
+	kui_base_control *child_base = get_base(state, child);
 	if (!parent_base || !child_base) {
 		return false;
 	}
@@ -497,9 +497,9 @@ b8 kui_system_control_remove_child(kui_state* state, kui_control parent, kui_con
 	return false;
 }
 
-static void clear_focus(kui_state* state) {
+static void clear_focus (kui_state *state) {
 	if (state->focused.val != INVALID_KUI_CONTROL.val) {
-		kui_base_control* focused_base = get_base(state, state->focused);
+		kui_base_control *focused_base = get_base(state, state->focused);
 		if (focused_base->on_unfocus) {
 			focused_base->on_unfocus(state, state->focused);
 		}
@@ -507,12 +507,12 @@ static void clear_focus(kui_state* state) {
 	state->focused = INVALID_KUI_CONTROL;
 }
 
-void kui_system_focus_control(kui_state* state, kui_control control) {
+void kui_system_focus_control (kui_state *state, kui_control control) {
 	if (control.val == INVALID_KUI_CONTROL.val) {
 		clear_focus(state);
 		return;
 	}
-	kui_base_control* base = get_base(state, control);
+	kui_base_control *base = get_base(state, control);
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_FOCUSABLE_BIT)) {
 		// Clear current focus.
 		clear_focus(state);
@@ -530,15 +530,15 @@ void kui_system_focus_control(kui_state* state, kui_control control) {
 	}
 }
 
-b8 kui_system_is_control_focused(const kui_state* state, const kui_control control) {
+b8 kui_system_is_control_focused (const kui_state *state, const kui_control control) {
 	return state->focused.val == control.val;
 }
 
-kui_control kui_base_control_create(kui_state* state, const char* name, kui_control_type type) {
+kui_control kui_base_control_create (kui_state *state, const char *name, kui_control_type type) {
 
 	kui_control handle = create_handle(state, type);
 
-	kui_base_control* out_control = get_base(state, handle);
+	kui_base_control *out_control = get_base(state, handle);
 
 	out_control->parent = INVALID_KUI_CONTROL;
 	out_control->type = type;
@@ -580,8 +580,8 @@ kui_control kui_base_control_create(kui_state* state, const char* name, kui_cont
 	return handle;
 }
 
-void kui_base_control_destroy(kui_state* state, kui_control* self) {
-	kui_base_control* base = get_base(state, *self);
+void kui_base_control_destroy (kui_state *state, kui_control *self) {
+	kui_base_control *base = get_base(state, *self);
 	if (!base) {
 		KWARN("base not found for release");
 		return;
@@ -605,7 +605,7 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 		u32 len = darray_length(base->children);
 		for (u32 i = 0; i < len; ++i) {
 			kui_control child_handle = base->children[i];
-			kui_base_control* child = get_base(state, child_handle);
+			kui_base_control *child = get_base(state, child_handle);
 			child->parent = INVALID_KUI_CONTROL;
 			if (child->destroy) {
 				child->destroy(state, &child_handle);
@@ -627,13 +627,13 @@ void kui_base_control_destroy(kui_state* state, kui_control* self) {
 	}
 }
 
-void kui_control_destroy_all_children(kui_state* state, kui_control control) {
-	kui_base_control* base = get_base(state, control);
+void kui_control_destroy_all_children (kui_state *state, kui_control control) {
+	kui_base_control *base = get_base(state, control);
 
 	u32 len = darray_length(base->children);
 	for (u32 i = 0; i < len; ++i) {
 		kui_control child_handle = base->children[i];
-		kui_base_control* child = get_base(state, child_handle);
+		kui_base_control *child = get_base(state, child_handle);
 		child->parent = INVALID_KUI_CONTROL;
 		if (child->destroy) {
 			child->destroy(state, &child_handle);
@@ -642,14 +642,14 @@ void kui_control_destroy_all_children(kui_state* state, kui_control control) {
 	darray_clear(base->children);
 }
 
-b8 kui_base_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_base_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return false;
 	}
 
 	return true;
 }
-b8 kui_base_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_base_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return false;
 	}
@@ -657,23 +657,23 @@ b8 kui_base_control_render(kui_state* state, kui_control self, struct frame_data
 	return true;
 }
 
-b8 kui_control_is_active(kui_state* state, kui_control self) {
-	kui_base_control* base = get_base(state, self);
+b8 kui_control_is_active (kui_state *state, kui_control self) {
+	kui_base_control *base = get_base(state, self);
 	return control_and_ancestors_active_r(state, base);
 }
 
-b8 kui_control_is_visible(kui_state* state, kui_control self) {
-	kui_base_control* base = get_base(state, self);
+b8 kui_control_is_visible (kui_state *state, kui_control self) {
+	kui_base_control *base = get_base(state, self);
 	return control_and_ancestors_visible_r(state, base);
 }
 
-void kui_control_set_is_visible(kui_state* state, kui_control self, b8 is_visible) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_set_is_visible (kui_state *state, kui_control self, b8 is_visible) {
+	kui_base_control *base = get_base(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, is_visible);
 	/* KTRACE("Control '%s' set to %s.", base->name, is_visible ? "visible" : "invisible"); */
 }
-void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_set_is_active (kui_state *state, kui_control self, b8 is_active) {
+	kui_base_control *base = get_base(state, self);
 	b8 control_is_active = FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT);
 	if (is_active != control_is_active) {
 		toggle_active(state, self);
@@ -681,46 +681,46 @@ void kui_control_set_is_active(kui_state* state, kui_control self, b8 is_active)
 	/* KTRACE("Control '%s' set to %s.", base->name, is_active ? "active" : "inactive"); */
 }
 
-b8 kui_control_get_flag(kui_state* state, kui_control self, kui_control_flag_bits flag) {
-	kui_base_control* base = get_base(state, self);
+b8 kui_control_get_flag (kui_state *state, kui_control self, kui_control_flag_bits flag) {
+	kui_base_control *base = get_base(state, self);
 	return FLAG_GET(base->flags, (u32)flag);
 }
-void kui_control_set_flag(kui_state* state, kui_control self, kui_control_flag_bits flag, b8 enabled) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_set_flag (kui_state *state, kui_control self, kui_control_flag_bits flag, b8 enabled) {
+	kui_base_control *base = get_base(state, self);
 	FLAG_SET(base->flags, flag, enabled);
 }
 
-void kui_control_set_user_data(kui_state* state, kui_control self, u32 data_size, void* data, b8 free_on_destroy, memory_tag tag) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_set_user_data (kui_state *state, kui_control self, u32 data_size, void *data, b8 free_on_destroy, memory_tag tag) {
+	kui_base_control *base = get_base(state, self);
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY_BIT, free_on_destroy);
 	base->user_data = data;
 	base->user_data_size = data_size;
 	base->user_data_memory_tag = tag;
 }
-void* kui_control_get_user_data(kui_state* state, kui_control self) {
-	kui_base_control* base = get_base(state, self);
+void *kui_control_get_user_data (kui_state *state, kui_control self) {
+	kui_base_control *base = get_base(state, self);
 	return base->user_data;
 }
 
-void kui_control_set_on_click(kui_state* state, kui_control self, PFN_mouse_event_callback on_click_callback) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_set_on_click (kui_state *state, kui_control self, PFN_mouse_event_callback on_click_callback) {
+	kui_base_control *base = get_base(state, self);
 	base->on_click = on_click_callback;
 }
 
-void kui_control_set_on_key(kui_state* state, kui_control self, PFN_keyboard_event_callback on_key_callback) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_set_on_key (kui_state *state, kui_control self, PFN_keyboard_event_callback on_key_callback) {
+	kui_base_control *base = get_base(state, self);
 	base->on_key = on_key_callback;
 }
 
-void kui_control_position_set(kui_state* state, kui_control self, vec3 position) {
-	kui_base_control* base = get_base(state, self);
+void kui_control_position_set (kui_state *state, kui_control self, vec3 position) {
+	kui_base_control *base = get_base(state, self);
 	if (base) {
 		ktransform_position_set(base->ktransform, position);
 	}
 }
 
-vec3 kui_control_position_get(kui_state* state, kui_control self) {
-	kui_base_control* base = get_base(state, self);
+vec3 kui_control_position_get (kui_state *state, kui_control self) {
+	kui_base_control *base = get_base(state, self);
 	if (base) {
 		return ktransform_position_get(base->ktransform);
 	}
@@ -728,31 +728,31 @@ vec3 kui_control_position_get(kui_state* state, kui_control self) {
 	return vec3_zero();
 }
 
-static b8 kui_base_internal_mouse_down(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_down (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_down ? base->on_mouse_down(state, self, event) : false;
 }
 
-static b8 kui_base_internal_mouse_up(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_up (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_up ? base->on_mouse_up(state, self, event) : false;
 }
 
-static b8 kui_base_internal_click(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_click (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_FOCUSABLE_BIT)) {
 		if (state->focused.val != self.val) {
@@ -767,51 +767,51 @@ static b8 kui_base_internal_click(kui_state* state, kui_control self, struct kui
 	return base->on_click ? base->on_click(state, self, event) : false;
 }
 
-static b8 kui_base_internal_mouse_over(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_over (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_over ? base->on_mouse_over(state, self, event) : false;
 }
 
-static b8 kui_base_internal_mouse_out(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_out (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Allow event propagation by default. User events can override this.
 	return base->on_mouse_out ? base->on_mouse_out(state, self, event) : true;
 }
 
-static b8 kui_base_internal_mouse_move(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_move (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_move ? base->on_mouse_move(state, self, event) : false;
 }
 
-static b8 kui_base_internal_mouse_wheel(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_wheel (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Allow event propagation by default. User events can override this.
 	return base->on_mouse_wheel ? base->on_mouse_wheel(state, self, event) : true;
 }
 
-static b8 kui_base_internal_mouse_drag_begin(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_drag_begin (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_IS_DRAGGING_BIT, true);
 
@@ -819,21 +819,21 @@ static b8 kui_base_internal_mouse_drag_begin(kui_state* state, kui_control self,
 	return base->on_mouse_drag_begin ? base->on_mouse_drag_begin(state, self, event) : false;
 }
 
-static b8 kui_base_internal_mouse_drag(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_drag (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	// Block event propagation by default. User events can override this.
 	return base->on_mouse_drag ? base->on_mouse_drag(state, self, event) : false;
 }
 
-static b8 kui_base_internal_mouse_drag_end(kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 kui_base_internal_mouse_drag_end (kui_state *state, kui_control self, struct kui_mouse_event event) {
 	if (self.val == INVALID_KUI_CONTROL.val) {
 		return true;
 	}
-	kui_base_control* base = get_base(state, self);
+	kui_base_control *base = get_base(state, self);
 
 	FLAG_SET(base->flags, KUI_CONTROL_FLAG_IS_DRAGGING_BIT, false);
 
@@ -841,35 +841,35 @@ static b8 kui_base_internal_mouse_drag_end(kui_state* state, kui_control self, s
 	return base->on_mouse_drag_end ? base->on_mouse_drag_end(state, self, event) : false;
 }
 
-static b8 control_and_ancestors_active_r(kui_state* state, const kui_base_control* control) {
+static b8 control_and_ancestors_active_r (kui_state *state, const kui_base_control *control) {
 	if (!FLAG_GET(control->flags, KUI_CONTROL_FLAG_ACTIVE_BIT)) {
 		return false;
 	}
 
 	if (control->parent.val != INVALID_KUI_CONTROL.val) {
-		kui_base_control* parent_base = get_base(state, control->parent);
+		kui_base_control *parent_base = get_base(state, control->parent);
 		return control_and_ancestors_active_r(state, parent_base);
 	}
 
 	return true;
 }
 
-static b8 control_and_ancestors_visible_r(kui_state* state, const kui_base_control* control) {
+static b8 control_and_ancestors_visible_r (kui_state *state, const kui_base_control *control) {
 	if (!FLAG_GET(control->flags, KUI_CONTROL_FLAG_VISIBLE_BIT)) {
 		return false;
 	}
 
 	if (control->parent.val != INVALID_KUI_CONTROL.val) {
-		kui_base_control* parent_base = get_base(state, control->parent);
+		kui_base_control *parent_base = get_base(state, control->parent);
 		return control_and_ancestors_visible_r(state, parent_base);
 	}
 
 	return true;
 }
 
-static kui_control control_get_clipping_parent_r(kui_state* state, const kui_base_control* control) {
+static kui_control control_get_clipping_parent_r (kui_state *state, const kui_base_control *control) {
 	if (control->parent.val != INVALID_KUI_CONTROL.val) {
-		kui_base_control* parent_base = get_base(state, control->parent);
+		kui_base_control *parent_base = get_base(state, control->parent);
 		if (FLAG_GET(parent_base->flags, KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT)) {
 			// This is the clipping control.
 			return control->parent;
@@ -884,14 +884,14 @@ static kui_control control_get_clipping_parent_r(kui_state* state, const kui_bas
 	return INVALID_KUI_CONTROL;
 }
 
-static b8 control_and_ancestors_active_and_visible_r(kui_state* state, const kui_base_control* control) {
+static b8 control_and_ancestors_active_and_visible_r (kui_state *state, const kui_base_control *control) {
 	return control_and_ancestors_active_r(state, control) && control_and_ancestors_visible_r(state, control);
 }
 
-static i32 kui_control_depth_compare_desc(void* a, void* b, void* context) {
-	kui_state* state = context;
-	kui_base_control* a_typed = get_base(state, *(kui_control*)a);
-	kui_base_control* b_typed = get_base(state, *(kui_control*)b);
+static i32 kui_control_depth_compare_desc (void *a, void *b, void *context) {
+	kui_state *state = context;
+	kui_base_control *a_typed = get_base(state, *(kui_control *)a);
+	kui_base_control *b_typed = get_base(state, *(kui_control *)b);
 	if (a_typed->depth > b_typed->depth) {
 		return 1;
 	} else if (a_typed->depth < b_typed->depth) {
@@ -900,8 +900,8 @@ static i32 kui_control_depth_compare_desc(void* a, void* b, void* context) {
 	return 0;
 }
 
-static b8 control_event_intersects(kui_state* typed_state, kui_control control, kui_mouse_event evt) {
-	kui_base_control* base = get_base(typed_state, control);
+static b8 control_event_intersects (kui_state *typed_state, kui_control control, kui_mouse_event evt) {
+	kui_base_control *base = get_base(typed_state, control);
 
 	// Check if control is active and visible. This should check recursively upward to make sure any
 	// disabled/invisible parent controls are taken into account.
@@ -915,7 +915,7 @@ static b8 control_event_intersects(kui_state* typed_state, kui_control control, 
 		// that test first. If that passes, then do below, otherwise boot.
 		kui_control clipping_parent = control_get_clipping_parent_r(typed_state, base);
 		if (clipping_parent.val != INVALID_KUI_CONTROL.val) {
-			kui_base_control* parent = get_base(typed_state, clipping_parent);
+			kui_base_control *parent = get_base(typed_state, clipping_parent);
 			mat4 parent_model = ktransform_world_get(parent->ktransform);
 			mat4 parent_inv = mat4_inverse(parent_model);
 			vec3 parent_transformed_evt = vec3_transform((vec3){evt.x, evt.y, 0.0f}, 1.0f, parent_inv);
@@ -937,8 +937,8 @@ static b8 control_event_intersects(kui_state* typed_state, kui_control control, 
 	return rect_2d_contains_point(base->bounds, (vec2){transformed_evt.x, transformed_evt.y});
 }
 
-static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_state* typed_state = (kui_state*)listener_inst;
+static b8 kui_system_mouse_down (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *typed_state = (kui_state *)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
 		.mouse_button = (mouse_buttons)context.data.i16[4],
@@ -949,11 +949,11 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 	};
 
 	// Active, visible controls that the event intersects.
-	kui_control* intersecting_controls = darray_create(kui_control);
+	kui_control *intersecting_controls = darray_create(kui_control);
 	u32 active_control_count = darray_length(typed_state->active_controls);
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -967,7 +967,7 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < hit_count; ++i) {
 		kui_control control = intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -993,8 +993,8 @@ static b8 kui_system_mouse_down(u16 code, void* sender, void* listener_inst, eve
 	return block_propagation;
 }
 
-static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_state* typed_state = (kui_state*)listener_inst;
+static b8 kui_system_mouse_up (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *typed_state = (kui_state *)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
 		.mouse_button = (mouse_buttons)context.data.i16[4],
@@ -1005,11 +1005,11 @@ static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event
 	};
 
 	// Active, visible controls that the event intersects.
-	kui_control* intersecting_controls = darray_create(kui_control);
+	kui_control *intersecting_controls = darray_create(kui_control);
 	u32 active_control_count = darray_length(typed_state->active_controls);
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1023,7 +1023,7 @@ static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event
 	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < hit_count; ++i) {
 		kui_control control = intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1049,8 +1049,8 @@ static b8 kui_system_mouse_up(u16 code, void* sender, void* listener_inst, event
 	return block_propagation;
 }
 
-static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_state* typed_state = (kui_state*)listener_inst;
+static b8 kui_system_click (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *typed_state = (kui_state *)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
 		.mouse_button = (mouse_buttons)context.data.i16[4],
@@ -1061,11 +1061,11 @@ static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_co
 	};
 
 	// Active, visible controls that the event intersects.
-	kui_control* intersecting_controls = darray_create(kui_control);
+	kui_control *intersecting_controls = darray_create(kui_control);
 	u32 active_control_count = darray_length(typed_state->active_controls);
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1079,7 +1079,7 @@ static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_co
 	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < hit_count; ++i) {
 		kui_control control = intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1105,8 +1105,8 @@ static b8 kui_system_click(u16 code, void* sender, void* listener_inst, event_co
 	return block_propagation;
 }
 
-static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_state* typed_state = (kui_state*)listener_inst;
+static b8 kui_system_mouse_move (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *typed_state = (kui_state *)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
 		.mouse_button = (mouse_buttons)context.data.i16[4],
@@ -1117,12 +1117,12 @@ static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, eve
 	};
 
 	// Active, visible controls that the event intersects.
-	kui_control* intersecting_controls = darray_create(kui_control);
-	kui_control* non_intersecting_controls = darray_create(kui_control);
+	kui_control *intersecting_controls = darray_create(kui_control);
+	kui_control *non_intersecting_controls = darray_create(kui_control);
 	u32 active_control_count = darray_length(typed_state->active_controls);
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1138,7 +1138,7 @@ static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, eve
 	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < hit_count; ++i) {
 		kui_control control = intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1168,7 +1168,7 @@ static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, eve
 	kquick_sort_with_context(sizeof(kui_control), non_intersecting_controls, 0, non_hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < non_hit_count; ++i) {
 		kui_control control = non_intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1190,8 +1190,8 @@ static b8 kui_system_mouse_move(u16 code, void* sender, void* listener_inst, eve
 	return block_propagation;
 }
 
-static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_state* typed_state = (kui_state*)listener_inst;
+static b8 kui_system_mouse_wheel (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *typed_state = (kui_state *)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
 		.x = context.data.i16[0],
@@ -1202,7 +1202,7 @@ static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, ev
 	};
 
 	// Active, visible controls that the event intersects.
-	kui_control* intersecting_controls = darray_create(kui_control);
+	kui_control *intersecting_controls = darray_create(kui_control);
 	u32 active_control_count = darray_length(typed_state->active_controls);
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
@@ -1216,7 +1216,7 @@ static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, ev
 	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < hit_count; ++i) {
 		kui_control control = intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 
 		if (!base->internal_mouse_wheel(typed_state, control, evt)) {
 			block_propagation = true;
@@ -1232,8 +1232,8 @@ static b8 kui_system_mouse_wheel(u16 code, void* sender, void* listener_inst, ev
 	return block_propagation;
 }
 
-static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_state* typed_state = (kui_state*)listener_inst;
+static b8 kui_system_drag (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *typed_state = (kui_state *)listener_inst;
 	b8 block_propagation = false;
 	kui_mouse_event evt = {
 		.mouse_button = (mouse_buttons)context.data.i16[4],
@@ -1244,12 +1244,12 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 	};
 
 	// Active, visible controls that the event intersects.
-	kui_control* intersecting_controls = darray_create(kui_control);
-	kui_control* non_intersecting_controls = darray_create(kui_control);
+	kui_control *intersecting_controls = darray_create(kui_control);
+	kui_control *non_intersecting_controls = darray_create(kui_control);
 	u32 active_control_count = darray_length(typed_state->active_controls);
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1265,7 +1265,7 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 	kquick_sort_with_context(sizeof(kui_control), intersecting_controls, 0, hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < hit_count; ++i) {
 		kui_control control = intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1326,7 +1326,7 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 	kquick_sort_with_context(sizeof(kui_control), non_intersecting_controls, 0, non_hit_count - 1, kui_control_depth_compare_desc, typed_state);
 	for (u32 i = 0; i < non_hit_count; ++i) {
 		kui_control control = non_intersecting_controls[i];
-		kui_base_control* base = get_base(typed_state, control);
+		kui_base_control *base = get_base(typed_state, control);
 		if (!FLAG_GET(base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT)) {
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
@@ -1365,10 +1365,10 @@ static b8 kui_system_drag(u16 code, void* sender, void* listener_inst, event_con
 	return block_propagation;
 }
 
-static void register_control(kui_state* state, kui_control control) {
+static void register_control (kui_state *state, kui_control control) {
 	state->total_control_count++;
 
-	kui_base_control* base = get_base(state, control);
+	kui_base_control *base = get_base(state, control);
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT)) {
 		darray_push(state->active_controls, control);
 	} else {
@@ -1376,14 +1376,14 @@ static void register_control(kui_state* state, kui_control control) {
 	}
 }
 
-static void unregister_control(kui_state* state, kui_control control) {
+static void unregister_control (kui_state *state, kui_control control) {
 	if (!state->running) {
 		return;
 	}
 
 	state->total_control_count--;
 
-	kui_base_control* base = get_base(state, control);
+	kui_base_control *base = get_base(state, control);
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT)) {
 		u32 len = darray_length(state->active_controls);
 		for (u32 i = 0; i < len; ++i) {
@@ -1403,10 +1403,10 @@ static void unregister_control(kui_state* state, kui_control control) {
 	}
 }
 
-static kui_control encode_handle(kui_control_type type, u16 type_index) {
+static kui_control encode_handle (kui_control_type type, u16 type_index) {
 	return (kui_control){PACK_U32_U16S((u16)type, type_index)};
 }
-static b8 decode_handle(kui_control handle, kui_control_type* out_type, u16* out_type_index) {
+static b8 decode_handle (kui_control handle, kui_control_type *out_type, u16 *out_type_index) {
 	if (handle.val == INVALID_KUI_CONTROL.val) {
 		return false;
 	}
@@ -1414,7 +1414,7 @@ static b8 decode_handle(kui_control handle, kui_control_type* out_type, u16* out
 	return true;
 }
 
-static kui_base_control* get_base(kui_state* state, kui_control control) {
+static kui_base_control *get_base (kui_state *state, kui_control control) {
 	kui_control_type type;
 	u16 type_index;
 	u32 len = 0;
@@ -1422,7 +1422,7 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 		return KNULL;
 	}
 
-	kui_base_control* base = KNULL;
+	kui_base_control *base = KNULL;
 	switch (type) {
 	case KUI_CONTROL_TYPE_BASE:
 		len = darray_length(state->base_controls);
@@ -1473,10 +1473,10 @@ static kui_base_control* get_base(kui_state* state, kui_control control) {
 	return base;
 }
 
-static kui_control create_handle(kui_state* state, kui_control_type type) {
+static kui_control create_handle (kui_state *state, kui_control_type type) {
 	u16 type_index = INVALID_ID_U16;
 	u16 len = 0;
-	kui_base_control* base = KNULL;
+	kui_base_control *base = KNULL;
 	switch (type) {
 	case KUI_CONTROL_TYPE_BASE:
 		len = darray_length(state->base_controls);
@@ -1629,10 +1629,10 @@ static kui_control create_handle(kui_state* state, kui_control_type type) {
 	return encode_handle(type, type_index);
 }
 
-static void release_handle(kui_state* state, kui_control* handle) {
+static void release_handle (kui_state *state, kui_control *handle) {
 	kui_control_type type;
 	u16 type_index;
-	kui_base_control* base = KNULL;
+	kui_base_control *base = KNULL;
 	if (decode_handle(*handle, &type, &type_index)) {
 		switch (type) {
 		case KUI_CONTROL_TYPE_BASE:
@@ -1688,7 +1688,7 @@ static void release_handle(kui_state* state, kui_control* handle) {
 	*handle = INVALID_KUI_CONTROL;
 }
 
-static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_config) {
+static b8 parse_atlas_config (const char *config_source, kui_atlas_config *out_config) {
 	kson_tree tree = {0};
 	if (!kson_tree_from_string(config_source, &tree)) {
 		KERROR("%s - parsing failed.", __FUNCTION__);
@@ -1696,7 +1696,7 @@ static b8 parse_atlas_config(const char* config_source, kui_atlas_config* out_co
 	}
 
 	b8 success = false;
-	const char* name_str = KNULL;
+	const char *name_str = KNULL;
 
 	if (!kson_object_property_value_get_string_as_kname(&tree.root, "image_asset_name", &out_config->image_asset_name)) {
 		KERROR("%s - Parse failed: required property 'image_asset_name' missing.", __FUNCTION__);

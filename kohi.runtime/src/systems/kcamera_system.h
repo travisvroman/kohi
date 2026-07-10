@@ -47,14 +47,14 @@ typedef enum kcamera_type {
  * @param config The configuration (camera_system_config) for this system.
  * @return True on success; otherwise false.
  */
-b8 kcamera_system_initialize(u64* memory_requirement, void* state, void* config);
+b8 kcamera_system_initialize (u64 *memory_requirement, void *state, void *config);
 
 /**
  * @brief Shuts down the camera system.
  *
  * @param state The state block of memory.
  */
-void kcamera_system_shutdown(void* state);
+void kcamera_system_shutdown (void *state);
 
 /**
  * @brief Creates a new camera using the provided parameters and returns a handle to it.
@@ -69,43 +69,43 @@ void kcamera_system_shutdown(void* state);
  *
  * @return A pointer to a camera if successful; 0 if an error occurs.
  */
-KAPI kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 euler_rotation, f32 fov_radians, f32 near_clip, f32 far_clip);
+KAPI kcamera kcamera_create (kcamera_type type, rect_2di vp_rect, vec3 position, vec3 euler_rotation, f32 fov_radians, f32 near_clip, f32 far_clip);
 
-KAPI kcamera kcamera_clone(kcamera camera);
+KAPI kcamera kcamera_clone (kcamera camera);
 
 /**
  * @brief Releases the given camera.
  *
  * @param name The camera to destroy.
  */
-KAPI void kcamera_destroy(kcamera camera);
+KAPI void kcamera_destroy (kcamera camera);
 
 /**
  * @brief Gets a handle to the default camera.
  *
  * @return A handle to the default camera.
  */
-KAPI kcamera kcamera_system_get_default(void);
+KAPI kcamera kcamera_system_get_default (void);
 
-KAPI vec3 kcamera_get_position(kcamera camera);
-KAPI void kcamera_set_position(kcamera camera, vec3 position);
-KAPI vec3 kcamera_get_euler_rotation(kcamera camera);
-KAPI void kcamera_set_euler_rotation(kcamera camera, vec3 euler_rotation);
-KAPI void kcamera_set_euler_rotation_radians(kcamera camera, vec3 euler_rotation_radians);
-KAPI f32 kcamera_get_fov(kcamera camera);
-KAPI void kcamera_set_fov(kcamera camera, f32 fov);
-KAPI f32 kcamera_get_near_clip(kcamera camera);
-KAPI void kcamera_set_near_clip(kcamera camera, f32 near_clip);
-KAPI f32 kcamera_get_far_clip(kcamera camera);
-KAPI void kcamera_set_far_clip(kcamera camera, f32 far_clip);
-KAPI rect_2di kcamera_get_vp_rect(kcamera camera);
-KAPI void kcamera_set_vp_rect(kcamera camera, rect_2di vp_rect);
+KAPI vec3 kcamera_get_position (kcamera camera);
+KAPI void kcamera_set_position (kcamera camera, vec3 position);
+KAPI vec3 kcamera_get_euler_rotation (kcamera camera);
+KAPI void kcamera_set_euler_rotation (kcamera camera, vec3 euler_rotation);
+KAPI void kcamera_set_euler_rotation_radians (kcamera camera, vec3 euler_rotation_radians);
+KAPI f32 kcamera_get_fov (kcamera camera);
+KAPI void kcamera_set_fov (kcamera camera, f32 fov);
+KAPI f32 kcamera_get_near_clip (kcamera camera);
+KAPI void kcamera_set_near_clip (kcamera camera, f32 near_clip);
+KAPI f32 kcamera_get_far_clip (kcamera camera);
+KAPI void kcamera_set_far_clip (kcamera camera, f32 far_clip);
+KAPI rect_2di kcamera_get_vp_rect (kcamera camera);
+KAPI void kcamera_set_vp_rect (kcamera camera, rect_2di vp_rect);
 
-KAPI kfrustum kcamera_get_frustum(kcamera camera);
-KAPI mat4 kcamera_get_view(kcamera camera);
-KAPI mat4 kcamera_get_transform(kcamera camera);
-KAPI mat4 kcamera_get_projection(kcamera camera);
-KAPI mat4 kcamera_get_projection_far_clipped(kcamera camera, f32 far);
+KAPI kfrustum kcamera_get_frustum (kcamera camera);
+KAPI mat4 kcamera_get_view (kcamera camera);
+KAPI mat4 kcamera_get_transform (kcamera camera);
+KAPI mat4 kcamera_get_projection (kcamera camera);
+KAPI mat4 kcamera_get_projection_far_clipped (kcamera camera, f32 far);
 
 /**
  * @brief Returns a copy of the camera's forward vector.
@@ -113,7 +113,7 @@ KAPI mat4 kcamera_get_projection_far_clipped(kcamera camera, f32 far);
  * @param camera A handle to a camera.
  * @return A copy of the camera's forward vector.
  */
-KAPI vec3 kcamera_forward(kcamera camera);
+KAPI vec3 kcamera_forward (kcamera camera);
 
 /**
  * @brief Returns a copy of the camera's backward vector.
@@ -121,7 +121,7 @@ KAPI vec3 kcamera_forward(kcamera camera);
  * @param camera A handle to a camera.
  * @return A copy of the camera's backward vector.
  */
-KAPI vec3 kcamera_backward(kcamera camera);
+KAPI vec3 kcamera_backward (kcamera camera);
 
 /**
  * @brief Returns a copy of the camera's left vector.
@@ -129,7 +129,7 @@ KAPI vec3 kcamera_backward(kcamera camera);
  * @param camera A handle to a camera.
  * @return A copy of the camera's left vector.
  */
-KAPI vec3 kcamera_left(kcamera camera);
+KAPI vec3 kcamera_left (kcamera camera);
 
 /**
  * @brief Returns a copy of the camera's right vector.
@@ -137,7 +137,7 @@ KAPI vec3 kcamera_left(kcamera camera);
  * @param camera A handle to a camera.
  * @return A copy of the camera's right vector.
  */
-KAPI vec3 kcamera_right(kcamera camera);
+KAPI vec3 kcamera_right (kcamera camera);
 
 /**
  * @brief Returns a copy of the camera's up vector.
@@ -145,7 +145,7 @@ KAPI vec3 kcamera_right(kcamera camera);
  * @param camera A handle to a camera.
  * @return A copy of the camera's up vector.
  */
-KAPI vec3 kcamera_up(kcamera camera);
+KAPI vec3 kcamera_up (kcamera camera);
 
 /**
  * @brief Returns a copy of the camera's down vector.
@@ -153,7 +153,7 @@ KAPI vec3 kcamera_up(kcamera camera);
  * @param camera A handle to a camera.
  * @return A copy of the camera's down vector.
  */
-KAPI vec3 kcamera_down(kcamera camera);
+KAPI vec3 kcamera_down (kcamera camera);
 
 /**
  * @brief Moves the camera forward by the given amount.
@@ -163,7 +163,7 @@ KAPI vec3 kcamera_down(kcamera camera);
  * @param normalize_dir Indicates if direction should be normalized.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_direction(kcamera camera, vec3 direction, b8 normalize_dir, f32 amount);
+KAPI void kcamera_move_direction (kcamera camera, vec3 direction, b8 normalize_dir, f32 amount);
 
 /**
  * @brief Moves the camera forward by the given amount.
@@ -171,7 +171,7 @@ KAPI void kcamera_move_direction(kcamera camera, vec3 direction, b8 normalize_di
  * @param camera A handle to a camera.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_forward(kcamera camera, f32 amount);
+KAPI void kcamera_move_forward (kcamera camera, f32 amount);
 
 /**
  * @brief Moves the camera backward by the given amount.
@@ -179,7 +179,7 @@ KAPI void kcamera_move_forward(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_backward(kcamera camera, f32 amount);
+KAPI void kcamera_move_backward (kcamera camera, f32 amount);
 
 /**
  * @brief Moves the camera left by the given amount.
@@ -187,7 +187,7 @@ KAPI void kcamera_move_backward(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_left(kcamera camera, f32 amount);
+KAPI void kcamera_move_left (kcamera camera, f32 amount);
 
 /**
  * @brief Moves the camera right by the given amount.
@@ -195,7 +195,7 @@ KAPI void kcamera_move_left(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_right(kcamera camera, f32 amount);
+KAPI void kcamera_move_right (kcamera camera, f32 amount);
 
 /**
  * @brief Moves the camera up (straight along the y-axis, not the camera's up vector) by the given amount.
@@ -203,7 +203,7 @@ KAPI void kcamera_move_right(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_up(kcamera camera, f32 amount);
+KAPI void kcamera_move_up (kcamera camera, f32 amount);
 
 /**
  * @brief Moves the camera down (straight along the y-axis, not the camera's up vector) by the given amount.
@@ -211,7 +211,7 @@ KAPI void kcamera_move_up(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to move.
  */
-KAPI void kcamera_move_down(kcamera camera, f32 amount);
+KAPI void kcamera_move_down (kcamera camera, f32 amount);
 
 /**
  * @brief Adjusts the camera's yaw by the given amount.
@@ -219,7 +219,7 @@ KAPI void kcamera_move_down(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to adjust by.
  */
-KAPI void kcamera_yaw(kcamera camera, f32 amount);
+KAPI void kcamera_yaw (kcamera camera, f32 amount);
 
 /**
  * @brief Adjusts the camera's pitch by the given amount.
@@ -227,4 +227,4 @@ KAPI void kcamera_yaw(kcamera camera, f32 amount);
  * @param camera A handle to a camera.
  * @param amount The amount to adjust by.
  */
-KAPI void kcamera_pitch(kcamera camera, f32 amount);
+KAPI void kcamera_pitch (kcamera camera, f32 amount);

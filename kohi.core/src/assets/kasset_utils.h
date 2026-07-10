@@ -11,7 +11,7 @@ struct kasset_name;
  * @param type_str The type string to be examined.
  * @return The converted type if successful; otherwise KASSET_TYPE_UNKNOWN.
  */
-KAPI kasset_type kasset_type_from_string(const char* type_str);
+KAPI kasset_type kasset_type_from_string (const char *type_str);
 
 /**
  * @brief Converts the given asset type enumeration value to its string representation.
@@ -20,7 +20,7 @@ KAPI kasset_type kasset_type_from_string(const char* type_str);
  * @param type The type to be converted.
  * @return The string representation of the type.
  */
-KAPI const char* kasset_type_to_string(kasset_type type);
+KAPI const char *kasset_type_to_string (kasset_type type);
 
 /**
  * @brief Indicates if the given asset type is a binary asset type.
@@ -28,4 +28,4 @@ KAPI const char* kasset_type_to_string(kasset_type type);
  * @param type The asset type.
  * @return True if the given asset type is binary; otherwise false.
  */
-KAPI b8 kasset_type_is_binary(kasset_type type);
+KAPI b8 kasset_type_is_binary (kasset_type type);

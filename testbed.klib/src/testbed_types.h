@@ -28,7 +28,7 @@ typedef enum testbed_app_mode {
 	TESTBED_APP_MODE_PAUSE_MENU
 } testbed_application_mode;
 
-KINLINE const char* testbed_application_mode_to_string(testbed_application_mode mode) {
+KINLINE const char *testbed_application_mode_to_string (testbed_application_mode mode) {
 	switch (mode) {
 	default:
 	case TESTBED_APP_MODE_WORLD:
@@ -158,13 +158,13 @@ typedef struct application_state {
 
 	kname scene_name;
 	kname scene_package_name;
-	struct kscene* current_scene;
+	struct kscene *current_scene;
 
 	// Pointers to engine systems.
-	struct kaudio_system_state* audio_system;
-	struct kruntime_plugin* kui_plugin;
-	struct kui_plugin_state* kui_plugin_state;
-	struct kui_state* kui_state;
+	struct kaudio_system_state *audio_system;
+	struct kruntime_plugin *kui_plugin;
+	struct kui_plugin_state *kui_plugin_state;
+	struct kui_state *kui_state;
 
 	kclock update_clock;
 	kclock prepare_clock;
@@ -196,18 +196,18 @@ typedef struct application_state {
 
 	game_state game;
 
-	struct item_db* db;
+	struct item_db *db;
 
 	// UI state
 	kui_control context_sensitive_text;
 
 #ifdef KOHI_EDITOR
-	struct editor_state* editor;
+	struct editor_state *editor;
 #endif
 } application_state;
 
 struct testbed_render_data;
 
 typedef struct application_frame_data {
-	struct testbed_render_data* render_data;
+	struct testbed_render_data *render_data;
 } application_frame_data;

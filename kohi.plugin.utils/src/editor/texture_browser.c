@@ -27,15 +27,15 @@
 #include "strings/kname.h"
 #include "texture_browser.h"
 
-static void texture_browser_open_internal(texture_browser* tb);
-static b8 texture_browser_confirm_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 texture_browser_cancel_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 texture_browser_import_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static void texture_browser_search_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void texture_browser_search_game_pak_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
-static b8 texture_browser_imagebox_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static void texture_browser_open_internal (texture_browser *tb);
+static b8 texture_browser_confirm_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 texture_browser_cancel_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 texture_browser_import_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static void texture_browser_search_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void texture_browser_search_game_pak_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
+static b8 texture_browser_imagebox_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
 
-void texture_browser_create(texture_browser* tb, texture_browser_create_info create_info) {
+void texture_browser_create (texture_browser *tb, texture_browser_create_info create_info) {
 	tb->ui = create_info.ui;
 	tb->editor_root = create_info.editor_root;
 	tb->game_package_name = create_info.game_package_name;
@@ -103,7 +103,7 @@ void texture_browser_create(texture_browser* tb, texture_browser_create_info cre
 	kui_control_position_set(tb->ui, tb->inspector_preview_imagebox, (vec3){tb->right_col_x + 10, 100, 0});
 	kui_image_box_control_texture_set_by_name(tb->ui, tb->inspector_preview_imagebox, kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME);
 
-	const char* tex_data_str = string_format(
+	const char *tex_data_str = string_format(
 		"%k\n%s\n%ux%u\n%s",
 		kname_create("No selection"),
 		"texture type", // TODO:
@@ -143,7 +143,7 @@ void texture_browser_create(texture_browser* tb, texture_browser_create_info cre
 	kui_control_set_on_click(tb->ui, tb->import_btn, texture_browser_import_button_clicked);
 }
 
-void texture_browser_destroy(texture_browser* tb) {
+void texture_browser_destroy (texture_browser *tb) {
 	if (tb->image_boxes) {
 		KFREE_TYPE_CARRAY(tb->image_boxes, kui_control, tb->tex_count);
 	}
@@ -152,11 +152,11 @@ void texture_browser_destroy(texture_browser* tb) {
 	}
 }
 
-b8 texture_browser_is_open(const texture_browser* tb) {
+b8 texture_browser_is_open (const texture_browser *tb) {
 	return FLAG_GET(tb->flags, TEXTURE_BROWSER_FLAG_OPEN_BIT);
 }
 
-void texture_browser_open_for_browsing(texture_browser* tb) {
+void texture_browser_open_for_browsing (texture_browser *tb) {
 	if (FLAG_GET(tb->flags, TEXTURE_BROWSER_FLAG_OPEN_BIT)) {
 		KWARN("The texture browser is already open");
 		return;
@@ -168,7 +168,7 @@ void texture_browser_open_for_browsing(texture_browser* tb) {
 	texture_browser_open_internal(tb);
 }
 
-void texture_browser_open_for_selection(texture_browser* tb, void* context, PFN_tex_browser_selected_callback selected_callback, PFN_tex_browser_cancelled_callback cancelled_callback) {
+void texture_browser_open_for_selection (texture_browser *tb, void *context, PFN_tex_browser_selected_callback selected_callback, PFN_tex_browser_cancelled_callback cancelled_callback) {
 	if (FLAG_GET(tb->flags, TEXTURE_BROWSER_FLAG_OPEN_BIT)) {
 		KWARN("The texture browser is already open");
 		return;
@@ -184,7 +184,7 @@ void texture_browser_open_for_selection(texture_browser* tb, void* context, PFN_
 
 	texture_browser_open_internal(tb);
 }
-void texture_browser_close(texture_browser* tb) {
+void texture_browser_close (texture_browser *tb) {
 	// Activate/set visible the tex browser bg panel
 	kui_control_set_is_active(tb->ui, tb->bg_panel, false);
 	kui_control_set_is_visible(tb->ui, tb->bg_panel, false);
@@ -195,7 +195,7 @@ void texture_browser_close(texture_browser* tb) {
 	tb->cancelled_callback = KNULL;
 }
 
-void texture_browser_refresh(texture_browser* tb) {
+void texture_browser_refresh (texture_browser *tb) {
 	f32 inspector_width = tb->window_size.x - tb->right_col_x;
 	f32 scrollable_width = tb->window_size.x - inspector_width - 5.0f;
 
@@ -213,10 +213,10 @@ void texture_browser_refresh(texture_browser* tb) {
 	}
 
 	// Query for a list of textures.
-	kname* texture_names = asset_system_names_by_type(engine_systems_get()->asset_state, KASSET_TYPE_IMAGE, tb->search_package_name, &tb->tex_count);
+	kname *texture_names = asset_system_names_by_type(engine_systems_get()->asset_state, KASSET_TYPE_IMAGE, tb->search_package_name, &tb->tex_count);
 
 	if (texture_names && tb->search_text && string_length(tb->search_text)) {
-		kname* search_names = darray_create(kname);
+		kname *search_names = darray_create(kname);
 		for (u32 i = 0; i < tb->tex_count; ++i) {
 			if (string_index_of_stri(kname_string_get(texture_names[i]), tb->search_text) != -1) {
 				darray_push(search_names, texture_names[i]);
@@ -238,10 +238,10 @@ void texture_browser_refresh(texture_browser* tb) {
 		tb->image_boxes = KALLOC_TYPE_CARRAY(kui_control, tb->tex_count);
 		tb->labels = KALLOC_TYPE_CARRAY(kui_control, tb->tex_count);
 
-		texture_browser_element_data* first_element_data = KNULL;
+		texture_browser_element_data *first_element_data = KNULL;
 		for (u32 i = 0; i < tb->tex_count; ++i) {
 
-			texture_browser_element_data* element_data = KALLOC_TYPE(texture_browser_element_data, MEMORY_TAG_EDITOR);
+			texture_browser_element_data *element_data = KALLOC_TYPE(texture_browser_element_data, MEMORY_TAG_EDITOR);
 			element_data->tb = tb;
 			element_data->texture_name = texture_names[i];
 			if (i == 0) {
@@ -250,7 +250,7 @@ void texture_browser_refresh(texture_browser* tb) {
 
 			// Image box
 			{
-				char* name = string_format("__texture_browser_image_box_%u__", i);
+				char *name = string_format("__texture_browser_image_box_%u__", i);
 				tb->image_boxes[i] = kui_image_box_control_create(tb->ui, name, (vec2i){tb->imagebox_size, tb->imagebox_size});
 				string_free(name);
 				KASSERT(kui_system_control_add_child(tb->ui, tb->content_container, tb->image_boxes[i]));
@@ -272,7 +272,7 @@ void texture_browser_refresh(texture_browser* tb) {
 			}
 			// Label
 			{
-				char* name = string_format("__texture_browser_image_label_%u__", i);
+				char *name = string_format("__texture_browser_image_label_%u__", i);
 				tb->labels[i] = kui_label_control_create_ex(
 					tb->ui,
 					name,
@@ -312,7 +312,7 @@ void texture_browser_refresh(texture_browser* tb) {
 		tb->selected_texture = first_element_data->texture;
 		kui_image_box_control_texture_set_by_name(tb->ui, tb->inspector_preview_imagebox, first_element_data->texture_name, INVALID_KNAME);
 
-		const char* tex_data_str = string_format(
+		const char *tex_data_str = string_format(
 			"%k\n%s\n%ux%u\nformat:%s",
 			first_element_data->texture_name,
 			"texture type", // TODO:
@@ -329,7 +329,7 @@ void texture_browser_refresh(texture_browser* tb) {
 		tb->selected_texture = INVALID_KTEXTURE;
 		kui_image_box_control_texture_set_by_name(tb->ui, tb->inspector_preview_imagebox, kname_create(DEFAULT_TEXTURE_NAME), INVALID_KNAME);
 
-		const char* tex_data_str = string_format(
+		const char *tex_data_str = string_format(
 			"%k\n%s\n%ux%u\n%s",
 			kname_create("No selection"),
 			"texture type", // TODO:
@@ -354,7 +354,7 @@ void texture_browser_refresh(texture_browser* tb) {
 	}
 }
 
-static void texture_browser_open_internal(texture_browser* tb) {
+static void texture_browser_open_internal (texture_browser *tb) {
 	// Activate/set visible the tex browser bg panel
 	kui_control_set_is_active(tb->ui, tb->bg_panel, true);
 	kui_control_set_is_visible(tb->ui, tb->bg_panel, true);
@@ -371,9 +371,9 @@ static void texture_browser_open_internal(texture_browser* tb) {
 	}
 }
 
-static b8 texture_browser_confirm_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	texture_browser* tb = base->user_data;
+static b8 texture_browser_confirm_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	texture_browser *tb = base->user_data;
 
 	if (FLAG_GET(tb->flags, TEXTURE_BROWSER_FLAG_SELECTING_BIT)) {
 		if (tb->selected_texture == INVALID_KTEXTURE) {
@@ -392,9 +392,9 @@ static b8 texture_browser_confirm_button_clicked(struct kui_state* state, kui_co
 	return false;
 }
 
-static b8 texture_browser_cancel_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	texture_browser* tb = base->user_data;
+static b8 texture_browser_cancel_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	texture_browser *tb = base->user_data;
 
 	if (tb->cancelled_callback) {
 		tb->cancelled_callback(tb->selection_context);
@@ -405,11 +405,11 @@ static b8 texture_browser_cancel_button_clicked(struct kui_state* state, kui_con
 	return false;
 }
 
-static b8 texture_browser_import_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 texture_browser_import_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 // TODO: Should saving be allowed here? In general the editor wouldn't be available in non-debug builds, but...
 #if KOHI_DEBUG
-	kui_base_control* base = kui_system_get_base(state, self);
-	texture_browser* tb = base->user_data;
+	kui_base_control *base = kui_system_get_base(state, self);
+	texture_browser *tb = base->user_data;
 
 	// Open file dialog
 	platform_open_file_dialog_options options = {
@@ -420,24 +420,24 @@ static b8 texture_browser_import_button_clicked(struct kui_state* state, kui_con
 	platform_open_file_dialog_result result = platform_open_file_dialog_open(options);
 	if (result.success) {
 		u8 success_count = 0;
-		kpackage* package = vfs_package_get(engine_systems_get()->vfs_system_state, tb->game_package_name);
-		const char* package_dir = string_directory_from_path(package->manifest_file_path);
+		kpackage *package = vfs_package_get(engine_systems_get()->vfs_system_state, tb->game_package_name);
+		const char *package_dir = string_directory_from_path(package->manifest_file_path);
 		KTRACE("Open file dialog success: %s", bool_to_string(result.success));
 		for (u8 i = 0; i < result.file_count; ++i) {
 			KTRACE("File selected (%u): '%s'", i, result.file_paths[i]);
 
 			// Copy the file from wherever it is to the current game package assets/images/source dir.
-			const char* asset_file_name = string_filename_from_path(result.file_paths[i]);
-			char* source_path = string_format("%s/assets/images/source/%s", package_dir, asset_file_name);
-			char* local_source_path = string_format("./assets/images/source/%s", asset_file_name);
+			const char *asset_file_name = string_filename_from_path(result.file_paths[i]);
+			char *source_path = string_format("%s/assets/images/source/%s", package_dir, asset_file_name);
+			char *local_source_path = string_format("./assets/images/source/%s", asset_file_name);
 			if (platform_copy_file(result.file_paths[i], source_path, true) != PLATFORM_ERROR_SUCCESS) {
 				KERROR("Failed to copy file. See logs for details.");
 			} else {
 
 				// Run the import process on that image to go from image->kbi.
-				const char* asset_name = string_filename_no_extension_from_path(result.file_paths[i]);
-				char* target_path = string_format("%s/assets/images/%s.kbi", package_dir, asset_name);
-				char* local_target_path = string_format("./assets/images/%s.kbi", asset_name);
+				const char *asset_name = string_filename_no_extension_from_path(result.file_paths[i]);
+				char *target_path = string_format("%s/assets/images/%s.kbi", package_dir, asset_name);
+				char *local_target_path = string_format("./assets/images/%s.kbi", asset_name);
 				if (!kasset_image_import(source_path, target_path, true, KPIXEL_FORMAT_RGBA8)) {
 					KERROR("Failed to import image asset. See logs for details.");
 				} else {
@@ -482,7 +482,7 @@ static b8 texture_browser_import_button_clicked(struct kui_state* state, kui_con
 		for (u8 i = 0; i < result.file_count; ++i) {
 			string_free(result.file_paths[i]);
 		}
-		KFREE_TYPE_CARRAY(result.file_paths, const char*, result.file_count);
+		KFREE_TYPE_CARRAY(result.file_paths, const char *, result.file_count);
 	}
 
 	texture_browser_refresh(tb);
@@ -491,11 +491,11 @@ static b8 texture_browser_import_button_clicked(struct kui_state* state, kui_con
 	return false;
 }
 
-static void texture_browser_search_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void texture_browser_search_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		texture_browser* tb = kui_control_get_user_data(state, self);
+		texture_browser *tb = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER) {
 			// Clear current search text.
@@ -503,7 +503,7 @@ static void texture_browser_search_textbox_on_key(kui_state* state, kui_control 
 			tb->search_text = KNULL;
 
 			// Only search on enter press.
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				KTRACE("Searching for textures based on '%s'...", entry_control_text);
@@ -514,20 +514,20 @@ static void texture_browser_search_textbox_on_key(kui_state* state, kui_control 
 	}
 }
 
-static void texture_browser_search_game_pak_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	texture_browser* tb = kui_control_get_user_data(state, self);
+static void texture_browser_search_game_pak_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	texture_browser *tb = kui_control_get_user_data(state, self);
 
 	tb->search_package_name = event.checked ? tb->game_package_name : INVALID_KNAME;
 	texture_browser_refresh(tb);
 }
 
-static b8 texture_browser_imagebox_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	texture_browser_element_data* element_data = kui_control_get_user_data(state, self);
+static b8 texture_browser_imagebox_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	texture_browser_element_data *element_data = kui_control_get_user_data(state, self);
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	vec3 pos = ktransform_position_get(base->ktransform);
 
-	kui_base_control* selection_frame = kui_system_get_base(state, element_data->tb->selected_frame);
+	kui_base_control *selection_frame = kui_system_get_base(state, element_data->tb->selected_frame);
 	ktransform_position_set(selection_frame->ktransform, pos);
 
 	element_data->tb->selected_texture = element_data->texture;
@@ -536,7 +536,7 @@ static b8 texture_browser_imagebox_clicked(struct kui_state* state, kui_control 
 
 	kui_image_box_control_texture_set_by_name(state, element_data->tb->inspector_preview_imagebox, element_data->texture_name, INVALID_KNAME);
 
-	const char* tex_data_str = string_format(
+	const char *tex_data_str = string_format(
 		"%k\n%s\n%ux%u\nformat:%s",
 		element_data->texture_name,
 		"texture type", // TODO:

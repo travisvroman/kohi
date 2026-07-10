@@ -17,7 +17,7 @@
 // NOTE: defined in tools_main.c
 #include "vendor/stb_image.h"
 
-b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip_y, kpixel_format output_format) {
+b8 kasset_image_import (const char *source_path, const char *target_path, b8 flip_y, kpixel_format output_format) {
 	if (!source_path || !target_path) {
 		KERROR("%s requires valid source_path and target_path.", __FUNCTION__);
 		return false;
@@ -87,7 +87,7 @@ b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip
 	}
 
 	u64 data_size = 0;
-	const void* data = filesystem_read_entire_binary_file(source_path, &data_size);
+	const void *data = filesystem_read_entire_binary_file(source_path, &data_size);
 	if (!data) {
 		KERROR("%s - Failed to import image from path - see logs for details.", __FUNCTION__);
 		return false;
@@ -101,7 +101,7 @@ b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip
 	// Load the image.
 	kasset_image asset = {0};
 	i32 source_channel_count = 0;
-	u8* pixels = stbi_load_from_memory(data, data_size, (i32*)&asset.width, (i32*)&asset.height, (i32*)&source_channel_count, required_channel_count);
+	u8 *pixels = stbi_load_from_memory(data, data_size, (i32 *)&asset.width, (i32 *)&asset.height, (i32 *)&source_channel_count, required_channel_count);
 	if (!pixels) {
 		KERROR("Image importer failed to import image.");
 		return false;
@@ -114,7 +114,7 @@ b8 kasset_image_import(const char* source_path, const char* target_path, b8 flip
 
 	// Serialize and write to file.
 	u64 serialized_block_size = 0;
-	void* serialized_block = kasset_image_serialize(&asset, &serialized_block_size);
+	void *serialized_block = kasset_image_serialize(&asset, &serialized_block_size);
 	if (!serialized_block) {
 		KERROR("Binary image serialization failed, check logs.");
 		return false;

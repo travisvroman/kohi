@@ -31,16 +31,16 @@ typedef struct kclock {
  * Has no effect on non-started clocks.
  * @param clock A pointer to the clock to be updated.
  */
-KAPI void kclock_update(kclock* clock);
+KAPI void kclock_update (kclock *clock);
 
 /**
  * @brief Starts the provided clock. Resets elapsed time.
  * @param clocl A pointer to the clock to be started.
  */
-KAPI void kclock_start(kclock* clock);
+KAPI void kclock_start (kclock *clock);
 
 /**
  * @brief Stops the provided clock. Does not reset elapsed time.
  * @param clock A pointer to the clock to be stopped.
  */
-KAPI void kclock_stop(kclock* clock);
+KAPI void kclock_stop (kclock *clock);

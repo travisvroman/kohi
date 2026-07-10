@@ -45,13 +45,13 @@
 #define kSCENE_CURRENT_VERSION 1
 
 #define ENTITY_VOLUME_DEBUG_COLOUR \
-	(colour4){1, 1, 0, 1}
+	(colour4) { 1, 1, 0, 1 }
 #define ENTITY_AUDIO_EMITTER_DEBUG_COLOUR \
-	(colour4){1, 0.5f, 0, 1}
+	(colour4) { 1, 0.5f, 0, 1 }
 #define ENTITY_MODEL_STATIC_DEBUG_COLOUR \
-	(colour4){0, 1, 0, 1}
+	(colour4) { 0, 1, 0, 1 }
 #define ENTITY_MODEL_ANIMATED_DEBUG_COLOUR \
-	(colour4){0, 1, 1, 1}
+	(colour4) { 0, 1, 1, 1 }
 
 /**
  * A base entity with no type. Used for grouping other entities together, for example
@@ -64,10 +64,10 @@ typedef struct base_entity {
 	kentity_flags flags;
 	// Case-sensitive tags used to determine what volumes this hit shape interacts with.
 	u8 tag_count;
-	kstring_id* tags;
+	kstring_id *tags;
 
 	// An darray of child entity handles.
-	kentity* children;
+	kentity *children;
 	kentity parent;
 
 	// The extents for the entity.
@@ -124,14 +124,14 @@ typedef struct volume_entity {
 
 	// Case-sensitive tags used to determine if what hit shapes qualify to trigger commands in this volume.
 	u8 hit_shape_tag_count;
-	kstring_id* hit_shape_tags;
+	kstring_id *hit_shape_tags;
 
 	// Called when something enters the volume.
-	const char* on_enter_command;
+	const char *on_enter_command;
 	// Called when something leaves the volume.
-	const char* on_leave_command;
+	const char *on_leave_command;
 	// Called every update tick.
-	const char* on_tick_command;
+	const char *on_tick_command;
 
 } volume_entity;
 
@@ -188,13 +188,13 @@ typedef struct kmaterial_geometry_list {
 	kmaterial base_material;
 	u16 count;
 	u16 capacity;
-	kgeometry_ref* geometries;
+	kgeometry_ref *geometries;
 } kmaterial_geometry_list;
 
 typedef struct kmaterial_to_geometry_map {
 	u16 count;
 	u16 capacity;
-	kmaterial_geometry_list* lists;
+	kmaterial_geometry_list *lists;
 } kmaterial_to_geometry_map;
 
 typedef enum kgeometry_data_flag_bits {
@@ -262,14 +262,14 @@ typedef struct kscene {
 
 	// Invoked when the initial load of the scene is complete.
 	PFN_scene_loaded loaded_callback;
-	void* load_context;
+	void *load_context;
 
 	u8 version;
-	const char* name;
-	const char* description;
+	const char *name;
+	const char *description;
 
 	// BST name lookup (key=name, value=kentity)
-	bt_node* name_lookup;
+	bt_node *name_lookup;
 
 	kname skybox_asset_name;
 	kname skybox_asset_package_name;
@@ -296,9 +296,9 @@ typedef struct kscene {
 	ktransform bvh_transform;
 #if KOHI_DEBUG
 	// A pool of bvh debug datas that hold render representation.
-	scene_bvh_debug_data* bvh_debug_pool;
+	scene_bvh_debug_data *bvh_debug_pool;
 	// A pool holding all vertices for all BVH render boxes.
-	position_vertex_3d* bvh_debug_vertex_pool;
+	position_vertex_3d *bvh_debug_vertex_pool;
 	// Count of elements in the pool.
 	u16 bvh_debug_pool_size;
 
@@ -307,13 +307,13 @@ typedef struct kscene {
 #endif
 
 	// darray of 'parentless' entities
-	kentity* root_entities;
+	kentity *root_entities;
 
 	// Base entities with no type
-	base_entity* bases;
+	base_entity *bases;
 
 	// darray of model type entities
-	model_entity* models;
+	model_entity *models;
 	// Mapping of geometry datas by opaque material.
 	kmaterial_to_geometry_map opaque_static_model_material_map;
 	// Mapping of geometry datas by transparent material.
@@ -323,82 +323,82 @@ typedef struct kscene {
 	// Mapping of geometry datas by transparent material.
 	kmaterial_to_geometry_map transparent_animated_model_material_map;
 	// Data required to render animated geometry datas
-	kgeometry_data* model_geometry_datas;
-	extents_3d* model_geometry_extents;
+	kgeometry_data *model_geometry_datas;
+	extents_3d *model_geometry_extents;
 
 	// darray of point light type entities.
-	point_light_entity* point_lights;
+	point_light_entity *point_lights;
 
-	spawn_point_entity* spawn_points;
+	spawn_point_entity *spawn_points;
 
 	// darray of volume type entities.
-	volume_entity* volumes;
+	volume_entity *volumes;
 
 	// darray of hit shape type entities.
-	hit_shape_entity* hit_shapes;
+	hit_shape_entity *hit_shapes;
 
 	// darray of water plane type entities.
-	water_plane_entity* water_planes;
+	water_plane_entity *water_planes;
 
 	// darray of audio emitter type entities.
-	audio_emitter_entity* audio_emitters;
+	audio_emitter_entity *audio_emitters;
 
 	// darray of active collision shape states.
-	collision_shape_state* col_shape_states;
+	collision_shape_state *col_shape_states;
 
 	kname scene_asset_name;
-	const char* hf_terrain_asset_name;
+	const char *hf_terrain_asset_name;
 	hf_terrain hf;
 
 #if KOHI_DEBUG
 	// Darray of debug render data.
-	kscene_debug_data* debug_datas;
+	kscene_debug_data *debug_datas;
 
 #endif
 } kscene;
 
-static kentity init_base_entity_with_extents(kscene* scene, base_entity* base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent, extents_3d extents);
-static kentity init_base_entity(kscene* scene, base_entity* base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent);
-static void kmaterial_list_ensure_allocated(kmaterial_geometry_list* list);
-static void kmaterial_map_ensure_allocated(kmaterial_to_geometry_map* map);
-static kmaterial_geometry_list* get_or_create_material_geo_list(kmaterial_to_geometry_map* map, kmaterial material);
+static kentity init_base_entity_with_extents (kscene *scene, base_entity *base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent, extents_3d extents);
+static kentity init_base_entity (kscene *scene, base_entity *base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent);
+static void kmaterial_list_ensure_allocated (kmaterial_geometry_list *list);
+static void kmaterial_map_ensure_allocated (kmaterial_to_geometry_map *map);
+static kmaterial_geometry_list *get_or_create_material_geo_list (kmaterial_to_geometry_map *map, kmaterial material);
 
-static void on_model_loaded(kmodel_instance instance, void* context);
-static void map_model_submesh_geometries(kscene* scene, kentity entity, u16 submesh_index, b8 winding_inverted, const kmaterial_instance* mat_inst);
+static void on_model_loaded (kmodel_instance instance, void *context);
+static void map_model_submesh_geometries (kscene *scene, kentity entity, u16 submesh_index, b8 winding_inverted, const kmaterial_instance *mat_inst);
 // maps entity geometries by material. Should only be used for loaded entities.
-static void map_model_entity_geometries(kscene* scene, kentity entity);
-static void unmap_model_entity_geometries(kscene* scene, kentity entity);
+static void map_model_entity_geometries (kscene *scene, kentity entity);
+static void unmap_model_entity_geometries (kscene *scene, kentity entity);
 
 // Handles notifications that an inital load entity type that has async asset load started.
-static void notify_initial_load_entity_started(kscene* scene, kentity entity);
+static void notify_initial_load_entity_started (kscene *scene, kentity entity);
 // Handles notifications of initial asset load completion and updates counts.
-static void notify_initial_load_entity_complete(kscene* scene, kentity entity);
+static void notify_initial_load_entity_complete (kscene *scene, kentity entity);
 
-static b8 deserialize(const char* file_content, kscene* out_scene);
+static b8 deserialize (const char *file_content, kscene *out_scene);
 // Returns KNULL if not found
-static base_entity* get_entity_base(kscene* scene, kentity entity);
+static base_entity *get_entity_base (kscene *scene, kentity entity);
 
-static void base_entity_destroy(kscene* scene, base_entity* base, kentity entity_handle);
-static void model_entity_destroy(kscene* scene, model_entity* typed_entity, kentity entity_handle);
-static void point_light_entity_destroy(kscene* scene, point_light_entity* typed_entity, kentity entity_handle);
-static void spawn_point_entity_destroy(kscene* scene, spawn_point_entity* typed_entity, kentity entity_handle);
-static void volume_entity_destroy(kscene* scene, volume_entity* typed_entity, kentity entity_handle);
-static void hit_shape_entity_destroy(kscene* scene, hit_shape_entity* typed_entity, kentity entity_handle);
-static void water_plane_entity_destroy(kscene* scene, water_plane_entity* typed_entity, kentity entity_handle);
-static void audio_emitter_entity_destroy(kscene* scene, audio_emitter_entity* typed_entity, kentity entity_handle);
+static void base_entity_destroy (kscene *scene, base_entity *base, kentity entity_handle);
+static void model_entity_destroy (kscene *scene, model_entity *typed_entity, kentity entity_handle);
+static void point_light_entity_destroy (kscene *scene, point_light_entity *typed_entity, kentity entity_handle);
+static void spawn_point_entity_destroy (kscene *scene, spawn_point_entity *typed_entity, kentity entity_handle);
+static void volume_entity_destroy (kscene *scene, volume_entity *typed_entity, kentity entity_handle);
+static void hit_shape_entity_destroy (kscene *scene, hit_shape_entity *typed_entity, kentity entity_handle);
+static void water_plane_entity_destroy (kscene *scene, water_plane_entity *typed_entity, kentity entity_handle);
+static void audio_emitter_entity_destroy (kscene *scene, audio_emitter_entity *typed_entity, kentity entity_handle);
 
 #if KOHI_DEBUG
-static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity entity, kscene_debug_data_type type, colour4 colour, b8 ignore_scale, u32* out_debug_data_index);
-static kscene_debug_data_type debug_type_from_shape_type(kshape_type type);
+static void create_debug_data (kscene *scene, vec3 size, vec3 center, kentity entity, kscene_debug_data_type type, colour4 colour, b8 ignore_scale, u32 *out_debug_data_index);
+static kscene_debug_data_type debug_type_from_shape_type (kshape_type type);
 #else
 // Intentional no-op in release
 #	define create_debug_data(scene, size, center, entity, type, colour, ignore_scale, out_debug_data_index)
 #	define debug_type_from_shape_type(type)
 #endif
 
-struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_scene_loaded loaded_callback, void* load_context, b8 is_editor) {
+struct kscene *kscene_create (kname scene_asset_name, const char *config, PFN_scene_loaded loaded_callback, void *load_context, b8 is_editor) {
 
-	kscene* scene = KALLOC_TYPE(kscene, MEMORY_TAG_SCENE);
+	kscene *scene = KALLOC_TYPE(kscene, MEMORY_TAG_SCENE);
 	scene->state = KSCENE_STATE_UNINITIALIZED;
 
 	scene->directional_light = KLIGHT_INVALID;
@@ -417,7 +417,7 @@ struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_sce
 	scene->bvh_debug_pool = KALLOC_TYPE_CARRAY(scene_bvh_debug_data, scene->bvh_debug_pool_size);
 	scene->bvh_debug_vertex_pool = KALLOC_TYPE_CARRAY(position_vertex_3d, 24 * scene->bvh_debug_pool_size);
 
-	struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer = engine_systems_get()->renderer_system;
 
 	// Allocate space in the vertex buffer for the entire pool.
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
@@ -431,7 +431,7 @@ struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_sce
 	// Iterate all the debug datas in the pool and set their geometry offsets, one
 	// right after the other.
 	for (u16 i = 0; i < scene->bvh_debug_pool_size; ++i) {
-		scene_bvh_debug_data* d = &scene->bvh_debug_pool[i];
+		scene_bvh_debug_data *d = &scene->bvh_debug_pool[i];
 		d->geo.type = KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY;
 		d->geo.vertex_element_size = sizeof(position_vertex_3d);
 		d->geo.vertex_count = 24;
@@ -504,7 +504,7 @@ struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_sce
 	scene->name_lookup = KNULL;
 
 	// Create a camera to be used for reflections. Its properties don't matter much for now.
-	kwindow* win = engine_active_window_get();
+	kwindow *win = engine_active_window_get();
 	rect_2di world_vp_rect = {0, 0, win->width, win->height};
 	scene->world_inv_camera = kcamera_create(KCAMERA_TYPE_3D, world_vp_rect, vec3_zero(), vec3_zero(), deg_to_rad(45.0f), 0.1f, 1000.0f);
 
@@ -518,7 +518,7 @@ struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_sce
 	scene->hf_terrain_asset_name = string_format("%k_terrain", scene->scene_asset_name);
 
 	// FIXME: use async instead
-	kasset_hf_terrain* terrain_asset = asset_system_request_hf_terrain_sync(engine_systems_get()->asset_state, scene->hf_terrain_asset_name);
+	kasset_hf_terrain *terrain_asset = asset_system_request_hf_terrain_sync(engine_systems_get()->asset_state, scene->hf_terrain_asset_name);
 	if (!terrain_asset) {
 		scene->hf = hf_terrain_generate(2, 2);
 	} else {
@@ -539,10 +539,10 @@ struct kscene* kscene_create(kname scene_asset_name, const char* config, PFN_sce
 		scene->type##s = KNULL;                                                \
 	}
 
-static void cleanup_map(kmaterial_to_geometry_map* map) {
+static void cleanup_map (kmaterial_to_geometry_map *map) {
 	if (map->capacity && map->lists) {
 		for (u32 i = 0; i < map->capacity; ++i) {
-			kmaterial_geometry_list* list = &map->lists[i];
+			kmaterial_geometry_list *list = &map->lists[i];
 			if (list->capacity && list->geometries) {
 				KFREE_TYPE_CARRAY(list->geometries, kgeometry_ref, list->capacity);
 			}
@@ -554,7 +554,7 @@ static void cleanup_map(kmaterial_to_geometry_map* map) {
 	}
 }
 
-void kscene_destroy(struct kscene* scene) {
+void kscene_destroy (struct kscene *scene) {
 	if (!scene) {
 		return;
 	}
@@ -669,9 +669,9 @@ void kscene_destroy(struct kscene* scene) {
 	KFREE_TYPE(scene, kscene, MEMORY_TAG_SCENE);
 }
 
-static void recalculate_transforms(kscene* scene, base_entity* parent, kentity child_handle) {
+static void recalculate_transforms (kscene *scene, base_entity *parent, kentity child_handle) {
 	KASSERT(child_handle != KENTITY_INVALID);
-	base_entity* child = get_entity_base(scene, child_handle);
+	base_entity *child = get_entity_base(scene, child_handle);
 	mat4 bvh_extents_transform = ktransform_world_get(child->transform); // child_world;
 
 	aabb box = aabb_from_mat4_extents(child->extents.min, child->extents.max, bvh_extents_transform);
@@ -686,14 +686,14 @@ static void recalculate_transforms(kscene* scene, base_entity* parent, kentity c
 
 #if KOHI_DEBUG
 // Recalculate transforms for debug datas.
-static void recalculate_debug_transforms(kscene* scene) {
+static void recalculate_debug_transforms (kscene *scene) {
 	// TODO: optimization - cache these and only change if the parent transform changes.
 	u16 count = scene->debug_datas ? darray_length(scene->debug_datas) : 0;
 	for (u16 i = 0; i < count; ++i) {
-		kscene_debug_data* data = &scene->debug_datas[i];
+		kscene_debug_data *data = &scene->debug_datas[i];
 
 		if (data->owner != KENTITY_INVALID) {
-			base_entity* owner_base = get_entity_base(scene, data->owner);
+			base_entity *owner_base = get_entity_base(scene, data->owner);
 			if (data->ignore_scale) {
 				// If ignoring scale (think point lights, audio emitters, etc.) then a new matrix
 				// must be composed containing only position and rotation updates.
@@ -713,7 +713,7 @@ static void recalculate_debug_transforms(kscene* scene) {
 }
 #endif
 
-b8 collision_shapes_intersect(const kcollision_shape* a, ktransform ta, const kcollision_shape* b, ktransform tb) {
+b8 collision_shapes_intersect (const kcollision_shape *a, ktransform ta, const kcollision_shape *b, ktransform tb) {
 	switch (a->shape_type) {
 	case KSHAPE_TYPE_SPHERE: {
 		vec3 pos_a = ktransform_world_position_get(ta);
@@ -768,10 +768,10 @@ b8 collision_shapes_intersect(const kcollision_shape* a, ktransform ta, const kc
 }
 
 // returns INVALID_ID_U32 if not found.
-u32 shape_state_indexof(const kscene* scene, kentity a, kentity b) {
+u32 shape_state_indexof (const kscene *scene, kentity a, kentity b) {
 	u32 len = darray_length(scene->col_shape_states);
 	for (u32 i = 0; i < len; ++i) {
-		collision_shape_state* s = &scene->col_shape_states[i];
+		collision_shape_state *s = &scene->col_shape_states[i];
 		if ((a == s->a && b == s->b) || (b == s->a && a == s->b)) {
 			return i;
 		}
@@ -780,11 +780,11 @@ u32 shape_state_indexof(const kscene* scene, kentity a, kentity b) {
 	return INVALID_ID_U32;
 }
 
-void shape_state_create(kscene* scene, kentity a, kentity b) {
+void shape_state_create (kscene *scene, kentity a, kentity b) {
 	if (shape_state_indexof(scene, a, b) == INVALID_ID_U32) {
 		u32 len = darray_length(scene->col_shape_states);
 		for (u32 i = 0; i < len; ++i) {
-			collision_shape_state* s = &scene->col_shape_states[i];
+			collision_shape_state *s = &scene->col_shape_states[i];
 			if (s->a == KENTITY_INVALID && s->b == KENTITY_INVALID) {
 				// Free entry, use it.
 				s->a = a;
@@ -798,7 +798,7 @@ void shape_state_create(kscene* scene, kentity a, kentity b) {
 	}
 }
 
-void shape_state_remove(kscene* scene, kentity a, kentity b) {
+void shape_state_remove (kscene *scene, kentity a, kentity b) {
 	u32 index = shape_state_indexof(scene, a, b);
 	if (index != INVALID_ID_U32) {
 		scene->col_shape_states[index].a = KENTITY_INVALID;
@@ -806,7 +806,7 @@ void shape_state_remove(kscene* scene, kentity a, kentity b) {
 	}
 }
 
-void kscene_on_window_resize(struct kscene* scene, const struct kwindow* window) {
+void kscene_on_window_resize (struct kscene *scene, const struct kwindow *window) {
 	if (!window->width || !window->height || !scene) {
 		return;
 	}
@@ -817,7 +817,7 @@ void kscene_on_window_resize(struct kscene* scene, const struct kwindow* window)
 	kcamera_set_vp_rect(scene->world_inv_camera, world_vp_rect);
 }
 
-b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
+b8 kscene_update (struct kscene *scene, struct frame_data *p_frame_data) {
 	if (scene) {
 		// If parsing is complete, then check if the state can be flipped to loaded.
 		if (scene->state == KSCENE_STATE_LOADING && scene->queued_initial_asset_loads < 1) {
@@ -849,7 +849,7 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 			// Sync audio emitter positions.
 			u16 audio_emitter_count = darray_length(scene->audio_emitters);
 			for (u16 i = 0; i < audio_emitter_count; ++i) {
-				audio_emitter_entity* audio_entity = &scene->audio_emitters[i];
+				audio_emitter_entity *audio_entity = &scene->audio_emitters[i];
 				mat4 world = ktransform_world_get(audio_entity->base.transform);
 				// Get world position for the audio emitter based on it's owning node's ktransform.
 				vec3 emitter_world_pos = mat4_position(world);
@@ -859,7 +859,7 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 			// Sync point light positions and other data.
 			u16 point_light_count = darray_length(scene->point_lights);
 			for (u16 i = 0; i < point_light_count; ++i) {
-				point_light_entity* light_entity = &scene->point_lights[i];
+				point_light_entity *light_entity = &scene->point_lights[i];
 
 				vec3 pos = ktransform_world_position_get(light_entity->base.transform);
 
@@ -871,12 +871,12 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 			// TODO: optimization: use the BVH to check these if the number of them gets high.
 			u16 hit_shape_count = darray_length(scene->hit_shapes);
 			for (u16 i = 0; i < hit_shape_count; ++i) {
-				hit_shape_entity* hit_entity = &scene->hit_shapes[i];
+				hit_shape_entity *hit_entity = &scene->hit_shapes[i];
 				kentity a = kentity_pack(hit_entity->base.type, (u16)i, 0, 0);
 
 				u16 vol_count = darray_length(scene->volumes);
 				for (u16 v = 0; v < vol_count; ++v) {
-					volume_entity* vol = &scene->volumes[v];
+					volume_entity *vol = &scene->volumes[v];
 
 					b8 has_collision = collision_shapes_intersect(
 						&hit_entity->shape, hit_entity->base.transform,
@@ -916,9 +916,9 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 
 			// Recalculate boxes for every BVH node
 			for (u16 i = 0; i < scene->bvh_tree.count; ++i) {
-				bvh_node* n = &scene->bvh_tree.nodes[i];
+				bvh_node *n = &scene->bvh_tree.nodes[i];
 				if (n->height >= 0) {
-					scene_bvh_debug_data* dd = &scene->bvh_debug_pool[i];
+					scene_bvh_debug_data *dd = &scene->bvh_debug_pool[i];
 					geometry_recalculate_line_box3d_by_extents(&dd->geo, n->aabb, dd->geo.center);
 					dd->model = mat4_identity();
 				}
@@ -929,11 +929,11 @@ b8 kscene_update(struct kscene* scene, struct frame_data* p_frame_data) {
 	return true;
 }
 
-b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u32 render_mode, kcamera current_camera) {
+b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, u32 render_mode, kcamera current_camera) {
 	if (scene && scene->state == KSCENE_STATE_LOADED) {
 
-		frame_allocator_int* frame_allocator = &p_frame_data->allocator;
-		kforward_renderer_render_data* render_data = p_frame_data->render_data;
+		frame_allocator_int *frame_allocator = &p_frame_data->allocator;
+		kforward_renderer_render_data *render_data = p_frame_data->render_data;
 
 		if (FLAG_GET(scene->flags, KSCENE_FLAG_RENDER_FOG_BIT)) {
 			render_data->forward_data.fog_colour = scene->fog_colour;
@@ -1021,7 +1021,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 
 			// Pass over shadow map "camera" view and projection matrices (one per cascade).
 			for (u32 c = 0; c < render_data->shadow_data.cascade_count; c++) {
-				kshadow_pass_cascade_render_data* cascade = &render_data->shadow_data.cascades[c];
+				kshadow_pass_cascade_render_data *cascade = &render_data->shadow_data.cascades[c];
 
 				vec4 corners[8];
 				kcopy_memory(corners, global_corners, sizeof(corners));
@@ -1102,7 +1102,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			//
 			// Meshes with opaque materials first.
 			u16 opaque_material_count = 0;
-			kmaterial_render_data* opaque_material_render_data = kscene_get_static_model_render_data(
+			kmaterial_render_data *opaque_material_render_data = kscene_get_static_model_render_data(
 				scene,
 				p_frame_data,
 				0, // FIXME: frustum culling disabled for now.
@@ -1110,7 +1110,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 				&opaque_material_count);
 
 			u16 animated_opaque_material_count = 0;
-			kmaterial_render_data* animated_opaque_material_render_data = kscene_get_animated_model_render_data(
+			kmaterial_render_data *animated_opaque_material_render_data = kscene_get_animated_model_render_data(
 				scene,
 				p_frame_data,
 				0, // FIXME: frustum culling disabled for now.
@@ -1152,7 +1152,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			// FIXME: animated and static model data should be combined into a single call from the scene since the
 			// shaders are no longer separate. When this is done, this code won't be required.
 			u16 animated_transparent_count = 0;
-			kmaterial_render_data* animated_transparent_geometries_by_material = kscene_get_animated_model_render_data(
+			kmaterial_render_data *animated_transparent_geometries_by_material = kscene_get_animated_model_render_data(
 				scene,
 				p_frame_data,
 				0, // FIXME: frustum culling disabled for now.
@@ -1168,7 +1168,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			{
 				// Meshes with opaque materials first.
 				u16 animated_opaque_material_count = 0;
-				kmaterial_render_data* animated_opaque_material_render_data = kscene_get_animated_model_render_data(
+				kmaterial_render_data *animated_opaque_material_render_data = kscene_get_animated_model_render_data(
 					scene,
 					p_frame_data,
 					0, // FIXME: frustum culling disabled for now.
@@ -1330,7 +1330,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 				KSCENE_RENDER_DATA_FLAG_NONE);
 
 			// Obtain the water plane render datas and setup pass data for each.
-			kwater_plane_render_data* water_planes = kscene_get_water_plane_render_data(
+			kwater_plane_render_data *water_planes = kscene_get_water_plane_render_data(
 				scene,
 				p_frame_data,
 				0, // FIXME: frustum culling disabled for now.
@@ -1340,7 +1340,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			if (render_data->forward_data.water_plane_count) {
 				render_data->forward_data.water_planes = frame_allocator->allocate(sizeof(kforward_pass_water_plane_render_data) * render_data->forward_data.water_plane_count);
 				for (u32 w = 0; w < render_data->forward_data.water_plane_count; ++w) {
-					kforward_pass_water_plane_render_data* wp_data = &render_data->forward_data.water_planes[w];
+					kforward_pass_water_plane_render_data *wp_data = &render_data->forward_data.water_planes[w];
 
 					// Take a copy of the water plane's render data.
 					wp_data->plane_render_data = water_planes[w];
@@ -1434,7 +1434,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 					}
 				}
 			} // end water planes
-		} // end forward pass
+		}	  // end forward pass
 
 #if KOHI_DEBUG
 
@@ -1458,7 +1458,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 			}
 
 			// Add grid geometry.
-			kgeometry* gg = &scene->grid.geometry;
+			kgeometry *gg = &scene->grid.geometry;
 			render_data->world_debug_data.draw_grid = FLAG_GET(scene->flags, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT);
 			render_data->world_debug_data.grid_geometry = (kdebug_geometry_render_data){
 				.geo = {
@@ -1512,7 +1512,7 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 		}
 
 		// Update BVH debug line data.
-		struct renderer_system_state* renderer = engine_systems_get()->renderer_system;
+		struct renderer_system_state *renderer = engine_systems_get()->renderer_system;
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 		// Re-upload all the geometry in one shot.
 		u64 offset = scene->bvh_debug_pool[0].geo.vertex_buffer_offset;
@@ -1526,60 +1526,60 @@ b8 kscene_frame_prepare(struct kscene* scene, struct frame_data* p_frame_data, u
 	return true;
 }
 
-kscene_state kscene_state_get(const struct kscene* scene) {
+kscene_state kscene_state_get (const struct kscene *scene) {
 	KASSERT_DEBUG(scene);
 	return scene->state;
 }
 
-kscene_flags kscene_get_flags(const struct kscene* scene) {
+kscene_flags kscene_get_flags (const struct kscene *scene) {
 	return scene->flags;
 }
-b8 kscene_get_flag(const struct kscene* scene, kscene_flag_bits flag) {
+b8 kscene_get_flag (const struct kscene *scene, kscene_flag_bits flag) {
 	return FLAG_GET(scene->flags, (u32)flag);
 }
-void kscene_set_flags(struct kscene* scene, kscene_flags flags) {
+void kscene_set_flags (struct kscene *scene, kscene_flags flags) {
 	scene->flags = flags;
 }
-void kscene_set_flag(struct kscene* scene, kscene_flags flag, b8 enabled) {
+void kscene_set_flag (struct kscene *scene, kscene_flags flag, b8 enabled) {
 	FLAG_SET(scene->flags, flag, enabled);
 }
 
-const char* kscene_get_name(const struct kscene* scene) {
+const char *kscene_get_name (const struct kscene *scene) {
 	return scene->name;
 }
-void kscene_set_name(struct kscene* scene, const char* name) {
+void kscene_set_name (struct kscene *scene, const char *name) {
 	if (scene->name) {
 		string_free(scene->name);
 	}
 	scene->name = string_duplicate(name);
 }
 
-colour4 kscene_get_fog_colour(const struct kscene* scene) {
+colour4 kscene_get_fog_colour (const struct kscene *scene) {
 	return scene->fog_colour;
 }
-void kscene_set_fog_colour(struct kscene* scene, colour4 colour) {
+void kscene_set_fog_colour (struct kscene *scene, colour4 colour) {
 	scene->fog_colour = colour;
 }
-f32 kscene_get_fog_near(const struct kscene* scene) {
+f32 kscene_get_fog_near (const struct kscene *scene) {
 	return scene->fog_near;
 }
-void kscene_set_fog_near(struct kscene* scene, f32 near) {
+void kscene_set_fog_near (struct kscene *scene, f32 near) {
 	scene->fog_near = near;
 }
-f32 kscene_get_fog_far(const struct kscene* scene) {
+f32 kscene_get_fog_far (const struct kscene *scene) {
 	return scene->fog_far;
 }
-void kscene_set_fog_far(struct kscene* scene, f32 far) {
+void kscene_set_fog_far (struct kscene *scene, f32 far) {
 	scene->fog_far = far;
 }
 
-void kscene_get_shadow_properties(
-	struct kscene* scene,
+void kscene_get_shadow_properties (
+	struct kscene *scene,
 	kcamera current_camera,
-	f32* out_shadow_dist,
-	f32* out_shadow_fade_distance,
-	f32* out_shadow_split_mult,
-	f32* out_shadow_bias) {
+	f32 *out_shadow_dist,
+	f32 *out_shadow_fade_distance,
+	f32 *out_shadow_split_mult,
+	f32 *out_shadow_bias) {
 
 	f32 far_clip = kcamera_get_far_clip(current_camera);
 	// Ensure the shadow map isn't including things the camera can't see.
@@ -1590,7 +1590,7 @@ void kscene_get_shadow_properties(
 	*out_shadow_bias = scene->shadow_bias;
 }
 
-static b8 raycast_hits_sphere(const char* type_str, ktransform transform, f32 radius, const ray* r, raycast_hit* out_hit) {
+static b8 raycast_hits_sphere (const char *type_str, ktransform transform, f32 radius, const ray *r, raycast_hit *out_hit) {
 
 	vec3 pos = ktransform_world_position_get(transform);
 
@@ -1614,14 +1614,14 @@ static b8 raycast_hits_sphere(const char* type_str, ktransform transform, f32 ra
 	}
 }
 
-static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f32 max, f32 dist, vec3 pos, void* context, raycast_hit* out_hit) {
-	kscene* scene = (kscene*)context;
+static b8 on_raycast_hit (bvh_userdata user, bvh_id id, const ray *r, f32 min, f32 max, f32 dist, vec3 pos, void *context, raycast_hit *out_hit) {
+	kscene *scene = (kscene *)context;
 
 	kentity entity = (kentity)user;
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	kentity_type type = base->type;
 
-	const char* name = kname_string_get(base->name);
+	const char *name = kname_string_get(base->name);
 
 	mat4 world = ktransform_world_get(base->transform);
 	u16 type_index = kentity_unpack_type_index(entity);
@@ -1629,7 +1629,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 	// Does it count as a hit?
 	switch (type) {
 	case KENTITY_TYPE_MODEL: {
-		model_entity* typed = &scene->models[type_index];
+		model_entity *typed = &scene->models[type_index];
 
 		// Within the model, check to see if the raycast hits it as well.
 		if (kmodel_ray_intersects(engine_systems_get()->model_system, typed->model, r, world, out_hit)) {
@@ -1650,8 +1650,8 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 
 		mat4 world_inv = mat4_inverse(world);
 
-		water_plane_entity* typed_entity = &scene->water_planes[type_index];
-		kgeometry* g = &typed_entity->geo;
+		water_plane_entity *typed_entity = &scene->water_planes[type_index];
+		kgeometry *g = &typed_entity->geo;
 
 		triangle picked;
 		vec3 pos;
@@ -1678,12 +1678,12 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 		}
 	} break;
 	case KENTITY_TYPE_AUDIO_EMITTER: {
-		audio_emitter_entity* typed_entity = &scene->audio_emitters[type_index];
+		audio_emitter_entity *typed_entity = &scene->audio_emitters[type_index];
 
 		return raycast_hits_sphere("audio emitter", base->transform, typed_entity->outer_radius, r, out_hit);
 	} break;
 	case KENTITY_TYPE_VOLUME: {
-		volume_entity* typed_entity = &scene->volumes[type_index];
+		volume_entity *typed_entity = &scene->volumes[type_index];
 
 		if (typed_entity->shape.shape_type == KSHAPE_TYPE_SPHERE) {
 			return raycast_hits_sphere("volume", base->transform, typed_entity->shape.radius, r, out_hit);
@@ -1694,7 +1694,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 
 	} break;
 	case KENTITY_TYPE_HIT_SHAPE: {
-		hit_shape_entity* typed_entity = &scene->hit_shapes[type_index];
+		hit_shape_entity *typed_entity = &scene->hit_shapes[type_index];
 
 		if (typed_entity->shape.shape_type == KSHAPE_TYPE_SPHERE) {
 			return raycast_hits_sphere("hit shape", base->transform, typed_entity->shape.radius, r, out_hit);
@@ -1705,13 +1705,13 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 
 	} break;
 	case KENTITY_TYPE_POINT_LIGHT: {
-		point_light_entity* typed_entity = &scene->point_lights[type_index];
+		point_light_entity *typed_entity = &scene->point_lights[type_index];
 
 		f32 radius = point_light_radius_get(engine_systems_get()->light_system, typed_entity->handle);
 		return raycast_hits_sphere("point light", base->transform, radius, r, out_hit);
 	} break;
 	case KENTITY_TYPE_SPAWN_POINT: {
-		spawn_point_entity* typed_entity = &scene->spawn_points[type_index];
+		spawn_point_entity *typed_entity = &scene->spawn_points[type_index];
 
 		return raycast_hits_sphere("spawn point", base->transform, typed_entity->radius, r, out_hit);
 	} break;
@@ -1730,7 +1730,7 @@ static b8 on_raycast_hit(bvh_userdata user, bvh_id id, const ray* r, f32 min, f3
 	return true;
 }
 
-b8 kscene_raycast(struct kscene* scene, const ray* r, struct raycast_result* out_result) {
+b8 kscene_raycast (struct kscene *scene, const ray *r, struct raycast_result *out_result) {
 
 	if (scene && out_result) {
 		*out_result = bvh_raycast(&scene->bvh_tree, r, on_raycast_hit, scene);
@@ -1739,7 +1739,7 @@ b8 kscene_raycast(struct kscene* scene, const ray* r, struct raycast_result* out
 	return false;
 }
 
-b8 kscene_hf_terrain_raycast(struct kscene* scene, const ray* r, b8 use_editor_aabb, hf_block* out_block, hf_chunk* out_chunk, vec3* out_pos, vec3* out_normal) {
+b8 kscene_hf_terrain_raycast (struct kscene *scene, const ray *r, b8 use_editor_aabb, hf_block *out_block, hf_chunk *out_chunk, vec3 *out_pos, vec3 *out_normal) {
 	// FIXME: brute forcing this for now, will handle better in the future.
 
 	if (!scene || !scene->hf.blocks) {
@@ -1748,7 +1748,7 @@ b8 kscene_hf_terrain_raycast(struct kscene* scene, const ray* r, b8 use_editor_a
 
 	u32 block_count = scene->hf.block_count_z * scene->hf.block_count_x;
 	for (u32 b = 0; b < block_count; ++b) {
-		hf_block* block = &scene->hf.blocks[b];
+		hf_block *block = &scene->hf.blocks[b];
 
 		f32 tmin = 0.0f;
 		f32 tmaxi = r->max_distance;
@@ -1756,7 +1756,7 @@ b8 kscene_hf_terrain_raycast(struct kscene* scene, const ray* r, b8 use_editor_a
 		if (block_hit) {
 			// Iterate the chunks and check for a aabb hit there.
 			for (u32 c = 0; c < HF_BLOCK_CHUNK_COUNT; ++c) {
-				hf_chunk* chunk = &block->chunks[c];
+				hf_chunk *chunk = &block->chunks[c];
 				tmin = 0.0f;
 				tmaxi = r->max_distance;
 				b8 chunk_hit = ray_intersects_aabb(use_editor_aabb ? chunk->editor_aabb : chunk->aabb, r->origin, r->direction, r->max_distance, &tmin, &tmaxi);
@@ -1784,76 +1784,76 @@ b8 kscene_hf_terrain_raycast(struct kscene* scene, const ray* r, b8 use_editor_a
 	return false;
 }
 
-hf_terrain* kscene_hf_terrain_get(struct kscene* scene) {
+hf_terrain *kscene_hf_terrain_get (struct kscene *scene) {
 	return &scene->hf;
 }
 
-b8 kscene_hf_terrain_get_height_at(struct kscene* scene, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal) {
+b8 kscene_hf_terrain_get_height_at (struct kscene *scene, f32 world_x, f32 world_z, vec3 *out_pos, vec3 *out_normal) {
 	return hf_terrain_get_height_at(&scene->hf, world_x, world_z, out_pos, out_normal);
 }
 
-kentity kscene_get_entity_by_name(struct kscene* scene, kname name) {
-	const bt_node* node = u64_bst_find(scene->name_lookup, name);
+kentity kscene_get_entity_by_name (struct kscene *scene, kname name) {
+	const bt_node *node = u64_bst_find(scene->name_lookup, name);
 	if (node) {
 		return (kentity)node->value.u64;
 	}
 	return KENTITY_INVALID;
 }
 
-kentity_flags kscene_get_entity_flags(struct kscene* scene, kentity entity) {
-	base_entity* base = get_entity_base(scene, entity);
+kentity_flags kscene_get_entity_flags (struct kscene *scene, kentity entity) {
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return base->flags;
 	}
 	return KENTITY_FLAG_NONE;
 }
-void kscene_set_entity_flags(struct kscene* scene, kentity entity, kentity_flags flags) {
-	base_entity* base = get_entity_base(scene, entity);
+void kscene_set_entity_flags (struct kscene *scene, kentity entity, kentity_flags flags) {
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		base->flags = flags;
 	}
 }
-void kscene_set_entity_flag(struct kscene* scene, kentity entity, kentity_flag_bits flag, b8 enabled) {
-	base_entity* base = get_entity_base(scene, entity);
+void kscene_set_entity_flag (struct kscene *scene, kentity entity, kentity_flag_bits flag, b8 enabled) {
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		FLAG_SET(base->flags, flag, enabled);
 	}
 }
 
-kname kscene_get_entity_name(struct kscene* scene, kentity entity) {
-	base_entity* base = get_entity_base(scene, entity);
+kname kscene_get_entity_name (struct kscene *scene, kentity entity) {
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return base->name;
 	}
 	return INVALID_KNAME;
 }
 
-void kscene_set_entity_name(struct kscene* scene, kentity entity, kname name) {
-	base_entity* base = get_entity_base(scene, entity);
+void kscene_set_entity_name (struct kscene *scene, kentity entity, kname name) {
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		kname old_name = base->name;
 		base->name = name;
 
 		u64_bst_delete(scene->name_lookup, old_name);
 		bt_node_value val = {.u64 = entity};
-		bt_node* new_node = u64_bst_insert(scene->name_lookup, name, val);
+		bt_node *new_node = u64_bst_insert(scene->name_lookup, name, val);
 		if (!scene->name_lookup) {
 			scene->name_lookup = new_node;
 		}
 	}
 }
 
-kentity_type kscene_get_entity_type(struct kscene* scene, kentity entity) {
+kentity_type kscene_get_entity_type (struct kscene *scene, kentity entity) {
 	return kentity_unpack_type(entity);
 }
 
-kentity* kscene_get_entity_children(struct kscene* scene, kentity entity, u16* out_count) {
+kentity *kscene_get_entity_children (struct kscene *scene, kentity entity, u16 *out_count) {
 	if (!scene || !out_count || entity == KENTITY_INVALID) {
 		*out_count = 0;
 		return 0;
 	}
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		*out_count = (u16)darray_length(base->children);
 		return base->children;
@@ -1863,12 +1863,12 @@ kentity* kscene_get_entity_children(struct kscene* scene, kentity entity, u16* o
 	return 0;
 }
 
-kentity kscene_get_entity_parent(struct kscene* scene, kentity entity) {
+kentity kscene_get_entity_parent (struct kscene *scene, kentity entity) {
 	if (!scene || entity == KENTITY_INVALID) {
 		return KENTITY_INVALID;
 	}
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return base->parent;
 	}
@@ -1876,8 +1876,8 @@ kentity kscene_get_entity_parent(struct kscene* scene, kentity entity) {
 	return KENTITY_INVALID;
 }
 
-ktransform kscene_get_entity_transform(struct kscene* scene, kentity entity) {
-	base_entity* base = get_entity_base(scene, entity);
+ktransform kscene_get_entity_transform (struct kscene *scene, kentity entity) {
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return base->transform;
 	}
@@ -1885,18 +1885,18 @@ ktransform kscene_get_entity_transform(struct kscene* scene, kentity entity) {
 	return KTRANSFORM_INVALID;
 }
 
-extents_3d kscene_get_aabb(struct kscene* scene, kentity entity) {
+extents_3d kscene_get_aabb (struct kscene *scene, kentity entity) {
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	mat4 bvh_extents_transform = ktransform_world_get(base->transform); // child_world;
 
 	return aabb_from_mat4(extents_3d_half(base->extents), bvh_extents_transform);
 }
 
-vec3 kscene_get_entity_position(struct kscene* scene, kentity entity) {
+vec3 kscene_get_entity_position (struct kscene *scene, kentity entity) {
 	KASSERT(scene);
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return ktransform_position_get(base->transform);
 	}
@@ -1904,19 +1904,19 @@ vec3 kscene_get_entity_position(struct kscene* scene, kentity entity) {
 	KWARN("Returning default position of zero");
 	return vec3_zero();
 }
-void kscene_set_entity_position(struct kscene* scene, kentity entity, vec3 position) {
+void kscene_set_entity_position (struct kscene *scene, kentity entity, vec3 position) {
 	KASSERT(scene);
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		ktransform_position_set(base->transform, position);
 	}
 }
 
-quat kscene_get_entity_rotation(struct kscene* scene, kentity entity) {
+quat kscene_get_entity_rotation (struct kscene *scene, kentity entity) {
 	KASSERT(scene);
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return ktransform_rotation_get(base->transform);
 	}
@@ -1924,19 +1924,19 @@ quat kscene_get_entity_rotation(struct kscene* scene, kentity entity) {
 	KWARN("Returning default rotation of quat identity");
 	return quat_identity();
 }
-void kscene_set_entity_rotation(struct kscene* scene, kentity entity, quat rotation) {
+void kscene_set_entity_rotation (struct kscene *scene, kentity entity, quat rotation) {
 	KASSERT(scene);
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		ktransform_rotation_set(base->transform, rotation);
 	}
 }
 
-vec3 kscene_get_entity_scale(struct kscene* scene, kentity entity) {
+vec3 kscene_get_entity_scale (struct kscene *scene, kentity entity) {
 	KASSERT(scene);
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		return ktransform_scale_get(base->transform);
 	}
@@ -1944,16 +1944,16 @@ vec3 kscene_get_entity_scale(struct kscene* scene, kentity entity) {
 	KWARN("Returning default scale of one");
 	return vec3_one();
 }
-void kscene_set_entity_scale(struct kscene* scene, kentity entity, vec3 scale) {
+void kscene_set_entity_scale (struct kscene *scene, kentity entity, vec3 scale) {
 	KASSERT(scene);
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 	if (base) {
 		ktransform_scale_set(base->transform, scale);
 	}
 }
 
-void kscene_remove_entity(struct kscene* scene, kentity* entity) {
+void kscene_remove_entity (struct kscene *scene, kentity *entity) {
 	KASSERT_DEBUG(scene);
 
 	if (*entity != KENTITY_INVALID) {
@@ -2013,9 +2013,9 @@ void kscene_remove_entity(struct kscene* scene, kentity* entity) {
 	}
 }
 
-static void entity_add_child(kscene* scene, kentity parent, kentity child) {
-	base_entity* parent_base = get_entity_base(scene, parent);
-	base_entity* child_base = get_entity_base(scene, child);
+static void entity_add_child (kscene *scene, kentity parent, kentity child) {
+	base_entity *parent_base = get_entity_base(scene, parent);
+	base_entity *child_base = get_entity_base(scene, child);
 	if (parent_base) {
 		if (!parent_base->children) {
 			parent_base->children = darray_create(kentity);
@@ -2033,7 +2033,7 @@ static void entity_add_child(kscene* scene, kentity parent, kentity child) {
 	}
 }
 
-kentity kscene_add_entity(struct kscene* scene, kname name, ktransform transform, kentity parent) {
+kentity kscene_add_entity (struct kscene *scene, kname name, ktransform transform, kentity parent) {
 	KASSERT_DEBUG(scene);
 
 	// Get an typed entity index
@@ -2050,7 +2050,7 @@ kentity kscene_add_entity(struct kscene* scene, kname name, ktransform transform
 		darray_push(scene->bases, (base_entity){0});
 	}
 
-	base_entity* new_ent = &scene->bases[entity_index];
+	base_entity *new_ent = &scene->bases[entity_index];
 
 	kentity entity = init_base_entity(scene, new_ent, entity_index, name, KENTITY_TYPE_NONE, transform, parent);
 
@@ -2060,13 +2060,13 @@ kentity kscene_add_entity(struct kscene* scene, kname name, ktransform transform
 	return entity;
 }
 
-static void base_entity_destroy(kscene* scene, base_entity* base, kentity entity_handle) {
+static void base_entity_destroy (kscene *scene, base_entity *base, kentity entity_handle) {
 	// Don't bother with hierarchy if no valid entity handle is passed, since that means the entire
 	// scene is being cleaned up.
 	if (entity_handle != KENTITY_INVALID) {
 		// Remove as a child from parent (if there is one) and reparent children of this node.
 		kentity parent = base->parent;
-		base_entity* parent_base = KNULL;
+		base_entity *parent_base = KNULL;
 		if (parent != KENTITY_INVALID) {
 			parent_base = get_entity_base(scene, parent);
 			if (parent_base->children) {
@@ -2095,7 +2095,7 @@ static void base_entity_destroy(kscene* scene, base_entity* base, kentity entity
 		for (u16 i = 0; i < child_count; ++i) {
 			// Reassign its parent.
 			kentity child_entity = base->children[i];
-			base_entity* child = get_entity_base(scene, child_entity);
+			base_entity *child = get_entity_base(scene, child_entity);
 			child->parent = parent;
 			if (parent_base) {
 				// Add to parent's child list.
@@ -2140,19 +2140,19 @@ static void base_entity_destroy(kscene* scene, base_entity* base, kentity entity
 	FLAG_SET(base->flags, KENTITY_FLAG_FREE_BIT, true);
 }
 
-kentity kscene_add_model_pos_rot_scale(struct kscene* scene, kname name, kentity parent, kname asset_name, kname package_name, vec3 pos, quat rot, vec3 scale) {
+kentity kscene_add_model_pos_rot_scale (struct kscene *scene, kname name, kentity parent, kname asset_name, kname package_name, vec3 pos, quat rot, vec3 scale) {
 	ktransform transform = ktransform_from_position_rotation_scale(pos, rot, scale, KENTITY_INVALID);
 	return kscene_add_model(scene, name, transform, parent, asset_name, package_name, 0, 0);
 }
 
 typedef struct kscene_model_load_context {
-	kscene* scene;
+	kscene *scene;
 	kentity entity;
 	PFN_model_loaded on_loaded_callback;
-	void* model_loaded_context;
+	void *model_loaded_context;
 } kscene_model_load_context;
 
-kentity kscene_add_model(struct kscene* scene, kname name, ktransform transform, kentity parent, kname asset_name, kname package_name, PFN_model_loaded on_loaded_callback, void* load_context) {
+kentity kscene_add_model (struct kscene *scene, kname name, ktransform transform, kentity parent, kname asset_name, kname package_name, PFN_model_loaded on_loaded_callback, void *load_context) {
 	KASSERT_DEBUG(scene);
 
 	if (asset_name == INVALID_KNAME) {
@@ -2175,7 +2175,7 @@ kentity kscene_add_model(struct kscene* scene, kname name, ktransform transform,
 		darray_push(scene->models, (model_entity){0});
 	}
 
-	model_entity* new_ent = &scene->models[entity_index];
+	model_entity *new_ent = &scene->models[entity_index];
 
 	kentity entity = init_base_entity(scene, &new_ent->base, entity_index, name, KENTITY_TYPE_MODEL, transform, parent);
 
@@ -2186,13 +2186,13 @@ kentity kscene_add_model(struct kscene* scene, kname name, ktransform transform,
 	new_ent->package_name = package_name;
 	new_ent->asset_name = asset_name;
 
-	kscene_model_load_context* context = kallocate(sizeof(kscene_model_load_context), MEMORY_TAG_SCENE);
+	kscene_model_load_context *context = kallocate(sizeof(kscene_model_load_context), MEMORY_TAG_SCENE);
 	context->entity = entity;
 	context->scene = scene;
 	context->on_loaded_callback = on_loaded_callback;
 	context->model_loaded_context = load_context;
 
-	kmodel_system_state* model_state = engine_systems_get()->model_system;
+	kmodel_system_state *model_state = engine_systems_get()->model_system;
 
 	// Kick off async asset load
 	if (package_name == INVALID_KNAME) {
@@ -2204,7 +2204,7 @@ kentity kscene_add_model(struct kscene* scene, kname name, ktransform transform,
 	return entity;
 }
 
-static void model_entity_destroy(kscene* scene, model_entity* typed_entity, kentity entity_handle) {
+static void model_entity_destroy (kscene *scene, model_entity *typed_entity, kentity entity_handle) {
 
 	// Unmap from internal material->geometry maps. Also frees geometry references.
 	// Don't bother if cleaning up the entire scene, though.
@@ -2212,7 +2212,7 @@ static void model_entity_destroy(kscene* scene, model_entity* typed_entity, kent
 		unmap_model_entity_geometries(scene, entity_handle);
 	}
 
-	kmodel_system_state* model_state = engine_systems_get()->model_system;
+	kmodel_system_state *model_state = engine_systems_get()->model_system;
 	// Release the model instance from the entity, which also releases held material instances.
 	kmodel_instance_release(model_state, &typed_entity->model);
 
@@ -2222,7 +2222,7 @@ static void model_entity_destroy(kscene* scene, model_entity* typed_entity, kent
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kentity kscene_add_point_light(struct kscene* scene, kname name, ktransform transform, kentity parent, vec3 colour, f32 linear, f32 quadratic) {
+kentity kscene_add_point_light (struct kscene *scene, kname name, ktransform transform, kentity parent, vec3 colour, f32 linear, f32 quadratic) {
 	KASSERT_DEBUG(scene);
 
 	// Get an typed entity index
@@ -2239,7 +2239,7 @@ kentity kscene_add_point_light(struct kscene* scene, kname name, ktransform tran
 		darray_push(scene->point_lights, (point_light_entity){0});
 	}
 
-	point_light_entity* new_ent = &scene->point_lights[entity_index];
+	point_light_entity *new_ent = &scene->point_lights[entity_index];
 
 	kentity entity = init_base_entity(scene, &new_ent->base, entity_index, name, KENTITY_TYPE_POINT_LIGHT, transform, parent);
 	vec3 pos = ktransform_world_position_get(new_ent->base.transform);
@@ -2266,7 +2266,7 @@ kentity kscene_add_point_light(struct kscene* scene, kname name, ktransform tran
 	return entity;
 }
 
-static void point_light_entity_destroy(kscene* scene, point_light_entity* typed_entity, kentity entity_handle) {
+static void point_light_entity_destroy (kscene *scene, point_light_entity *typed_entity, kentity entity_handle) {
 	light_destroy(engine_systems_get()->light_system, typed_entity->handle);
 
 	typed_entity->linear = 0;
@@ -2276,7 +2276,7 @@ static void point_light_entity_destroy(kscene* scene, point_light_entity* typed_
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kentity kscene_add_spawn_point(struct kscene* scene, kname name, ktransform transform, kentity parent, f32 radius) {
+kentity kscene_add_spawn_point (struct kscene *scene, kname name, ktransform transform, kentity parent, f32 radius) {
 	KASSERT_DEBUG(scene);
 
 	// Get an typed entity index
@@ -2294,7 +2294,7 @@ kentity kscene_add_spawn_point(struct kscene* scene, kname name, ktransform tran
 	}
 
 	radius = radius ? radius : 1.0f;
-	spawn_point_entity* new_ent = &scene->spawn_points[entity_index];
+	spawn_point_entity *new_ent = &scene->spawn_points[entity_index];
 
 	extents_3d ex = extents_3d_from_scalar(radius);
 	kentity entity = init_base_entity_with_extents(scene, &new_ent->base, entity_index, name, KENTITY_TYPE_SPAWN_POINT, transform, parent, ex);
@@ -2306,24 +2306,24 @@ kentity kscene_add_spawn_point(struct kscene* scene, kname name, ktransform tran
 	return entity;
 }
 
-static void spawn_point_entity_destroy(kscene* scene, spawn_point_entity* typed_entity, kentity entity_handle) {
+static void spawn_point_entity_destroy (kscene *scene, spawn_point_entity *typed_entity, kentity entity_handle) {
 	// NOTE: Nothing here needing destruction aside from the base.
 
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kentity kscene_add_volume(
-	struct kscene* scene,
+kentity kscene_add_volume (
+	struct kscene *scene,
 	kname name,
 	ktransform transform,
 	kentity parent,
 	kscene_volume_type type,
 	kcollision_shape shape,
 	u8 hit_shape_tag_count,
-	kstring_id* hit_shape_tags,
-	const char* on_enter_command,
-	const char* on_leave_command,
-	const char* on_tick_command) {
+	kstring_id *hit_shape_tags,
+	const char *on_enter_command,
+	const char *on_leave_command,
+	const char *on_tick_command) {
 
 	// Get an typed entity index
 	u16 volume_count = darray_length(scene->volumes);
@@ -2339,7 +2339,7 @@ kentity kscene_add_volume(
 		darray_push(scene->volumes, (volume_entity){0});
 	}
 
-	volume_entity* new_ent = &scene->volumes[entity_index];
+	volume_entity *new_ent = &scene->volumes[entity_index];
 
 	extents_3d ex;
 	switch (shape.shape_type) {
@@ -2374,7 +2374,7 @@ kentity kscene_add_volume(
 	return entity;
 }
 
-static void volume_entity_destroy(kscene* scene, volume_entity* typed_entity, kentity entity_handle) {
+static void volume_entity_destroy (kscene *scene, volume_entity *typed_entity, kentity entity_handle) {
 	string_free(typed_entity->on_enter_command);
 	typed_entity->on_enter_command = KNULL;
 	string_free(typed_entity->on_leave_command);
@@ -2392,14 +2392,14 @@ static void volume_entity_destroy(kscene* scene, volume_entity* typed_entity, ke
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kentity kscene_add_hit_shape(
-	struct kscene* scene,
+kentity kscene_add_hit_shape (
+	struct kscene *scene,
 	kname name,
 	ktransform transform,
 	kentity parent,
 	kcollision_shape shape,
 	u8 tag_count,
-	kstring_id* tags) {
+	kstring_id *tags) {
 
 	// Get an typed entity index
 	u16 hit_shape_count = darray_length(scene->hit_shapes);
@@ -2415,7 +2415,7 @@ kentity kscene_add_hit_shape(
 		darray_push(scene->hit_shapes, (hit_shape_entity){0});
 	}
 
-	hit_shape_entity* new_ent = &scene->hit_shapes[entity_index];
+	hit_shape_entity *new_ent = &scene->hit_shapes[entity_index];
 
 	kentity entity = init_base_entity(scene, &new_ent->base, entity_index, name, KENTITY_TYPE_HIT_SHAPE, transform, parent);
 
@@ -2428,13 +2428,13 @@ kentity kscene_add_hit_shape(
 	return entity;
 }
 
-static void hit_shape_entity_destroy(kscene* scene, hit_shape_entity* typed_entity, kentity entity_handle) {
+static void hit_shape_entity_destroy (kscene *scene, hit_shape_entity *typed_entity, kentity entity_handle) {
 	// NOTE: Nothing here needing destruction aside from the base.
 
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kentity kscene_add_water_plane(struct kscene* scene, kname name, ktransform transform, kentity parent, f32 size) {
+kentity kscene_add_water_plane (struct kscene *scene, kname name, ktransform transform, kentity parent, f32 size) {
 
 	// Get an typed entity index
 	u16 water_plane_count = darray_length(scene->water_planes);
@@ -2450,7 +2450,7 @@ kentity kscene_add_water_plane(struct kscene* scene, kname name, ktransform tran
 		darray_push(scene->water_planes, (water_plane_entity){0});
 	}
 
-	water_plane_entity* new_ent = &scene->water_planes[entity_index];
+	water_plane_entity *new_ent = &scene->water_planes[entity_index];
 	new_ent->size = size;
 
 	kentity entity = init_base_entity(scene, &new_ent->base, entity_index, name, KENTITY_TYPE_WATER_PLANE, transform, parent);
@@ -2517,7 +2517,7 @@ kentity kscene_add_water_plane(struct kscene* scene, kname name, ktransform tran
 			darray_push(scene->model_geometry_extents, (extents_3d){0});
 		}
 	}
-	kgeometry_data* new_geo = &scene->model_geometry_datas[geometry_array_index];
+	kgeometry_data *new_geo = &scene->model_geometry_datas[geometry_array_index];
 
 	// Get water material.
 	// FIXME: Make this configurable.
@@ -2538,16 +2538,16 @@ kentity kscene_add_water_plane(struct kscene* scene, kname name, ktransform tran
 	new_ent->ref.geometry_index = geometry_array_index;
 	new_ent->base_material = mat_inst.base_material;
 
-	extents_3d* new_extents = &scene->model_geometry_extents[geometry_array_index];
+	extents_3d *new_extents = &scene->model_geometry_extents[geometry_array_index];
 	new_extents->min = (vec3){-size, 0, -size};
 	new_extents->max = (vec3){size, 0, size};
 
 	return entity;
 }
 
-static void water_plane_entity_destroy(kscene* scene, water_plane_entity* typed_entity, kentity entity_handle) {
-	kgeometry_data* geo_data = &scene->model_geometry_datas[typed_entity->ref.geometry_index];
-	extents_3d* extents = &scene->model_geometry_extents[typed_entity->ref.geometry_index];
+static void water_plane_entity_destroy (kscene *scene, water_plane_entity *typed_entity, kentity entity_handle) {
+	kgeometry_data *geo_data = &scene->model_geometry_datas[typed_entity->ref.geometry_index];
+	extents_3d *extents = &scene->model_geometry_extents[typed_entity->ref.geometry_index];
 
 	// Release the material
 	kmaterial_instance mat_inst = {
@@ -2567,8 +2567,8 @@ static void water_plane_entity_destroy(kscene* scene, water_plane_entity* typed_
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kentity kscene_add_audio_emitter(
-	struct kscene* scene,
+kentity kscene_add_audio_emitter (
+	struct kscene *scene,
 	kname name,
 	ktransform transform,
 	kentity parent,
@@ -2595,7 +2595,7 @@ kentity kscene_add_audio_emitter(
 		darray_push(scene->audio_emitters, (audio_emitter_entity){0});
 	}
 
-	audio_emitter_entity* new_ent = &scene->audio_emitters[entity_index];
+	audio_emitter_entity *new_ent = &scene->audio_emitters[entity_index];
 	new_ent->asset_name = asset_name;
 	new_ent->package_name = package_name;
 	new_ent->inner_radius = inner_radius;
@@ -2639,24 +2639,24 @@ kentity kscene_add_audio_emitter(
 	return entity;
 }
 
-static void audio_emitter_entity_destroy(kscene* scene, audio_emitter_entity* typed_entity, kentity entity_handle) {
+static void audio_emitter_entity_destroy (kscene *scene, audio_emitter_entity *typed_entity, kentity entity_handle) {
 	kaudio_emitter_destroy(engine_systems_get()->audio_system, &typed_entity->emitter);
 
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
 }
 
-kmodel_instance kscene_model_entity_get_instance(struct kscene* scene, kentity entity) {
+kmodel_instance kscene_model_entity_get_instance (struct kscene *scene, kentity entity) {
 	u16 type_index = kentity_unpack_type_index(entity);
 	return scene->models[type_index].model;
 }
 
-kdirectional_light_data kscene_get_directional_light_data(struct kscene* scene) {
+kdirectional_light_data kscene_get_directional_light_data (struct kscene *scene) {
 	return (kdirectional_light_data){
 		.light = scene->directional_light,
 		.direction = directional_light_get_direction(engine_systems_get()->light_system, scene->directional_light)};
 }
 
-kskybox_render_data kscene_get_skybox_render_data(struct kscene* scene) {
+kskybox_render_data kscene_get_skybox_render_data (struct kscene *scene) {
 	kskybox_render_data out_data = {
 		.skybox_texture = scene->sb.cubemap,
 		.shader_set0_instance_id = scene->sb.shader_set0_instance_id,
@@ -2669,21 +2669,21 @@ kskybox_render_data kscene_get_skybox_render_data(struct kscene* scene) {
 }
 
 // Gets model render data, organized by material.
-static kmaterial_render_data* kscene_get_model_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+static kmaterial_render_data *kscene_get_model_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	kscene_render_data_flag_bits flags,
 	b8 is_animated,
-	u16* out_material_count) {
+	u16 *out_material_count) {
 
 	KASSERT_DEBUG(scene);
 	KASSERT_DEBUG(p_frame_data);
 	KASSERT_DEBUG(out_material_count);
 
-	frame_allocator_int* frame_allocator = &p_frame_data->allocator;
+	frame_allocator_int *frame_allocator = &p_frame_data->allocator;
 
-	kmaterial_to_geometry_map* map = 0;
+	kmaterial_to_geometry_map *map = 0;
 	if (FLAG_GET(flags, KSCENE_RENDER_DATA_FLAG_TRANSPARENT_BIT)) {
 		// Only get transparent geometries
 		map = is_animated ? &scene->transparent_animated_model_material_map : &scene->transparent_static_model_material_map;
@@ -2693,10 +2693,10 @@ static kmaterial_render_data* kscene_get_model_render_data(
 	}
 
 	// Extract geometry to be rendered from the appropriate map.
-	kmaterial_render_data* mats = darray_create_with_allocator(kmaterial_render_data, frame_allocator);
+	kmaterial_render_data *mats = darray_create_with_allocator(kmaterial_render_data, frame_allocator);
 
 	for (u16 i = 0; i < map->count; ++i) {
-		kmaterial_geometry_list* list = &map->lists[i];
+		kmaterial_geometry_list *list = &map->lists[i];
 
 		kmaterial_render_data mat_render_data = {0};
 
@@ -2706,10 +2706,10 @@ static kmaterial_render_data* kscene_get_model_render_data(
 		// Each geometry in the material.
 		for (u16 g = 0; g < list->count; ++g) {
 			// Use the geometry reference to get the geometry data and entity.
-			kgeometry_ref* ref = &list->geometries[g];
-			kgeometry_data* geo = &scene->model_geometry_datas[ref->geometry_index];
+			kgeometry_ref *ref = &list->geometries[g];
+			kgeometry_data *geo = &scene->model_geometry_datas[ref->geometry_index];
 			u16 entity_index = kentity_unpack_type_index(ref->entity);
-			model_entity* entity = &scene->models[entity_index];
+			model_entity *entity = &scene->models[entity_index];
 
 			// TODO: check entity visibility
 
@@ -2719,7 +2719,7 @@ static kmaterial_render_data* kscene_get_model_render_data(
 				// TODO: frustum cull check, continue to next if fails.
 			}
 
-			kmodel_system_state* model_state = engine_systems_get()->model_system;
+			kmodel_system_state *model_state = engine_systems_get()->model_system;
 
 			// If it passes all tests, create/push the render data.
 			kgeometry_render_data rd = {
@@ -2763,49 +2763,49 @@ static kmaterial_render_data* kscene_get_model_render_data(
 }
 
 // Gets static model render data, organized by material.
-kmaterial_render_data* kscene_get_static_model_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+kmaterial_render_data *kscene_get_static_model_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	kscene_render_data_flag_bits flags,
-	u16* out_material_count) {
+	u16 *out_material_count) {
 
 	return kscene_get_model_render_data(scene, p_frame_data, frustum, flags, false, out_material_count);
 }
 
 // Gets animated model render data, organized by material.
-kmaterial_render_data* kscene_get_animated_model_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+kmaterial_render_data *kscene_get_animated_model_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	kscene_render_data_flag_bits flags,
-	u16* out_material_count) {
+	u16 *out_material_count) {
 
 	return kscene_get_model_render_data(scene, p_frame_data, frustum, flags, true, out_material_count);
 }
 
 // Gets terrain chunk render data.
-hm_terrain_render_data* kscene_get_hm_terrain_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+hm_terrain_render_data *kscene_get_hm_terrain_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	u32 flags,
-	u16* out_terrain_count) {
+	u16 *out_terrain_count) {
 
 	// FIXME: implement this
 
 	return 0;
 }
 
-hf_terrain_render_data kscene_get_hf_terrain_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+hf_terrain_render_data kscene_get_hf_terrain_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	u32 flags) {
 
 	hf_terrain_render_data data = {0};
 
-	const hf_terrain* t = &scene->hf;
+	const hf_terrain *t = &scene->hf;
 
 	data.index_count = HF_INDEX_COUNT;
 	data.index_buffer_offset = t->index_buffer_offset;
@@ -2820,8 +2820,8 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data(
 	// TODO: frustum culling.
 	for (u16 i = 0; i < data.block_count; ++i) {
 		// TODO: frustum cull the block
-		hf_block* block = &t->blocks[i];
-		hf_terrain_block_render_data* block_rd = &data.blocks[i];
+		hf_block *block = &t->blocks[i];
+		hf_terrain_block_render_data *block_rd = &data.blocks[i];
 
 		block_rd->chunk_count = HF_BLOCK_CHUNK_COUNT;
 		block_rd->chunks = p_frame_data->allocator.allocate(sizeof(hf_terrain_chunk_render_data) * block_rd->chunk_count);
@@ -2830,8 +2830,8 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data(
 
 		// TODO: frustum culling within this block
 		for (u16 c = 0; c < block_rd->chunk_count; ++c) {
-			hf_chunk* chunk = &block->chunks[c];
-			hf_terrain_chunk_render_data* chunk_rd = &block_rd->chunks[c];
+			hf_chunk *chunk = &block->chunks[c];
+			hf_terrain_chunk_render_data *chunk_rd = &block_rd->chunks[c];
 
 			// TODO: LOD
 			chunk_rd->vertex_count = HF_CHUNK_VERTEX_COUNT;
@@ -2855,12 +2855,12 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data(
 	return data;
 }
 
-hf_terrain_material_data* kscene_get_hf_terrain_materials(struct kscene* scene, u8* out_count) {
+hf_terrain_material_data *kscene_get_hf_terrain_materials (struct kscene *scene, u8 *out_count) {
 	if (!scene || !out_count || !scene->hf.vertices) {
 		return KNULL;
 	}
 
-	hf_terrain_material_data* materials = KALLOC_TYPE_CARRAY(hf_terrain_material_data, scene->hf.material_count);
+	hf_terrain_material_data *materials = KALLOC_TYPE_CARRAY(hf_terrain_material_data, scene->hf.material_count);
 	*out_count = scene->hf.material_count;
 
 	for (u8 i = 0; i < (*out_count); ++i) {
@@ -2880,12 +2880,12 @@ hf_terrain_material_data* kscene_get_hf_terrain_materials(struct kscene* scene, 
 }
 
 #if KOHI_DEBUG
-kdebug_geometry_render_data* kscene_get_debug_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+kdebug_geometry_render_data *kscene_get_debug_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	u32 flags,
-	u16* out_geometry_count) {
+	u16 *out_geometry_count) {
 
 	// If debug in general is not enabled, skip it.
 	if (!FLAG_GET(scene->flags, KSCENE_FLAG_DEBUG_ENABLED_BIT)) {
@@ -2902,20 +2902,20 @@ kdebug_geometry_render_data* kscene_get_debug_render_data(
 	u16 total_count = debug_data_count;
 
 	for (u32 i = 0; i < scene->bvh_tree.capacity; ++i) {
-		bvh_node* n = &scene->bvh_tree.nodes[i];
+		bvh_node *n = &scene->bvh_tree.nodes[i];
 		if (n->height >= 0) {
 			total_count++;
 		}
 	}
 
-	kdebug_geometry_render_data* out_render_data = p_frame_data->allocator.allocate(sizeof(kdebug_geometry_render_data) * total_count);
+	kdebug_geometry_render_data *out_render_data = p_frame_data->allocator.allocate(sizeof(kdebug_geometry_render_data) * total_count);
 	kzero_memory(out_render_data, sizeof(kdebug_geometry_render_data) * total_count);
 
 	i16 rd_idx = 0;
 	for (u16 i = 0; i < debug_data_count; ++i) {
-		kscene_debug_data* data = &scene->debug_datas[i];
+		kscene_debug_data *data = &scene->debug_datas[i];
 		if (data->type != KSCENE_DEBUG_DATA_TYPE_NONE) {
-			kdebug_geometry_render_data* rd = &out_render_data[rd_idx];
+			kdebug_geometry_render_data *rd = &out_render_data[rd_idx];
 			rd->geo.index_count = data->geometry.index_count;
 			rd->geo.index_offset = data->geometry.index_buffer_offset;
 			rd->geo.vertex_count = data->geometry.vertex_count;
@@ -2929,10 +2929,10 @@ kdebug_geometry_render_data* kscene_get_debug_render_data(
 	// render BVH AABBs
 	if (scene->flags & KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT) {
 		for (u32 i = 0; i < scene->bvh_tree.capacity; ++i) {
-			bvh_node* n = &scene->bvh_tree.nodes[i];
-			scene_bvh_debug_data* data = &scene->bvh_debug_pool[i];
+			bvh_node *n = &scene->bvh_tree.nodes[i];
+			scene_bvh_debug_data *data = &scene->bvh_debug_pool[i];
 			if (n->height >= 0) {
-				kdebug_geometry_render_data* rd = &out_render_data[rd_idx];
+				kdebug_geometry_render_data *rd = &out_render_data[rd_idx];
 				rd->geo.index_count = data->geo.index_count;
 				rd->geo.index_offset = data->geo.index_buffer_offset;
 				rd->geo.vertex_count = data->geo.vertex_count;
@@ -2950,10 +2950,10 @@ kdebug_geometry_render_data* kscene_get_debug_render_data(
 	return out_render_data;
 }
 
-kdebug_geometry_render_data kscene_get_editor_gizmo_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+kdebug_geometry_render_data kscene_get_editor_gizmo_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	u32 flags) {
 
 	kdebug_geometry_render_data out_data = {0};
@@ -2964,20 +2964,20 @@ kdebug_geometry_render_data kscene_get_editor_gizmo_render_data(
 }
 #endif
 
-kwater_plane_render_data* kscene_get_water_plane_render_data(
-	struct kscene* scene,
-	struct frame_data* p_frame_data,
-	kfrustum* frustum,
+kwater_plane_render_data *kscene_get_water_plane_render_data (
+	struct kscene *scene,
+	struct frame_data *p_frame_data,
+	kfrustum *frustum,
 	u32 flags,
-	u16* out_water_plane_count) {
+	u16 *out_water_plane_count) {
 
 	*out_water_plane_count = darray_length(scene->water_planes);
-	kwater_plane_render_data* prd = p_frame_data->allocator.allocate(sizeof(kwater_plane_render_data) * *out_water_plane_count);
+	kwater_plane_render_data *prd = p_frame_data->allocator.allocate(sizeof(kwater_plane_render_data) * *out_water_plane_count);
 	for (u16 i = 0; i < *out_water_plane_count; ++i) {
-		water_plane_entity* wp = &scene->water_planes[i];
-		kwater_plane_render_data* p = &prd[i];
+		water_plane_entity *wp = &scene->water_planes[i];
+		kwater_plane_render_data *p = &prd[i];
 
-		kgeometry_data* g = &scene->model_geometry_datas[wp->ref.geometry_index];
+		kgeometry_data *g = &scene->model_geometry_datas[wp->ref.geometry_index];
 
 		p->material.base_material = wp->base_material;
 		p->material.instance_id = g->material_instance_id;
@@ -2997,16 +2997,16 @@ kwater_plane_render_data* kscene_get_water_plane_render_data(
 	return prd;
 }
 
-kentity* kscene_get_spawn_points(
-	struct kscene* scene,
+kentity *kscene_get_spawn_points (
+	struct kscene *scene,
 	u32 flags,
-	u16* out_spawn_point_count) {
+	u16 *out_spawn_point_count) {
 
 	KASSERT_DEBUG(scene);
 
 	*out_spawn_point_count = scene->spawn_points ? darray_length(scene->spawn_points) : 0;
 	if (*out_spawn_point_count) {
-		kentity* entities = KALLOC_TYPE_CARRAY(kentity, *out_spawn_point_count);
+		kentity *entities = KALLOC_TYPE_CARRAY(kentity, *out_spawn_point_count);
 		for (u16 i = 0; i < *out_spawn_point_count; ++i) {
 			entities[i] = kentity_pack(
 				KENTITY_TYPE_SPAWN_POINT,
@@ -3020,20 +3020,20 @@ kentity* kscene_get_spawn_points(
 	return KNULL;
 }
 
-klight_render_data* kscene_get_all_point_lights(
-	struct kscene* scene,
-	frame_data* p_frame_data,
+klight_render_data *kscene_get_all_point_lights (
+	struct kscene *scene,
+	frame_data *p_frame_data,
 	u32 flags,
-	u16* out_point_light_count) {
+	u16 *out_point_light_count) {
 
 	if (scene) {
 		if (out_point_light_count) {
 
 			u8 count = KMIN(darray_length(scene->point_lights), KMATERIAL_MAX_GLOBAL_POINT_LIGHTS);
-			klight_render_data* out_lights = p_frame_data->allocator.allocate(sizeof(klight_render_data) * count);
+			klight_render_data *out_lights = p_frame_data->allocator.allocate(sizeof(klight_render_data) * count);
 			for (u8 i = 0; i < count; ++i) {
-				point_light_entity* e = &scene->point_lights[i];
-				klight_render_data* rd = &out_lights[i];
+				point_light_entity *e = &scene->point_lights[i];
+				klight_render_data *rd = &out_lights[i];
 
 				rd->light = e->handle;
 				rd->transform = e->base.transform;
@@ -3049,7 +3049,7 @@ klight_render_data* kscene_get_all_point_lights(
 	return 0;
 }
 
-static kentity init_base_entity_with_extents(kscene* scene, base_entity* base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent, extents_3d extents) {
+static kentity init_base_entity_with_extents (kscene *scene, base_entity *base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent, extents_3d extents) {
 	base->name = name;
 	base->type = type;
 
@@ -3062,7 +3062,7 @@ static kentity init_base_entity_with_extents(kscene* scene, base_entity* base, u
 	kentity entity = kentity_pack((u16)type, (u16)entity_index, 0, 0);
 
 	bt_node_value val = {.u64 = entity};
-	bt_node* lookup = u64_bst_insert(scene->name_lookup, name, val);
+	bt_node *lookup = u64_bst_insert(scene->name_lookup, name, val);
 	if (!scene->name_lookup) {
 		scene->name_lookup = lookup;
 	}
@@ -3111,11 +3111,11 @@ static kentity init_base_entity_with_extents(kscene* scene, base_entity* base, u
 	return entity;
 }
 
-static kentity init_base_entity(kscene* scene, base_entity* base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent) {
+static kentity init_base_entity (kscene *scene, base_entity *base, u16 entity_index, kname name, kentity_type type, ktransform transform, kentity parent) {
 	return init_base_entity_with_extents(scene, base, entity_index, name, type, transform, parent, extents_3d_from_scalar(0.1f));
 }
 
-static void kmaterial_list_ensure_allocated(kmaterial_geometry_list* list) {
+static void kmaterial_list_ensure_allocated (kmaterial_geometry_list *list) {
 	if (list->count >= list->capacity) {
 		u16 new_capacity = (list->capacity == 0) ? 4 : list->capacity * 2;
 		list->geometries = KREALLOC_TYPE_CARRAY(list->geometries, kgeometry_ref, list->capacity, new_capacity);
@@ -3123,7 +3123,7 @@ static void kmaterial_list_ensure_allocated(kmaterial_geometry_list* list) {
 	}
 }
 
-static void kmaterial_map_ensure_allocated(kmaterial_to_geometry_map* map) {
+static void kmaterial_map_ensure_allocated (kmaterial_to_geometry_map *map) {
 	if (map->count >= map->capacity) {
 		u16 new_capacity = (map->capacity == 0) ? 4 : map->capacity * 2;
 		map->lists = KREALLOC_TYPE_CARRAY(map->lists, kmaterial_geometry_list, map->capacity, new_capacity);
@@ -3131,7 +3131,7 @@ static void kmaterial_map_ensure_allocated(kmaterial_to_geometry_map* map) {
 	}
 }
 
-static kmaterial_geometry_list* get_or_create_material_geo_list(kmaterial_to_geometry_map* map, kmaterial material) {
+static kmaterial_geometry_list *get_or_create_material_geo_list (kmaterial_to_geometry_map *map, kmaterial material) {
 	for (u16 i = 0; i < map->count; ++i) {
 		if (map->lists[i].base_material == material) {
 			return &map->lists[i];
@@ -3142,17 +3142,17 @@ static kmaterial_geometry_list* get_or_create_material_geo_list(kmaterial_to_geo
 	kmaterial_map_ensure_allocated(map);
 
 	// Make sure to assign the material to it.
-	kmaterial_geometry_list* list = &map->lists[map->count];
+	kmaterial_geometry_list *list = &map->lists[map->count];
 	list->base_material = material;
 	map->count++;
 	return list;
 }
 
-static void on_model_loaded(kmodel_instance instance, void* context) {
-	kscene_model_load_context* typed_context = context;
+static void on_model_loaded (kmodel_instance instance, void *context) {
+	kscene_model_load_context *typed_context = context;
 
 	u16 entity_type_index = kentity_unpack_type_index(typed_context->entity);
-	model_entity* entity = &typed_context->scene->models[entity_type_index];
+	model_entity *entity = &typed_context->scene->models[entity_type_index];
 	entity->model = instance;
 
 	map_model_entity_geometries(typed_context->scene, typed_context->entity);
@@ -3168,19 +3168,19 @@ static void on_model_loaded(kmodel_instance instance, void* context) {
 	kfree(typed_context, sizeof(kscene_model_load_context), MEMORY_TAG_SCENE);
 }
 
-static void map_model_submesh_geometries(kscene* scene, kentity entity, u16 submesh_index, b8 winding_inverted, const kmaterial_instance* mat_inst) {
+static void map_model_submesh_geometries (kscene *scene, kentity entity, u16 submesh_index, b8 winding_inverted, const kmaterial_instance *mat_inst) {
 
 	u16 entity_type_index = kentity_unpack_type_index(entity);
-	model_entity* typed_entity = &scene->models[entity_type_index];
-	kmodel_system_state* model_state = engine_systems_get()->model_system;
-	struct kmaterial_system_state* material_state = engine_systems_get()->material_system;
-	const kgeometry* geo = kmodel_submesh_geometry_get_at(model_state, typed_entity->model.base_mesh, submesh_index);
+	model_entity *typed_entity = &scene->models[entity_type_index];
+	kmodel_system_state *model_state = engine_systems_get()->model_system;
+	struct kmaterial_system_state *material_state = engine_systems_get()->material_system;
+	const kgeometry *geo = kmodel_submesh_geometry_get_at(model_state, typed_entity->model.base_mesh, submesh_index);
 
 	// TODO: Find a better way to classify this.
 	b8 is_animated = geo->type == KGEOMETRY_TYPE_3D_SKINNED;
 
 	// Choose the appropriate map.
-	kmaterial_to_geometry_map* map = 0;
+	kmaterial_to_geometry_map *map = 0;
 	b8 transparent = kmaterial_has_transparency_get(material_state, mat_inst->base_material);
 	if (is_animated) {
 		map = transparent ? &scene->transparent_animated_model_material_map : &scene->opaque_animated_model_material_map;
@@ -3188,7 +3188,7 @@ static void map_model_submesh_geometries(kscene* scene, kentity entity, u16 subm
 		map = transparent ? &scene->transparent_static_model_material_map : &scene->opaque_static_model_material_map;
 	}
 	// The material-geometry list for this submesh's material.
-	kmaterial_geometry_list* list = get_or_create_material_geo_list(map, mat_inst->base_material);
+	kmaterial_geometry_list *list = get_or_create_material_geo_list(map, mat_inst->base_material);
 
 	// Search for an empty slot first.
 	u16 array_index = INVALID_ID_U16;
@@ -3208,7 +3208,7 @@ static void map_model_submesh_geometries(kscene* scene, kentity entity, u16 subm
 			darray_push(scene->model_geometry_extents, (extents_3d){0});
 		}
 	}
-	kgeometry_data* new_geo = &scene->model_geometry_datas[array_index];
+	kgeometry_data *new_geo = &scene->model_geometry_datas[array_index];
 
 	// Extract the required data into a new entry into the global flat list.
 	new_geo->vertex_count = geo->vertex_count;
@@ -3245,18 +3245,18 @@ static void map_model_submesh_geometries(kscene* scene, kentity entity, u16 subm
 	}
 
 	// Setup the new index.
-	kgeometry_ref* ref = &list->geometries[ref_index];
+	kgeometry_ref *ref = &list->geometries[ref_index];
 	ref->geometry_index = array_index; // NOTE: Links to the global array, not just this material's array.
 	ref->entity = entity;
 }
 
 // maps animated model entity geometries by material. Should only be used for loaded entities.
-static void map_model_entity_geometries(kscene* scene, kentity entity) {
-	kmodel_system_state* model_state = engine_systems_get()->model_system;
+static void map_model_entity_geometries (kscene *scene, kentity entity) {
+	kmodel_system_state *model_state = engine_systems_get()->model_system;
 	u16 entity_index = kentity_unpack_type_index(entity);
-	model_entity* typed_entity = &scene->models[entity_index];
+	model_entity *typed_entity = &scene->models[entity_index];
 
-	base_entity* base = get_entity_base(scene, entity);
+	base_entity *base = get_entity_base(scene, entity);
 
 	base->extents.min = vec3_create(99999999.9f, 99999999.9f, 99999999.9f);
 	base->extents.max = vec3_create(-99999999.9f, -99999999.9f, -99999999.9f);
@@ -3272,7 +3272,7 @@ static void map_model_entity_geometries(kscene* scene, kentity entity) {
 	kmodel_submesh_count_get(model_state, typed_entity->model.base_mesh, &submesh_count);
 	for (u16 g = 0; g < submesh_count; ++g) {
 
-		const kgeometry* geo = kmodel_submesh_geometry_get_at(model_state, typed_entity->model.base_mesh, g);
+		const kgeometry *geo = kmodel_submesh_geometry_get_at(model_state, typed_entity->model.base_mesh, g);
 		if (geo->type == KGEOMETRY_TYPE_3D_SKINNED) {
 			is_animated = true;
 		}
@@ -3281,7 +3281,7 @@ static void map_model_entity_geometries(kscene* scene, kentity entity) {
 		base->extents = extents_combine(base->extents, geo->extents);
 
 		// Material instance for this submesh.
-		const kmaterial_instance* mat_inst = kmodel_submesh_material_instance_get_at(model_state, typed_entity->model, g);
+		const kmaterial_instance *mat_inst = kmodel_submesh_material_instance_get_at(model_state, typed_entity->model, g);
 
 		// Map the submesh geometries to the material.
 		map_model_submesh_geometries(scene, entity, g, winding_inverted, mat_inst);
@@ -3306,11 +3306,11 @@ static void map_model_entity_geometries(kscene* scene, kentity entity) {
 #endif
 }
 
-static void unmap_model_entity_geometries(kscene* scene, kentity entity) {
-	kmodel_system_state* model_state = engine_systems_get()->model_system;
-	struct kmaterial_system_state* material_state = engine_systems_get()->material_system;
+static void unmap_model_entity_geometries (kscene *scene, kentity entity) {
+	kmodel_system_state *model_state = engine_systems_get()->model_system;
+	struct kmaterial_system_state *material_state = engine_systems_get()->material_system;
 	u16 entity_index = kentity_unpack_type_index(entity);
-	model_entity* typed_entity = &scene->models[entity_index];
+	model_entity *typed_entity = &scene->models[entity_index];
 	// Get a list of geometry references for this entity.
 	// For each:
 	// TODO: Should probably have some sort of reverse-mapping to be able to look this up quicker.
@@ -3321,20 +3321,20 @@ static void unmap_model_entity_geometries(kscene* scene, kentity entity) {
 	u16 mesh_count = 0;
 	kmodel_submesh_count_get(model_state, typed_entity->model.base_mesh, &mesh_count);
 	for (u16 i = 0; i < mesh_count; ++i) {
-		const kmaterial_instance* mat_inst = kmodel_submesh_material_instance_get_at(model_state, typed_entity->model, i);
+		const kmaterial_instance *mat_inst = kmodel_submesh_material_instance_get_at(model_state, typed_entity->model, i);
 
 		// Choose the appropriate map.
 		b8 transparent = kmaterial_has_transparency_get(material_state, mat_inst->base_material);
-		kmaterial_to_geometry_map* map = transparent ? &scene->transparent_animated_model_material_map : &scene->opaque_animated_model_material_map;
+		kmaterial_to_geometry_map *map = transparent ? &scene->transparent_animated_model_material_map : &scene->opaque_animated_model_material_map;
 
 		// The material-geometry list for this submesh's material.
-		kmaterial_geometry_list* list = get_or_create_material_geo_list(map, mat_inst->base_material);
+		kmaterial_geometry_list *list = get_or_create_material_geo_list(map, mat_inst->base_material);
 
 		// Look for geometry references within this material list.
 		for (u16 r = 0; i < list->count; ++r) {
-			kgeometry_ref* ref = &list->geometries[r];
+			kgeometry_ref *ref = &list->geometries[r];
 			if (ref->entity == entity) {
-				kgeometry_data* gd = &scene->model_geometry_datas[ref->geometry_index];
+				kgeometry_data *gd = &scene->model_geometry_datas[ref->geometry_index];
 
 				KZERO_TYPE(gd, kgeometry_data);
 
@@ -3349,9 +3349,9 @@ static void unmap_model_entity_geometries(kscene* scene, kentity entity) {
 	}
 }
 
-static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene) {
+static b8 deserialize_entity (kson_object *obj, kentity parent, kscene *out_scene) {
 
-	const char* type_str = 0;
+	const char *type_str = 0;
 	kentity_type entity_type = KENTITY_TYPE_NONE;
 	if (kson_object_property_value_get_string(obj, "type", &type_str)) {
 		entity_type = kentity_type_from_string(type_str);
@@ -3362,7 +3362,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 	kson_object_property_value_get_string_as_kname(obj, "name", &entity_name);
 
 	// Transform is optional, use a default one if one does not exist or was invalid.
-	const char* transform_str = 0;
+	const char *transform_str = 0;
 	ktransform t;
 	if (kson_object_property_value_get_string(obj, "transform", &transform_str)) {
 		if (!ktransform_from_string(transform_str, 0, &t)) {
@@ -3375,12 +3375,12 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 	}
 
 	// Parse tags.
-	const char* tag_str = 0;
+	const char *tag_str = 0;
 	u32 tag_count = 0;
-	kstring_id* tags = 0;
+	kstring_id *tags = 0;
 	if (kson_object_property_value_get_string(obj, "tags", &tag_str)) {
 		// Split string by commas, and build a list
-		char** parts = darray_create(char*);
+		char **parts = darray_create(char *);
 		u32 count = string_split(tag_str, ',', &parts, true, false, false);
 		if (count) {
 			tag_count = count;
@@ -3455,7 +3455,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 	case KENTITY_TYPE_VOLUME: {
 		// volume type
 		kscene_volume_type vol_type = KSCENE_VOLUME_TYPE_TRIGGER;
-		const char* vol_type_str = 0;
+		const char *vol_type_str = 0;
 		kson_object_property_value_get_string(obj, "volume_type", &vol_type_str);
 		if (vol_type_str) {
 			vol_type = scene_volume_type_from_string(vol_type_str);
@@ -3464,7 +3464,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 
 		// Shape type
 		kshape_type shape_type = KSHAPE_TYPE_SPHERE;
-		const char* shape_type_str = 0;
+		const char *shape_type_str = 0;
 		kson_object_property_value_get_string(obj, "shape_type", &shape_type_str);
 		if (shape_type_str) {
 			shape_type = kshape_type_from_string(shape_type_str);
@@ -3489,12 +3489,12 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 		}
 
 		// Hit shape tags
-		const char* hit_tag_str = 0;
+		const char *hit_tag_str = 0;
 		u32 hit_shape_tag_count = 0;
-		kstring_id* hit_shape_tags = 0;
+		kstring_id *hit_shape_tags = 0;
 		if (kson_object_property_value_get_string(obj, "hit_shape_tags", &hit_tag_str)) {
 			// Split string by commas, and build a list
-			char** parts = darray_create(char*);
+			char **parts = darray_create(char *);
 			u32 count = string_split(hit_tag_str, ',', &parts, true, false, false);
 			if (count) {
 				hit_shape_tag_count = count;
@@ -3508,13 +3508,13 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 			string_free(hit_tag_str);
 		}
 
-		const char* on_enter_command = 0;
+		const char *on_enter_command = 0;
 		kson_object_property_value_get_string(obj, "on_enter", &on_enter_command);
 
-		const char* on_leave_command = 0;
+		const char *on_leave_command = 0;
 		kson_object_property_value_get_string(obj, "on_leave", &on_leave_command);
 
-		const char* on_tick_command = 0;
+		const char *on_tick_command = 0;
 		kson_object_property_value_get_string(obj, "on_tick", &on_tick_command);
 
 		new_entity = kscene_add_volume(out_scene, entity_name, t, parent, vol_type, shape, hit_shape_tag_count, hit_shape_tags, on_enter_command, on_leave_command, on_tick_command);
@@ -3535,7 +3535,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 	case KENTITY_TYPE_HIT_SHAPE: {
 		// Shape type
 		kshape_type shape_type = KSHAPE_TYPE_SPHERE;
-		const char* shape_type_str = 0;
+		const char *shape_type_str = 0;
 		kson_object_property_value_get_string(obj, "shape_type", &shape_type_str);
 		if (shape_type_str) {
 			shape_type = kshape_type_from_string(shape_type_str);
@@ -3610,7 +3610,7 @@ static b8 deserialize_entity(kson_object* obj, kentity parent, kscene* out_scene
 	return true;
 }
 
-static b8 deserialize(const char* file_content, kscene* out_scene) {
+static b8 deserialize (const char *file_content, kscene *out_scene) {
 #if KOHI_DEBUG
 	if (!file_content || !out_scene) {
 		KERROR("%s - Cannot deserialize without file_content and out_scene.", __FUNCTION__);
@@ -3717,12 +3717,12 @@ static b8 deserialize(const char* file_content, kscene* out_scene) {
 	return true;
 }
 
-static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s_obj) {
+static b8 entity_serialize_r (const kscene *scene, kentity entity, kson_object *s_obj) {
 	KASSERT(s_obj);
 
 	*s_obj = kson_object_create();
 
-	base_entity* base = get_entity_base((kscene*)scene, entity);
+	base_entity *base = get_entity_base((kscene *)scene, entity);
 
 	// Check if serializable and only complete this if so.
 	if (!FLAG_GET(base->flags, KENTITY_FLAG_SERIALIZABLE_BIT)) {
@@ -3756,7 +3756,7 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 		// NOTE: Nothing more to do here since this is just a base entity.
 		break;
 	case KENTITY_TYPE_MODEL: {
-		model_entity* typed = &scene->models[type_index];
+		model_entity *typed = &scene->models[type_index];
 		kson_object_value_add_kname_as_string(s_obj, "asset_name", typed->asset_name);
 		kson_object_value_add_kname_as_string(s_obj, "asset_package_name", typed->package_name);
 	} break;
@@ -3765,11 +3765,11 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 		KASSERT_MSG(false, "not yet implemented");
 		break;
 	case KENTITY_TYPE_WATER_PLANE: {
-		water_plane_entity* typed = &scene->water_planes[type_index];
+		water_plane_entity *typed = &scene->water_planes[type_index];
 		kson_object_value_add_int(s_obj, "size", typed->size);
 	} break;
 	case KENTITY_TYPE_AUDIO_EMITTER: {
-		audio_emitter_entity* typed = &scene->audio_emitters[type_index];
+		audio_emitter_entity *typed = &scene->audio_emitters[type_index];
 		kson_object_value_add_kname_as_string(s_obj, "asset_name", typed->asset_name);
 		kson_object_value_add_kname_as_string(s_obj, "asset_package_name", typed->package_name);
 		kson_object_value_add_float(s_obj, "inner_radius", typed->inner_radius);
@@ -3780,7 +3780,7 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 		kson_object_value_add_boolean(s_obj, "is_looping", typed->is_looping);
 	} break;
 	case KENTITY_TYPE_VOLUME: {
-		volume_entity* typed = &scene->volumes[type_index];
+		volume_entity *typed = &scene->volumes[type_index];
 		kson_object_value_add_string(s_obj, "volume_type", scene_volume_type_to_string(typed->type));
 		kson_object_value_add_string(s_obj, "shape_type", kshape_type_to_string(typed->shape.shape_type));
 		if (typed->shape.shape_type == KSHAPE_TYPE_SPHERE) {
@@ -3792,7 +3792,7 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 			KFATAL("not implemented");
 		}
 
-		const char* hit_shape_tags = kstring_id_join(typed->hit_shape_tags, typed->hit_shape_tag_count, ',');
+		const char *hit_shape_tags = kstring_id_join(typed->hit_shape_tags, typed->hit_shape_tag_count, ',');
 		kson_object_value_add_string(s_obj, "hit_shape_tags", hit_shape_tags);
 		string_free(hit_shape_tags);
 
@@ -3807,7 +3807,7 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 		}
 	} break;
 	case KENTITY_TYPE_HIT_SHAPE: {
-		hit_shape_entity* typed = &scene->hit_shapes[type_index];
+		hit_shape_entity *typed = &scene->hit_shapes[type_index];
 		kson_object_value_add_string(s_obj, "shape_type", kshape_type_to_string(typed->shape.shape_type));
 		if (typed->shape.shape_type == KSHAPE_TYPE_SPHERE) {
 			kson_object_value_add_float(s_obj, "radius", typed->shape.radius);
@@ -3819,14 +3819,14 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 		}
 	} break;
 	case KENTITY_TYPE_POINT_LIGHT: {
-		point_light_entity* typed = &scene->point_lights[type_index];
+		point_light_entity *typed = &scene->point_lights[type_index];
 		kson_object_value_add_vec4(s_obj, "colour", vec4_from_vec3(typed->colour, 1.0f));
 		kson_object_value_add_float(s_obj, "linear", typed->linear);
 		kson_object_value_add_float(s_obj, "quadratic", typed->quadratic);
 	} break;
 
 	case KENTITY_TYPE_SPAWN_POINT: {
-		spawn_point_entity* typed = &scene->spawn_points[type_index];
+		spawn_point_entity *typed = &scene->spawn_points[type_index];
 		kson_object_value_add_float(s_obj, "radius", typed->radius);
 	} break;
 	case KENTITY_TYPE_COUNT:
@@ -3854,7 +3854,7 @@ static b8 entity_serialize_r(const kscene* scene, kentity entity, kson_object* s
 	return true;
 }
 
-const char* kscene_serialize(const kscene* scene) {
+const char *kscene_serialize (const kscene *scene) {
 	kson_tree tree = {0};
 	// The root of the tree.
 	tree.root = kson_object_create();
@@ -3896,12 +3896,12 @@ const char* kscene_serialize(const kscene* scene) {
 
 	kson_object_value_add_array(&tree.root, "entities", entities_array);
 
-	const char* output = kson_tree_to_string(&tree);
+	const char *output = kson_tree_to_string(&tree);
 	kson_tree_cleanup(&tree);
 	return output;
 }
 
-b8 kscene_hf_terrain_save(const struct kscene* scene) {
+b8 kscene_hf_terrain_save (const struct kscene *scene) {
 	if (!scene) {
 		return false;
 	}
@@ -3925,16 +3925,16 @@ b8 kscene_hf_terrain_save(const struct kscene* scene) {
 	u32 block_count = asset.block_count_x * asset.block_count_z;
 	asset.blocks = KALLOC_TYPE_CARRAY(kasset_hf_terrain_block, block_count);
 	for (u32 i = 0; i < block_count; ++i) {
-		hf_block* block = &scene->hf.blocks[i];
-		kasset_hf_terrain_block* asset_block = &asset.blocks[i];
+		hf_block *block = &scene->hf.blocks[i];
+		kasset_hf_terrain_block *asset_block = &asset.blocks[i];
 
 		asset_block->splatmap_size_x = HF_TERRAIN_SPLATMAP_RESOLUTION;
 		asset_block->splatmap_size_y = HF_TERRAIN_SPLATMAP_RESOLUTION;
 		kcopy_memory(asset_block->splatmap_pixels, block->splatmap_pixels, KASSET_HF_SPLAT_RES * KASSET_HF_SPLAT_RES * 4);
 
 		for (u32 c = 0; c < 256; ++c) {
-			hf_chunk* chunk = &block->chunks[c];
-			kasset_hf_terrain_chunk* asset_chunk = &asset_block->chunks[c];
+			hf_chunk *chunk = &block->chunks[c];
+			kasset_hf_terrain_chunk *asset_chunk = &asset_block->chunks[c];
 
 			for (u8 m = 0; m < HF_TERRAIN_CHUNK_MAX_MATERIALS; ++m) {
 				asset_chunk->material_indices[m] = chunk->material_indices[m];
@@ -3942,7 +3942,7 @@ b8 kscene_hf_terrain_save(const struct kscene* scene) {
 		}
 	}
 
-	asset.material_names = KALLOC_TYPE_CARRAY(const char*, asset.material_count);
+	asset.material_names = KALLOC_TYPE_CARRAY(const char *, asset.material_count);
 	asset.material_map_names = KALLOC_TYPE_CARRAY(kasset_hf_terrain_material_map_names, asset.material_count);
 	asset.materials = KALLOC_TYPE_CARRAY(kasset_hf_terrain_material, asset.material_count);
 	for (u32 i = 0; i < scene->hf.material_count; ++i) {
@@ -3953,12 +3953,12 @@ b8 kscene_hf_terrain_save(const struct kscene* scene) {
 	}
 
 	u64 asset_size = 0;
-	void* data = kasset_hf_terrain_serialize(&asset, &asset_size);
+	void *data = kasset_hf_terrain_serialize(&asset, &asset_size);
 
 	return asset_system_write_binary(engine_systems_get()->asset_state, INVALID_KNAME, kname_create(scene->hf_terrain_asset_name), asset_size, data);
 }
 
-static void kscene_dump_hierarchy_entity_r(const kscene* scene, kentity entity, u32 depth) {
+static void kscene_dump_hierarchy_entity_r (const kscene *scene, kentity entity, u32 depth) {
 	char spacing[65] = {0};
 	kzero_memory(spacing, sizeof(spacing));
 
@@ -3967,7 +3967,7 @@ static void kscene_dump_hierarchy_entity_r(const kscene* scene, kentity entity, 
 		spacing[i] = ' ';
 	}
 
-	base_entity* base = get_entity_base((kscene*)scene, entity);
+	base_entity *base = get_entity_base((kscene *)scene, entity);
 	KINFO("%s%k", spacing, base->name);
 
 	u32 child_count = darray_length(base->children);
@@ -3976,15 +3976,15 @@ static void kscene_dump_hierarchy_entity_r(const kscene* scene, kentity entity, 
 	}
 }
 
-void kscene_dump_hierarchy(const kscene* scene) {
+void kscene_dump_hierarchy (const kscene *scene) {
 	u32 entity_count = darray_length(scene->root_entities);
 	for (u32 i = 0; i < entity_count; ++i) {
 		kscene_dump_hierarchy_entity_r(scene, scene->root_entities[i], 0);
 	}
 }
 
-kscene_hierarchy_node kscene_get_hierarchy_internal_r(const struct kscene* scene, kentity parent) {
-	base_entity* base = get_entity_base((kscene*)scene, parent);
+kscene_hierarchy_node kscene_get_hierarchy_internal_r (const struct kscene *scene, kentity parent) {
+	base_entity *base = get_entity_base((kscene *)scene, parent);
 
 	u32 child_count = darray_length(base->children);
 
@@ -4000,10 +4000,10 @@ kscene_hierarchy_node kscene_get_hierarchy_internal_r(const struct kscene* scene
 	return node;
 }
 
-kscene_hierarchy_node* kscene_get_hierarchy(const struct kscene* scene, u32* out_count) {
+kscene_hierarchy_node *kscene_get_hierarchy (const struct kscene *scene, u32 *out_count) {
 	u32 len = darray_length(scene->root_entities);
 	*out_count = len;
-	kscene_hierarchy_node* nodes = KNULL;
+	kscene_hierarchy_node *nodes = KNULL;
 	if (len) {
 		nodes = KALLOC_TYPE_CARRAY(kscene_hierarchy_node, len);
 
@@ -4015,7 +4015,7 @@ kscene_hierarchy_node* kscene_get_hierarchy(const struct kscene* scene, u32* out
 	return nodes;
 }
 
-static void cleanup_hierarchy_node_r(kscene_hierarchy_node* node) {
+static void cleanup_hierarchy_node_r (kscene_hierarchy_node *node) {
 	if (node->child_count && node->children) {
 		for (u32 i = 0; i < node->child_count; ++i) {
 			cleanup_hierarchy_node_r(&node->children[i]);
@@ -4024,14 +4024,14 @@ static void cleanup_hierarchy_node_r(kscene_hierarchy_node* node) {
 	}
 }
 
-void kscene_cleanup_hierarchy(kscene_hierarchy_node* nodes, u32 count) {
+void kscene_cleanup_hierarchy (kscene_hierarchy_node *nodes, u32 count) {
 	for (u32 i = 0; i < count; ++i) {
 		cleanup_hierarchy_node_r(&nodes[i]);
 	}
 	KFREE_TYPE_CARRAY(nodes, kscene_hierarchy_node, count);
 }
 
-static void notify_initial_load_entity_started(kscene* scene, kentity entity) {
+static void notify_initial_load_entity_started (kscene *scene, kentity entity) {
 	// Only counts as initial load if currently in the 'loading' state.
 	if (scene->state == KSCENE_STATE_LOADING || scene->state == KSCENE_STATE_PARSING_CONFIG) {
 		scene->queued_initial_asset_loads++;
@@ -4040,14 +4040,14 @@ static void notify_initial_load_entity_started(kscene* scene, kentity entity) {
 }
 
 // Handles notifications of initial asset load completion and updates counts.
-static void notify_initial_load_entity_complete(kscene* scene, kentity entity) {
+static void notify_initial_load_entity_complete (kscene *scene, kentity entity) {
 	if (scene->state == KSCENE_STATE_LOADING || scene->state == KSCENE_STATE_PARSING_CONFIG) {
 		scene->queued_initial_asset_loads--;
 		KTRACE("(-) Scene queued initial asset loads is now: %u", scene->queued_initial_asset_loads);
 	}
 }
 
-static base_entity* get_entity_base(kscene* scene, kentity entity) {
+static base_entity *get_entity_base (kscene *scene, kentity entity) {
 	if (entity == KENTITY_INVALID) {
 		return KNULL;
 	}
@@ -4079,11 +4079,11 @@ static base_entity* get_entity_base(kscene* scene, kentity entity) {
 }
 
 #if KOHI_DEBUG
-static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity entity, kscene_debug_data_type type, colour4 colour, b8 ignore_scale, u32* out_debug_data_index) {
+static void create_debug_data (kscene *scene, vec3 size, vec3 center, kentity entity, kscene_debug_data_type type, colour4 colour, b8 ignore_scale, u32 *out_debug_data_index) {
 
 	// Find free index.
 	u32 index = INVALID_ID;
-	kscene_debug_data* data = 0;
+	kscene_debug_data *data = 0;
 	u32 len = darray_length(scene->debug_datas);
 	for (u32 i = 0; i < len; ++i) {
 		// Determine if "free"
@@ -4127,7 +4127,7 @@ static void create_debug_data(kscene* scene, vec3 size, vec3 center, kentity ent
 	*out_debug_data_index = index;
 }
 
-static kscene_debug_data_type debug_type_from_shape_type(kshape_type type) {
+static kscene_debug_data_type debug_type_from_shape_type (kshape_type type) {
 	switch (type) {
 	case KSHAPE_TYPE_SPHERE:
 		return KSCENE_DEBUG_DATA_TYPE_SPHERE;

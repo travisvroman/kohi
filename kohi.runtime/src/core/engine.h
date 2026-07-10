@@ -48,71 +48,71 @@ struct kwindow;
 
 typedef struct engine_system_states {
 	u64 platform_memory_requirement;
-	struct platform_state* platform_system;
+	struct platform_state *platform_system;
 
 	u64 console_memory_requirement;
-	struct console_state* console_system;
+	struct console_state *console_system;
 
 	u64 kvar_system_memory_requirement;
-	struct kvar_state* kvar_system;
+	struct kvar_state *kvar_system;
 
 	u64 event_system_memory_requirement;
-	struct event_state* event_system;
+	struct event_state *event_system;
 
 	u64 input_system_memory_requirement;
-	struct input_state* input_system;
+	struct input_state *input_system;
 
 	u64 timeline_system_memory_requirement;
-	struct ktimeline_system_state* timeline_system;
+	struct ktimeline_system_state *timeline_system;
 
 	u64 shader_system_memory_requirement;
-	struct shader_system_state* shader_system;
+	struct shader_system_state *shader_system;
 
 	u64 renderer_system_memory_requirement;
-	struct renderer_system_state* renderer_system;
+	struct renderer_system_state *renderer_system;
 
 	u64 job_system_memory_requirement;
-	struct job_system_state* job_system;
+	struct job_system_state *job_system;
 
 	u64 kaudio_system_memory_requirement;
-	struct kaudio_system_state* audio_system;
+	struct kaudio_system_state *audio_system;
 
 	u64 ktransform_system_memory_requirement;
-	struct ktransform_system_state* ktransform_system;
+	struct ktransform_system_state *ktransform_system;
 
 	u64 texture_system_memory_requirement;
-	struct texture_system_state* texture_system;
+	struct texture_system_state *texture_system;
 
 	u64 font_system_memory_requirement;
-	struct font_system_state* font_system;
+	struct font_system_state *font_system;
 
 	u64 material_system_memory_requirement;
-	struct kmaterial_system_state* material_system;
-	struct kmaterial_renderer* material_renderer;
+	struct kmaterial_system_state *material_system;
+	struct kmaterial_renderer *material_renderer;
 
 	u64 static_mesh_system_memory_requirement;
-	struct static_mesh_system_state* static_mesh_system;
+	struct static_mesh_system_state *static_mesh_system;
 
 	u64 light_system_memory_requirement;
-	struct light_system_state* light_system;
+	struct light_system_state *light_system;
 
 	u64 model_system_memory_requirement;
-	struct kmodel_system_state* model_system;
+	struct kmodel_system_state *model_system;
 
 	u64 camera_system_memory_requirement;
-	struct camera_system_state* camera_system;
+	struct camera_system_state *camera_system;
 
 	u64 plugin_system_memory_requirement;
-	struct plugin_system_state* plugin_system;
+	struct plugin_system_state *plugin_system;
 
 	u64 rendergraph_system_memory_requirement;
-	struct rendergraph_system_state* rendergraph_system;
+	struct rendergraph_system_state *rendergraph_system;
 
 	u64 vfs_system_memory_requirement;
-	struct vfs_state* vfs_system_state;
+	struct vfs_state *vfs_system_state;
 
 	u64 asset_system_memory_requirement;
-	struct asset_system_state* asset_state;
+	struct asset_system_state *asset_state;
 } engine_system_states;
 
 /**
@@ -123,38 +123,38 @@ typedef struct engine_system_states {
  * @param game_lib_name The name of the library containing the game's code.
  * @returns True on success; otherwise false.
  */
-KAPI b8 engine_create(struct application* app, const char* app_config_path, const char* game_lib_name);
+KAPI b8 engine_create (struct application *app, const char *app_config_path, const char *game_lib_name);
 
 /**
  * @brief Starts the main engine loop.
  * @param app A pointer to the application instance associated with the engine
  * @returns True on success; otherwise false.
  */
-KAPI b8 engine_run(struct application* app);
+KAPI b8 engine_run (struct application *app);
 
 /**
  * @brief A callback made when the event system is initialized,
  * which internally allows the engine to begin listening for events
  * required for initialization.
  */
-void engine_on_event_system_initialized(void);
+void engine_on_event_system_initialized (void);
 
 /**
  * @brief Obtains a constant pointer to the current frame data.
  *
  * @return A constant pointer to the current frame data.
  */
-KAPI const struct frame_data* engine_frame_data_get(void);
+KAPI const struct frame_data *engine_frame_data_get (void);
 
 /**
  * @brief Obtains a constant pointer to the collection of system states from the engine.
  */
-KAPI const engine_system_states* engine_systems_get(void);
+KAPI const engine_system_states *engine_systems_get (void);
 
-KAPI struct application* engine_app_state_get(void);
+KAPI struct application *engine_app_state_get (void);
 
-KAPI khandle engine_external_system_register(u64 system_state_memory_requirement);
+KAPI khandle engine_external_system_register (u64 system_state_memory_requirement);
 
-KAPI void* engine_external_system_state_get(khandle system_handle);
+KAPI void *engine_external_system_state_get (khandle system_handle);
 
-KAPI struct kwindow* engine_active_window_get(void);
+KAPI struct kwindow *engine_active_window_get (void);

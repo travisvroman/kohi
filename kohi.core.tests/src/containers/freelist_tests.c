@@ -5,7 +5,7 @@
 #include <defines.h>
 #include <memory/kmemory.h>
 
-u8 freelist_should_create_and_destroy(void) {
+u8 freelist_should_create_and_destroy (void) {
 	// NOTE: creating a small size list, which will trigger a warning.
 	KDEBUG("The following warning message is intentional.");
 
@@ -17,7 +17,7 @@ u8 freelist_should_create_and_destroy(void) {
 	freelist_create(total_size, &memory_requirement, 0, 0);
 
 	// Allocate and create the freelist.
-	void* block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
+	void *block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
 	freelist_create(total_size, &memory_requirement, block, &list);
 
 	// Verify that the memory was assigned.
@@ -34,7 +34,7 @@ u8 freelist_should_create_and_destroy(void) {
 	return true;
 }
 
-u8 freelist_should_allocate_one_and_free_one(void) {
+u8 freelist_should_allocate_one_and_free_one (void) {
 	freelist list;
 
 	// Get the memory requirement
@@ -43,7 +43,7 @@ u8 freelist_should_allocate_one_and_free_one(void) {
 	freelist_create(total_size, &memory_requirement, 0, 0);
 
 	// Allocate and create the freelist.
-	void* block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
+	void *block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
 	freelist_create(total_size, &memory_requirement, block, &list);
 
 	// Allocate some space.
@@ -74,7 +74,7 @@ u8 freelist_should_allocate_one_and_free_one(void) {
 	return true;
 }
 
-u8 freelist_should_allocate_one_and_free_multi(void) {
+u8 freelist_should_allocate_one_and_free_multi (void) {
 	freelist list;
 
 	// Get the memory requirement
@@ -83,7 +83,7 @@ u8 freelist_should_allocate_one_and_free_multi(void) {
 	freelist_create(total_size, &memory_requirement, 0, 0);
 
 	// Allocate and create the freelist.
-	void* block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
+	void *block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
 	freelist_create(total_size, &memory_requirement, block, &list);
 
 	// Allocate some space.
@@ -157,7 +157,7 @@ u8 freelist_should_allocate_one_and_free_multi(void) {
 	return true;
 }
 
-u8 freelist_should_allocate_one_and_free_multi_varying_sizes(void) {
+u8 freelist_should_allocate_one_and_free_multi_varying_sizes (void) {
 	freelist list;
 
 	// Get the memory requirement
@@ -166,7 +166,7 @@ u8 freelist_should_allocate_one_and_free_multi_varying_sizes(void) {
 	freelist_create(total_size, &memory_requirement, 0, 0);
 
 	// Allocate and create the freelist.
-	void* block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
+	void *block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
 	freelist_create(total_size, &memory_requirement, block, &list);
 
 	// Allocate some space.
@@ -241,7 +241,7 @@ u8 freelist_should_allocate_one_and_free_multi_varying_sizes(void) {
 	return true;
 }
 
-u8 freelist_should_allocate_to_full_and_fail_to_allocate_more(void) {
+u8 freelist_should_allocate_to_full_and_fail_to_allocate_more (void) {
 	freelist list;
 
 	// Get the memory requirement
@@ -250,7 +250,7 @@ u8 freelist_should_allocate_to_full_and_fail_to_allocate_more(void) {
 	freelist_create(total_size, &memory_requirement, 0, 0);
 
 	// Allocate and create the freelist.
-	void* block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
+	void *block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
 	freelist_create(total_size, &memory_requirement, block, &list);
 
 	// Allocate all space.
@@ -288,7 +288,7 @@ typedef struct alloc_data {
 	u64 offset;
 } alloc_data;
 
-u8 util_freelist_allocate(freelist* list, alloc_data* data, u64* currently_allocated, u64 total_list_size) {
+u8 util_freelist_allocate (freelist *list, alloc_data *data, u64 *currently_allocated, u64 total_list_size) {
 	// Allocate some space.
 	data->offset = INVALID_ID; // Start with invalid id, which is a good default since it should never happen.
 	b8 result = freelist_allocate_block(list, data->size, &data->offset);
@@ -306,7 +306,7 @@ u8 util_freelist_allocate(freelist* list, alloc_data* data, u64* currently_alloc
 	return true;
 }
 
-u8 util_freelist_free(freelist* list, alloc_data* data, u64* currently_allocated, u64 total_list_size) {
+u8 util_freelist_free (freelist *list, alloc_data *data, u64 *currently_allocated, u64 total_list_size) {
 	// Free the block and verify space.
 	b8 result = freelist_free_block(list, data->size, data->offset);
 	expect_to_be_true(result);
@@ -324,7 +324,7 @@ u8 util_freelist_free(freelist* list, alloc_data* data, u64* currently_allocated
 	return true;
 }
 
-u8 freelist_multiple_alloc_and_free_random(void) {
+u8 freelist_multiple_alloc_and_free_random (void) {
 	freelist list;
 
 	// Pick random sizes.
@@ -347,7 +347,7 @@ u8 freelist_multiple_alloc_and_free_random(void) {
 	freelist_create(total_size, &memory_requirement, 0, 0);
 
 	// Allocate and create the freelist.
-	void* block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
+	void *block = kallocate(memory_requirement, MEMORY_TAG_ENGINE);
 	freelist_create(total_size, &memory_requirement, block, &list);
 
 	// Verify free space.
@@ -409,7 +409,7 @@ u8 freelist_multiple_alloc_and_free_random(void) {
 	return true;
 }
 
-void freelist_register_tests(void) {
+void freelist_register_tests (void) {
 	test_manager_register_test(freelist_should_create_and_destroy, "Freelist should create and destroy");
 	test_manager_register_test(freelist_should_allocate_one_and_free_one, "Freelist allocate and free one entry.");
 	test_manager_register_test(freelist_should_allocate_one_and_free_multi, "Freelist allocate and free multiple entries.");

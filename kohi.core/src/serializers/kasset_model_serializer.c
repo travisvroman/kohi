@@ -57,61 +57,61 @@ typedef struct k3d_header {
 } k3d_header;
 
 typedef struct k3d_submeshes {
-	u16* name_ids;
-	u16* material_name_ids;
-	u32* vertex_counts;
-	u32* index_counts;
+	u16 *name_ids;
+	u16 *material_name_ids;
+	u32 *vertex_counts;
+	u32 *index_counts;
 	// Cast to k3d_mesh_type. Determines vertex format.
-	u8* mesh_types;
-	vec3* centers;
-	extents_3d* extents;
-	f32* vertex_data_buffer;
-	u32* index_data_buffer;
+	u8 *mesh_types;
+	vec3 *centers;
+	extents_3d *extents;
+	f32 *vertex_data_buffer;
+	u32 *index_data_buffer;
 } k3d_submeshes;
 
 typedef struct k3d_bones {
-	u16* name_ids;
-	mat4* offset_matrices;
+	u16 *name_ids;
+	mat4 *offset_matrices;
 } k3d_bones;
 
 typedef struct k3d_nodes {
-	u16* name_ids;
-	u16* parent_indices;
-	mat4* local_transforms;
+	u16 *name_ids;
+	u16 *parent_indices;
+	mat4 *local_transforms;
 } k3d_nodes;
 
 typedef struct k3d_animations {
 	u16 total_channel_count;
-	u16* name_ids;
-	f32* durations;
-	f32* ticks_per_seconds;
-	u16* channel_counts;
+	u16 *name_ids;
+	f32 *durations;
+	f32 *ticks_per_seconds;
+	u16 *channel_counts;
 } k3d_animations;
 
 typedef struct k3d_animation_channels {
-	u16* animation_ids;
-	u16* name_ids;
-	u32* pos_counts;
-	u32* pos_offsets;
-	u32* rot_counts;
-	u32* rot_offsets;
-	u32* scale_counts;
-	u32* scale_offsets;
-	f32* data_buffer;
+	u16 *animation_ids;
+	u16 *name_ids;
+	u32 *pos_counts;
+	u32 *pos_offsets;
+	u32 *rot_counts;
+	u32 *rot_offsets;
+	u32 *scale_counts;
+	u32 *scale_offsets;
+	f32 *data_buffer;
 } k3d_animation_channels;
 
-static u64 write_binary(void* block, const void* source, u64 offset, u64 size);
-static u64 write_binary_u32(void* block, u32 value, u64 offset);
-static u64 write_binary_u16(void* block, u16 value, u64 offset);
-static u64 write_binary_array(void* block, const void* source, u64 offset, u64 element_size, u32 count);
+static u64 write_binary (void *block, const void *source, u64 offset, u64 size);
+static u64 write_binary_u32 (void *block, u32 value, u64 offset);
+static u64 write_binary_u16 (void *block, u16 value, u64 offset);
+static u64 write_binary_array (void *block, const void *source, u64 offset, u64 element_size, u32 count);
 
-static u32 read_guard(const void* in_block, u64* offset) {
-	u32 guard = *(u32*)(((u8*)in_block) + *offset);
+static u32 read_guard (const void *in_block, u64 *offset) {
+	u32 guard = *(u32 *)(((u8 *)in_block) + *offset);
 	*offset += sizeof(u32);
 	return guard;
 }
 
-KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* out_asset) {
+KAPI b8 kasset_model_deserialize (u64 size, const void *in_block, kasset_model *out_asset) {
 	if (!size || !in_block || !out_asset) {
 		KERROR("Cannot deserialize without a nonzero size, block of memory and an asset to write to.");
 		return false;
@@ -120,7 +120,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 	u64 offset = 0;
 
 	// Extract header info by casting the first bits of the block to the header.
-	const k3d_header* header = (const k3d_header*)in_block;
+	const k3d_header *header = (const k3d_header *)in_block;
 	if (header->magic != ASSET_MAGIC) {
 		KERROR("Memory is not a Kohi binary asset.");
 		return false;
@@ -137,25 +137,25 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 		// The guard should indicate the correct section.
 		KASSERT(guard == K3D_GUARD_SUBMESHES);
 		// Read the section.
-		submeshes.name_ids = (u16*)(((u8*)in_block) + offset);
+		submeshes.name_ids = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(u16));
 
-		submeshes.material_name_ids = (u16*)(((u8*)in_block) + offset);
+		submeshes.material_name_ids = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(u16));
 
-		submeshes.vertex_counts = (u32*)(((u8*)in_block) + offset);
+		submeshes.vertex_counts = (u32 *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(u32));
 
-		submeshes.index_counts = (u32*)(((u8*)in_block) + offset);
+		submeshes.index_counts = (u32 *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(u32));
 
-		submeshes.mesh_types = (u8*)(((u8*)in_block) + offset);
+		submeshes.mesh_types = (u8 *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(u8));
 
-		submeshes.centers = (vec3*)(((u8*)in_block) + offset);
+		submeshes.centers = (vec3 *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(vec3));
 
-		submeshes.extents = (extents_3d*)(((u8*)in_block) + offset);
+		submeshes.extents = (extents_3d *)(((u8 *)in_block) + offset);
 		offset += (header->submesh_count * sizeof(extents_3d));
 
 		u64 total_vert_buffer_size = 0;
@@ -175,10 +175,10 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 			total_index_buffer_size += (sizeof(u32) * submeshes.index_counts[i]);
 		}
 
-		submeshes.vertex_data_buffer = (f32*)(((u8*)in_block) + offset);
+		submeshes.vertex_data_buffer = (f32 *)(((u8 *)in_block) + offset);
 		offset += total_vert_buffer_size;
 
-		submeshes.index_data_buffer = (u32*)(((u8*)in_block) + offset);
+		submeshes.index_data_buffer = (u32 *)(((u8 *)in_block) + offset);
 		offset += total_index_buffer_size;
 
 		// Read the next guard
@@ -190,10 +190,10 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 		// The guard should indicate the correct section.
 		KASSERT(guard == K3D_GUARD_BONES);
 		// Read the section.
-		bones.name_ids = (u16*)(((u8*)in_block) + offset);
+		bones.name_ids = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->bone_count * sizeof(u16));
 
-		bones.offset_matrices = (mat4*)(((u8*)in_block) + offset);
+		bones.offset_matrices = (mat4 *)(((u8 *)in_block) + offset);
 		offset += (header->bone_count * sizeof(mat4));
 
 		// Read the next guard
@@ -205,13 +205,13 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 		// The guard should indicate the correct section.
 		KASSERT(guard == K3D_GUARD_NODES);
 		// Read the section.
-		nodes.name_ids = (u16*)(((u8*)in_block) + offset);
+		nodes.name_ids = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->node_count * sizeof(u16));
 
-		nodes.parent_indices = (u16*)(((u8*)in_block) + offset);
+		nodes.parent_indices = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->node_count * sizeof(u16));
 
-		nodes.local_transforms = (mat4*)(((u8*)in_block) + offset);
+		nodes.local_transforms = (mat4 *)(((u8 *)in_block) + offset);
 		offset += (header->node_count * sizeof(mat4));
 
 		// Read the next guard
@@ -225,19 +225,19 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 		// The guard should indicate the correct section.
 		KASSERT(guard == K3D_GUARD_ANIMATIONS);
 		// Read the section.
-		animations.total_channel_count = *(u16*)(((u8*)in_block) + offset);
+		animations.total_channel_count = *(u16 *)(((u8 *)in_block) + offset);
 		offset += sizeof(u16);
 
-		animations.name_ids = (u16*)(((u8*)in_block) + offset);
+		animations.name_ids = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->animation_count * sizeof(u16));
 
-		animations.durations = (f32*)(((u8*)in_block) + offset);
+		animations.durations = (f32 *)(((u8 *)in_block) + offset);
 		offset += (header->animation_count * sizeof(f32));
 
-		animations.ticks_per_seconds = (f32*)(((u8*)in_block) + offset);
+		animations.ticks_per_seconds = (f32 *)(((u8 *)in_block) + offset);
 		offset += (header->animation_count * sizeof(f32));
 
-		animations.channel_counts = (u16*)(((u8*)in_block) + offset);
+		animations.channel_counts = (u16 *)(((u8 *)in_block) + offset);
 		offset += (header->animation_count * sizeof(u16));
 
 		// Read the next guard
@@ -248,28 +248,28 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 			// The guard should indicate the correct section.
 			KASSERT(guard == K3D_GUARD_ANIM_CHANNELS);
 
-			channels.animation_ids = (u16*)(((u8*)in_block) + offset);
+			channels.animation_ids = (u16 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u16));
 
-			channels.name_ids = (u16*)(((u8*)in_block) + offset);
+			channels.name_ids = (u16 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u16));
 
-			channels.pos_counts = (u32*)(((u8*)in_block) + offset);
+			channels.pos_counts = (u32 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u32));
 
-			channels.pos_offsets = (u32*)(((u8*)in_block) + offset);
+			channels.pos_offsets = (u32 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u32));
 
-			channels.rot_counts = (u32*)(((u8*)in_block) + offset);
+			channels.rot_counts = (u32 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u32));
 
-			channels.rot_offsets = (u32*)(((u8*)in_block) + offset);
+			channels.rot_offsets = (u32 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u32));
 
-			channels.scale_counts = (u32*)(((u8*)in_block) + offset);
+			channels.scale_counts = (u32 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u32));
 
-			channels.scale_offsets = (u32*)(((u8*)in_block) + offset);
+			channels.scale_offsets = (u32 *)(((u8 *)in_block) + offset);
 			offset += (animations.total_channel_count * sizeof(u32));
 
 			u64 data_buffer_size = 0;
@@ -278,7 +278,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 				data_buffer_size += (sizeof(kasset_model_key_quat) * channels.rot_counts[i]);
 				data_buffer_size += (sizeof(kasset_model_key_vec3) * channels.scale_counts[i]);
 			}
-			channels.data_buffer = (f32*)(((u8*)in_block) + offset);
+			channels.data_buffer = (f32 *)(((u8 *)in_block) + offset);
 			offset += data_buffer_size;
 
 			// Read the next guard
@@ -292,7 +292,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 	KASSERT(offset == header->string_table_offset);
 
 	// Extract the string table from the file.
-	void* string_table_memory = (void*)(((u8*)in_block) + header->string_table_offset);
+	void *string_table_memory = (void *)(((u8 *)in_block) + header->string_table_offset);
 	binary_string_table string_table = binary_string_table_from_block(string_table_memory);
 
 	// Build out the asset structure(s)
@@ -309,7 +309,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 			KASSERT(submeshes.mesh_types[i] < K3D_MESH_TYPE_MAX);
 			k3d_mesh_type mesh_type = (k3d_mesh_type)submeshes.mesh_types[i];
 
-			kasset_model_submesh_data* submesh = &out_asset->submeshes[i];
+			kasset_model_submesh_data *submesh = &out_asset->submeshes[i];
 
 			u64 vert_size = sizeof(vertex_3d);
 			switch (mesh_type) {
@@ -327,20 +327,20 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 			submesh->vertex_count = submeshes.vertex_counts[i];
 			u64 submesh_vertex_buffer_size = vert_size * submeshes.vertex_counts[i];
 			submesh->vertices = kallocate(submesh_vertex_buffer_size, MEMORY_TAG_BINARY_DATA);
-			kcopy_memory(submesh->vertices, ((u8*)submeshes.vertex_data_buffer) + vertex_buffer_offset, submesh_vertex_buffer_size);
+			kcopy_memory(submesh->vertices, ((u8 *)submeshes.vertex_data_buffer) + vertex_buffer_offset, submesh_vertex_buffer_size);
 			vertex_buffer_offset += submesh_vertex_buffer_size;
 
 			submesh->index_count = submeshes.index_counts[i];
 			u64 submesh_index_buffer_size = sizeof(u32) * submeshes.index_counts[i];
 			submesh->indices = kallocate(submesh_index_buffer_size, MEMORY_TAG_BINARY_DATA);
-			kcopy_memory(submesh->indices, ((u8*)submeshes.index_data_buffer) + index_buffer_offset, submesh_index_buffer_size);
+			kcopy_memory(submesh->indices, ((u8 *)submeshes.index_data_buffer) + index_buffer_offset, submesh_index_buffer_size);
 			index_buffer_offset += submesh_index_buffer_size;
 
 			submesh->extents = submeshes.extents[i];
 			submesh->center = submeshes.centers[i];
 
 			if (submeshes.name_ids[i] != INVALID_ID_U16) {
-				const char* name = binary_string_table_get(&string_table, submeshes.name_ids[i]);
+				const char *name = binary_string_table_get(&string_table, submeshes.name_ids[i]);
 				if (name) {
 					submesh->name = kname_create(name);
 					string_free(name);
@@ -348,7 +348,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 			}
 
 			if (submeshes.material_name_ids[i] != INVALID_ID_U16) {
-				const char* material_name = binary_string_table_get(&string_table, submeshes.material_name_ids[i]);
+				const char *material_name = binary_string_table_get(&string_table, submeshes.material_name_ids[i]);
 				if (material_name) {
 					submesh->material_name = kname_create(material_name);
 					string_free(material_name);
@@ -361,10 +361,10 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 	if (out_asset->bone_count) {
 		out_asset->bones = KALLOC_TYPE_CARRAY(kasset_model_bone, out_asset->bone_count);
 		for (u16 i = 0; i < out_asset->bone_count; ++i) {
-			kasset_model_bone* bone = &out_asset->bones[i];
+			kasset_model_bone *bone = &out_asset->bones[i];
 			bone->offset = bones.offset_matrices[i];
 			bone->id = i;
-			const char* name = binary_string_table_get(&string_table, bones.name_ids[i]);
+			const char *name = binary_string_table_get(&string_table, bones.name_ids[i]);
 			if (name) {
 				bone->name = kname_create(name);
 				string_free(name);
@@ -376,11 +376,11 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 	if (out_asset->node_count) {
 		out_asset->nodes = KALLOC_TYPE_CARRAY(kasset_model_node, out_asset->node_count);
 		for (u16 i = 0; i < out_asset->node_count; ++i) {
-			kasset_model_node* node = &out_asset->nodes[i];
+			kasset_model_node *node = &out_asset->nodes[i];
 			node->local_transform = nodes.local_transforms[i];
 			node->parent_index = nodes.parent_indices[i];
 
-			const char* name = binary_string_table_get(&string_table, nodes.name_ids[i]);
+			const char *name = binary_string_table_get(&string_table, nodes.name_ids[i]);
 			if (name) {
 				node->name = kname_create(name);
 				string_free(name);
@@ -411,9 +411,9 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 		out_asset->animations = KALLOC_TYPE_CARRAY(kasset_model_animation, out_asset->animation_count);
 
 		for (u16 i = 0; i < out_asset->animation_count; ++i) {
-			kasset_model_animation* anim = &out_asset->animations[i];
+			kasset_model_animation *anim = &out_asset->animations[i];
 
-			const char* name = binary_string_table_get(&string_table, animations.name_ids[i]);
+			const char *name = binary_string_table_get(&string_table, animations.name_ids[i]);
 			if (name) {
 				anim->name = kname_create(name);
 				string_free(name);
@@ -429,9 +429,9 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 			for (u16 c = 0, cid = 0; c < animations.total_channel_count && cid < anim->channel_count; c++) {
 				// This channel belongs to this animation.
 				if (channels.animation_ids[c] == i) {
-					kasset_model_channel* channel = &anim->channels[cid];
+					kasset_model_channel *channel = &anim->channels[cid];
 
-					const char* ch_name = binary_string_table_get(&string_table, channels.name_ids[c]);
+					const char *ch_name = binary_string_table_get(&string_table, channels.name_ids[c]);
 					if (ch_name) {
 						channel->name = kname_create(ch_name);
 						string_free(ch_name);
@@ -441,21 +441,21 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 					if (channel->pos_count) {
 						channel->positions = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, channel->pos_count);
 						u64 size = sizeof(kasset_model_key_vec3) * channel->pos_count;
-						kcopy_memory(channel->positions, ((u8*)channels.data_buffer) + channels.pos_offsets[c], size);
+						kcopy_memory(channel->positions, ((u8 *)channels.data_buffer) + channels.pos_offsets[c], size);
 					}
 
 					channel->rot_count = channels.rot_counts[c];
 					if (channel->rot_count) {
 						channel->rotations = KALLOC_TYPE_CARRAY(kasset_model_key_quat, channel->rot_count);
 						u64 size = sizeof(kasset_model_key_quat) * channel->rot_count;
-						kcopy_memory(channel->rotations, ((u8*)channels.data_buffer) + channels.rot_offsets[c], size);
+						kcopy_memory(channel->rotations, ((u8 *)channels.data_buffer) + channels.rot_offsets[c], size);
 					}
 
 					channel->scale_count = channels.scale_counts[c];
 					if (channel->scale_count) {
 						channel->scales = KALLOC_TYPE_CARRAY(kasset_model_key_vec3, channel->scale_count);
 						u64 size = sizeof(kasset_model_key_vec3) * channel->scale_count;
-						kcopy_memory(channel->scales, ((u8*)channels.data_buffer) + channels.scale_offsets[c], size);
+						kcopy_memory(channel->scales, ((u8 *)channels.data_buffer) + channels.scale_offsets[c], size);
 					}
 
 					cid++;
@@ -473,7 +473,7 @@ KAPI b8 kasset_model_deserialize(u64 size, const void* in_block, kasset_model* o
 	return true;
 }
 
-KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, u8 exporter_version, u64* out_size) {
+KAPI void *kasset_model_serialize (const kasset_model *asset, u32 exporter_type, u8 exporter_version, u64 *out_size) {
 	KASSERT(out_size);
 
 	if (!asset) {
@@ -531,7 +531,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 
 		// Iterate once to get the total size of the buffer.
 		for (u32 i = 0; i < header.submesh_count; ++i) {
-			kasset_model_submesh_data* submesh = &asset->submeshes[i];
+			kasset_model_submesh_data *submesh = &asset->submeshes[i];
 			u32 vert_size = sizeof(vertex_3d);
 			switch (submesh->type) {
 			default:
@@ -555,7 +555,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 		u32 vert_offset = 0;
 		u32 index_offset = 0;
 		for (u32 i = 0; i < header.submesh_count; ++i) {
-			kasset_model_submesh_data* submesh = &asset->submeshes[i];
+			kasset_model_submesh_data *submesh = &asset->submeshes[i];
 			u32 vert_size = sizeof(vertex_3d);
 			u8 mesh_type = 0;
 			switch (submesh->type) {
@@ -571,8 +571,8 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 			}
 			u32 vsize = (vert_size * submesh->vertex_count);
 			u32 isize = (sizeof(u32) * submesh->index_count);
-			kcopy_memory(((u8*)submeshes.vertex_data_buffer) + vert_offset, submesh->vertices, vsize);
-			kcopy_memory(((u8*)submeshes.index_data_buffer) + index_offset, submesh->indices, isize);
+			kcopy_memory(((u8 *)submeshes.vertex_data_buffer) + vert_offset, submesh->vertices, vsize);
+			kcopy_memory(((u8 *)submeshes.index_data_buffer) + index_offset, submesh->indices, isize);
 
 			vert_offset += vsize;
 			index_offset += isize;
@@ -583,10 +583,10 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 			submeshes.extents[i] = submesh->extents;
 			submeshes.mesh_types[i] = mesh_type;
 
-			const char* name = kname_string_get(submesh->name);
+			const char *name = kname_string_get(submesh->name);
 			submeshes.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
-			const char* material_name = kname_string_get(submesh->material_name);
+			const char *material_name = kname_string_get(submesh->material_name);
 			submeshes.material_name_ids[i] = material_name ? binary_string_table_add(&string_table, material_name) : INVALID_ID_U16;
 		}
 	}
@@ -600,7 +600,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 			.name_ids = KALLOC_TYPE_CARRAY(u16, header.bone_count),
 			.offset_matrices = KALLOC_TYPE_CARRAY(mat4, header.bone_count)};
 		for (u16 i = 0; i < header.bone_count; ++i) {
-			const char* name = kname_string_get(asset->bones[i].name);
+			const char *name = kname_string_get(asset->bones[i].name);
 			bones.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
 			bones.offset_matrices[i] = asset->bones[i].offset;
@@ -619,7 +619,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 			.local_transforms = KALLOC_TYPE_CARRAY(mat4, header.node_count),
 			.parent_indices = KALLOC_TYPE_CARRAY(u16, header.node_count)};
 		for (u16 i = 0; i < header.node_count; ++i) {
-			const char* name = kname_string_get(asset->nodes[i].name);
+			const char *name = kname_string_get(asset->nodes[i].name);
 			nodes.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
 			nodes.local_transforms[i] = asset->nodes[i].local_transform;
@@ -650,7 +650,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 			animations.durations[i] = asset->animations[i].duration;
 			animations.ticks_per_seconds[i] = asset->animations[i].ticks_per_second;
 
-			const char* name = kname_string_get(asset->animations[i].name);
+			const char *name = kname_string_get(asset->animations[i].name);
 			animations.name_ids[i] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 		}
 
@@ -661,9 +661,9 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 		total_block_size += sizeof(u16);
 
 		for (u16 i = 0; i < header.animation_count; ++i) {
-			kasset_model_animation* anim = &asset->animations[i];
+			kasset_model_animation *anim = &asset->animations[i];
 			for (u16 c = 0; c < animations.channel_counts[i]; c++) {
-				kasset_model_channel* channel = &anim->channels[c];
+				kasset_model_channel *channel = &anim->channels[c];
 
 				channel_buffer_size += (sizeof(kasset_model_key_vec3) * channel->pos_count);
 				channel_buffer_size += (sizeof(kasset_model_key_vec3) * channel->scale_count);
@@ -699,13 +699,13 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 			u16 channel_id = 0;
 			u32 channel_data_buffer_offset = 0;
 			for (u16 i = 0; i < header.animation_count; ++i) {
-				kasset_model_animation* anim = &asset->animations[i];
+				kasset_model_animation *anim = &asset->animations[i];
 				for (u16 c = 0; c < animations.channel_counts[i]; c++) {
-					kasset_model_channel* channel = &anim->channels[c];
+					kasset_model_channel *channel = &anim->channels[c];
 
 					channels.animation_ids[channel_id] = i;
 
-					const char* name = kname_string_get(channel->name);
+					const char *name = kname_string_get(channel->name);
 					channels.name_ids[channel_id] = name ? binary_string_table_add(&string_table, name) : INVALID_ID_U16;
 
 					channels.pos_counts[channel_id] = channel->pos_count;
@@ -718,15 +718,15 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 					u32 scale_size = sizeof(kasset_model_key_vec3) * channel->scale_count;
 
 					channels.pos_offsets[channel_id] = channel_data_buffer_offset;
-					kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->positions, pos_size);
+					kcopy_memory(((u8 *)channels.data_buffer) + channel_data_buffer_offset, channel->positions, pos_size);
 					channel_data_buffer_offset += pos_size;
 
 					channels.rot_offsets[channel_id] = channel_data_buffer_offset;
-					kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->rotations, rot_size);
+					kcopy_memory(((u8 *)channels.data_buffer) + channel_data_buffer_offset, channel->rotations, rot_size);
 					channel_data_buffer_offset += rot_size;
 
 					channels.scale_offsets[channel_id] = channel_data_buffer_offset;
-					kcopy_memory(((u8*)channels.data_buffer) + channel_data_buffer_offset, channel->scales, scale_size);
+					kcopy_memory(((u8 *)channels.data_buffer) + channel_data_buffer_offset, channel->scales, scale_size);
 					channel_data_buffer_offset += scale_size;
 
 					channel_id++;
@@ -741,7 +741,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 	// Tell the header where the string table should begin.
 	header.string_table_offset = total_block_size;
 	u64 string_table_size = 0;
-	void* string_table_serialized = binary_string_table_serialized(&string_table, &string_table_size);
+	void *string_table_serialized = binary_string_table_serialized(&string_table, &string_table_size);
 	total_block_size += string_table_size;
 
 	// ===========================
@@ -749,7 +749,7 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 	// ===========================
 
 	// Allocate the data block and copy all data to it.
-	void* block = kallocate(total_block_size, MEMORY_TAG_BINARY_DATA);
+	void *block = kallocate(total_block_size, MEMORY_TAG_BINARY_DATA);
 	*out_size = total_block_size;
 
 	// Start with the header first.
@@ -870,19 +870,19 @@ KAPI void* kasset_model_serialize(const kasset_model* asset, u32 exporter_type, 
 	return block;
 }
 
-static u64 write_binary(void* block, const void* source, u64 offset, u64 size) {
-	kcopy_memory((void*)((u8*)block + offset), source, size);
+static u64 write_binary (void *block, const void *source, u64 offset, u64 size) {
+	kcopy_memory((void *)((u8 *)block + offset), source, size);
 	return offset + size;
 }
 
-static u64 write_binary_u32(void* block, u32 value, u64 offset) {
+static u64 write_binary_u32 (void *block, u32 value, u64 offset) {
 	return write_binary(block, &value, offset, sizeof(u32));
 }
 
-static u64 write_binary_u16(void* block, u16 value, u64 offset) {
+static u64 write_binary_u16 (void *block, u16 value, u64 offset) {
 	return write_binary(block, &value, offset, sizeof(u16));
 }
 
-static u64 write_binary_array(void* block, const void* source, u64 offset, u64 element_size, u32 count) {
+static u64 write_binary_array (void *block, const void *source, u64 offset, u64 element_size, u32 count) {
 	return write_binary(block, source, offset, element_size * count);
 }

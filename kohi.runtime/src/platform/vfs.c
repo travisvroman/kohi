@@ -14,9 +14,9 @@
 #include <strings/kstring.h>
 #include <systems/job_system.h>
 
-static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest);
+static b8 process_manifest_refs (vfs_state *state, const asset_manifest *manifest);
 
-b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* config) {
+b8 vfs_initialize (u64 *memory_requirement, vfs_state *state, const vfs_config *config) {
 	if (!memory_requirement) {
 		KERROR("vfs_initialize requires a valid pointer to memory_requirement.");
 		return false;
@@ -59,7 +59,7 @@ b8 vfs_initialize(u64* memory_requirement, vfs_state* state, const vfs_config* c
 	return true;
 }
 
-void vfs_shutdown(vfs_state* state) {
+void vfs_shutdown (vfs_state *state) {
 	if (state) {
 		if (state->packages) {
 			u32 package_count = darray_length(state->packages);
@@ -73,19 +73,19 @@ void vfs_shutdown(vfs_state* state) {
 }
 
 typedef struct vfs_asset_job_params {
-	vfs_state* state;
+	vfs_state *state;
 	vfs_request_info info;
 } vfs_asset_job_params;
 
 typedef struct vfs_asset_job_result {
-	vfs_state* state;
+	vfs_state *state;
 	vfs_asset_data data;
 	vfs_request_info info;
 } vfs_asset_job_result;
 
-b8 vfs_asset_job_start(void* params, void* out_result_data) {
-	vfs_asset_job_params* job_params = (vfs_asset_job_params*)params;
-	vfs_asset_job_result* out_result = (vfs_asset_job_result*)out_result_data;
+b8 vfs_asset_job_start (void *params, void *out_result_data) {
+	vfs_asset_job_params *job_params = (vfs_asset_job_params *)params;
+	vfs_asset_job_result *out_result = (vfs_asset_job_result *)out_result_data;
 	out_result->data = vfs_request_asset_sync(job_params->state, job_params->info);
 	out_result->state = job_params->state;
 	out_result->info = job_params->info;
@@ -94,8 +94,8 @@ b8 vfs_asset_job_start(void* params, void* out_result_data) {
 }
 
 // Invoked on asset job success.
-void vfs_asset_job_success(void* result_params) {
-	vfs_asset_job_result* result = result_params;
+void vfs_asset_job_success (void *result_params) {
+	vfs_asset_job_result *result = result_params;
 
 	// Issue the callback with the data, if present.
 	if (result->info.vfs_callback) {
@@ -106,8 +106,8 @@ void vfs_asset_job_success(void* result_params) {
 }
 
 // Invoked on asset job failure.
-void vfs_asset_job_fail(void* result_params) {
-	vfs_asset_job_result* result = result_params;
+void vfs_asset_job_fail (void *result_params) {
+	vfs_asset_job_result *result = result_params;
 
 	// FIXME: notify?
 	KERROR("VFS asset (name='%s', package='%s') load failed. See logs for details.", kname_string_get(result->info.asset_name), kname_string_get(result->info.package_name));
@@ -116,19 +116,19 @@ void vfs_asset_job_fail(void* result_params) {
 	}
 }
 
-kname* vfs_asset_names_by_type(vfs_state* state, kasset_type type, kname package_name, u32* out_count) {
+kname *vfs_asset_names_by_type (vfs_state *state, kasset_type type, kname package_name, u32 *out_count) {
 	if (!state || !out_count) {
 		return KNULL;
 	}
 
-	kname* results = KNULL;
+	kname *results = KNULL;
 	u32 package_count = darray_length(state->packages);
-	kname* names_da = darray_create(kname);
+	kname *names_da = darray_create(kname);
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 		if (package_name == INVALID_KNAME || package->name == package_name) {
 			u32 pcount = 0;
-			kname* pnames = kpackage_asset_names_by_type(package, type, &pcount);
+			kname *pnames = kpackage_asset_names_by_type(package, type, &pcount);
 			if (pcount) {
 				// push range; for now just loop...
 				for (u32 p = 0; p < pcount; ++p) {
@@ -147,7 +147,7 @@ kname* vfs_asset_names_by_type(vfs_state* state, kasset_type type, kname package
 	return results;
 }
 
-void vfs_request_asset(vfs_state* state, vfs_request_info info) {
+void vfs_request_asset (vfs_state *state, vfs_request_info info) {
 	if (!state) {
 		KERROR("vfs_request_asset requires state to be provided.");
 	}
@@ -160,7 +160,7 @@ void vfs_request_asset(vfs_state* state, vfs_request_info info) {
 	job_system_submit(job);
 }
 
-vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
+vfs_asset_data vfs_request_asset_sync (vfs_state *state, vfs_request_info info) {
 	vfs_asset_data out_data = {0};
 
 	if (!state) {
@@ -186,13 +186,13 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
 	} */
 
 	out_data.context_size = info.context_size;
-	out_data.context = (void*)info.context;
+	out_data.context = (void *)info.context;
 
-	const char* asset_name_str = kname_string_get(info.asset_name);
+	const char *asset_name_str = kname_string_get(info.asset_name);
 
 	u32 package_count = darray_length(state->packages);
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 
 		if (info.package_name == INVALID_KNAME || package->name == info.package_name) {
 
@@ -238,10 +238,10 @@ vfs_asset_data vfs_request_asset_sync(vfs_state* state, vfs_request_info info) {
 	return out_data;
 }
 
-const char* vfs_path_for_asset(vfs_state* state, kname package_name, kname asset_name) {
+const char *vfs_path_for_asset (vfs_state *state, kname package_name, kname asset_name) {
 	u32 package_count = darray_length(state->packages);
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 
 		if (package->name == package_name) {
 			return kpackage_path_for_asset(package, asset_name);
@@ -251,10 +251,10 @@ const char* vfs_path_for_asset(vfs_state* state, kname package_name, kname asset
 	return 0;
 }
 
-const char* vfs_source_path_for_asset(vfs_state* state, kname package_name, kname asset_name) {
+const char *vfs_source_path_for_asset (vfs_state *state, kname package_name, kname asset_name) {
 	u32 package_count = darray_length(state->packages);
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 
 		if (package->name == package_name) {
 			return kpackage_source_path_for_asset(package, asset_name);
@@ -264,7 +264,7 @@ const char* vfs_source_path_for_asset(vfs_state* state, kname package_name, knam
 	return 0;
 }
 
-void vfs_request_direct_from_disk(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, PFN_on_asset_loaded_callback callback) {
+void vfs_request_direct_from_disk (vfs_state *state, const char *path, b8 is_binary, u32 context_size, const void *context, PFN_on_asset_loaded_callback callback) {
 	if (!state || !path || !callback) {
 		KERROR("vfs_request_direct_from_disk requires state, path and callback to be provided.");
 	}
@@ -285,7 +285,7 @@ void vfs_request_direct_from_disk(vfs_state* state, const char* path, b8 is_bina
 	}
 }
 
-void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is_binary, u32 context_size, const void* context, vfs_asset_data* out_data) {
+void vfs_request_direct_from_disk_sync (vfs_state *state, const char *path, b8 is_binary, u32 context_size, const void *context, vfs_asset_data *out_data) {
 	if (!out_data) {
 		KERROR("vfs_request_direct_from_disk_sync requires a valid pointer to out_data. Nothing can or will be done.");
 		return;
@@ -297,7 +297,7 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
 
 	kzero_memory(out_data, sizeof(vfs_asset_data));
 
-	const char* filename = string_filename_no_extension_from_path(path);
+	const char *filename = string_filename_no_extension_from_path(path);
 	out_data->asset_name = kname_create(filename);
 	string_free(filename);
 	out_data->package_name = 0;
@@ -343,7 +343,7 @@ void vfs_request_direct_from_disk_sync(vfs_state* state, const char* path, b8 is
 	out_data->result = VFS_REQUEST_RESULT_SUCCESS;
 }
 
-b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package_name, u64 size, const void* data) {
+b8 vfs_asset_write_binary (vfs_state *state, kname asset_name, kname package_name, u64 size, const void *data) {
 	KASSERT_DEBUG(state);
 	u32 package_count = darray_length(state->packages);
 	if (package_name == INVALID_KNAME) {
@@ -351,7 +351,7 @@ b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package_name
 		return false;
 	}
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 		if (package->name == package_name) {
 			return kpackage_asset_bytes_write(package, asset_name, size, data);
 		}
@@ -361,7 +361,7 @@ b8 vfs_asset_write_binary(vfs_state* state, kname asset_name, kname package_name
 	return false;
 }
 
-b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, const char* text) {
+b8 vfs_asset_write_text (vfs_state *state, kname asset_name, kname package_name, const char *text) {
 	KASSERT_DEBUG(state);
 	u32 package_count = darray_length(state->packages);
 	if (package_name == INVALID_KNAME) {
@@ -369,7 +369,7 @@ b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, 
 		return false;
 	}
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 		if (package->name == package_name) {
 			return kpackage_asset_text_write(package, asset_name, string_length(text), text);
 		}
@@ -379,7 +379,7 @@ b8 vfs_asset_write_text(vfs_state* state, kname asset_name, kname package_name, 
 	return false;
 }
 
-void vfs_asset_data_cleanup(vfs_asset_data* data) {
+void vfs_asset_data_cleanup (vfs_asset_data *data) {
 	if (data) {
 		if (data->context || data->context_size) {
 			kfree(data->context, data->context_size, MEMORY_TAG_ASSET);
@@ -388,7 +388,7 @@ void vfs_asset_data_cleanup(vfs_asset_data* data) {
 		}
 		if (FLAG_GET(data->flags, VFS_ASSET_FLAG_BINARY_BIT)) {
 			if (data->size && data->bytes) {
-				kfree((void*)data->bytes, data->size, MEMORY_TAG_ASSET);
+				kfree((void *)data->bytes, data->size, MEMORY_TAG_ASSET);
 			}
 		} else {
 			if (data->text) {
@@ -404,7 +404,7 @@ void vfs_asset_data_cleanup(vfs_asset_data* data) {
 	}
 }
 
-struct kpackage* vfs_package_get(vfs_state* state, kname package_name) {
+struct kpackage *vfs_package_get (vfs_state *state, kname package_name) {
 	if (!state || !package_name) {
 		return KNULL;
 	}
@@ -421,8 +421,8 @@ struct kpackage* vfs_package_get(vfs_state* state, kname package_name) {
 }
 
 #if KOHI_HOT_RELOAD
-static void file_deleted(u32 watcher_id, void* context) {
-	vfs_state* state = (vfs_state*)context;
+static void file_deleted (u32 watcher_id, void *context) {
+	vfs_state *state = (vfs_state *)context;
 	KTRACE("VFS: File associated with watch id %u has been deleted. Watch will be removed.", watcher_id);
 
 	// Remove watch.
@@ -434,8 +434,8 @@ static void file_deleted(u32 watcher_id, void* context) {
 	event_fire(EVENT_CODE_VFS_FILE_DELETED_FROM_DISK, 0, evt_context);
 }
 
-static void file_written(u32 watcher_id, const char* file_path, b8 is_binary, void* context) {
-	vfs_state* state = (vfs_state*)context;
+static void file_written (u32 watcher_id, const char *file_path, b8 is_binary, void *context) {
+	vfs_state *state = (vfs_state *)context;
 
 	KTRACE("VFS: File associated with watch id %u has been written to.", watcher_id);
 
@@ -457,14 +457,14 @@ static void file_written(u32 watcher_id, const char* file_path, b8 is_binary, vo
 	vfs_asset_data_cleanup(&asset_data);
 }
 
-u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name, b8 is_binary) {
+u32 vfs_asset_watch (vfs_state *state, kname asset_name, kname package_name, b8 is_binary) {
 	u32 out_watch_id = INVALID_ID_U32;
 
 	u32 package_count = darray_length(state->packages);
 	for (u32 i = 0; i < package_count; ++i) {
-		kpackage* package = &state->packages[i];
+		kpackage *package = &state->packages[i];
 		if (package->name == package_name) {
-			const char* asset_path = kpackage_path_for_asset(package, asset_name);
+			const char *asset_path = kpackage_path_for_asset(package, asset_name);
 			if (!platform_watch_file(asset_path, is_binary, file_written, state, file_deleted, state, &out_watch_id)) {
 				KWARN("VFS: Unable to watch file '%s'.", asset_path);
 				string_free(asset_path);
@@ -478,17 +478,17 @@ u32 vfs_asset_watch(vfs_state* state, kname asset_name, kname package_name, b8 i
 	return INVALID_ID_U32;
 }
 
-b8 vfs_asset_unwatch(vfs_state* state, u32 watch_id) {
+b8 vfs_asset_unwatch (vfs_state *state, u32 watch_id) {
 	return platform_unwatch_file(watch_id);
 }
 #endif
 
-static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest) {
+static b8 process_manifest_refs (vfs_state *state, const asset_manifest *manifest) {
 	b8 success = true;
 	if (manifest->references) {
 		u32 ref_count = darray_length(manifest->references);
 		for (u32 i = 0; i < ref_count; ++i) {
-			asset_manifest_reference* ref = &manifest->references[i];
+			asset_manifest_reference *ref = &manifest->references[i];
 
 			// Don't load the same package more than once.
 			b8 exists = false;
@@ -506,7 +506,7 @@ static b8 process_manifest_refs(vfs_state* state, const asset_manifest* manifest
 			}
 
 			asset_manifest new_manifest = {0};
-			const char* manifest_file_path = string_format("%sasset_manifest.kson", ref->path);
+			const char *manifest_file_path = string_format("%sasset_manifest.kson", ref->path);
 			b8 manifest_result = kpackage_parse_manifest_file_content(manifest_file_path, &new_manifest);
 			string_free(manifest_file_path);
 			if (!manifest_result) {

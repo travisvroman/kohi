@@ -31,8 +31,8 @@ typedef struct nine_slice {
 
 } nine_slice;
 
-KAPI b8 nine_slice_create(const char* name, vec2i size, vec2i atlas_px_size, vec2i atlas_px_min, vec2i atlas_px_max, vec2i corner_px_size, vec2i corner_size, nine_slice* out_nine_slice);
-KAPI void nine_slice_destroy(nine_slice* nslice);
+KAPI b8 nine_slice_create (const char *name, vec2i size, vec2i atlas_px_size, vec2i atlas_px_min, vec2i atlas_px_max, vec2i corner_px_size, vec2i corner_size, nine_slice *out_nine_slice);
+KAPI void nine_slice_destroy (nine_slice *nslice);
 
 /**
  * Updates nine slice vertex data for the given nine slice. Optionally reuploads to GPU.
@@ -40,6 +40,6 @@ KAPI void nine_slice_destroy(nine_slice* nslice);
  * @param vertices An external array of vertices to populate. If 0/null, uses vertex array in nslice.
  * @returns True on success; otherwise false.
  */
-KAPI b8 nine_slice_update(nine_slice* nslice, vertex_2d* vertices);
+KAPI b8 nine_slice_update (nine_slice *nslice, vertex_2d *vertices);
 
-KAPI void nine_slice_render_frame_prepare(nine_slice* nslice, const struct frame_data* p_frame_data);
+KAPI void nine_slice_render_frame_prepare (nine_slice *nslice, const struct frame_data *p_frame_data);

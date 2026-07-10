@@ -55,8 +55,8 @@ typedef LONG NTSTATUS;
 } RTL_OSVERSIONINFOW; */
 
 __declspec(dllimport)
-NTSTATUS NTAPI
-RtlGetVersion(RTL_OSVERSIONINFOW* lpVersionInformation);
+	NTSTATUS NTAPI
+	RtlGetVersion(RTL_OSVERSIONINFOW *lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
@@ -64,12 +64,12 @@ typedef struct win32_handle_info {
 
 typedef struct win32_file_watch {
 	u32 id;
-	const char* file_path;
+	const char *file_path;
 	b8 is_binary;
 	platform_filewatcher_file_written_callback watcher_written_callback;
-	void* watcher_written_context;
+	void *watcher_written_context;
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback;
-	void* watcher_deleted_context;
+	void *watcher_deleted_context;
 	FILETIME last_write_time;
 } win32_file_watch;
 
@@ -83,10 +83,10 @@ typedef struct platform_state {
 	CONSOLE_SCREEN_BUFFER_INFO std_output_csbi;
 	CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
 	// darray
-	win32_file_watch* watches;
+	win32_file_watch *watches;
 
 	// darray of pointers to created windows (owned by the application);
-	kwindow** windows;
+	kwindow **windows;
 	platform_window_closed_callback window_closed_callback;
 	platform_window_resized_callback window_resized_callback;
 	platform_process_key process_key;
@@ -96,7 +96,7 @@ typedef struct platform_state {
 	platform_clipboard_on_paste_callback on_paste;
 } platform_state;
 
-static platform_state* state_ptr;
+static platform_state *state_ptr;
 
 // Clock
 static f64 clock_frequency;
@@ -111,13 +111,13 @@ static LARGE_INTEGER start_time;
 // 2. Is the clock_frequency the right name since it assigns the inverse of frequency.QuadPart, maybe it should be
 // something like tick_duration ?
 
-static void platform_update_watches(void);
-LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
-static LPCWSTR cstr_to_wcstr(const char* str);
-static void wcstr_free(LPCWSTR wstr);
-static const char* wcstr_to_cstr(LPCWSTR wstr);
+static void platform_update_watches (void);
+LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
+static LPCWSTR cstr_to_wcstr (const char *str);
+static void wcstr_free (LPCWSTR wstr);
+static const char *wcstr_to_cstr (LPCWSTR wstr);
 
-void clock_setup(void) {
+void clock_setup (void) {
 	LARGE_INTEGER frequency;
 	QueryPerformanceFrequency(&frequency);
 	clock_frequency = 1.0 / (f64)frequency.QuadPart;
@@ -128,7 +128,7 @@ void clock_setup(void) {
 	min_period = tc.wPeriodMin;
 }
 
-b8 platform_system_startup(u64* memory_requirement, platform_state* state, platform_system_config* config) {
+b8 platform_system_startup (u64 *memory_requirement, platform_state *state, platform_system_config *config) {
 	*memory_requirement = sizeof(platform_state);
 	if (state == 0) {
 		return true;
@@ -143,7 +143,7 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
 	clock_setup();
 
 	// Create the array of window pointers.
-	state->windows = darray_create(kwindow*);
+	state->windows = darray_create(kwindow *);
 	state->process_key = 0;
 	state->process_mouse_button = 0;
 	state->process_mouse_move = 0;
@@ -179,11 +179,11 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
 		u64 size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 								  NULL, last_error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&wmessage_buf, 0, NULL);
 		if (size) {
-			const char* err_message = wcstr_to_cstr(wmessage_buf);
-			const char* message = string_format("Window creation failed with error: '%s'.", err_message);
+			const char *err_message = wcstr_to_cstr(wmessage_buf);
+			const char *message = string_format("Window creation failed with error: '%s'.", err_message);
 			LocalFree(wmessage_buf); // Free the Win32's string's buffer.
 
-			const WCHAR* wmessage = cstr_to_wcstr(message);
+			const WCHAR *wmessage = cstr_to_wcstr(message);
 			MessageBoxW(NULL, wmessage, L"Error!", MB_ICONEXCLAMATION | MB_OK);
 			KFATAL(message);
 			string_free(message);
@@ -199,7 +199,7 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
 	return true;
 }
 
-void platform_system_shutdown(struct platform_state* state) {
+void platform_system_shutdown (struct platform_state *state) {
 	if (state && state->windows) {
 		u32 len = darray_length(state->windows);
 		for (u32 i = 0; i < len; ++i) {
@@ -213,7 +213,7 @@ void platform_system_shutdown(struct platform_state* state) {
 	}
 }
 
-b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately) {
+b8 platform_window_create (const kwindow_config *config, struct kwindow *window, b8 show_immediately) {
 	if (!window) {
 		return false;
 	}
@@ -284,11 +284,11 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 		u64 size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 								  NULL, last_error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&wmessage_buf, 0, NULL);
 		if (size) {
-			const char* err_message = wcstr_to_cstr(wmessage_buf);
-			const char* message = string_format("Window creation failed with error: '%s'.", err_message);
+			const char *err_message = wcstr_to_cstr(wmessage_buf);
+			const char *message = string_format("Window creation failed with error: '%s'.", err_message);
 			LocalFree(wmessage_buf); // Free the Win32's string's buffer.
 
-			const WCHAR* wmessage = cstr_to_wcstr(message);
+			const WCHAR *wmessage = cstr_to_wcstr(message);
 			MessageBoxW(NULL, wmessage, L"Error!", MB_ICONEXCLAMATION | MB_OK);
 			KFATAL(message);
 			string_free(message);
@@ -311,7 +311,7 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 	return true;
 }
 
-void platform_window_destroy(struct kwindow* window) {
+void platform_window_destroy (struct kwindow *window) {
 	if (window) {
 		u32 len = darray_length(state_ptr->windows);
 		for (u32 i = 0; i < len; ++i) {
@@ -329,7 +329,7 @@ void platform_window_destroy(struct kwindow* window) {
 	}
 }
 
-b8 platform_window_show(struct kwindow* window) {
+b8 platform_window_show (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
@@ -343,7 +343,7 @@ b8 platform_window_show(struct kwindow* window) {
 	return true;
 }
 
-b8 platform_window_hide(struct kwindow* window) {
+b8 platform_window_hide (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
@@ -355,14 +355,14 @@ b8 platform_window_hide(struct kwindow* window) {
 	return true;
 }
 
-const char* platform_window_title_get(const struct kwindow* window) {
+const char *platform_window_title_get (const struct kwindow *window) {
 	if (window && window->title) {
 		return string_duplicate(window->title);
 	}
 	return 0;
 }
 
-b8 platform_window_title_set(struct kwindow* window, const char* title) {
+b8 platform_window_title_set (struct kwindow *window, const char *title) {
 	if (!window) {
 		return false;
 	}
@@ -375,7 +375,7 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 	return result;
 }
 
-b8 platform_pump_messages(void) {
+b8 platform_pump_messages (void) {
 	if (state_ptr) {
 		MSG message;
 		while (PeekMessageW(&message, NULL, 0, 0, PM_REMOVE)) {
@@ -387,29 +387,29 @@ b8 platform_pump_messages(void) {
 	return true;
 }
 
-void* platform_allocate(u64 size, b8 aligned) {
+void *platform_allocate (u64 size, b8 aligned) {
 	// return malloc(size);
-	return (void*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
+	return (void *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
-void platform_free(void* block, b8 aligned) {
+void platform_free (void *block, b8 aligned) {
 	// free(block);
 	HeapFree(GetProcessHeap(), 0, block);
 }
 
-void* platform_zero_memory(void* block, u64 size) {
+void *platform_zero_memory (void *block, u64 size) {
 	return memset(block, 0, size);
 }
 
-void* platform_copy_memory(void* dest, const void* source, u64 size) {
+void *platform_copy_memory (void *dest, const void *source, u64 size) {
 	return memcpy(dest, source, size);
 }
 
-void* platform_set_memory(void* dest, i32 value, u64 size) {
+void *platform_set_memory (void *dest, i32 value, u64 size) {
 	return memset(dest, value, size);
 }
 
-void platform_console_write(struct platform_state* platform, log_level level, const char* message) {
+void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
 	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
 	HANDLE console_handle = GetStdHandle(is_error ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
 
@@ -433,7 +433,7 @@ void platform_console_write(struct platform_state* platform, log_level level, co
 	SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
-f64 platform_get_absolute_time(void) {
+f64 platform_get_absolute_time (void) {
 	if (!clock_frequency) {
 		clock_setup();
 	}
@@ -443,7 +443,7 @@ f64 platform_get_absolute_time(void) {
 	return (f64)now_time.QuadPart * clock_frequency;
 }
 
-void platform_sleep(u64 ms) {
+void platform_sleep (u64 ms) {
 	kclock clock;
 	kclock_start(&clock);
 	timeBeginPeriod(min_period);
@@ -462,14 +462,14 @@ void platform_sleep(u64 ms) {
 	}
 }
 
-i32 platform_get_processor_count(void) {
+i32 platform_get_processor_count (void) {
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	KINFO("%i processor cores detected.", sysinfo.dwNumberOfProcessors);
 	return sysinfo.dwNumberOfProcessors;
 }
 
-void platform_get_handle_info(u64* out_size, void* memory) {
+void platform_get_handle_info (u64 *out_size, void *memory) {
 	*out_size = sizeof(win32_handle_info);
 	if (!memory) {
 		return;
@@ -478,12 +478,12 @@ void platform_get_handle_info(u64* out_size, void* memory) {
 	kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(const struct kwindow* window) {
+f32 platform_device_pixel_ratio (const struct kwindow *window) {
 	return window->platform_state->device_pixel_ratio;
 }
 
 // NOTE: Begin threads
-b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_detach, kthread* out_thread) {
+b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
 	if (!start_function_ptr) {
 		return false;
 	}
@@ -494,7 +494,7 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 		(LPTHREAD_START_ROUTINE)start_function_ptr, // function ptr
 		params,										// param to pass to thread
 		0,
-		(DWORD*)&out_thread->thread_id);
+		(DWORD *)&out_thread->thread_id);
 	KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);
 	if (!out_thread->internal_data) {
 		return false;
@@ -506,7 +506,7 @@ b8 kthread_create(pfn_thread_start start_function_ptr, void* params, b8 auto_det
 	return true;
 }
 
-void kthread_destroy(kthread* thread) {
+void kthread_destroy (kthread *thread) {
 	if (thread && thread->internal_data) {
 		DWORD exit_code;
 		GetExitCodeThread(thread->internal_data, &exit_code);
@@ -519,21 +519,21 @@ void kthread_destroy(kthread* thread) {
 	}
 }
 
-void kthread_detach(kthread* thread) {
+void kthread_detach (kthread *thread) {
 	if (thread && thread->internal_data) {
 		CloseHandle(thread->internal_data);
 		thread->internal_data = 0;
 	}
 }
 
-void kthread_cancel(kthread* thread) {
+void kthread_cancel (kthread *thread) {
 	if (thread && thread->internal_data) {
 		TerminateThread(thread->internal_data, 0);
 		thread->internal_data = 0;
 	}
 }
 
-b8 kthread_wait(kthread* thread) {
+b8 kthread_wait (kthread *thread) {
 	if (thread && thread->internal_data) {
 		DWORD exit_code = WaitForSingleObject(thread->internal_data, INFINITE);
 		if (exit_code == WAIT_OBJECT_0) {
@@ -543,7 +543,7 @@ b8 kthread_wait(kthread* thread) {
 	return false;
 }
 
-b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
+b8 kthread_wait_timeout (kthread *thread, u64 wait_ms) {
 	if (thread && thread->internal_data) {
 		DWORD exit_code = WaitForSingleObject(thread->internal_data, wait_ms);
 		if (exit_code == WAIT_OBJECT_0) {
@@ -555,7 +555,7 @@ b8 kthread_wait_timeout(kthread* thread, u64 wait_ms) {
 	return false;
 }
 
-b8 kthread_is_active(kthread* thread) {
+b8 kthread_is_active (kthread *thread) {
 	if (thread && thread->internal_data) {
 		DWORD exit_code = WaitForSingleObject(thread->internal_data, 0);
 		if (exit_code == WAIT_TIMEOUT) {
@@ -565,18 +565,18 @@ b8 kthread_is_active(kthread* thread) {
 	return false;
 }
 
-void kthread_sleep(kthread* thread, u64 ms) {
+void kthread_sleep (kthread *thread, u64 ms) {
 	platform_sleep(ms);
 }
 
-u64 platform_current_thread_id(void) {
+u64 platform_current_thread_id (void) {
 	return (u64)GetCurrentThreadId();
 }
 
 // NOTE: End threads.
 
 // NOTE: Begin mutexes
-b8 kmutex_create(kmutex* out_mutex) {
+b8 kmutex_create (kmutex *out_mutex) {
 	if (!out_mutex) {
 		return false;
 	}
@@ -590,7 +590,7 @@ b8 kmutex_create(kmutex* out_mutex) {
 	return true;
 }
 
-void kmutex_destroy(kmutex* mutex) {
+void kmutex_destroy (kmutex *mutex) {
 	if (mutex && mutex->internal_data) {
 		WaitForSingleObject(mutex->internal_data, INFINITE);
 		CloseHandle(mutex->internal_data);
@@ -599,7 +599,7 @@ void kmutex_destroy(kmutex* mutex) {
 	}
 }
 
-b8 kmutex_lock(kmutex* mutex) {
+b8 kmutex_lock (kmutex *mutex) {
 	if (!mutex) {
 		return false;
 	}
@@ -620,7 +620,7 @@ b8 kmutex_lock(kmutex* mutex) {
 	return true;
 }
 
-b8 kmutex_unlock(kmutex* mutex) {
+b8 kmutex_unlock (kmutex *mutex) {
 	if (!mutex || !mutex->internal_data) {
 		return false;
 	}
@@ -631,7 +631,7 @@ b8 kmutex_unlock(kmutex* mutex) {
 
 // NOTE: End mutexes.
 
-b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) {
+b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count) {
 	if (!out_semaphore) {
 		return false;
 	}
@@ -641,7 +641,7 @@ b8 ksemaphore_create(ksemaphore* out_semaphore, u32 max_count, u32 start_count) 
 	return true;
 }
 
-void ksemaphore_destroy(ksemaphore* semaphore) {
+void ksemaphore_destroy (ksemaphore *semaphore) {
 	if (semaphore && semaphore->internal_data) {
 		CloseHandle(semaphore->internal_data);
 		KTRACE("Destroyed semaphore handle.");
@@ -649,7 +649,7 @@ void ksemaphore_destroy(ksemaphore* semaphore) {
 	}
 }
 
-b8 ksemaphore_signal(ksemaphore* semaphore) {
+b8 ksemaphore_signal (ksemaphore *semaphore) {
 	if (!semaphore || !semaphore->internal_data) {
 		return false;
 	}
@@ -664,7 +664,7 @@ b8 ksemaphore_signal(ksemaphore* semaphore) {
 	// L: post/Increment
 }
 
-b8 ksemaphore_wait(ksemaphore* semaphore, u64 timeout_ms) {
+b8 ksemaphore_wait (ksemaphore *semaphore, u64 timeout_ms) {
 	if (!semaphore || !semaphore->internal_data) {
 		return false;
 	}
@@ -694,7 +694,7 @@ b8 ksemaphore_wait(ksemaphore* semaphore, u64 timeout_ms) {
 	return true;
 }
 
-b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library) {
+b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library) {
 	if (!out_library) {
 		return false;
 	}
@@ -722,7 +722,7 @@ b8 platform_dynamic_library_load(const char* name, dynamic_library* out_library)
 	return true;
 }
 
-b8 platform_dynamic_library_unload(dynamic_library* library) {
+b8 platform_dynamic_library_unload (dynamic_library *library) {
 	if (!library) {
 		return false;
 	}
@@ -734,21 +734,21 @@ b8 platform_dynamic_library_unload(dynamic_library* library) {
 
 	if (library->name) {
 		u64 length = string_length(library->name);
-		kfree((void*)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+		kfree((void *)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
 	}
 
 	if (library->filename) {
 		u64 length = string_length(library->filename);
-		kfree((void*)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+		kfree((void *)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
 	}
 
 	if (library->functions) {
 		u32 count = darray_length(library->functions);
 		for (u32 i = 0; i < count; ++i) {
-			dynamic_library_function* f = &library->functions[i];
+			dynamic_library_function *f = &library->functions[i];
 			if (f->name) {
 				u64 length = string_length(f->name);
-				kfree((void*)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+				kfree((void *)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
 			}
 		}
 
@@ -766,7 +766,7 @@ b8 platform_dynamic_library_unload(dynamic_library* library) {
 	return true;
 }
 
-void* platform_dynamic_library_load_function(const char* name, dynamic_library* library) {
+void *platform_dynamic_library_load_function (const char *name, dynamic_library *library) {
 	if (!name || !library) {
 		return 0;
 	}
@@ -785,46 +785,46 @@ void* platform_dynamic_library_load_function(const char* name, dynamic_library* 
 	f.name = string_duplicate(name);
 	darray_push(library->functions, f);
 
-	return (void*)f_addr;
+	return (void *)f_addr;
 }
 
-const char* platform_dynamic_library_extension(void) {
+const char *platform_dynamic_library_extension (void) {
 	return ".dll";
 }
 
-const char* platform_dynamic_library_prefix(void) {
+const char *platform_dynamic_library_prefix (void) {
 	return "";
 }
 
-void platform_register_window_closed_callback(platform_window_closed_callback callback) {
+void platform_register_window_closed_callback (platform_window_closed_callback callback) {
 	state_ptr->window_closed_callback = callback;
 }
 
-void platform_register_window_resized_callback(platform_window_resized_callback callback) {
+void platform_register_window_resized_callback (platform_window_resized_callback callback) {
 	state_ptr->window_resized_callback = callback;
 }
 
-void platform_register_process_key(platform_process_key callback) {
+void platform_register_process_key (platform_process_key callback) {
 	state_ptr->process_key = callback;
 }
 
-void platform_register_process_mouse_button_callback(platform_process_mouse_button callback) {
+void platform_register_process_mouse_button_callback (platform_process_mouse_button callback) {
 	state_ptr->process_mouse_button = callback;
 }
 
-void platform_register_process_mouse_move_callback(platform_process_mouse_move callback) {
+void platform_register_process_mouse_move_callback (platform_process_mouse_move callback) {
 	state_ptr->process_mouse_move = callback;
 }
 
-void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
+void platform_register_process_mouse_wheel_callback (platform_process_mouse_wheel callback) {
 	state_ptr->process_mouse_wheel = callback;
 }
 
-void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback) {
 	state_ptr->on_paste = callback;
 }
 
-platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
+platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
 	LPCWSTR wsource = cstr_to_wcstr(source);
 	LPCWSTR wdest = cstr_to_wcstr(dest);
 	BOOL result = CopyFileW(wsource, wdest, !overwrite_if_exists);
@@ -843,14 +843,14 @@ platform_error_code platform_copy_file(const char* source, const char* dest, b8 
 	return PLATFORM_ERROR_SUCCESS;
 }
 
-static b8 register_watch(
-	const char* file_path,
+static b8 register_watch (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 
 	if (!state_ptr || !file_path || !out_watch_id) {
 		if (out_watch_id) {
@@ -878,7 +878,7 @@ static b8 register_watch(
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		win32_file_watch* w = &state_ptr->watches[i];
+		win32_file_watch *w = &state_ptr->watches[i];
 		if (w->id == INVALID_ID) {
 			// Found a free slot to use.
 			w->id = i;
@@ -904,7 +904,7 @@ static b8 register_watch(
 	return true;
 }
 
-static b8 unregister_watch(u32 watch_id) {
+static b8 unregister_watch (u32 watch_id) {
 	if (!state_ptr || !state_ptr->watches) {
 		return false;
 	}
@@ -914,24 +914,24 @@ static b8 unregister_watch(u32 watch_id) {
 		return false;
 	}
 
-	win32_file_watch* w = &state_ptr->watches[watch_id];
+	win32_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
 	u32 len = string_length(w->file_path);
-	kfree((void*)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+	kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(FILETIME));
 
 	return true;
 }
 
-b8 platform_watch_file(
-	const char* file_path,
+b8 platform_watch_file (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 	return register_watch(
 		file_path,
 		is_binary,
@@ -942,18 +942,18 @@ b8 platform_watch_file(
 		out_watch_id);
 }
 
-b8 platform_unwatch_file(u32 watch_id) {
+b8 platform_unwatch_file (u32 watch_id) {
 	return unregister_watch(watch_id);
 }
 
-static void platform_update_watches(void) {
+static void platform_update_watches (void) {
 	if (!state_ptr || !state_ptr->watches) {
 		return;
 	}
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		win32_file_watch* f = &state_ptr->watches[i];
+		win32_file_watch *f = &state_ptr->watches[i];
 		if (f->id != INVALID_ID) {
 			WIN32_FIND_DATAW data;
 
@@ -991,7 +991,7 @@ static void platform_update_watches(void) {
 }
 
 static inline kunix_time_ns
-unix_time_from_filetime(FILETIME ft) {
+unix_time_from_filetime (FILETIME ft) {
 	uint64_t ticks =
 		((uint64_t)ft.dwHighDateTime << 32) |
 		(uint64_t)ft.dwLowDateTime;
@@ -1001,7 +1001,7 @@ unix_time_from_filetime(FILETIME ft) {
 }
 
 static inline FILETIME
-filetime_from_unix_time(kunix_time_ns t) {
+filetime_from_unix_time (kunix_time_ns t) {
 	uint64_t ns = t + UNIX_EPOCH_TO_FILETIME_NS;
 	uint64_t ticks = ns / FILETIME_TICK_NS;
 
@@ -1011,7 +1011,7 @@ filetime_from_unix_time(kunix_time_ns t) {
 	return ft;
 }
 
-kunix_time_ns platform_get_file_mtime(const char* path) {
+kunix_time_ns platform_get_file_mtime (const char *path) {
 	WIN32_FILE_ATTRIBUTE_DATA data;
 
 	LPCWSTR wfile_path = cstr_to_wcstr(path);
@@ -1026,7 +1026,7 @@ kunix_time_ns platform_get_file_mtime(const char* path) {
 	return ret;
 }
 
-static const char* windows_product_to_string(DWORD p) {
+static const char *windows_product_to_string (DWORD p) {
 	switch (p) {
 	case PRODUCT_PROFESSIONAL:
 		return "Pro";
@@ -1048,7 +1048,7 @@ static const char* windows_product_to_string(DWORD p) {
 	}
 }
 
-static u32 windows_get_physical_core_count(void) {
+static u32 windows_get_physical_core_count (void) {
 	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
 	DWORD returnLength = 0;
 	BOOL done = FALSE;
@@ -1096,13 +1096,13 @@ static u32 windows_get_physical_core_count(void) {
 	return coreCount;
 }
 
-static u32 windows_get_ram_speed_mhz(void) {
+static u32 windows_get_ram_speed_mhz (void) {
 	DWORD size = GetSystemFirmwareTable('RSMB', 0, NULL, 0);
 	if (!size) {
 		return 0;
 	}
 
-	BYTE* buf = (BYTE*)kallocate(size, MEMORY_TAG_PLATFORM);
+	BYTE *buf = (BYTE *)kallocate(size, MEMORY_TAG_PLATFORM);
 	if (!buf) {
 		return 0;
 	}
@@ -1112,15 +1112,15 @@ static u32 windows_get_ram_speed_mhz(void) {
 		return 0;
 	}
 
-	BYTE* p = buf;
-	BYTE* end = buf + size;
+	BYTE *p = buf;
+	BYTE *end = buf + size;
 
 	while (p + 4 <= end) {
 		BYTE type = p[0];
 		BYTE len = p[1];
 
 		if (type == 17 && len >= 0x15) { // Memory Device
-			u16 speed = *(u16*)(p + 0x15);
+			u16 speed = *(u16 *)(p + 0x15);
 			if (speed != 0 && speed != 0xFFFF) {
 				kfree(buf, size, MEMORY_TAG_PLATFORM);
 				return speed;
@@ -1138,7 +1138,7 @@ static u32 windows_get_ram_speed_mhz(void) {
 	kfree(buf, size, MEMORY_TAG_PLATFORM);
 	return 0;
 }
-static u32 windows_get_cpu_base_clock_mhz(void) {
+static u32 windows_get_cpu_base_clock_mhz (void) {
 	HKEY key;
 	DWORD mhz = 0;
 	DWORD size = sizeof(DWORD);
@@ -1164,7 +1164,7 @@ static u32 windows_get_cpu_base_clock_mhz(void) {
 	return mhz;
 }
 
-static void windows_query_storage(ksystem_info* s) {
+static void windows_query_storage (ksystem_info *s) {
 	s->storage_count = 0;
 
 	DWORD drives = GetLogicalDrives();
@@ -1193,7 +1193,7 @@ static void windows_query_storage(ksystem_info* s) {
 		if (s->storage_count >= KMAX_STORAGE_DEVICES) {
 			break;
 		}
-		kstorage_info* info = &s->storage[s->storage_count++];
+		kstorage_info *info = &s->storage[s->storage_count++];
 
 		info->name[0] = letter;
 		info->name[1] = '\0';
@@ -1204,7 +1204,7 @@ static void windows_query_storage(ksystem_info* s) {
 	}
 }
 
-b8 platform_system_info_collect(ksystem_info* out_info) {
+b8 platform_system_info_collect (ksystem_info *out_info) {
 	// CPU
 	HKEY key;
 	RegOpenKeyExA(
@@ -1244,7 +1244,7 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	GetProductInfo(v.dwMajorVersion, v.dwMinorVersion, 0, 0, &product);
 
 	u8 actual_ver = (v.dwBuildNumber >= 22000) ? 11 : 10;
-	char* windows_formatted = string_format("Windows %u %s 64-bit", actual_ver, windows_product_to_string(product));
+	char *windows_formatted = string_format("Windows %u %s 64-bit", actual_ver, windows_product_to_string(product));
 	string_copy(out_info->os_name, windows_formatted);
 	string_free(windows_formatted);
 
@@ -1261,7 +1261,7 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	return true;
 }
 
-void platform_request_clipboard_content(kwindow* window) {
+void platform_request_clipboard_content (kwindow *window) {
 	if (!OpenClipboard(NULL)) {
 		return;
 	}
@@ -1271,14 +1271,14 @@ void platform_request_clipboard_content(kwindow* window) {
 		goto win32_clipboard_fire;
 	}
 
-	wchar_t* wtext = (wchar_t*)GlobalLock(h);
+	wchar_t *wtext = (wchar_t *)GlobalLock(h);
 	if (!wtext) {
 		goto win32_clipboard_fire;
 	}
 
 	i32 utf8_len = WideCharToMultiByte(CP_UTF8, 0, wtext, -1, NULL, 0, NULL, NULL);
 
-	char* text = kallocate(utf8_len, MEMORY_TAG_STRING);
+	char *text = kallocate(utf8_len, MEMORY_TAG_STRING);
 	WideCharToMultiByte(CP_UTF8, 0, wtext, -1, text, utf8_len, NULL, NULL);
 
 	GlobalUnlock(h);
@@ -1295,7 +1295,7 @@ win32_clipboard_fire:
 		state_ptr->on_paste(ctx);
 	}
 }
-static wchar_t* utf8_to_utf16(const char* utf8) {
+static wchar_t *utf8_to_utf16 (const char *utf8) {
 	if (!utf8) {
 		return KNULL;
 	}
@@ -1306,7 +1306,7 @@ static wchar_t* utf8_to_utf16(const char* utf8) {
 		return KNULL;
 	}
 
-	wchar_t* out = (wchar_t*)malloc(len * sizeof(wchar_t));
+	wchar_t *out = (wchar_t *)malloc(len * sizeof(wchar_t));
 	if (!out) {
 		return KNULL;
 	}
@@ -1315,7 +1315,7 @@ static wchar_t* utf8_to_utf16(const char* utf8) {
 	return out;
 }
 
-void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
+void platform_clipboard_content_set (kwindow *window, kclipboard_content_type type, u32 size, void *content) {
 	if (!OpenClipboard(KNULL)) {
 		return;
 	}
@@ -1323,7 +1323,7 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 	EmptyClipboard();
 
 	u64 len;
-	wchar_t* wtext = 0;
+	wchar_t *wtext = 0;
 	if (type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 		wtext = utf8_to_utf16(content);
 		len = (wcslen(wtext) + 1) * sizeof(wchar_t);
@@ -1336,7 +1336,7 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 		goto win32_clipboard_fire;
 	}
 
-	void* dest = GlobalLock(hmem);
+	void *dest = GlobalLock(hmem);
 	if (type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 		memcpy(dest, wtext, len);
 	} else {
@@ -1354,49 +1354,49 @@ win32_clipboard_fire:
 }
 
 typedef struct file_list {
-	const char** items;
+	const char **items;
 	u32 count;
 } file_list;
 
-file_list parse_open_filename(const wchar_t* buffer) {
+file_list parse_open_filename (const wchar_t *buffer) {
 	file_list result = {0};
 
 	if (!buffer || !buffer[0]) {
 		return result;
 	}
 
-	const wchar_t* p = buffer;
+	const wchar_t *p = buffer;
 
 	// First string
-	const wchar_t* first = p;
+	const wchar_t *first = p;
 	u64 first_len = wcslen(first);
 
 	p += first_len + 1;
 
 	// If next is null → single file
 	if (*p == L'\0') {
-		result.items = KALLOC_TYPE_CARRAY(const char*, 1);
+		result.items = KALLOC_TYPE_CARRAY(const char *, 1);
 		result.items[0] = wcstr_to_cstr(first);
 		result.count = 1;
 		return result;
 	}
 
 	// Otherwise: directory + multiple files
-	const wchar_t* dir = first;
+	const wchar_t *dir = first;
 
 	// Count files
 	u32 count = 0;
-	const wchar_t* tmp = p;
+	const wchar_t *tmp = p;
 	while (*tmp) {
 		tmp += wcslen(tmp) + 1;
 		count++;
 	}
 
-	result.items = KALLOC_TYPE_CARRAY(const char*, count);
+	result.items = KALLOC_TYPE_CARRAY(const char *, count);
 	result.count = count;
 
 	for (u32 i = 0; i < count; ++i) {
-		const wchar_t* file = p;
+		const wchar_t *file = p;
 
 		u64 dir_len = wcslen(dir);
 		u64 file_len = wcslen(file);
@@ -1404,7 +1404,7 @@ file_list parse_open_filename(const wchar_t* buffer) {
 		// dir + '\' + file + null
 		u64 total = dir_len + 1 + file_len + 1;
 
-		wchar_t* full = (wchar_t*)malloc(sizeof(wchar_t) * total);
+		wchar_t *full = (wchar_t *)malloc(sizeof(wchar_t) * total);
 
 		wcscpy(full, dir);
 		full[dir_len] = L'\\';
@@ -1418,7 +1418,7 @@ file_list parse_open_filename(const wchar_t* buffer) {
 	return result;
 }
 
-void free_file_list(file_list* list) {
+void free_file_list (file_list *list) {
 	if (!list || !list->items) {
 		return;
 	}
@@ -1427,13 +1427,13 @@ void free_file_list(file_list* list) {
 		string_free(list->items[i]);
 	}
 
-	KFREE_TYPE_CARRAY(list->items, const char*, list->count);
+	KFREE_TYPE_CARRAY(list->items, const char *, list->count);
 
 	list->items = NULL;
 	list->count = 0;
 }
 
-static wchar_t* build_filter_string(const wchar_t* input) {
+static wchar_t *build_filter_string (const wchar_t *input) {
 	if (!input) {
 		return KNULL;
 	}
@@ -1441,7 +1441,7 @@ static wchar_t* build_filter_string(const wchar_t* input) {
 	u64 len = wcslen(input);
 
 	// Worst case: every char becomes itself, plus we add one extra null at the end
-	wchar_t* out = (wchar_t*)KALLOC_TYPE_CARRAY(wchar_t, (len + 2));
+	wchar_t *out = (wchar_t *)KALLOC_TYPE_CARRAY(wchar_t, (len + 2));
 	if (!out) {
 		return KNULL;
 	}
@@ -1463,7 +1463,7 @@ static wchar_t* build_filter_string(const wchar_t* input) {
 	return out;
 }
 
-platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options) {
+platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
 	platform_open_file_dialog_result result = {
 		.success = false,
 		.file_count = 0,
@@ -1509,10 +1509,10 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 	return result;
 }
 
-static kwindow* window_from_handle(HWND hwnd) {
+static kwindow *window_from_handle (HWND hwnd) {
 	u32 len = darray_length(state_ptr->windows);
 	for (u32 i = 0; i < len; ++i) {
-		kwindow* w = state_ptr->windows[i];
+		kwindow *w = state_ptr->windows[i];
 		if (w && w->platform_state->hwnd == hwnd) {
 			return state_ptr->windows[i];
 		}
@@ -1520,14 +1520,14 @@ static kwindow* window_from_handle(HWND hwnd) {
 	return 0;
 }
 
-LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
+LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
 	switch (msg) {
 	case WM_ERASEBKGND:
 		// Notify the OS that erasing will be handled by the application to prevent flicker.
 		return 1;
 	case WM_CLOSE: {
 		if (state_ptr->window_closed_callback) {
-			kwindow* w = window_from_handle(hwnd);
+			kwindow *w = window_from_handle(hwnd);
 			if (!w) {
 				KERROR("Recieved a window close event for a non-registered window!");
 				return 0;
@@ -1542,7 +1542,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 	case WM_DPICHANGED:
 		// x- and y-axis DPI are always the same, so just grab one.
 		i32 x_dpi = GET_X_LPARAM(w_param);
-		kwindow* w = window_from_handle(hwnd);
+		kwindow *w = window_from_handle(hwnd);
 
 		// Store off the device pixel ratio.
 		w->platform_state->device_pixel_ratio = (f32)x_dpi / USER_DEFAULT_SCREEN_DPI;
@@ -1570,7 +1570,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 
 		// Fire the event. The application layer should pick this up, but not handle it
 		// as it shouldn't be visible to other parts of the application.
-		kwindow* w = window_from_handle(hwnd);
+		kwindow *w = window_from_handle(hwnd);
 		if (!w) {
 			KERROR("Recieved a window resize event for a non-registered window!");
 			return 0;
@@ -1696,7 +1696,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 	return DefWindowProcW(hwnd, msg, w_param, l_param);
 }
 
-static LPCWSTR cstr_to_wcstr(const char* str) {
+static LPCWSTR cstr_to_wcstr (const char *str) {
 	if (!str) {
 		return 0;
 	}
@@ -1716,14 +1716,14 @@ static LPCWSTR cstr_to_wcstr(const char* str) {
 	return wstr;
 }
 
-static void wcstr_free(LPCWSTR wstr) {
+static void wcstr_free (LPCWSTR wstr) {
 	if (wstr) {
 		u32 len = lstrlen(wstr); // Note that lstrlen doesn't account for the null terminator.
-		kfree((WCHAR*)wstr, sizeof(WCHAR) * (len + 1), MEMORY_TAG_STRING);
+		kfree((WCHAR *)wstr, sizeof(WCHAR) * (len + 1), MEMORY_TAG_STRING);
 	}
 }
 
-static const char* wcstr_to_cstr(LPCWSTR wstr) {
+static const char *wcstr_to_cstr (LPCWSTR wstr) {
 	if (!wstr) {
 		return 0;
 	}
@@ -1732,12 +1732,12 @@ static const char* wcstr_to_cstr(LPCWSTR wstr) {
 	if (length == 0) {
 		return 0;
 	}
-	char* str = kallocate(sizeof(char) * length, MEMORY_TAG_STRING);
+	char *str = kallocate(sizeof(char) * length, MEMORY_TAG_STRING);
 	if (!str) {
 		return 0;
 	}
 	if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, length, NULL, NULL) == 0) {
-		kfree((char*)str, sizeof(char) * length, MEMORY_TAG_STRING);
+		kfree((char *)str, sizeof(char) * length, MEMORY_TAG_STRING);
 		return 0;
 	}
 

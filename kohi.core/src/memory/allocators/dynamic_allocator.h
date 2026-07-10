@@ -16,7 +16,7 @@
 /** @brief The dynamic allocator structure. */
 typedef struct dynamic_allocator {
 	/** @brief The allocated memory block for this allocator to use. */
-	void* memory;
+	void *memory;
 } dynamic_allocator;
 
 /**
@@ -29,7 +29,7 @@ typedef struct dynamic_allocator {
  * @param out_allocator A pointer to hold the allocator.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* memory, dynamic_allocator* out_allocator);
+KAPI b8 dynamic_allocator_create (u64 total_size, u64 *memory_requirement, void *memory, dynamic_allocator *out_allocator);
 
 /**
  * @brief Destroys the given allocator.
@@ -37,7 +37,7 @@ KAPI b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* 
  * @param allocator A pointer to the allocator to be destroyed.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_destroy(dynamic_allocator* allocator);
+KAPI b8 dynamic_allocator_destroy (dynamic_allocator *allocator);
 
 /**
  * @brief Allocates the given amount of memory from the provided allocator.
@@ -46,7 +46,7 @@ KAPI b8 dynamic_allocator_destroy(dynamic_allocator* allocator);
  * @param size The amount in bytes to be allocated.
  * @return The allocated block of memory unless this operation fails, then 0.
  */
-KAPI void* dynamic_allocator_allocate(dynamic_allocator* allocator, u64 size, u8 tag, const char* file, u32 line);
+KAPI void *dynamic_allocator_allocate (dynamic_allocator *allocator, u64 size, u8 tag, const char *file, u32 line);
 
 /**
  * @brief Allocates the given amount of aligned memory from the provided allocator.
@@ -56,7 +56,7 @@ KAPI void* dynamic_allocator_allocate(dynamic_allocator* allocator, u64 size, u8
  * @param alignment The alignment in bytes.
  * @return The aligned, allocated block of memory unless this operation fails, then 0.
  */
-KAPI void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 size, u16 alignment, u8 tag, const char* file, u32 line);
+KAPI void *dynamic_allocator_allocate_aligned (dynamic_allocator *allocator, u64 size, u16 alignment, u8 tag, const char *file, u32 line);
 
 /**
  * @brief Frees the given block of memory.
@@ -66,7 +66,7 @@ KAPI void* dynamic_allocator_allocate_aligned(dynamic_allocator* allocator, u64 
  * @param size The size of the block.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_free(dynamic_allocator* allocator, void* block, u64 size, u8 tag);
+KAPI b8 dynamic_allocator_free (dynamic_allocator *allocator, void *block, u64 size, u8 tag);
 
 /**
  * @brief Frees the given block of aligned memory. Technically the same as calling
@@ -76,7 +76,7 @@ KAPI b8 dynamic_allocator_free(dynamic_allocator* allocator, void* block, u64 si
  * @param block The block to be freed. Must have been allocated by the provided allocator.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block, u8 tag);
+KAPI b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, void *block, u8 tag);
 
 /**
  * @brief Obtains the size and alignment of the given block of memory. Can fail if
@@ -88,11 +88,11 @@ KAPI b8 dynamic_allocator_free_aligned(dynamic_allocator* allocator, void* block
  * @param out_alignment A pointer to hold the alignment.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_get_size_alignment(dynamic_allocator* allocator, void* block, u64* out_size, u16* out_alignment, u8* out_tag);
+KAPI b8 dynamic_allocator_get_size_alignment (dynamic_allocator *allocator, void *block, u64 *out_size, u16 *out_alignment, u8 *out_tag);
 
 #if KOHI_DEBUG
-KAPI const char* dynamic_allocator_get_file(dynamic_allocator* allocator, void* block);
-KAPI u32 dynamic_allocator_get_line(dynamic_allocator* allocator, void* block);
+KAPI const char *dynamic_allocator_get_file (dynamic_allocator *allocator, void *block);
+KAPI u32 dynamic_allocator_get_line (dynamic_allocator *allocator, void *block);
 #endif
 /**
  * @brief Obtains the amount of free space left in the provided allocator.
@@ -100,7 +100,7 @@ KAPI u32 dynamic_allocator_get_line(dynamic_allocator* allocator, void* block);
  * @param allocator A pointer to the allocator to be examined.
  * @return The amount of free space in bytes.
  */
-KAPI u64 dynamic_allocator_free_space(dynamic_allocator* allocator);
+KAPI u64 dynamic_allocator_free_space (dynamic_allocator *allocator);
 
 /**
  * @brief Obtains the amount of total space originally available in the provided allocator.
@@ -108,13 +108,13 @@ KAPI u64 dynamic_allocator_free_space(dynamic_allocator* allocator);
  * @param allocator A pointer to the allocator to be examined.
  * @return The total amount of space originally available in bytes.
  */
-KAPI u64 dynamic_allocator_total_space(dynamic_allocator* allocator);
+KAPI u64 dynamic_allocator_total_space (dynamic_allocator *allocator);
 
 /** Obtains the size of the internal allocation header. This is really only used for unit testing purposes. */
-KAPI u64 dynamic_allocator_header_size(void);
+KAPI u64 dynamic_allocator_header_size (void);
 
 #if MEM_DEBUG_TRACE
-KAPI void _validate_block(void* block);
+KAPI void _validate_block (void *block);
 
 #	define validate_block(block) _validate_block(block)
 #else

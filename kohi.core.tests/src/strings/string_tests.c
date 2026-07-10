@@ -6,10 +6,10 @@
 #include <memory/kmemory.h>
 #include <strings/kstring.h>
 
-static u8 kstr_ncmp_tests(void) {
+static u8 kstr_ncmp_tests (void) {
 
-	const char* str_a = "texture";
-	const char* str_b = "text";
+	const char *str_a = "texture";
+	const char *str_b = "text";
 
 	// set max length of shorter string
 	{
@@ -44,6 +44,6 @@ static u8 kstr_ncmp_tests(void) {
 	return true;
 }
 
-void string_register_tests(void) {
+void string_register_tests (void) {
 	test_manager_register_test(kstr_ncmp_tests, "All kstr_ncmp tests pass");
 }

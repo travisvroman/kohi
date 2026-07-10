@@ -8,9 +8,9 @@
 
 STACKARRAY_TYPE(u8, 6);
 STACKARRAY_TYPE(f32, 6);
-STACKARRAY_TYPE_NAMED(const char*, string, 6);
+STACKARRAY_TYPE_NAMED(const char *, string, 6);
 
-static u8 all_stackarray_tests_after_create(void) {
+static u8 all_stackarray_tests_after_create (void) {
 	// Test a basic type first.
 
 	stackarray_u8_6 arr = stackarray_u8_6_create();
@@ -33,7 +33,7 @@ static u8 all_stackarray_tests_after_create(void) {
 	return true;
 }
 
-static u8 stackarray_all_iterator_tests(void) {
+static u8 stackarray_all_iterator_tests (void) {
 
 	stackarray_iterator it;
 	u32 loop_count = 0;
@@ -59,7 +59,7 @@ static u8 stackarray_all_iterator_tests(void) {
 		expect_should_be(1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 2) {
@@ -81,7 +81,7 @@ static u8 stackarray_all_iterator_tests(void) {
 		expect_should_be(-1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 2) {
@@ -102,7 +102,7 @@ static u8 stackarray_all_iterator_tests(void) {
 	return true;
 }
 
-static u8 stackarray_string_type_test(void) {
+static u8 stackarray_string_type_test (void) {
 
 	stackarray_string_6 arr = stackarray_string_6_create();
 
@@ -124,7 +124,7 @@ static u8 stackarray_string_type_test(void) {
 	return true;
 }
 
-static u8 stackarray_float_type_test(void) {
+static u8 stackarray_float_type_test (void) {
 
 	stackarray_f32_6 arr = stackarray_f32_6_create();
 
@@ -146,7 +146,7 @@ static u8 stackarray_float_type_test(void) {
 	return true;
 }
 
-void stackarray_register_tests(void) {
+void stackarray_register_tests (void) {
 	test_manager_register_test(all_stackarray_tests_after_create, "All stackarray tests after create");
 	test_manager_register_test(stackarray_all_iterator_tests, "All stackarray iterator tests");
 	test_manager_register_test(stackarray_string_type_test, "stackarray string type tests");

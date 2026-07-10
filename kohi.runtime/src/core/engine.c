@@ -50,7 +50,7 @@
 struct kwindow;
 
 typedef struct engine_state_t {
-	application* app;
+	application *app;
 	b8 is_running;
 	b8 is_suspended;
 	kclock clock;
@@ -74,64 +74,65 @@ typedef struct engine_state_t {
 	// External system state registry.
 	kregistry external_systems_registry;
 
-	kruntime_plugin* renderer_plugin;
-	kruntime_plugin* audio_plugin;
+	kruntime_plugin *renderer_plugin;
+	kruntime_plugin *audio_plugin;
 
 	// darray List of created windows.
-	kwindow* windows;
+	kwindow *windows;
 
 } engine_state_t;
 
-static engine_state_t* engine_state;
+static engine_state_t *engine_state;
 
 // frame allocator functions.
-static void* frame_allocator_allocate(u64 size) {
+static void *frame_allocator_allocate (u64 size) {
 	if (!engine_state) {
 		return 0;
 	}
 
 	return linear_allocator_allocate(&engine_state->frame_allocator, size);
 }
-static void frame_allocator_free(void* block, u64 size) {
+static void frame_allocator_free (void *block, u64 size) {
 	// NOTE: Linear allocator doesn't free, so this is a no-op
 	/* if (engine_state) {
 	} */
 }
-static void frame_allocator_free_all(void) {
+
+static void frame_allocator_free_all (void) {
 	if (engine_state) {
 		// Don't wipe the memory each time, to save on performance.
 		linear_allocator_free_all(&engine_state->frame_allocator, false);
 	}
 }
 
-static u64 frame_allocator_total_space(void) {
+static u64 frame_allocator_total_space (void) {
 	return engine_state ? engine_state->frame_allocator.total_size : 0;
 }
-static u64 frame_allocator_allocated(void) {
+static u64 frame_allocator_allocated (void) {
 	return engine_state ? engine_state->frame_allocator.allocated : 0;
 }
 
 // Event handlers
-static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context);
-static void engine_on_window_closed(const struct kwindow* window);
-static void engine_on_window_resized(const struct kwindow* window);
-static void engine_on_process_key(keys key, b8 pressed, b8 is_repeat);
-static void engine_on_process_mouse_button(mouse_buttons button, b8 pressed);
-static void engine_on_process_mouse_move(i16 x, i16 y);
-static void engine_on_process_mouse_wheel(i8 z_delta);
-static void engine_on_paste(kclipboard_context context);
-static b8 engine_log_file_write(void* engine, log_level level, const char* message);
-static b8 engine_platform_console_write(void* platform, log_level level, const char* message);
-static b8 load_game_lib(application* app);
-static void watched_file_updated(u32 watcher_id, const char* file_path, b8 is_binary, void* context);
+static b8 engine_on_event (u16 code, void *sender, void *listener_inst, event_context context);
+static void engine_on_window_closed (const struct kwindow *window);
+static void engine_on_window_resized (const struct kwindow *window);
+static void engine_on_process_key (keys key, b8 pressed, b8 is_repeat);
+static void engine_on_process_mouse_button (mouse_buttons button, b8 pressed);
+static void engine_on_process_mouse_move (i16 x, i16 y);
+static void engine_on_process_mouse_wheel (i8 z_delta);
+static void engine_on_paste (kclipboard_context context);
+static b8 engine_log_file_write (void *engine, log_level level, const char *message);
+static b8 engine_platform_console_write (void *platform, log_level level, const char *message);
+static b8 load_game_lib (application *app);
+static void watched_file_updated (u32 watcher_id, const char *file_path, b8 is_binary, void *context);
 
-static void on_memory_dump(console_command_context context) {
-	char* mem_usage = get_memory_usage_str();
+static void on_memory_dump (console_command_context context) {
+	char *mem_usage = get_memory_usage_str();
 	KINFO(mem_usage);
 	string_free(mem_usage);
 }
 
-b8 engine_create(application* app, const char* app_config_path, const char* game_lib_name) {
+b8 engine_create (application *app, const char *app_config_path, const char *game_lib_name) {
 	KASSERT(app_config_path);
 
 	if (app->engine_state) {
@@ -165,7 +166,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 	kregistry_create(&engine_state->external_systems_registry);
 
 	// Engine systems
-	engine_system_states* systems = &engine_state->systems;
+	engine_system_states *systems = &engine_state->systems;
 
 	// Platform initialization first. NOTE: NOT window creation - that should happen much later.
 	{
@@ -207,7 +208,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 		console_consumer_register(systems->platform_system, engine_platform_console_write, &engine_state->platform_consumer_id);
 		// Setup the engine as another console consumer, which now owns the "console.log" file.
 		// Create new/wipe existing log file, then open it.
-		const char* log_filename = "console.log";
+		const char *log_filename = "console.log";
 		if (!filesystem_open(log_filename, FILE_MODE_WRITE, false, &engine_state->log_file_handle)) {
 			KFATAL("Unable to open '%s' for writing.", log_filename);
 			return false;
@@ -234,7 +235,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 			  FLAG_GET(system_info.features, KCPU_FEATURE_FLAG_AVX_BIT) ? "yes" : "no",
 			  FLAG_GET(system_info.features, KCPU_FEATURE_FLAG_AVX2_BIT) ? "yes" : "no");
 
-		char* ram_speed = 0;
+		char *ram_speed = 0;
 		if (system_info.ram_speed_mhz) {
 			ram_speed = string_format("%uMHz", system_info.ram_speed_mhz);
 		} else {
@@ -247,12 +248,12 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 
 		// Storage
 		for (u32 i = 0; i < system_info.storage_count; ++i) {
-			kstorage_info* s = &system_info.storage[i];
+			kstorage_info *s = &system_info.storage[i];
 
 			f32 total_space = 0;
 			f32 free_space = 0;
-			const char* total_unit = get_unit_for_size(s->total_bytes, &total_space);
-			const char* free_unit = get_unit_for_size(s->free_bytes, &free_space);
+			const char *total_unit = get_unit_for_size(s->total_bytes, &total_space);
+			const char *free_unit = get_unit_for_size(s->free_bytes, &free_space);
 			KINFO(
 				"SYSTEM_STORAGE\t%s\t%s\tSYSTEM_TOTAL_DISC_SPACE\t%.3f%s\tSYSTEM_FREE_DISC_SPACE\t%.3f%s",
 				s->mount_point,
@@ -268,16 +269,16 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 
 	// Report runtime version
 #if KOHI_RELEASE
-	const char* build_type = "Release";
+	const char *build_type = "Release";
 #elif KOHI_DEBUG
-	const char* build_type = "Debug";
+	const char *build_type = "Debug";
 #else
-	const char* build_type = "Unknown";
+	const char *build_type = "Unknown";
 #endif
 	KINFO("Kohi Runtime %s (%s)", KVERSION, build_type);
 
 	// Get/parse application config.
-	const char* app_file_content = filesystem_read_entire_text_file(app_config_path);
+	const char *app_file_content = filesystem_read_entire_text_file(app_config_path);
 	if (!app_file_content) {
 		KFATAL("Failed to read app_config.kson file text. Application cannot start.");
 		return false;
@@ -297,10 +298,10 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 		// Application configuration.
 		platform_error_code err_code = PLATFORM_ERROR_FILE_LOCKED;
 		while (err_code == PLATFORM_ERROR_FILE_LOCKED) {
-			const char* prefix = platform_dynamic_library_prefix();
-			const char* extension = platform_dynamic_library_extension();
-			char* source_file = string_format("%s%s%s", prefix, app->game_library_name, extension);
-			char* target_file = string_format("%s%s%s", prefix, app->game_library_loaded_name, extension);
+			const char *prefix = platform_dynamic_library_prefix();
+			const char *extension = platform_dynamic_library_extension();
+			char *source_file = string_format("%s%s%s", prefix, app->game_library_name, extension);
+			char *target_file = string_format("%s%s%s", prefix, app->game_library_loaded_name, extension);
 			err_code = platform_copy_file(source_file, target_file, true);
 			string_free(source_file);
 			string_free(target_file);
@@ -319,9 +320,9 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 		}
 
 		// Put a file watch on the game lib and hot-reload when it changes.
-		const char* prefix = platform_dynamic_library_prefix();
-		const char* extension = platform_dynamic_library_extension();
-		char* path = string_format("%s%s%s", prefix, app->game_library_name, extension);
+		const char *prefix = platform_dynamic_library_prefix();
+		const char *extension = platform_dynamic_library_extension();
+		char *path = string_format("%s%s%s", prefix, app->game_library_name, extension);
 
 		if (!platform_watch_file(
 				path,
@@ -604,13 +605,13 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 
 	engine_state->windows = darray_create(kwindow);
 	for (u32 i = 0; i < window_count; ++i) {
-		kwindow_config* window_config = &app->app_config.windows[i];
+		kwindow_config *window_config = &app->app_config.windows[i];
 		kwindow new_window = {0};
 		new_window.name = string_duplicate(window_config->name);
 		// Add to tracked window list
 		darray_push(engine_state->windows, new_window);
 
-		kwindow* window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
+		kwindow *window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
 		if (!platform_window_create(window_config, window, true)) {
 			KERROR("Failed to create window '%s'.", window_config->name);
 			return false;
@@ -758,7 +759,7 @@ b8 engine_create(application* app, const char* app_config_path, const char* game
 	return true;
 }
 
-b8 engine_run(application* app) {
+b8 engine_run (application *app) {
 	app->stage = APPLICATION_STAGE_RUNNING;
 	engine_state->is_running = true;
 	kclock_start(&engine_state->clock);
@@ -770,12 +771,12 @@ b8 engine_run(application* app) {
 	f64 target_frame_seconds = 1.0f / 60;
 	f64 frame_elapsed_time = 0;
 
-	char* mem_usage = get_memory_usage_str();
+	char *mem_usage = get_memory_usage_str();
 	KINFO(mem_usage);
 	string_free(mem_usage);
 
 	// FIXME: Need a better way to select the active window.
-	kwindow* w = &engine_state->windows[0];
+	kwindow *w = &engine_state->windows[0];
 
 	// FIXME: The event loop in the platform layer depends on active window.
 	// In theory this means there should be one of these loops per window.
@@ -957,7 +958,7 @@ b8 engine_run(application* app) {
 	// TODO: Close/destroy any and all active windows.
 	u32 window_count = darray_length(engine_state->windows);
 	for (u32 i = 0; i < window_count; ++i) {
-		kwindow* window = &engine_state->windows[i];
+		kwindow *window = &engine_state->windows[i];
 
 		// Tell the renderer about the window destruction.
 		renderer_on_window_destroyed(engine_state->systems.renderer_system, window);
@@ -974,7 +975,7 @@ b8 engine_run(application* app) {
 	// Shut down all systems.
 	{
 		// Engine systems
-		engine_system_states* systems = &engine_state->systems;
+		engine_system_states *systems = &engine_state->systems;
 
 		kcamera_system_shutdown(systems->camera_system);
 		kmodel_system_shutdown(systems->model_system);
@@ -1013,40 +1014,40 @@ b8 engine_run(application* app) {
 	return true;
 }
 
-void engine_on_event_system_initialized(void) {
+void engine_on_event_system_initialized (void) {
 	// Register for engine-level events.
 	event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
 }
 
-const struct frame_data* engine_frame_data_get(void) {
+const struct frame_data *engine_frame_data_get (void) {
 	return &engine_state->p_frame_data;
 }
 
-const engine_system_states* engine_systems_get(void) {
+const engine_system_states *engine_systems_get (void) {
 	return &engine_state->systems;
 }
 
-struct application* engine_app_state_get(void) {
+struct application *engine_app_state_get (void) {
 	return engine_state->app;
 }
 
-khandle engine_external_system_register(u64 system_state_memory_requirement) {
+khandle engine_external_system_register (u64 system_state_memory_requirement) {
 	// Don't pass a block of memory here since the system should call "get state" next for it.
 	// This keeps memory ownership inside the engine and its registry.
 	return kregistry_add_entry(&engine_state->external_systems_registry, 0, system_state_memory_requirement, true);
 }
 
-void* engine_external_system_state_get(khandle system_handle) {
+void *engine_external_system_state_get (khandle system_handle) {
 	// Acquire the system state, but without any listener/callback.
 	return kregistry_entry_acquire(&engine_state->external_systems_registry, system_handle, 0, 0);
 }
 
-struct kwindow* engine_active_window_get(void) {
+struct kwindow *engine_active_window_get (void) {
 	// FIXME: multi-window support
 	return &engine_state->windows[0];
 }
 
-static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
+static b8 engine_on_event (u16 code, void *sender, void *listener_inst, event_context context) {
 	switch (code) {
 	case EVENT_CODE_APPLICATION_QUIT: {
 		KINFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
@@ -1058,14 +1059,14 @@ static b8 engine_on_event(u16 code, void* sender, void* listener_inst, event_con
 	return false;
 }
 
-static void engine_on_window_closed(const struct kwindow* window) {
+static void engine_on_window_closed (const struct kwindow *window) {
 	if (window) {
 		// TODO: handle window closes independently.
 		event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
 	}
 }
 
-static void engine_on_window_resized(const struct kwindow* window) {
+static void engine_on_window_resized (const struct kwindow *window) {
 	// Handle minimization
 	if (window->width == 0 || window->height == 0) {
 		KINFO("Window minimized, suspending application.");
@@ -1081,27 +1082,27 @@ static void engine_on_window_resized(const struct kwindow* window) {
 		event_context context = {0};
 		context.data.u16[0] = window->width;
 		context.data.u16[1] = window->height;
-		event_fire(EVENT_CODE_WINDOW_RESIZED, (kwindow*)window, context);
+		event_fire(EVENT_CODE_WINDOW_RESIZED, (kwindow *)window, context);
 	}
 }
 
-static void engine_on_process_key(keys key, b8 pressed, b8 is_repeat) {
+static void engine_on_process_key (keys key, b8 pressed, b8 is_repeat) {
 	input_process_key(key, pressed, is_repeat);
 }
 
-static void engine_on_process_mouse_button(mouse_buttons button, b8 pressed) {
+static void engine_on_process_mouse_button (mouse_buttons button, b8 pressed) {
 	input_process_button(button, pressed);
 }
 
-static void engine_on_process_mouse_move(i16 x, i16 y) {
+static void engine_on_process_mouse_move (i16 x, i16 y) {
 	input_process_mouse_move(x, y);
 }
 
-static void engine_on_process_mouse_wheel(i8 z_delta) {
+static void engine_on_process_mouse_wheel (i8 z_delta) {
 	input_process_mouse_wheel(z_delta);
 }
 
-static void engine_on_paste(kclipboard_context context) {
+static void engine_on_paste (kclipboard_context context) {
 	KTRACE("Clipboard paste event from platform.");
 	event_context evt = {
 		.data.custom_data = {
@@ -1111,8 +1112,8 @@ static void engine_on_paste(kclipboard_context context) {
 	event_fire(EVENT_CODE_CLIPBOARD_PASTE, KNULL, evt);
 }
 
-static b8 engine_log_file_write(void* engine_state, log_level level, const char* message) {
-	engine_state_t* engine = engine_state;
+static b8 engine_log_file_write (void *engine_state, log_level level, const char *message) {
+	engine_state_t *engine = engine_state;
 	// Append to log file
 	if (engine && engine->log_file_handle.is_valid) {
 		// Since the message already contains a '\n', just write the bytes directly.
@@ -1127,13 +1128,13 @@ static b8 engine_log_file_write(void* engine_state, log_level level, const char*
 	return false;
 }
 
-static b8 engine_platform_console_write(void* platform, log_level level, const char* message) {
+static b8 engine_platform_console_write (void *platform, log_level level, const char *message) {
 	// Just pass it on to the platform layer.
 	platform_console_write(platform, level, message);
 	return true;
 }
 
-static b8 load_game_lib(application* app) {
+static b8 load_game_lib (application *app) {
 	// Dynamically load game library
 
 	if (!platform_dynamic_library_load(app->game_library_loaded_name, &app->game_library)) {
@@ -1189,9 +1190,9 @@ static b8 load_game_lib(application* app) {
 	return true;
 }
 
-static void watched_file_updated(u32 watcher_id, const char* file_path, b8 is_binary, void* context) {
+static void watched_file_updated (u32 watcher_id, const char *file_path, b8 is_binary, void *context) {
 	/* b8 watched_file_updated(u16 code, void* sender, void* listener_inst, event_context context) { */
-	application* app = (application*)context;
+	application *app = (application *)context;
 	if (watcher_id == app->game_library.watch_id) {
 		KINFO("Hot-Reloading game library.");
 
@@ -1207,8 +1208,8 @@ static void watched_file_updated(u32 watcher_id, const char* file_path, b8 is_bi
 		// Wait a bit before trying to copy the file.
 		platform_sleep(100);
 
-		const char* prefix = platform_dynamic_library_prefix();
-		const char* extension = platform_dynamic_library_extension();
+		const char *prefix = platform_dynamic_library_prefix();
+		const char *extension = platform_dynamic_library_extension();
 		char source_file[260];
 		char target_file[260];
 		string_format_unsafe(source_file, "%s%s%s", prefix, app->game_library_name, extension);

@@ -36,14 +36,14 @@ typedef struct kshader_system_config {
  * @param config The configuration (kshader_system_config) to be used when initializing the system.
  * @return b8 True on success; otherwise false.
  */
-b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config);
+b8 kshader_system_initialize (u64 *memory_requirement, void *memory, void *config);
 
 /**
  * @brief Shuts down the shader system.
  *
  * @param state A pointer to the system state.
  */
-void kshader_system_shutdown(void* state);
+void kshader_system_shutdown (void *state);
 
 /**
  * @brief Returns a handle to a shader with the given name.
@@ -53,7 +53,7 @@ void kshader_system_shutdown(void* state);
  * @param package_name The package to get the shader from if not already loaded. Pass INVALID_KNAME to search all packages.
  * @return A handle to a shader, if found/loaded; otherwise KSHADER_INVALID.
  */
-KAPI kshader kshader_system_get(kname name, kname package_name);
+KAPI kshader kshader_system_get (kname name, kname package_name);
 
 /**
  * @brief Returns a handle to a shader with the given name based on the provided config source.
@@ -63,14 +63,14 @@ KAPI kshader kshader_system_get(kname name, kname package_name);
  * @param shader_config_source A string containing the shader's configuration source as if it were loaded from an asset.
  * @return A handle to a shader, if loaded; otherwise KSHADER_INVALID.
  */
-KAPI kshader kshader_system_get_from_source(kname name, const char* shader_config_source);
+KAPI kshader kshader_system_get_from_source (kname name, const char *shader_config_source);
 
 /**
  * @brief Attempts to destroy the shader with the given handle. Handle will be invalidated.
  *
  * @param shader_name A pointer to a handle to the shader to destroy. Handle will be invalidated.
  */
-KAPI void kshader_system_destroy(kshader* shader);
+KAPI void kshader_system_destroy (kshader *shader);
 
 /**
  * @brief Attempts to set wireframe mode on the given shader. If the renderer backend, or the shader
@@ -80,7 +80,7 @@ KAPI void kshader_system_destroy(kshader* shader);
  * @param wireframe_enabled Indicates if wireframe mode should be enabled.
  * @return True on success; otherwise false.
  */
-KAPI b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled);
+KAPI b8 kshader_system_set_wireframe (kshader shader, b8 wireframe_enabled);
 
 /**
  * @brief Uses the shader with the given handle and the shader's default topology.
@@ -88,7 +88,7 @@ KAPI b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled);
  * @param shader A handle to the shader to be used.
  * @return True on success; otherwise false.
  */
-KAPI b8 kshader_system_use(kshader shader, u8 vertex_layout_index);
+KAPI b8 kshader_system_use (kshader shader, u8 vertex_layout_index);
 
 /**
  * @brief Uses the shader with the given handle and the provided topology.
@@ -97,13 +97,13 @@ KAPI b8 kshader_system_use(kshader shader, u8 vertex_layout_index);
  * @param topology The topology type to use.
  * @return True on success; otherwise false.
  */
-KAPI b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topology, u8 vertex_layout_index);
+KAPI b8 kshader_system_use_with_topology (kshader shader, primitive_topology_type topology, u8 vertex_layout_index);
 
-KAPI void kshader_set_immediate_data(kshader shader, const void* data, u8 size);
-KAPI void kshader_set_binding_data(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size);
-KAPI void kshader_set_binding_texture(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
-KAPI void kshader_set_binding_sampler(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
-KAPI u32 kshader_acquire_binding_set_instance(kshader shader, u8 binding_set);
-KAPI void kshader_release_binding_set_instance(kshader shader, u8 binding_set, u32 instance_id);
-KAPI u32 kshader_binding_set_instance_count_get(kshader shader, u8 binding_set);
-KAPI b8 kshader_apply_binding_set(kshader shader, u8 binding_set, u32 instance_id);
+KAPI void kshader_set_immediate_data (kshader shader, const void *data, u8 size);
+KAPI void kshader_set_binding_data (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void *data, u64 size);
+KAPI void kshader_set_binding_texture (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
+KAPI void kshader_set_binding_sampler (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
+KAPI u32 kshader_acquire_binding_set_instance (kshader shader, u8 binding_set);
+KAPI void kshader_release_binding_set_instance (kshader shader, u8 binding_set, u32 instance_id);
+KAPI u32 kshader_binding_set_instance_count_get (kshader shader, u8 binding_set);
+KAPI b8 kshader_apply_binding_set (kshader shader, u8 binding_set, u32 instance_id);

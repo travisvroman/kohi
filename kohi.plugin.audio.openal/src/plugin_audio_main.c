@@ -10,11 +10,11 @@
 #include "openal_backend.h"
 
 // Plugin entry point.
-b8 kohi_plugin_audio_openal_create(kruntime_plugin* out_plugin) {
+b8 kohi_plugin_audio_openal_create (kruntime_plugin *out_plugin) {
 	out_plugin->plugin_state_size = sizeof(kaudio_backend_interface);
 	out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_AUDIO);
 
-	kaudio_backend_interface* backend = out_plugin->plugin_state;
+	kaudio_backend_interface *backend = out_plugin->plugin_state;
 
 	// Assign function pointers.
 	backend->initialize = openal_backend_initialize;
@@ -42,7 +42,7 @@ b8 kohi_plugin_audio_openal_create(kruntime_plugin* out_plugin) {
 	return true;
 }
 
-void kohi_plugin_audio_openal_destroy(kruntime_plugin* plugin) {
+void kohi_plugin_audio_openal_destroy (kruntime_plugin *plugin) {
 	if (plugin && plugin->plugin_state) {
 		kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_AUDIO);
 	}

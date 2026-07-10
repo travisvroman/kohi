@@ -1,7 +1,7 @@
 #include "keymap.h"
 #include "memory/kmemory.h"
 
-keymap keymap_create(void) {
+keymap keymap_create (void) {
 	keymap map;
 	kzero_memory(&map, sizeof(keymap));
 
@@ -15,17 +15,17 @@ keymap keymap_create(void) {
 	return map;
 }
 
-void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code) {
+void keymap_binding_add (keymap *map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code) {
 	if (map) {
-		keymap_entry* entry = &map->entries[key];
-		keymap_binding* node = entry->bindings;
-		keymap_binding* previous = entry->bindings;
+		keymap_entry *entry = &map->entries[key];
+		keymap_binding *node = entry->bindings;
+		keymap_binding *previous = entry->bindings;
 		while (node) {
 			previous = node;
 			node = node->next;
 		}
 
-		keymap_binding* new_entry = kallocate(sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
+		keymap_binding *new_entry = kallocate(sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
 		new_entry->code = code;
 		new_entry->modifiers = modifiers;
 		new_entry->type = type;
@@ -39,11 +39,11 @@ void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keym
 	}
 }
 
-void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code) {
+void keymap_binding_remove (keymap *map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code) {
 	if (map) {
-		keymap_entry* entry = &map->entries[key];
-		keymap_binding* node = entry->bindings;
-		keymap_binding* previous = entry->bindings;
+		keymap_entry *entry = &map->entries[key];
+		keymap_binding *node = entry->bindings;
+		keymap_binding *previous = entry->bindings;
 		while (node) {
 			if (node->code == code && node->modifiers == modifiers && node->type == type) {
 				// Remove it
@@ -57,14 +57,14 @@ void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, k
 	}
 }
 
-void keymap_clear(keymap* map) {
+void keymap_clear (keymap *map) {
 	if (map) {
 		for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
-			keymap_entry* entry = &map->entries[i];
-			keymap_binding* node = entry->bindings;
+			keymap_entry *entry = &map->entries[i];
+			keymap_binding *node = entry->bindings;
 			while (node) {
 				// Remove all nodes
-				keymap_binding* next = node->next;
+				keymap_binding *next = node->next;
 				kfree(node, sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
 				node = next;
 			}

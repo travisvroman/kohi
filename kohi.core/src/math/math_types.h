@@ -683,7 +683,7 @@ typedef struct raycast_hit {
 
 typedef struct raycast_result {
 	/** @brief Darray of hits. Not set if there are no hits. */
-	raycast_hit* hits;
+	raycast_hit *hits;
 } raycast_result;
 
 typedef struct ksphere {

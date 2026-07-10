@@ -25,14 +25,14 @@ typedef struct identifier {
 /**
  * @brief Generates a new unique identifier.
  */
-KAPI identifier identifier_create(void);
+KAPI identifier identifier_create (void);
 
 /**
  * @brief Creates an identifier from a known value. Useful for deserialization.
  */
-KAPI identifier identifier_from_u64(u64 uniqueid);
+KAPI identifier identifier_from_u64 (u64 uniqueid);
 
 /**
  * @brief Indicates if the provided identifiers are equal.
  */
-KAPI b8 identifiers_equal(identifier a, identifier b);
+KAPI b8 identifiers_equal (identifier a, identifier b);

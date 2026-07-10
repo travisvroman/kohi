@@ -4,7 +4,7 @@
 #include <memory/kmemory.h>
 #include <systems/texture_system.h>
 
-b8 ibl_probe_create(kname cubemap_name, vec3 position, ibl_probe* out_probe) {
+b8 ibl_probe_create (kname cubemap_name, vec3 position, ibl_probe *out_probe) {
 	if (!out_probe) {
 		KERROR("ibl_probe_create requires a valid pointer to out_probe.");
 		return false;
@@ -16,7 +16,7 @@ b8 ibl_probe_create(kname cubemap_name, vec3 position, ibl_probe* out_probe) {
 	return true;
 }
 
-void ibl_probe_destroy(ibl_probe* probe) {
+void ibl_probe_destroy (ibl_probe *probe) {
 	if (probe) {
 		ibl_probe_unload(probe);
 	}
@@ -24,7 +24,7 @@ void ibl_probe_destroy(ibl_probe* probe) {
 	kzero_memory(probe, sizeof(ibl_probe));
 }
 
-b8 ibl_probe_load(ibl_probe* probe) {
+b8 ibl_probe_load (ibl_probe *probe) {
 	if (!probe) {
 		return false;
 	}
@@ -40,7 +40,7 @@ b8 ibl_probe_load(ibl_probe* probe) {
 	return true;
 }
 
-void ibl_probe_unload(ibl_probe* probe) {
+void ibl_probe_unload (ibl_probe *probe) {
 	if (probe->ibl_cube_texture) {
 		texture_release(probe->ibl_cube_texture);
 		probe->ibl_cube_texture = INVALID_KTEXTURE;

@@ -7,13 +7,13 @@ struct worker_thread;
 
 typedef struct threadpool {
 	u32 thread_count;
-	struct worker_thread* threads;
+	struct worker_thread *threads;
 } threadpool;
 
-KAPI b8 threadpool_create(u32 thread_count, threadpool* out_pool);
+KAPI b8 threadpool_create (u32 thread_count, threadpool *out_pool);
 
-KAPI void threadpool_destroy(threadpool* pool);
+KAPI void threadpool_destroy (threadpool *pool);
 
-KAPI b8 threadpool_wait(threadpool* pool);
+KAPI b8 threadpool_wait (threadpool *pool);
 
 #endif

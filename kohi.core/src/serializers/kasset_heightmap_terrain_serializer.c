@@ -8,14 +8,14 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 
-const char* kasset_heightmap_terrain_serialize(const kasset_heightmap_terrain* asset) {
+const char *kasset_heightmap_terrain_serialize (const kasset_heightmap_terrain *asset) {
 	if (!asset) {
 		KERROR("kasset_heightmap_serialize requires an asset to serialize, ya dingus!");
 		return 0;
 	}
 
-	kasset_heightmap_terrain* typed_asset = (kasset_heightmap_terrain*)asset;
-	const char* out_str = 0;
+	kasset_heightmap_terrain *typed_asset = (kasset_heightmap_terrain *)asset;
+	const char *out_str = 0;
 
 	// Setup the KSON tree to serialize below.
 	kson_tree tree = {0};
@@ -71,10 +71,10 @@ cleanup_kson:
 	return out_str;
 }
 
-b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset_heightmap_terrain* out_asset) {
+b8 kasset_heightmap_terrain_deserialize (const char *file_text, kasset_heightmap_terrain *out_asset) {
 	if (out_asset) {
 		b8 success = false;
-		kasset_heightmap_terrain* typed_asset = (kasset_heightmap_terrain*)out_asset;
+		kasset_heightmap_terrain *typed_asset = (kasset_heightmap_terrain *)out_asset;
 
 		// Deserialize the loaded asset data
 		kson_tree tree = {0};
@@ -84,7 +84,7 @@ b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset_heightmap_
 		}
 
 		// version
-		if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->version))) {
+		if (!kson_object_property_value_get_int(&tree.root, "version", (i64 *)(&typed_asset->version))) {
 			KERROR("Failed to parse version, which is a required field.");
 			goto cleanup_kson;
 		}
@@ -99,7 +99,7 @@ b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset_heightmap_
 		kson_object_property_value_get_string_as_kname(&tree.root, "heightmap_asset_package_name", &typed_asset->heightmap_asset_package_name);
 
 		// chunk_size
-		if (!kson_object_property_value_get_int(&tree.root, "chunk_size", (i64*)(&typed_asset->chunk_size))) {
+		if (!kson_object_property_value_get_int(&tree.root, "chunk_size", (i64 *)(&typed_asset->chunk_size))) {
 			KERROR("Failed to parse chunk_size, which is a required field.");
 			goto cleanup_kson;
 		}
@@ -117,15 +117,15 @@ b8 kasset_heightmap_terrain_deserialize(const char* file_text, kasset_heightmap_
 		}
 
 		// Get the number of elements.
-		if (!kson_array_element_count_get(&material_names_obj_array, (u32*)(&typed_asset->material_count))) {
+		if (!kson_array_element_count_get(&material_names_obj_array, (u32 *)(&typed_asset->material_count))) {
 			KERROR("Failed to parse material_names count. Invalid format?");
 			goto cleanup_kson;
 		}
 
 		// Setup the new array.
-		typed_asset->material_names = kallocate(sizeof(const char*) * typed_asset->material_count, MEMORY_TAG_ARRAY);
+		typed_asset->material_names = kallocate(sizeof(const char *) * typed_asset->material_count, MEMORY_TAG_ARRAY);
 		for (u32 i = 0; i < typed_asset->material_count; ++i) {
-			const char* mat_name = 0;
+			const char *mat_name = 0;
 			if (!kson_array_element_value_get_string(&material_names_obj_array, i, &mat_name)) {
 				KWARN("Unable to read material name at index %u, using default of '%s' instead.", "default_terrain");
 				// Take a duplicate since the cleanup code won't know a constant is used here.

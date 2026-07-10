@@ -36,14 +36,14 @@ typedef struct kcamera_data {
 
 typedef struct kcamera_system_state {
 	u8 max_camera_count;
-	kcamera_data* cameras;
+	kcamera_data *cameras;
 } kcamera_system_state;
 
-static kcamera_system_state* state_ptr;
+static kcamera_system_state *state_ptr;
 
-static void regenerate_matrices(kcamera_data* data);
+static void regenerate_matrices (kcamera_data *data);
 
-static kcamera get_new_camera(kcamera_system_state* state) {
+static kcamera get_new_camera (kcamera_system_state *state) {
 	for (u8 i = 0; i < state->max_camera_count; ++i) {
 		if (FLAG_GET(state->cameras[i].flags, KCAMERA_FLAG_IS_FREE_BIT)) {
 			// Unflag it as being free
@@ -57,7 +57,7 @@ static kcamera get_new_camera(kcamera_system_state* state) {
 }
 
 // In range and not default
-static b8 kcamera_is_valid(kcamera camera) {
+static b8 kcamera_is_valid (kcamera camera) {
 	KASSERT(state_ptr);
 	if (camera == DEFAULT_KCAMERA || camera == INVALID_KCAMERA) {
 		return false;
@@ -70,8 +70,8 @@ static b8 kcamera_is_valid(kcamera camera) {
 	return true;
 }
 
-b8 kcamera_system_initialize(u64* memory_requirement, void* state, void* config) {
-	kcamera_system_config* typed_config = (kcamera_system_config*)config;
+b8 kcamera_system_initialize (u64 *memory_requirement, void *state, void *config) {
+	kcamera_system_config *typed_config = (kcamera_system_config *)config;
 	if (typed_config->max_camera_count == 0) {
 		KFATAL("camera_system_initialize - config.max_camera_count must be > 0.");
 		return false;
@@ -86,11 +86,11 @@ b8 kcamera_system_initialize(u64* memory_requirement, void* state, void* config)
 		return true;
 	}
 
-	state_ptr = (kcamera_system_state*)state;
+	state_ptr = (kcamera_system_state *)state;
 	state_ptr->max_camera_count = typed_config->max_camera_count;
 
 	// The array block is after the state. Already allocated, so just set the pointer.
-	void* array_block = state + struct_requirement;
+	void *array_block = state + struct_requirement;
 	state_ptr->cameras = array_block;
 
 	// Mark all 'slots' as free
@@ -104,14 +104,14 @@ b8 kcamera_system_initialize(u64* memory_requirement, void* state, void* config)
 	return default_camera == 0;
 }
 
-void kcamera_system_shutdown(void* state) {
+void kcamera_system_shutdown (void *state) {
 
 	// NOTE: Nothing in the system needs shutting down as there are no
 	// dynamic allocations done, or resources held by this system.
 	state_ptr = 0;
 }
 
-kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 euler_rotation, f32 fov_radians, f32 near_clip, f32 far_clip) {
+kcamera kcamera_create (kcamera_type type, rect_2di vp_rect, vec3 position, vec3 euler_rotation, f32 fov_radians, f32 near_clip, f32 far_clip) {
 	if (!state_ptr) {
 		KERROR("%s: called before system was initialized.", __FUNCTION__);
 		return DEFAULT_KCAMERA;
@@ -119,7 +119,7 @@ kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 
 
 	kcamera new_cam = get_new_camera(state_ptr);
 	if (kcamera_is_valid(new_cam) || new_cam == 0) {
-		kcamera_data* data = &state_ptr->cameras[new_cam];
+		kcamera_data *data = &state_ptr->cameras[new_cam];
 
 		data->type = type;
 		data->position = position;
@@ -143,7 +143,7 @@ kcamera kcamera_create(kcamera_type type, rect_2di vp_rect, vec3 position, vec3 
 	return DEFAULT_KCAMERA;
 }
 
-kcamera kcamera_clone(kcamera camera) {
+kcamera kcamera_clone (kcamera camera) {
 	// Take a clone of the default camera if an invalid one is passed.
 	if (!kcamera_is_valid(camera)) {
 		return kcamera_clone(DEFAULT_KCAMERA);
@@ -151,8 +151,8 @@ kcamera kcamera_clone(kcamera camera) {
 
 	kcamera new_cam = get_new_camera(state_ptr);
 	if (kcamera_is_valid(new_cam)) {
-		kcamera_data* old_data = &state_ptr->cameras[camera];
-		kcamera_data* new_data = &state_ptr->cameras[new_cam];
+		kcamera_data *old_data = &state_ptr->cameras[camera];
+		kcamera_data *new_data = &state_ptr->cameras[new_cam];
 
 		new_data->type = old_data->type;
 		new_data->position = old_data->position;
@@ -176,10 +176,10 @@ kcamera kcamera_clone(kcamera camera) {
 	return DEFAULT_KCAMERA;
 }
 
-void kcamera_destroy(kcamera camera) {
+void kcamera_destroy (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		// Nothing to destroy or release, just zero it out.
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		kzero_memory(data, sizeof(kcamera_data));
 
 		// Mark it as free.
@@ -187,34 +187,34 @@ void kcamera_destroy(kcamera camera) {
 	}
 }
 
-kcamera kcamera_system_get_default(void) {
+kcamera kcamera_system_get_default (void) {
 	return DEFAULT_KCAMERA; // 0 is the defualt
 }
 
-vec3 kcamera_get_position(kcamera camera) {
+vec3 kcamera_get_position (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].position;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return vec3_zero();
 }
-void kcamera_set_position(kcamera camera, vec3 position) {
+void kcamera_set_position (kcamera camera, vec3 position) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->position = position;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 	}
 }
-vec3 kcamera_get_euler_rotation(kcamera camera) {
+vec3 kcamera_get_euler_rotation (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].euler_rotation;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return vec3_zero();
 }
-void kcamera_set_euler_rotation(kcamera camera, vec3 euler_rotation) {
+void kcamera_set_euler_rotation (kcamera camera, vec3 euler_rotation) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->euler_rotation = (vec3){
 			euler_rotation.x = deg_to_rad(euler_rotation.x),
 			euler_rotation.y = deg_to_rad(euler_rotation.y),
@@ -223,72 +223,72 @@ void kcamera_set_euler_rotation(kcamera camera, vec3 euler_rotation) {
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 	}
 }
-void kcamera_set_euler_rotation_radians(kcamera camera, vec3 euler_rotation_radians) {
+void kcamera_set_euler_rotation_radians (kcamera camera, vec3 euler_rotation_radians) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->euler_rotation = euler_rotation_radians;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 	}
 }
-f32 kcamera_get_fov(kcamera camera) {
+f32 kcamera_get_fov (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].fov;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return 0.0f;
 }
-void kcamera_set_fov(kcamera camera, f32 fov) {
+void kcamera_set_fov (kcamera camera, f32 fov) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->fov = fov;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 	}
 }
-f32 kcamera_get_near_clip(kcamera camera) {
+f32 kcamera_get_near_clip (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].near_clip;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return 0.0f;
 }
-void kcamera_set_near_clip(kcamera camera, f32 near_clip) {
+void kcamera_set_near_clip (kcamera camera, f32 near_clip) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->near_clip = near_clip;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 	}
 }
-f32 kcamera_get_far_clip(kcamera camera) {
+f32 kcamera_get_far_clip (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].far_clip;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return 0.0f;
 }
-void kcamera_set_far_clip(kcamera camera, f32 far_clip) {
+void kcamera_set_far_clip (kcamera camera, f32 far_clip) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->far_clip = far_clip;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 	}
 }
-rect_2di kcamera_get_vp_rect(kcamera camera) {
+rect_2di kcamera_get_vp_rect (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].vp_rect;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return (rect_2di){0, 0, 0, 0};
 }
-void kcamera_set_vp_rect(kcamera camera, rect_2di vp_rect) {
+void kcamera_set_vp_rect (kcamera camera, rect_2di vp_rect) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->vp_rect = vp_rect;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 	}
 }
 
 // Regenerate matrices, if needed.
-static void regenerate_matrices(kcamera_data* data) {
+static void regenerate_matrices (kcamera_data *data) {
 
 	b8 needs_frustum = false;
 
@@ -341,36 +341,36 @@ static void regenerate_matrices(kcamera_data* data) {
 	}
 }
 
-kfrustum kcamera_get_frustum(kcamera camera) {
+kfrustum kcamera_get_frustum (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		regenerate_matrices(data);
 		return data->frustum;
 	}
 	return state_ptr->cameras[DEFAULT_KCAMERA].frustum;
 }
 
-mat4 kcamera_get_view(kcamera camera) {
+mat4 kcamera_get_view (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		regenerate_matrices(data);
 		return data->view_matrix;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return mat4_identity();
 }
-mat4 kcamera_get_transform(kcamera camera) {
+mat4 kcamera_get_transform (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		regenerate_matrices(data);
 		return data->transform;
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return mat4_identity();
 }
-mat4 kcamera_get_projection(kcamera camera) {
+mat4 kcamera_get_projection (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		regenerate_matrices(data);
 		return data->projection;
 	}
@@ -378,9 +378,9 @@ mat4 kcamera_get_projection(kcamera camera) {
 	return mat4_identity();
 }
 
-mat4 kcamera_get_projection_far_clipped(kcamera camera, f32 far) {
+mat4 kcamera_get_projection_far_clipped (kcamera camera, f32 far) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		mat4 proj_near = generate_projection_matrix(data->vp_rect, data->fov, data->near_clip, far, PROJECTION_MATRIX_TYPE_PERSPECTIVE);
 		return proj_near;
 	}
@@ -388,7 +388,7 @@ mat4 kcamera_get_projection_far_clipped(kcamera camera, f32 far) {
 	return mat4_identity();
 }
 
-vec3 kcamera_forward(kcamera camera) {
+vec3 kcamera_forward (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_forward(state_ptr->cameras[camera].transform);
 	}
@@ -396,7 +396,7 @@ vec3 kcamera_forward(kcamera camera) {
 	return vec3_forward();
 }
 
-vec3 kcamera_backward(kcamera camera) {
+vec3 kcamera_backward (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_backward(state_ptr->cameras[camera].transform);
 	}
@@ -404,7 +404,7 @@ vec3 kcamera_backward(kcamera camera) {
 	return vec3_backward();
 }
 
-vec3 kcamera_left(kcamera camera) {
+vec3 kcamera_left (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_left(state_ptr->cameras[camera].transform);
 	}
@@ -412,7 +412,7 @@ vec3 kcamera_left(kcamera camera) {
 	return vec3_left();
 }
 
-vec3 kcamera_right(kcamera camera) {
+vec3 kcamera_right (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_right(state_ptr->cameras[camera].transform);
 	}
@@ -420,7 +420,7 @@ vec3 kcamera_right(kcamera camera) {
 	return vec3_right();
 }
 
-vec3 kcamera_up(kcamera camera) {
+vec3 kcamera_up (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_up(state_ptr->cameras[camera].transform);
 	}
@@ -428,7 +428,7 @@ vec3 kcamera_up(kcamera camera) {
 	return vec3_up();
 }
 
-vec3 kcamera_down(kcamera camera) {
+vec3 kcamera_down (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return mat4_down(state_ptr->cameras[camera].transform);
 	}
@@ -436,9 +436,9 @@ vec3 kcamera_down(kcamera camera) {
 	return vec3_down();
 }
 
-void kcamera_move_direction(kcamera camera, vec3 direction, b8 normalize_dir, f32 amount) {
+void kcamera_move_direction (kcamera camera, vec3 direction, b8 normalize_dir, f32 amount) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 
 		if (normalize_dir) {
 			vec3_normalize(&direction);
@@ -450,41 +450,41 @@ void kcamera_move_direction(kcamera camera, vec3 direction, b8 normalize_dir, f3
 	}
 }
 
-void kcamera_move_forward(kcamera camera, f32 amount) {
+void kcamera_move_forward (kcamera camera, f32 amount) {
 	kcamera_move_direction(camera, mat4_forward(state_ptr->cameras[camera].transform), false, amount);
 }
 
-void kcamera_move_backward(kcamera camera, f32 amount) {
+void kcamera_move_backward (kcamera camera, f32 amount) {
 	kcamera_move_direction(camera, mat4_backward(state_ptr->cameras[camera].transform), false, amount);
 }
 
-void kcamera_move_left(kcamera camera, f32 amount) {
+void kcamera_move_left (kcamera camera, f32 amount) {
 	kcamera_move_direction(camera, mat4_left(state_ptr->cameras[camera].transform), false, amount);
 }
 
-void kcamera_move_right(kcamera camera, f32 amount) {
+void kcamera_move_right (kcamera camera, f32 amount) {
 	kcamera_move_direction(camera, mat4_right(state_ptr->cameras[camera].transform), false, amount);
 }
 
-void kcamera_move_up(kcamera camera, f32 amount) {
+void kcamera_move_up (kcamera camera, f32 amount) {
 	kcamera_move_direction(camera, vec3_up(), false, amount);
 }
 
-void kcamera_move_down(kcamera camera, f32 amount) {
+void kcamera_move_down (kcamera camera, f32 amount) {
 	kcamera_move_direction(camera, vec3_down(), false, amount);
 }
 
-void kcamera_yaw(kcamera camera, f32 amount) {
+void kcamera_yaw (kcamera camera, f32 amount) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->euler_rotation.y += amount;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 	}
 }
 
-void kcamera_pitch(kcamera camera, f32 amount) {
+void kcamera_pitch (kcamera camera, f32 amount) {
 	if (kcamera_is_valid(camera)) {
-		kcamera_data* data = &state_ptr->cameras[camera];
+		kcamera_data *data = &state_ptr->cameras[camera];
 		data->euler_rotation.x += amount;
 
 		// Clamp to avoid Gimball lock.

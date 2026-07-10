@@ -7,23 +7,23 @@
 
 typedef struct test_entry {
 	PFN_test func;
-	char* desc;
+	char *desc;
 } test_entry;
 
-static test_entry* tests;
+static test_entry *tests;
 
-void test_manager_init(void) {
+void test_manager_init (void) {
 	tests = darray_create(test_entry);
 }
 
-void test_manager_register_test(u8 (*PFN_test)(void), char* desc) {
+void test_manager_register_test (u8 (*PFN_test)(void), char *desc) {
 	test_entry e;
 	e.func = PFN_test;
 	e.desc = desc;
 	darray_push(tests, e);
 }
 
-void test_manager_run_tests(void) {
+void test_manager_run_tests (void) {
 	u32 passed = 0;
 	u32 failed = 0;
 	u32 skipped = 0;

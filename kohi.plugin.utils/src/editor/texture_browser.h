@@ -16,11 +16,11 @@ typedef enum texture_browser_flag_bits {
 
 typedef u32 texture_browser_flags;
 
-typedef void (*PFN_tex_browser_selected_callback)(ktexture texture, void* context);
-typedef void (*PFN_tex_browser_cancelled_callback)(void* context);
+typedef void (*PFN_tex_browser_selected_callback)(ktexture texture, void *context);
+typedef void (*PFN_tex_browser_cancelled_callback)(void *context);
 
 typedef struct texture_browser {
-	struct kui_state* ui;
+	struct kui_state *ui;
 	// The root editor control.
 	kui_control editor_root;
 	// Size of font used for most UI controls.
@@ -46,9 +46,9 @@ typedef struct texture_browser {
 	kui_control scrollable_control;
 	kui_control content_container;
 	u32 tex_count;
-	char* search_text;
-	kui_control* image_boxes;
-	kui_control* labels;
+	char *search_text;
+	kui_control *image_boxes;
+	kui_control *labels;
 	kui_control selected_frame;
 	f32 imagebox_size;
 	f32 imagebox_padding;
@@ -57,7 +57,7 @@ typedef struct texture_browser {
 	ktexture selected_texture;
 	texture_browser_flags flags;
 
-	void* selection_context;
+	void *selection_context;
 	PFN_tex_browser_selected_callback selected_callback;
 	PFN_tex_browser_cancelled_callback cancelled_callback;
 
@@ -70,7 +70,7 @@ typedef struct texture_browser {
 
 typedef struct texture_browser_create_info {
 	// A pointer to the ui system state.
-	struct kui_state* ui;
+	struct kui_state *ui;
 	// The root editor control.
 	kui_control editor_root;
 	// The name of the game package.
@@ -86,18 +86,18 @@ typedef struct texture_browser_create_info {
 } texture_browser_create_info;
 
 typedef struct texure_browser_element_data {
-	texture_browser* tb;
+	texture_browser *tb;
 	kname texture_name;
 	ktexture texture;
 	ktexture_properties properties;
 } texture_browser_element_data;
 
-void texture_browser_create(texture_browser* tb, texture_browser_create_info create_info);
-void texture_browser_destroy(texture_browser* tb);
+void texture_browser_create (texture_browser *tb, texture_browser_create_info create_info);
+void texture_browser_destroy (texture_browser *tb);
 
-b8 texture_browser_is_open(const texture_browser* tb);
+b8 texture_browser_is_open (const texture_browser *tb);
 
-void texture_browser_open_for_browsing(texture_browser* tb);
-void texture_browser_open_for_selection(texture_browser* tb, void* context, PFN_tex_browser_selected_callback selected_callback, PFN_tex_browser_cancelled_callback cancelled_callback);
-void texture_browser_close(texture_browser* tb);
-void texture_browser_refresh(texture_browser* tb);
+void texture_browser_open_for_browsing (texture_browser *tb);
+void texture_browser_open_for_selection (texture_browser *tb, void *context, PFN_tex_browser_selected_callback selected_callback, PFN_tex_browser_cancelled_callback cancelled_callback);
+void texture_browser_close (texture_browser *tb);
+void texture_browser_refresh (texture_browser *tb);

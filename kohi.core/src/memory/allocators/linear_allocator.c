@@ -3,7 +3,7 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 
-void linear_allocator_create(u64 total_size, void* memory, linear_allocator* out_allocator) {
+void linear_allocator_create (u64 total_size, void *memory, linear_allocator *out_allocator) {
 	if (out_allocator) {
 		out_allocator->total_size = total_size;
 		out_allocator->allocated = 0;
@@ -15,7 +15,7 @@ void linear_allocator_create(u64 total_size, void* memory, linear_allocator* out
 		}
 	}
 }
-void linear_allocator_destroy(linear_allocator* allocator) {
+void linear_allocator_destroy (linear_allocator *allocator) {
 	if (allocator) {
 		allocator->allocated = 0;
 		if (allocator->owns_memory && allocator->memory) {
@@ -27,7 +27,7 @@ void linear_allocator_destroy(linear_allocator* allocator) {
 	}
 }
 
-void* linear_allocator_allocate(linear_allocator* allocator, u64 size) {
+void *linear_allocator_allocate (linear_allocator *allocator, u64 size) {
 	if (allocator && allocator->memory) {
 		if (allocator->allocated + size > allocator->total_size) {
 			u64 remaining = allocator->total_size - allocator->allocated;
@@ -35,7 +35,7 @@ void* linear_allocator_allocate(linear_allocator* allocator, u64 size) {
 			return 0;
 		}
 
-		void* block = ((u8*)allocator->memory) + allocator->allocated;
+		void *block = ((u8 *)allocator->memory) + allocator->allocated;
 		allocator->allocated += size;
 		return block;
 	}
@@ -44,7 +44,7 @@ void* linear_allocator_allocate(linear_allocator* allocator, u64 size) {
 	return 0;
 }
 
-void linear_allocator_free_all(linear_allocator* allocator, b8 clear) {
+void linear_allocator_free_all (linear_allocator *allocator, b8 clear) {
 	if (allocator && allocator->memory) {
 		allocator->allocated = 0;
 		if (clear) {

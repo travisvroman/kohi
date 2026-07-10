@@ -10,7 +10,7 @@
 #include "strings/kname.h"
 #include "utils/kcolour.h"
 
-void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices) {
+void geometry_generate_normals (u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices) {
 	for (u32 i = 0; i < index_count; i += 3) {
 		u32 i0 = indices[i + 0];
 		u32 i1 = indices[i + 1];
@@ -29,7 +29,7 @@ void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 index_
 	}
 }
 
-void geometry_generate_tangents(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices) {
+void geometry_generate_tangents (u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices) {
 	for (u32 i = 0; i < index_count; i += 3) {
 		u32 i0 = indices[i + 0];
 		u32 i1 = indices[i + 1];
@@ -65,7 +65,7 @@ void geometry_generate_tangents(u32 vertex_count, vertex_3d* vertices, u32 index
 	}
 }
 
-b8 vertex3d_equal(vertex_3d vert_0, vertex_3d vert_1) {
+b8 vertex3d_equal (vertex_3d vert_0, vertex_3d vert_1) {
 	return vec3_compare(vert_0.position, vert_1.position, K_FLOAT_EPSILON) &&
 		   vec3_compare(vert_0.normal, vert_1.normal, K_FLOAT_EPSILON) &&
 		   vec2_compare(vert_0.texcoord, vert_1.texcoord, K_FLOAT_EPSILON) &&
@@ -73,7 +73,7 @@ b8 vertex3d_equal(vertex_3d vert_0, vertex_3d vert_1) {
 		   vec4_compare(vert_0.tangent, vert_1.tangent, K_FLOAT_EPSILON);
 }
 
-void reassign_index(u32 index_count, u32* indices, u32 from, u32 to) {
+void reassign_index (u32 index_count, u32 *indices, u32 from, u32 to) {
 	for (u32 i = 0; i < index_count; ++i) {
 		if (indices[i] == from) {
 			indices[i] = to;
@@ -84,12 +84,12 @@ void reassign_index(u32 index_count, u32* indices, u32 from, u32 to) {
 	}
 }
 
-void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d* vertices,
-								   u32 index_count, u32* indices,
-								   u32* out_vertex_count,
-								   vertex_3d** out_vertices) {
+void geometry_deduplicate_vertices (u32 vertex_count, vertex_3d *vertices,
+									u32 index_count, u32 *indices,
+									u32 *out_vertex_count,
+									vertex_3d **out_vertices) {
 	// Create new arrays for the collection to sit in.
-	vertex_3d* unique_verts =
+	vertex_3d *unique_verts =
 		kallocate(sizeof(vertex_3d) * vertex_count, MEMORY_TAG_ARRAY);
 	*out_vertex_count = 0;
 
@@ -126,14 +126,14 @@ void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d* vertices,
 		   vertex_count - *out_vertex_count, vertex_count, *out_vertex_count);
 }
 
-void generate_uvs_from_image_coords(u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32* out_tx, f32* out_ty) {
+void generate_uvs_from_image_coords (u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32 *out_tx, f32 *out_ty) {
 	KASSERT_DEBUG(out_tx);
 	KASSERT_DEBUG(out_ty);
 	*out_tx = (f32)px_x / img_width;
 	*out_ty = (f32)px_y / img_height;
 }
 
-kgeometry geometry_generate_quad(f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, kname name) {
+kgeometry geometry_generate_quad (f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, kname name) {
 	kgeometry out_geometry = {0};
 
 	out_geometry.name = name;
@@ -182,7 +182,7 @@ kgeometry geometry_generate_quad(f32 width, f32 height, f32 tx_min, f32 tx_max, 
 	return out_geometry;
 }
 
-kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name) {
+kgeometry geometry_generate_line2d (vec2 point_0, vec2 point_1, kname name) {
 	kgeometry out_geometry = {0};
 	out_geometry.name = name;
 	out_geometry.type = KGEOMETRY_TYPE_2D_STATIC;
@@ -199,8 +199,8 @@ kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name) {
 	out_geometry.vertex_count = 2;
 	out_geometry.vertex_element_size = sizeof(vertex_2d);
 	out_geometry.vertices = KALLOC_TYPE_CARRAY(vertex_2d, out_geometry.vertex_count);
-	((vertex_2d*)out_geometry.vertices)[0].position = point_0;
-	((vertex_2d*)out_geometry.vertices)[1].position = point_1;
+	((vertex_2d *)out_geometry.vertices)[0].position = point_0;
+	((vertex_2d *)out_geometry.vertices)[1].position = point_1;
 	out_geometry.vertex_buffer_offset = INVALID_ID_U64;
 	// NOTE: lines do not have indices.
 	out_geometry.index_count = 0;
@@ -211,11 +211,11 @@ kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name) {
 	return out_geometry;
 }
 
-kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name) {
+kgeometry geometry_generate_line3d (vec3 point_0, vec3 point_1, kname name) {
 	return geometry_generate_line3d_typed(point_0, point_1, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR);
 }
 
-kgeometry geometry_generate_line3d_typed(vec3 point_0, vec3 point_1, kname name, kgeometry_type type) {
+kgeometry geometry_generate_line3d_typed (vec3 point_0, vec3 point_1, kname name, kgeometry_type type) {
 	kgeometry out_geometry = {0};
 	out_geometry.name = name;
 	out_geometry.type = type;
@@ -238,14 +238,14 @@ kgeometry geometry_generate_line3d_typed(vec3 point_0, vec3 point_1, kname name,
 	case KGEOMETRY_TYPE_3D_STATIC_COLOUR:
 		out_geometry.vertex_element_size = sizeof(colour_vertex_3d);
 		out_geometry.vertices = KALLOC_TYPE_CARRAY(colour_vertex_3d, out_geometry.vertex_count);
-		((colour_vertex_3d*)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
-		((colour_vertex_3d*)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
+		((colour_vertex_3d *)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
+		((colour_vertex_3d *)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
 		break;
 	case KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY:
 		out_geometry.vertex_element_size = sizeof(position_vertex_3d);
 		out_geometry.vertices = KALLOC_TYPE_CARRAY(position_vertex_3d, out_geometry.vertex_count);
-		((position_vertex_3d*)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
-		((position_vertex_3d*)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
+		((position_vertex_3d *)out_geometry.vertices)[0].position = vec4_from_vec3(point_0, 1.0f);
+		((position_vertex_3d *)out_geometry.vertices)[1].position = vec4_from_vec3(point_1, 1.0f);
 		break;
 	}
 
@@ -259,11 +259,11 @@ kgeometry geometry_generate_line3d_typed(vec3 point_0, vec3 point_1, kname name,
 	return out_geometry;
 }
 
-kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, kname name) {
+kgeometry geometry_generate_line_sphere3d (f32 radius, u32 segment_count, kname name) {
 	return geometry_generate_line_sphere3d_typed(radius, segment_count, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR);
 }
 
-kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, kname name, kgeometry_type type) {
+kgeometry geometry_generate_line_sphere3d_typed (f32 radius, u32 segment_count, kname name, kgeometry_type type) {
 	kgeometry out_geometry = {0};
 	out_geometry.name = name;
 	out_geometry.type = type;
@@ -286,7 +286,7 @@ kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, k
 
 		// Start with the center, draw small axes.
 		// x
-		colour_vertex_3d* verts = out_geometry.vertices;
+		colour_vertex_3d *verts = out_geometry.vertices;
 		verts[1].position.x = 0.2f;
 		verts[3].position.y = 0.2f;
 		verts[5].position.z = 0.2f;
@@ -337,7 +337,7 @@ kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, k
 
 		// Start with the center, draw small axes.
 		// x
-		position_vertex_3d* verts = out_geometry.vertices;
+		position_vertex_3d *verts = out_geometry.vertices;
 		verts[1].position.x = 0.2f;
 
 		// y
@@ -398,7 +398,7 @@ kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, k
 	return out_geometry;
 }
 
-kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name) {
+kgeometry geometry_generate_plane (f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name) {
 	if (width == 0) {
 		KWARN("Width must be nonzero. Defaulting to one.");
 		width = 1.0f;
@@ -461,10 +461,10 @@ kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u3
 			f32 max_uvy = ((y + 1) / (f32)y_segment_count) * tile_y;
 
 			u32 v_offset = ((y * x_segment_count) + x) * 4;
-			vertex_3d* v0 = &((vertex_3d*)out_geometry.vertices)[v_offset + 0];
-			vertex_3d* v1 = &((vertex_3d*)out_geometry.vertices)[v_offset + 1];
-			vertex_3d* v2 = &((vertex_3d*)out_geometry.vertices)[v_offset + 2];
-			vertex_3d* v3 = &((vertex_3d*)out_geometry.vertices)[v_offset + 3];
+			vertex_3d *v0 = &((vertex_3d *)out_geometry.vertices)[v_offset + 0];
+			vertex_3d *v1 = &((vertex_3d *)out_geometry.vertices)[v_offset + 1];
+			vertex_3d *v2 = &((vertex_3d *)out_geometry.vertices)[v_offset + 2];
+			vertex_3d *v3 = &((vertex_3d *)out_geometry.vertices)[v_offset + 3];
 
 			v0->position.x = min_x;
 			v0->position.y = min_y;
@@ -488,19 +488,19 @@ kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u3
 
 			// Generate indices
 			u32 i_offset = ((y * x_segment_count) + x) * 6;
-			((u32*)out_geometry.indices)[i_offset + 0] = v_offset + 0;
-			((u32*)out_geometry.indices)[i_offset + 1] = v_offset + 1;
-			((u32*)out_geometry.indices)[i_offset + 2] = v_offset + 2;
-			((u32*)out_geometry.indices)[i_offset + 3] = v_offset + 0;
-			((u32*)out_geometry.indices)[i_offset + 4] = v_offset + 3;
-			((u32*)out_geometry.indices)[i_offset + 5] = v_offset + 1;
+			((u32 *)out_geometry.indices)[i_offset + 0] = v_offset + 0;
+			((u32 *)out_geometry.indices)[i_offset + 1] = v_offset + 1;
+			((u32 *)out_geometry.indices)[i_offset + 2] = v_offset + 2;
+			((u32 *)out_geometry.indices)[i_offset + 3] = v_offset + 0;
+			((u32 *)out_geometry.indices)[i_offset + 4] = v_offset + 3;
+			((u32 *)out_geometry.indices)[i_offset + 5] = v_offset + 1;
 		}
 	}
 
 	return out_geometry;
 }
 
-kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, b8 centered) {
+kgeometry geometry_generate_plane_2d (f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, b8 centered) {
 	if (width == 0) {
 		KWARN("Width must be nonzero. Defaulting to one.");
 		width = 1.0f;
@@ -563,10 +563,10 @@ kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_count,
 			f32 max_uvy = ((y + 1) / (f32)y_segment_count) * tile_y;
 
 			u32 v_offset = ((y * x_segment_count) + x) * 4;
-			vertex_2d* v0 = &((vertex_2d*)out_geometry.vertices)[v_offset + 0];
-			vertex_2d* v1 = &((vertex_2d*)out_geometry.vertices)[v_offset + 1];
-			vertex_2d* v2 = &((vertex_2d*)out_geometry.vertices)[v_offset + 2];
-			vertex_2d* v3 = &((vertex_2d*)out_geometry.vertices)[v_offset + 3];
+			vertex_2d *v0 = &((vertex_2d *)out_geometry.vertices)[v_offset + 0];
+			vertex_2d *v1 = &((vertex_2d *)out_geometry.vertices)[v_offset + 1];
+			vertex_2d *v2 = &((vertex_2d *)out_geometry.vertices)[v_offset + 2];
+			vertex_2d *v3 = &((vertex_2d *)out_geometry.vertices)[v_offset + 3];
 
 			v0->position.x = min_x;
 			v0->position.y = min_y;
@@ -590,231 +590,231 @@ kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_count,
 
 			// Generate indices
 			u32 i_offset = ((y * x_segment_count) + x) * 6;
-			((u32*)out_geometry.indices)[i_offset + 0] = v_offset + 0;
-			((u32*)out_geometry.indices)[i_offset + 1] = v_offset + 1;
-			((u32*)out_geometry.indices)[i_offset + 2] = v_offset + 2;
-			((u32*)out_geometry.indices)[i_offset + 3] = v_offset + 0;
-			((u32*)out_geometry.indices)[i_offset + 4] = v_offset + 3;
-			((u32*)out_geometry.indices)[i_offset + 5] = v_offset + 1;
+			((u32 *)out_geometry.indices)[i_offset + 0] = v_offset + 0;
+			((u32 *)out_geometry.indices)[i_offset + 1] = v_offset + 1;
+			((u32 *)out_geometry.indices)[i_offset + 2] = v_offset + 2;
+			((u32 *)out_geometry.indices)[i_offset + 3] = v_offset + 0;
+			((u32 *)out_geometry.indices)[i_offset + 4] = v_offset + 3;
+			((u32 *)out_geometry.indices)[i_offset + 5] = v_offset + 1;
 		}
 	}
 
 	return out_geometry;
 }
 
-void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 points[8]) {
+void geometry_recalculate_line_box3d_by_points (kgeometry *geometry, vec3 points[8]) {
 	if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_COLOUR) {
 		// Front lines
 		{
 			// top
-			((colour_vertex_3d*)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
 			// right
-			((colour_vertex_3d*)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
 			// bottom
-			((colour_vertex_3d*)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
 			// left
-			((colour_vertex_3d*)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
 		}
 		// back lines
 		{
 			// top
-			((colour_vertex_3d*)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
 			// right
-			((colour_vertex_3d*)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
 			// bottom
-			((colour_vertex_3d*)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
 			// left
-			((colour_vertex_3d*)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
 		}
 
 		// top connecting lines
 		{
 			// left
-			((colour_vertex_3d*)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
 			// right
-			((colour_vertex_3d*)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
 		}
 		// bottom connecting lines
 		{
 			// left
-			((colour_vertex_3d*)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
 			// right
-			((colour_vertex_3d*)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
-			((colour_vertex_3d*)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
+			((colour_vertex_3d *)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
 		}
 	} else if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY) {
 		// Front lines
 		{
 			// top
-			((position_vertex_3d*)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[0].position = vec4_from_vec3(points[2], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[1].position = vec4_from_vec3(points[3], 1.0f);
 			// right
-			((position_vertex_3d*)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[2].position = vec4_from_vec3(points[1], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[3].position = vec4_from_vec3(points[2], 1.0f);
 			// bottom
-			((position_vertex_3d*)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[4].position = vec4_from_vec3(points[0], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[5].position = vec4_from_vec3(points[1], 1.0f);
 			// left
-			((position_vertex_3d*)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[6].position = vec4_from_vec3(points[3], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[7].position = vec4_from_vec3(points[0], 1.0f);
 		}
 		// back lines
 		{
 			// top
-			((position_vertex_3d*)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[8].position = vec4_from_vec3(points[6], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[9].position = vec4_from_vec3(points[7], 1.0f);
 			// right
-			((position_vertex_3d*)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[10].position = vec4_from_vec3(points[5], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[11].position = vec4_from_vec3(points[6], 1.0f);
 			// bottom
-			((position_vertex_3d*)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[12].position = vec4_from_vec3(points[4], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[13].position = vec4_from_vec3(points[5], 1.0f);
 			// left
-			((position_vertex_3d*)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[14].position = vec4_from_vec3(points[7], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[15].position = vec4_from_vec3(points[4], 1.0f);
 		}
 
 		// top connecting lines
 		{
 			// left
-			((position_vertex_3d*)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[16].position = vec4_from_vec3(points[3], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[17].position = vec4_from_vec3(points[7], 1.0f);
 			// right
-			((position_vertex_3d*)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[18].position = vec4_from_vec3(points[2], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[19].position = vec4_from_vec3(points[6], 1.0f);
 		}
 		// bottom connecting lines
 		{
 			// left
-			((position_vertex_3d*)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[20].position = vec4_from_vec3(points[0], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[21].position = vec4_from_vec3(points[4], 1.0f);
 			// right
-			((position_vertex_3d*)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
-			((position_vertex_3d*)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[22].position = vec4_from_vec3(points[1], 1.0f);
+			((position_vertex_3d *)geometry->vertices)[23].position = vec4_from_vec3(points[5], 1.0f);
 		}
 	}
 }
 
-void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents, vec3 offset) {
+void geometry_recalculate_line_box3d_by_extents (kgeometry *geometry, extents_3d extents, vec3 offset) {
 	if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_COLOUR) {
 		// Front lines
 		{
 			// top
-			((colour_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[0].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[1].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[2].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[3].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// bottom
-			((colour_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[4].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[5].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// left
-			((colour_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[6].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[7].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 		}
 		// back lines
 		{
 			// top
-			((colour_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[8].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[9].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[10].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[11].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// bottom
-			((colour_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[12].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[13].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// left
-			((colour_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[14].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[15].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 
 		// top connecting lines
 		{
 			// left
-			((colour_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[16].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[17].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[18].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[19].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 		// bottom connecting lines
 		{
 			// left
-			((colour_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[20].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[21].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((colour_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((colour_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[22].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((colour_vertex_3d *)geometry->vertices)[23].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 	} else if (geometry->type == KGEOMETRY_TYPE_3D_STATIC_POSITION_ONLY) {
 		// Front lines
 		{
 			// top
-			((position_vertex_3d*)geometry->vertices)[0].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[1].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[0].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[1].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[2].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[3].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[2].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[3].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// bottom
-			((position_vertex_3d*)geometry->vertices)[4].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[5].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[4].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[5].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 			// left
-			((position_vertex_3d*)geometry->vertices)[6].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[7].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[6].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[7].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
 		}
 		// back lines
 		{
 			// top
-			((position_vertex_3d*)geometry->vertices)[8].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[9].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[8].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[9].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[10].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[11].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[10].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[11].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// bottom
-			((position_vertex_3d*)geometry->vertices)[12].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[13].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[12].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[13].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// left
-			((position_vertex_3d*)geometry->vertices)[14].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[15].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[14].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[15].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 
 		// top connecting lines
 		{
 			// left
-			((position_vertex_3d*)geometry->vertices)[16].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[17].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[16].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[17].position = (vec4){extents.min.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[18].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[19].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[18].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[19].position = (vec4){extents.max.x + offset.x, extents.min.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 		// bottom connecting lines
 		{
 			// left
-			((position_vertex_3d*)geometry->vertices)[20].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[21].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[20].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[21].position = (vec4){extents.min.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 			// right
-			((position_vertex_3d*)geometry->vertices)[22].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
-			((position_vertex_3d*)geometry->vertices)[23].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[22].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.min.z + offset.z, 1.0f};
+			((position_vertex_3d *)geometry->vertices)[23].position = (vec4){extents.max.x + offset.x, extents.max.y + offset.y, extents.max.z + offset.z, 1.0f};
 		}
 	}
 }
 
-kgeometry geometry_generate_line_box3d(vec3 size, kname name, vec3 offset) {
+kgeometry geometry_generate_line_box3d (vec3 size, kname name, vec3 offset) {
 	return geometry_generate_line_box3d_typed(size, name, KGEOMETRY_TYPE_3D_STATIC_COLOUR, offset);
 }
 
-kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type, vec3 offset) {
+kgeometry geometry_generate_line_box3d_typed (vec3 size, kname name, kgeometry_type type, vec3 offset) {
 
 	f32 half_width = size.x * 0.5f;
 	f32 half_height = size.y * 0.5f;
@@ -864,7 +864,7 @@ kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_ty
 	return out_geometry;
 }
 
-kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, kname name) {
+kgeometry geometry_generate_cube (f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, kname name) {
 	if (width == 0) {
 		KWARN("Width must be nonzero. Defaulting to one.");
 		width = 1.0f;
@@ -1021,12 +1021,12 @@ kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile_x, f
 	for (u32 i = 0; i < 6; ++i) {
 		u32 v_offset = i * 4;
 		u32 i_offset = i * 6;
-		((u32*)out_geometry.indices)[i_offset + 0] = v_offset + 0;
-		((u32*)out_geometry.indices)[i_offset + 1] = v_offset + 1;
-		((u32*)out_geometry.indices)[i_offset + 2] = v_offset + 2;
-		((u32*)out_geometry.indices)[i_offset + 3] = v_offset + 0;
-		((u32*)out_geometry.indices)[i_offset + 4] = v_offset + 3;
-		((u32*)out_geometry.indices)[i_offset + 5] = v_offset + 1;
+		((u32 *)out_geometry.indices)[i_offset + 0] = v_offset + 0;
+		((u32 *)out_geometry.indices)[i_offset + 1] = v_offset + 1;
+		((u32 *)out_geometry.indices)[i_offset + 2] = v_offset + 2;
+		((u32 *)out_geometry.indices)[i_offset + 3] = v_offset + 0;
+		((u32 *)out_geometry.indices)[i_offset + 4] = v_offset + 3;
+		((u32 *)out_geometry.indices)[i_offset + 5] = v_offset + 1;
 	}
 
 	geometry_generate_tangents(out_geometry.vertex_count, out_geometry.vertices, out_geometry.index_count, out_geometry.indices);
@@ -1034,7 +1034,7 @@ kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile_x, f
 	return out_geometry;
 }
 
-kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count_dim_0, u32 segment_count_dim_1, f32 segment_scale, b8 use_third_axis, kname name) {
+kgeometry geometry_generate_grid (grid_orientation orientation, u32 segment_count_dim_0, u32 segment_count_dim_1, f32 segment_scale, b8 use_third_axis, kname name) {
 
 	kgeometry out_geometry = {0};
 	out_geometry.name = name;
@@ -1112,35 +1112,35 @@ kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count
 	}
 
 	// First axis line
-	((colour_vertex_3d*)out_geometry.vertices)[0].position.elements[element_index_0] = -line_length_1;
-	((colour_vertex_3d*)out_geometry.vertices)[0].position.elements[element_index_1] = 0;
-	((colour_vertex_3d*)out_geometry.vertices)[1].position.elements[element_index_0] = line_length_1;
-	((colour_vertex_3d*)out_geometry.vertices)[1].position.elements[element_index_1] = 0;
-	((colour_vertex_3d*)out_geometry.vertices)[0].colour.elements[element_index_0] = 1.0f;
-	((colour_vertex_3d*)out_geometry.vertices)[0].colour.a = 1.0f;
-	((colour_vertex_3d*)out_geometry.vertices)[1].colour.elements[element_index_0] = 1.0f;
-	((colour_vertex_3d*)out_geometry.vertices)[1].colour.a = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[0].position.elements[element_index_0] = -line_length_1;
+	((colour_vertex_3d *)out_geometry.vertices)[0].position.elements[element_index_1] = 0;
+	((colour_vertex_3d *)out_geometry.vertices)[1].position.elements[element_index_0] = line_length_1;
+	((colour_vertex_3d *)out_geometry.vertices)[1].position.elements[element_index_1] = 0;
+	((colour_vertex_3d *)out_geometry.vertices)[0].colour.elements[element_index_0] = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[0].colour.a = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[1].colour.elements[element_index_0] = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[1].colour.a = 1.0f;
 
 	// Second axis line
-	((colour_vertex_3d*)out_geometry.vertices)[2].position.elements[element_index_0] = 0;
-	((colour_vertex_3d*)out_geometry.vertices)[2].position.elements[element_index_1] = -line_length_0;
-	((colour_vertex_3d*)out_geometry.vertices)[3].position.elements[element_index_0] = 0;
-	((colour_vertex_3d*)out_geometry.vertices)[3].position.elements[element_index_1] = line_length_0;
-	((colour_vertex_3d*)out_geometry.vertices)[2].colour.elements[element_index_1] = 1.0f;
-	((colour_vertex_3d*)out_geometry.vertices)[2].colour.a = 1.0f;
-	((colour_vertex_3d*)out_geometry.vertices)[3].colour.elements[element_index_1] = 1.0f;
-	((colour_vertex_3d*)out_geometry.vertices)[3].colour.a = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[2].position.elements[element_index_0] = 0;
+	((colour_vertex_3d *)out_geometry.vertices)[2].position.elements[element_index_1] = -line_length_0;
+	((colour_vertex_3d *)out_geometry.vertices)[3].position.elements[element_index_0] = 0;
+	((colour_vertex_3d *)out_geometry.vertices)[3].position.elements[element_index_1] = line_length_0;
+	((colour_vertex_3d *)out_geometry.vertices)[2].colour.elements[element_index_1] = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[2].colour.a = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[3].colour.elements[element_index_1] = 1.0f;
+	((colour_vertex_3d *)out_geometry.vertices)[3].colour.a = 1.0f;
 
 	if (use_third_axis) {
 		// Third axis line
-		((colour_vertex_3d*)out_geometry.vertices)[4].position.elements[element_index_0] = 0;
-		((colour_vertex_3d*)out_geometry.vertices)[4].position.elements[element_index_2] = -line_length_2;
-		((colour_vertex_3d*)out_geometry.vertices)[5].position.elements[element_index_0] = 0;
-		((colour_vertex_3d*)out_geometry.vertices)[5].position.elements[element_index_2] = line_length_2;
-		((colour_vertex_3d*)out_geometry.vertices)[4].colour.elements[element_index_2] = 1.0f;
-		((colour_vertex_3d*)out_geometry.vertices)[4].colour.a = 1.0f;
-		((colour_vertex_3d*)out_geometry.vertices)[5].colour.elements[element_index_2] = 1.0f;
-		((colour_vertex_3d*)out_geometry.vertices)[5].colour.a = 1.0f;
+		((colour_vertex_3d *)out_geometry.vertices)[4].position.elements[element_index_0] = 0;
+		((colour_vertex_3d *)out_geometry.vertices)[4].position.elements[element_index_2] = -line_length_2;
+		((colour_vertex_3d *)out_geometry.vertices)[5].position.elements[element_index_0] = 0;
+		((colour_vertex_3d *)out_geometry.vertices)[5].position.elements[element_index_2] = line_length_2;
+		((colour_vertex_3d *)out_geometry.vertices)[4].colour.elements[element_index_2] = 1.0f;
+		((colour_vertex_3d *)out_geometry.vertices)[4].colour.a = 1.0f;
+		((colour_vertex_3d *)out_geometry.vertices)[5].colour.elements[element_index_2] = 1.0f;
+		((colour_vertex_3d *)out_geometry.vertices)[5].colour.a = 1.0f;
 	}
 
 	vec4 alt_line_colour = (vec4){1.0f, 1.0f, 1.0f, 0.5f};
@@ -1151,36 +1151,36 @@ kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count
 
 	for (u32 i = start_index; i < out_geometry.vertex_count; i += 8) {
 		// First line (max)
-		((colour_vertex_3d*)out_geometry.vertices)[i + 0].position.elements[element_index_0] = j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 0].position.elements[element_index_1] = line_length_0;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 0].colour = alt_line_colour;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 1].position.elements[element_index_0] = j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 1].position.elements[element_index_1] = -line_length_0;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 1].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 0].position.elements[element_index_0] = j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 0].position.elements[element_index_1] = line_length_0;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 0].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 1].position.elements[element_index_0] = j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 1].position.elements[element_index_1] = -line_length_0;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 1].colour = alt_line_colour;
 
 		// Second line (min)
-		((colour_vertex_3d*)out_geometry.vertices)[i + 2].position.elements[element_index_0] = -j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 2].position.elements[element_index_1] = line_length_0;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 2].colour = alt_line_colour;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 3].position.elements[element_index_0] = -j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 3].position.elements[element_index_1] = -line_length_0;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 3].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 2].position.elements[element_index_0] = -j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 2].position.elements[element_index_1] = line_length_0;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 2].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 3].position.elements[element_index_0] = -j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 3].position.elements[element_index_1] = -line_length_0;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 3].colour = alt_line_colour;
 
 		// Third line (max)
-		((colour_vertex_3d*)out_geometry.vertices)[i + 4].position.elements[element_index_0] = -line_length_1;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 4].position.elements[element_index_1] = -j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 4].colour = alt_line_colour;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 5].position.elements[element_index_0] = line_length_1;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 5].position.elements[element_index_1] = -j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 5].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 4].position.elements[element_index_0] = -line_length_1;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 4].position.elements[element_index_1] = -j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 4].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 5].position.elements[element_index_0] = line_length_1;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 5].position.elements[element_index_1] = -j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 5].colour = alt_line_colour;
 
 		// Fourth line (min)
-		((colour_vertex_3d*)out_geometry.vertices)[i + 6].position.elements[element_index_0] = -line_length_1;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 6].position.elements[element_index_1] = j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 6].colour = alt_line_colour;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 7].position.elements[element_index_0] = line_length_1;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 7].position.elements[element_index_1] = j * segment_scale;
-		((colour_vertex_3d*)out_geometry.vertices)[i + 7].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 6].position.elements[element_index_0] = -line_length_1;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 6].position.elements[element_index_1] = j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 6].colour = alt_line_colour;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 7].position.elements[element_index_0] = line_length_1;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 7].position.elements[element_index_1] = j * segment_scale;
+		((colour_vertex_3d *)out_geometry.vertices)[i + 7].colour = alt_line_colour;
 
 		j++;
 	}
@@ -1188,7 +1188,7 @@ kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count
 	return out_geometry;
 }
 
-void geometry_destroy(kgeometry* geometry) {
+void geometry_destroy (kgeometry *geometry) {
 	if (geometry) {
 		if (geometry->vertices) {
 			kfree(geometry->vertices, geometry->vertex_count * geometry->vertex_element_size, MEMORY_TAG_ARRAY);
@@ -1205,7 +1205,7 @@ void geometry_destroy(kgeometry* geometry) {
 	}
 }
 
-static inline vec4 axis_remap(axis_3d axis, f32 radial_x, f32 radial_y, f32 axis_pos) {
+static inline vec4 axis_remap (axis_3d axis, f32 radial_x, f32 radial_y, f32 axis_pos) {
 	switch (axis) {
 	case AXIS_X:
 		return (vec4){axis_pos, radial_x, radial_y, 1.0f};
@@ -1217,7 +1217,7 @@ static inline vec4 axis_remap(axis_3d axis, f32 radial_x, f32 radial_y, f32 axis
 	}
 }
 
-void generate_axis_geometry(
+void generate_axis_geometry (
 	axis_3d axis,
 	f32 base_offset,
 	f32 length,
@@ -1227,10 +1227,10 @@ void generate_axis_geometry(
 	f32 arrowhead_length,
 	u32 segment_count,
 	b8 include_arrowhead,
-	u32* out_vertex_count,
-	u32* out_index_count,
-	colour_vertex_3d* vertices,
-	u32* indices,
+	u32 *out_vertex_count,
+	u32 *out_index_count,
+	colour_vertex_3d *vertices,
+	u32 *indices,
 	u32 vertex_offset) {
 
 	const u32 segments = segment_count < 3 ? 3 : segment_count;
@@ -1424,17 +1424,17 @@ void generate_axis_geometry(
 	}
 }
 
-void generate_axis_ring_geometry(
+void generate_axis_ring_geometry (
 	axis_3d axis,
 	f32 radius,
 	f32 thickness,
 	colour4 colour,
 	u32 ring_segments,
 	u32 tube_segments,
-	u32* out_vertex_count,
-	u32* out_index_count,
-	colour_vertex_3d* vertices,
-	u32* indices,
+	u32 *out_vertex_count,
+	u32 *out_index_count,
+	colour_vertex_3d *vertices,
+	u32 *indices,
 	u32 vertex_offset) {
 
 	const u32 rings = ring_segments < 3 ? 3 : ring_segments;

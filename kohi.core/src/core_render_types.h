@@ -270,14 +270,14 @@ typedef struct shader_binding_set_config {
 	// binding index of the UBO. INVALID_ID_U8 if none.
 	u8 ubo_index;
 	u8 ssbo_count;
-	shader_binding_config* bindings;
+	shader_binding_config *bindings;
 } shader_binding_set_config;
 
 typedef struct shader_pipeline_config {
 
 	u8 attribute_count;
 	/** @brief An array of attributes. */
-	shader_attribute* attributes;
+	shader_attribute *attributes;
 
 	/** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
 	u16 attribute_stride;
@@ -285,11 +285,11 @@ typedef struct shader_pipeline_config {
 	u8 stage_count;
 
 	// Array of stages.
-	shader_stage* stages;
+	shader_stage *stages;
 	// Array of names of stage assets.
-	kname* stage_names;
+	kname *stage_names;
 	// Array of source text for stages. Matches size of stage_source_text_resources;
-	const char** stage_sources;
+	const char **stage_sources;
 } shader_pipeline_config;
 
 /**

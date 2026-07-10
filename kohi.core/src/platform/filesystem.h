@@ -17,7 +17,7 @@
 /** @brief Holds a handle to a file. */
 typedef struct file_handle {
 	/** @brief Opaque handle to internal file handle. */
-	void* handle;
+	void *handle;
 	/** @brief Indicates if this handle is valid. */
 	b8 is_valid;
 } file_handle;
@@ -50,7 +50,7 @@ typedef enum file_modes {
  * @param path The path of the file to be checked.
  * @returns True if exists; otherwise false.
  */
-KAPI b8 filesystem_exists(const char* path);
+KAPI b8 filesystem_exists (const char *path);
 
 /**
  * @brief Attempt to open file located at path.
@@ -60,13 +60,13 @@ KAPI b8 filesystem_exists(const char* path);
  * @param out_handle A pointer to a file_handle structure which holds the handle information.
  * @returns True if opened successfully; otherwise false.
  */
-KAPI b8 filesystem_open(const char* path, file_modes mode, b8 binary, file_handle* out_handle);
+KAPI b8 filesystem_open (const char *path, file_modes mode, b8 binary, file_handle *out_handle);
 
 /**
  * @brief Closes the provided handle to a file.
  * @param handle A pointer to a file_handle structure which holds the handle to be closed.
  */
-KAPI void filesystem_close(file_handle* handle);
+KAPI void filesystem_close (file_handle *handle);
 
 /**
  * @brief Attempts to read the size of the file to which handle is attached.
@@ -75,7 +75,7 @@ KAPI void filesystem_close(file_handle* handle);
  * @param out_size A pointer to hold the file size.
  * @return KAPI
  */
-KAPI b8 filesystem_size(file_handle* handle, u64* out_size);
+KAPI b8 filesystem_size (file_handle *handle, u64 *out_size);
 
 /**
  * @brief Reads up to a newline or EOF.
@@ -85,7 +85,7 @@ KAPI b8 filesystem_size(file_handle* handle, u64* out_size);
  * @param out_line_length A pointer to hold the line length read from the file.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 filesystem_read_line(file_handle* handle, u64 max_length, char** line_buf, u64* out_line_length);
+KAPI b8 filesystem_read_line (file_handle *handle, u64 max_length, char **line_buf, u64 *out_line_length);
 
 /**
  * @brief Writes text to the provided file, appending a '\n' afterward.
@@ -93,7 +93,7 @@ KAPI b8 filesystem_read_line(file_handle* handle, u64 max_length, char** line_bu
  * @param text The text to be written.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 filesystem_write_line(file_handle* handle, const char* text);
+KAPI b8 filesystem_write_line (file_handle *handle, const char *text);
 
 /**
  * @brief Reads up to data_size bytes of data into out_bytes_read.
@@ -104,7 +104,7 @@ KAPI b8 filesystem_write_line(file_handle* handle, const char* text);
  * @param out_bytes_read A pointer to a number which will be populated with the number of bytes actually read from the file.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 filesystem_read(file_handle* handle, u64 data_size, void* out_data, u64* out_bytes_read);
+KAPI b8 filesystem_read (file_handle *handle, u64 data_size, void *out_data, u64 *out_bytes_read);
 
 /**
  * @brief Reads all bytes of data into out_bytes.
@@ -113,7 +113,7 @@ KAPI b8 filesystem_read(file_handle* handle, u64 data_size, void* out_data, u64*
  * @param out_bytes_read A pointer to a number which will be populated with the number of bytes actually read from the file.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 filesystem_read_all_bytes(file_handle* handle, u8* out_bytes, u64* out_bytes_read);
+KAPI b8 filesystem_read_all_bytes (file_handle *handle, u8 *out_bytes, u64 *out_bytes_read);
 
 /**
  * @brief Reads all characters of data into out_text.
@@ -122,7 +122,7 @@ KAPI b8 filesystem_read_all_bytes(file_handle* handle, u8* out_bytes, u64* out_b
  * @param out_bytes_read A pointer to a number which will be populated with the number of bytes actually read from the file.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 filesystem_read_all_text(file_handle* handle, char* out_text, u64* out_bytes_read);
+KAPI b8 filesystem_read_all_text (file_handle *handle, char *out_text, u64 *out_bytes_read);
 
 /**
  * @brief Writes provided data to the file.
@@ -132,7 +132,7 @@ KAPI b8 filesystem_read_all_text(file_handle* handle, char* out_text, u64* out_b
  * @param out_bytes_written A pointer to a number which will be populated with the number of bytes actually written to the file.
  * @returns True if successful; otherwise false.
  */
-KAPI b8 filesystem_write(file_handle* handle, u64 data_size, const void* data, u64* out_bytes_written);
+KAPI b8 filesystem_write (file_handle *handle, u64 data_size, const void *data, u64 *out_bytes_written);
 
 /**
  * @brief Opens and reads all text content of the file at the provided path.
@@ -143,7 +143,7 @@ KAPI b8 filesystem_write(file_handle* handle, u64 data_size, const void* data, u
  * @param filepath The path to the file to read.
  * @returns A string containing the file contents if successful; otherwise 0/null.
  */
-KAPI const char* filesystem_read_entire_text_file(const char* filepath);
+KAPI const char *filesystem_read_entire_text_file (const char *filepath);
 
 /**
  * @brief Opens and reads all content of the file at the provided path.
@@ -154,8 +154,8 @@ KAPI const char* filesystem_read_entire_text_file(const char* filepath);
  * @param A pointer to hold the size of the file read in.
  * @returns A binary block of data read from the file.
  */
-KAPI const void* filesystem_read_entire_binary_file(const char* filepath, u64* out_size);
+KAPI const void *filesystem_read_entire_binary_file (const char *filepath, u64 *out_size);
 
-KAPI b8 filesystem_write_entire_text_file(const char* filepath, const char* content);
+KAPI b8 filesystem_write_entire_text_file (const char *filepath, const char *content);
 
-KAPI b8 filesystem_write_entire_binary_file(const char* filepath, u64 size, const void* content);
+KAPI b8 filesystem_write_entire_binary_file (const char *filepath, u64 size, const void *content);

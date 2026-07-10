@@ -46,7 +46,7 @@ typedef u64 kname;
  * @param str The source string to use while creating the kname.
  * @returns The hashed kname.
  */
-KAPI kname kname_create(const char* str);
+KAPI kname kname_create (const char *str);
 
 /**
  * Creates a new kname using the provided format string and parameters. If formatting is not required,
@@ -58,7 +58,7 @@ KAPI kname kname_create(const char* str);
  * @param ... The format arguments.
  * @returns A new kname created using the formatted string.
  */
-KAPI kname kname_format(const char* format, ...);
+KAPI kname kname_format (const char *format, ...);
 
 /**
  * Attempts to get the original string associated with the given kname.
@@ -68,6 +68,6 @@ KAPI kname kname_format(const char* format, ...);
  * @param name The kname to lookup.
  * @returns A constant pointer to the string if found, otherwise 0/null. NOTE: Do *NOT* free this string!
  */
-KAPI const char* kname_string_get(kname name);
+KAPI const char *kname_string_get (kname name);
 
-KAPI void kname_shutdown(void);
+KAPI void kname_shutdown (void);

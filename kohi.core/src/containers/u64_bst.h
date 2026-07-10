@@ -4,8 +4,8 @@
 
 // Represents the value of a binary tree node.
 typedef union bt_node_value {
-	void* p;
-	const char* str;
+	void *p;
+	const char *str;
 	u64 u64;
 	i64 i64;
 	u32 u32;
@@ -24,8 +24,8 @@ typedef union bt_node_value {
 typedef struct bt_node {
 	u64 key;
 	bt_node_value value;
-	struct bt_node* left;
-	struct bt_node* right;
+	struct bt_node *left;
+	struct bt_node *right;
 } bt_node;
 
 /**
@@ -36,7 +36,7 @@ typedef struct bt_node {
  * @param value The value to be inserted. NOTE: The BST does NOT take its own copy of this data.
  * @returns A pointer to the inserted node. This should be saved off if creating the root node.
  */
-KAPI bt_node* u64_bst_insert(bt_node* root, u64 key, bt_node_value value);
+KAPI bt_node *u64_bst_insert (bt_node *root, u64 key, bt_node_value value);
 
 /**
  * Attempts to delete a node with the given key from the tree.
@@ -46,7 +46,7 @@ KAPI bt_node* u64_bst_insert(bt_node* root, u64 key, bt_node_value value);
  * @param key The key to be deleted.
  * @returns A pointer to the deleted key, if found; otherwise 0.
  */
-KAPI bt_node* u64_bst_delete(bt_node* root, u64 key);
+KAPI bt_node *u64_bst_delete (bt_node *root, u64 key);
 
 /**
  * Attempts to find a node with the given key.
@@ -55,7 +55,7 @@ KAPI bt_node* u64_bst_delete(bt_node* root, u64 key);
  * @param key The key to search for.
  * @returns A constant pointer to the node, if found; otherwise 0/null.
  */
-KAPI const bt_node* u64_bst_find(const bt_node* root, u64 key);
+KAPI const bt_node *u64_bst_find (const bt_node *root, u64 key);
 
 /**
  * Performs cleanup operations on the given node and its branches.
@@ -63,7 +63,7 @@ KAPI const bt_node* u64_bst_find(const bt_node* root, u64 key);
  *
  * @param node A pointer to the node to cleanup.
  */
-KAPI void u64_bst_cleanup(bt_node* node);
+KAPI void u64_bst_cleanup (bt_node *node);
 
 /**
  * Performs cleanup operations on the given node and its branches.
@@ -71,4 +71,4 @@ KAPI void u64_bst_cleanup(bt_node* node);
  *
  * @param node A pointer to the node to cleanup.
  */
-KAPI void u64_bst_cleanup_with_strings(bt_node* node);
+KAPI void u64_bst_cleanup_with_strings (bt_node *node);

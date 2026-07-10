@@ -8,7 +8,7 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 
-void kregistry_create(kregistry* out_registry) {
+void kregistry_create (kregistry *out_registry) {
 	if (!out_registry) {
 		KERROR("kregistry_create requires a valid pointer to out_registry.");
 		return;
@@ -17,11 +17,11 @@ void kregistry_create(kregistry* out_registry) {
 	out_registry->entries = darray_create(kregistry_entry);
 }
 
-void kregistry_destroy(kregistry* registry) {
+void kregistry_destroy (kregistry *registry) {
 	if (registry) {
 		u32 entry_count = darray_length(registry->entries);
 		for (u32 i = 0; i < entry_count; ++i) {
-			kregistry_entry* entry = &registry->entries[i];
+			kregistry_entry *entry = &registry->entries[i];
 
 			// Destroy callbacks.
 			if (entry->callbacks) {
@@ -42,7 +42,7 @@ void kregistry_destroy(kregistry* registry) {
 	}
 }
 
-khandle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8 auto_release) {
+khandle kregistry_add_entry (kregistry *registry, const void *block, u64 size, b8 auto_release) {
 	if (!registry || !size) {
 		KERROR("registry_add_entry requires a valid pointer to registry, and a nonzero size. Invalid handle will be returned.");
 		return khandle_invalid();
@@ -51,7 +51,7 @@ khandle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8
 	// Check that the block hasn't already been registered.
 	u32 entry_count = darray_length(registry->entries);
 	for (u32 i = 0; i < entry_count; ++i) {
-		kregistry_entry* entry = &registry->entries[i];
+		kregistry_entry *entry = &registry->entries[i];
 		if (entry->block == block) {
 			KWARN("Block of memory at address 0x%x has already been registered, and will not be re-registered. Returning its handle.");
 			return khandle_create_with_identifier(i, (identifier){entry->uniqueid});
@@ -60,7 +60,7 @@ khandle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8
 
 	// If not, loop through existing array first and see if there is an open slot to use.
 	for (u32 i = 0; i < entry_count; ++i) {
-		kregistry_entry* entry = &registry->entries[i];
+		kregistry_entry *entry = &registry->entries[i];
 		if (entry->uniqueid == INVALID_ID_U64) {
 			// Found an empty block, use it.
 			khandle new_handle = khandle_create(i);
@@ -112,7 +112,7 @@ khandle kregistry_add_entry(kregistry* registry, const void* block, u64 size, b8
 	}
 }
 
-b8 kregistry_entry_set(kregistry* registry, khandle entry_handle, const void* block, u64 size, void* sender) {
+b8 kregistry_entry_set (kregistry *registry, khandle entry_handle, const void *block, u64 size, void *sender) {
 	if (!registry || !block || !size) {
 		KERROR("registry_entry_set requires a valid pointer to a registry and block, as well as have a nonzero size. Nothing was done.");
 		return false;
@@ -129,7 +129,7 @@ b8 kregistry_entry_set(kregistry* registry, khandle entry_handle, const void* bl
 		return false;
 	}
 
-	kregistry_entry* entry = &registry->entries[entry_handle.handle_index];
+	kregistry_entry *entry = &registry->entries[entry_handle.handle_index];
 
 	// If block and size are set (they should be) release them first.
 	KASSERT_MSG((entry->block && entry->block_size), "kregistry_entry_set called against an entry which somehow does not have a block and/or size. This means something is terribly wrong here.");
@@ -144,7 +144,7 @@ b8 kregistry_entry_set(kregistry* registry, khandle entry_handle, const void* bl
 	if (entry->callbacks) {
 		u32 callback_count = darray_length(entry->callbacks);
 		for (u32 i = 0; i < callback_count; ++i) {
-			kregistry_entry_listener_callback* listener_callback = &entry->callbacks[i];
+			kregistry_entry_listener_callback *listener_callback = &entry->callbacks[i];
 			if (listener_callback->callback) {
 				listener_callback->callback(sender, entry->block, entry->block_size, K_REGISTRY_CHANGE_TYPE_BLOCK_CHANGED);
 			}
@@ -154,7 +154,7 @@ b8 kregistry_entry_set(kregistry* registry, khandle entry_handle, const void* bl
 	return true;
 }
 
-b8 kregistry_entry_update_callback_for_listener(kregistry* registry, khandle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback) {
+b8 kregistry_entry_update_callback_for_listener (kregistry *registry, khandle entry_handle, void *listener, PFN_on_registry_entry_updated updated_callback) {
 	if (!registry || !listener || !updated_callback) {
 		KERROR("kregistry_entry_update_callback_for_listener requires a valid pointer to a registry, listener, and updated_callback. Nothing was done.");
 		return false;
@@ -171,12 +171,12 @@ b8 kregistry_entry_update_callback_for_listener(kregistry* registry, khandle ent
 		return false;
 	}
 
-	kregistry_entry* entry = &registry->entries[entry_handle.handle_index];
+	kregistry_entry *entry = &registry->entries[entry_handle.handle_index];
 
 	if (entry->callbacks) {
 		u32 callback_count = darray_length(entry->callbacks);
 		for (u32 i = 0; i < callback_count; ++i) {
-			kregistry_entry_listener_callback* listener_callback = &entry->callbacks[i];
+			kregistry_entry_listener_callback *listener_callback = &entry->callbacks[i];
 			if (listener_callback->listener == listener) {
 				if (listener_callback->callback == updated_callback) {
 					// If both the listener and callback match, we are okay. Just warn about it.
@@ -195,7 +195,7 @@ b8 kregistry_entry_update_callback_for_listener(kregistry* registry, khandle ent
 	return false;
 }
 
-void* kregistry_entry_acquire(kregistry* registry, khandle entry_handle, void* listener, PFN_on_registry_entry_updated updated_callback) {
+void *kregistry_entry_acquire (kregistry *registry, khandle entry_handle, void *listener, PFN_on_registry_entry_updated updated_callback) {
 	if (!registry) {
 		KERROR("registry_entry_acquire requires a valid pointer to a registry. 0/null will be returned.");
 		return 0;
@@ -212,7 +212,7 @@ void* kregistry_entry_acquire(kregistry* registry, khandle entry_handle, void* l
 		return 0;
 	}
 
-	kregistry_entry* entry = &registry->entries[entry_handle.handle_index];
+	kregistry_entry *entry = &registry->entries[entry_handle.handle_index];
 
 	// Ensure the handle isn't stale.
 	if (entry->uniqueid != entry_handle.unique_id.uniqueid) {
@@ -227,7 +227,7 @@ void* kregistry_entry_acquire(kregistry* registry, khandle entry_handle, void* l
 			// If callbacks exists, check to make sure the listener doesn't already have an entry. If it does, acquisition will fail.
 			u32 callback_count = darray_length(entry->callbacks);
 			for (u32 i = 0; i < callback_count; ++i) {
-				kregistry_entry_listener_callback* listener_callback = &entry->callbacks[i];
+				kregistry_entry_listener_callback *listener_callback = &entry->callbacks[i];
 				if (listener_callback->listener == listener) {
 					if (listener_callback->callback == updated_callback) {
 						// If both the listener and callback match, we are okay. Just warn about it.
@@ -262,7 +262,7 @@ void* kregistry_entry_acquire(kregistry* registry, khandle entry_handle, void* l
 	return entry->block;
 }
 
-void kregistry_entry_release(kregistry* registry, khandle entry_handle, void* listener) {
+void kregistry_entry_release (kregistry *registry, khandle entry_handle, void *listener) {
 	if (!registry) {
 		KERROR("registry_entry_release requires a valid pointer to a registry.");
 		return;
@@ -279,11 +279,11 @@ void kregistry_entry_release(kregistry* registry, khandle entry_handle, void* li
 		return;
 	}
 
-	kregistry_entry* entry = &registry->entries[entry_handle.handle_index];
+	kregistry_entry *entry = &registry->entries[entry_handle.handle_index];
 	if (entry->callbacks) {
 		u32 callback_count = darray_length(entry->callbacks);
 		for (u32 i = 0; i < callback_count; ++i) {
-			kregistry_entry_listener_callback* listener_callback = &entry->callbacks[i];
+			kregistry_entry_listener_callback *listener_callback = &entry->callbacks[i];
 			if (listener_callback->listener == listener) {
 				// Remove it and throw the popped value away.
 				darray_pop_at(entry->callbacks, i, 0);
@@ -307,7 +307,7 @@ void kregistry_entry_release(kregistry* registry, khandle entry_handle, void* li
 			// Notify listeners. Theoretically there shouldn't be any, but...
 			u32 callback_count = darray_length(entry->callbacks);
 			for (u32 i = 0; i < callback_count; ++i) {
-				kregistry_entry_listener_callback* listener_callback = &entry->callbacks[i];
+				kregistry_entry_listener_callback *listener_callback = &entry->callbacks[i];
 				if (listener_callback->callback) {
 					listener_callback->callback(listener, entry->block, entry->block_size, K_REGISTRY_CHANGE_TYPE_DESTROYED);
 				}

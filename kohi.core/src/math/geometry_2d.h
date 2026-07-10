@@ -21,7 +21,7 @@ typedef struct circle_2d {
  * @param rect The rectangle to check against.
  * @returns True if the point is within the rectangle; otherwise false.
  */
-KINLINE b8 point_in_rect_2d(vec2 point, rect_2d rect) {
+KINLINE b8 point_in_rect_2d (vec2 point, rect_2d rect) {
 	return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
 }
 
@@ -31,7 +31,7 @@ KINLINE b8 point_in_rect_2d(vec2 point, rect_2d rect) {
  * @param rect The integer-based rectangle to check against.
  * @returns True if the point is within the rectangle; otherwise false.
  */
-KINLINE b8 point_in_rect_2di(vec2i point, rect_2di rect) {
+KINLINE b8 point_in_rect_2di (vec2i point, rect_2di rect) {
 	return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
 }
 
@@ -41,7 +41,7 @@ KINLINE b8 point_in_rect_2di(vec2i point, rect_2di rect) {
  * @param rect The rectangle to check against.
  * @returns True if the point is within the rectangle; otherwise false.
  */
-KINLINE b8 point_in_circle_2d(vec2 point, circle_2d circle) {
+KINLINE b8 point_in_circle_2d (vec2 point, circle_2d circle) {
 	f32 r_squared = circle.radius * circle.radius;
 	return vec2_distance_squared(point, circle.center) <= r_squared;
 }

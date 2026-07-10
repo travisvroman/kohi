@@ -2,28 +2,28 @@
 
 #include "memory/kmemory.h"
 
-void ptr_swap(void* scratch_mem, u64 size, void* a, void* b) {
+void ptr_swap (void *scratch_mem, u64 size, void *a, void *b) {
 	kcopy_memory(scratch_mem, a, size);
 	kcopy_memory(a, b, size);
 	kcopy_memory(b, scratch_mem, size);
 }
 
-static void* data_at_index(void* block, u64 element_size, u32 index) {
+static void *data_at_index (void *block, u64 element_size, u32 index) {
 	u64 addr = (u64)block;
 	addr += (element_size * index);
-	return (void*)(addr);
+	return (void *)(addr);
 }
 
-static i32 kquick_sort_partition(void* scratch_mem, u64 size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn) {
-	void* pivot = data_at_index(data, size, high_index);
+static i32 kquick_sort_partition (void *scratch_mem, u64 size, void *data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn) {
+	void *pivot = data_at_index(data, size, high_index);
 	i32 i = (low_index - 1);
 
 	for (i32 j = low_index; j <= high_index - 1; ++j) {
-		void* dataj = data_at_index(data, size, j);
+		void *dataj = data_at_index(data, size, j);
 		i32 result = compare_pfn(dataj, pivot);
 		if (result > 0) {
 			++i;
-			void* datai = data_at_index(data, size, i);
+			void *datai = data_at_index(data, size, i);
 			ptr_swap(scratch_mem, size, datai, dataj);
 		}
 	}
@@ -31,7 +31,7 @@ static i32 kquick_sort_partition(void* scratch_mem, u64 size, void* data, i32 lo
 	return i + 1;
 }
 
-static void kquick_sort_internal(void* scratch_mem, u64 size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn) {
+static void kquick_sort_internal (void *scratch_mem, u64 size, void *data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn) {
 	if (low_index < high_index) {
 		i32 partition_index = kquick_sort_partition(scratch_mem, size, data, low_index, high_index, compare_pfn);
 		kquick_sort_internal(scratch_mem, size, data, low_index, partition_index - 1, compare_pfn);
@@ -39,9 +39,9 @@ static void kquick_sort_internal(void* scratch_mem, u64 size, void* data, i32 lo
 	}
 }
 
-void kquick_sort(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn) {
+void kquick_sort (u64 type_size, void *data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn) {
 	if (low_index < high_index) {
-		void* scratch_mem = kallocate(type_size, MEMORY_TAG_ARRAY);
+		void *scratch_mem = kallocate(type_size, MEMORY_TAG_ARRAY);
 		i32 partition_index = kquick_sort_partition(scratch_mem, type_size, data, low_index, high_index, compare_pfn);
 		kquick_sort_internal(scratch_mem, type_size, data, low_index, partition_index - 1, compare_pfn);
 		kquick_sort_internal(scratch_mem, type_size, data, partition_index + 1, high_index, compare_pfn);
@@ -49,16 +49,16 @@ void kquick_sort(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_k
 	}
 }
 
-static i32 kquick_sort_partition_with_context(void* scratch_mem, u64 size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void* context) {
-	void* pivot = data_at_index(data, size, high_index);
+static i32 kquick_sort_partition_with_context (void *scratch_mem, u64 size, void *data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void *context) {
+	void *pivot = data_at_index(data, size, high_index);
 	i32 i = (low_index - 1);
 
 	for (i32 j = low_index; j <= high_index - 1; ++j) {
-		void* dataj = data_at_index(data, size, j);
+		void *dataj = data_at_index(data, size, j);
 		i32 result = compare_pfn(dataj, pivot, context);
 		if (result > 0) {
 			++i;
-			void* datai = data_at_index(data, size, i);
+			void *datai = data_at_index(data, size, i);
 			ptr_swap(scratch_mem, size, datai, dataj);
 		}
 	}
@@ -66,7 +66,7 @@ static i32 kquick_sort_partition_with_context(void* scratch_mem, u64 size, void*
 	return i + 1;
 }
 
-static void kquick_sort_internal_with_context(void* scratch_mem, u64 size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void* context) {
+static void kquick_sort_internal_with_context (void *scratch_mem, u64 size, void *data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void *context) {
 	if (low_index < high_index) {
 		i32 partition_index = kquick_sort_partition_with_context(scratch_mem, size, data, low_index, high_index, compare_pfn, context);
 		kquick_sort_internal_with_context(scratch_mem, size, data, low_index, partition_index - 1, compare_pfn, context);
@@ -74,9 +74,9 @@ static void kquick_sort_internal_with_context(void* scratch_mem, u64 size, void*
 	}
 }
 
-void kquick_sort_with_context(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void* context) {
+void kquick_sort_with_context (u64 type_size, void *data, i32 low_index, i32 high_index, PFN_kquicksort_compare_with_context compare_pfn, void *context) {
 	if (low_index < high_index) {
-		void* scratch_mem = kallocate(type_size, MEMORY_TAG_ARRAY);
+		void *scratch_mem = kallocate(type_size, MEMORY_TAG_ARRAY);
 		i32 partition_index = kquick_sort_partition_with_context(scratch_mem, type_size, data, low_index, high_index, compare_pfn, context);
 		kquick_sort_internal_with_context(scratch_mem, type_size, data, low_index, partition_index - 1, compare_pfn, context);
 		kquick_sort_internal_with_context(scratch_mem, type_size, data, partition_index + 1, high_index, compare_pfn, context);
@@ -84,9 +84,9 @@ void kquick_sort_with_context(u64 type_size, void* data, i32 low_index, i32 high
 	}
 }
 
-i32 kquicksort_compare_u32_desc(void* a, void* b) {
-	u32 a_typed = *(u32*)a;
-	u32 b_typed = *(u32*)b;
+i32 kquicksort_compare_u32_desc (void *a, void *b) {
+	u32 a_typed = *(u32 *)a;
+	u32 b_typed = *(u32 *)b;
 	if (a_typed > b_typed) {
 		return 1;
 	} else if (a_typed < b_typed) {
@@ -95,9 +95,9 @@ i32 kquicksort_compare_u32_desc(void* a, void* b) {
 	return 0;
 }
 
-i32 kquicksort_compare_u32(void* a, void* b) {
-	u32 a_typed = *(u32*)a;
-	u32 b_typed = *(u32*)b;
+i32 kquicksort_compare_u32 (void *a, void *b) {
+	u32 a_typed = *(u32 *)a;
+	u32 b_typed = *(u32 *)b;
 	if (a_typed < b_typed) {
 		return 1;
 	} else if (a_typed > b_typed) {

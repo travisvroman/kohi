@@ -4,7 +4,7 @@
 #include "memory/kmemory.h"
 #include "worker_thread.h"
 
-b8 threadpool_create(u32 thread_count, threadpool* out_pool) {
+b8 threadpool_create (u32 thread_count, threadpool *out_pool) {
 	if (!thread_count || !out_pool) {
 		KERROR("threadpool_create requires at least 1 thread and a valid pointer to hold the created pool.");
 		return false;
@@ -22,7 +22,7 @@ b8 threadpool_create(u32 thread_count, threadpool* out_pool) {
 	return true;
 }
 
-void threadpool_destroy(threadpool* pool) {
+void threadpool_destroy (threadpool *pool) {
 	if (pool) {
 		if (pool->threads) {
 			for (u32 i = 0; i < pool->thread_count; ++i) {
@@ -36,7 +36,7 @@ void threadpool_destroy(threadpool* pool) {
 	}
 }
 
-b8 threadpool_wait(threadpool* pool) {
+b8 threadpool_wait (threadpool *pool) {
 	if (!pool) {
 		KERROR("threadpool_wait requires a valid pointer to a thread pool.");
 		return false;

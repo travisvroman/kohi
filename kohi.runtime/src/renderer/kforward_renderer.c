@@ -114,14 +114,14 @@ typedef struct hf_terrain_immediate_data {
 	uvec4 material_indices;
 } hf_terrain_immediate_data;
 
-b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer* out_renderer) {
+b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer) {
 	KASSERT_DEBUG(out_renderer);
 
 	out_renderer->colour_buffer = colour_buffer;
 	out_renderer->depth_stencil_buffer = depth_stencil_buffer;
 
 	// Pointer to the renderer system state.
-	const engine_system_states* systems = engine_systems_get();
+	const engine_system_states *systems = engine_systems_get();
 	out_renderer->renderer_state = systems->renderer_system;
 	out_renderer->material_system = systems->material_system;
 	out_renderer->material_renderer = systems->material_renderer;
@@ -230,22 +230,22 @@ b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffe
 	return true;
 }
 
-void kforward_renderer_destroy(kforward_renderer* renderer) {
+void kforward_renderer_destroy (kforward_renderer *renderer) {
 	if (renderer) {
 		KFREE_TYPE_CARRAY(renderer->shadow_pass.sm_set1_instance_ids, u32, renderer->shadow_pass.sm_set1_max_instances);
 	}
 }
 
-static void draw_geo_list(kforward_renderer* renderer, frame_data* p_frame_data, kdirectional_light_data directional_light, u32 view_index, f32 near_clip, f32 far_clip, vec4 clipping_plane, u32 meshes_by_material_count, kmaterial_render_data* meshes_by_material) {
+static void draw_geo_list (kforward_renderer *renderer, frame_data *p_frame_data, kdirectional_light_data directional_light, u32 view_index, f32 near_clip, f32 far_clip, vec4 clipping_plane, u32 meshes_by_material_count, kmaterial_render_data *meshes_by_material) {
 	for (u32 m = 0; m < meshes_by_material_count; ++m) {
-		kmaterial_render_data* material = &meshes_by_material[m];
+		kmaterial_render_data *material = &meshes_by_material[m];
 
 		// Apply base-material-level (i.e. group-level) data.
 		kmaterial_renderer_bind_base(renderer->material_renderer, material->base_material);
 
 		// Each geometry
 		for (u32 g = 0; g < material->geometry_count; ++g) {
-			kgeometry_render_data* geo = &material->geometries[g];
+			kgeometry_render_data *geo = &material->geometries[g];
 
 			kmaterial_instance inst = {
 				.base_material = material->base_material,
@@ -328,7 +328,7 @@ static void draw_geo_list(kforward_renderer* renderer, frame_data* p_frame_data,
 	}
 }
 
-static void set_render_state_defaults(rect_2di vp_rect) {
+static void set_render_state_defaults (rect_2di vp_rect) {
 	renderer_begin_debug_label("frame defaults", vec3_zero());
 
 	renderer_set_depth_test_enabled(false);
@@ -351,14 +351,14 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 	renderer_end_debug_label();
 }
 
-static b8 scene_pass(
-	kforward_renderer* renderer,
-	frame_data* p_frame_data,
+static b8 scene_pass (
+	kforward_renderer *renderer,
+	frame_data *p_frame_data,
 	kdirectional_light_data directional_light,
 	rect_2di vp_rect,
 	mat4 projection,
 	u8 view_count,
-	mat4* views,
+	mat4 *views,
 	u8 view_index,
 	f32 near_clip,
 	f32 far_clip,
@@ -366,11 +366,11 @@ static b8 scene_pass(
 	ktexture depth_handle,
 	vec4 clipping_plane,
 	u8 irradiance_cubemap_texture_count,
-	ktexture* irradiance_cubemap_textures,
-	const kskybox_render_data* skybox_data,
-	const kscene_pass_render_data* pass_data,
+	ktexture *irradiance_cubemap_textures,
+	const kskybox_render_data *skybox_data,
+	const kscene_pass_render_data *pass_data,
 	u32 water_plane_count,
-	const kforward_pass_water_plane_render_data* water_planes,
+	const kforward_pass_water_plane_render_data *water_planes,
 	b8 do_depth_prepass,
 	renderer_debug_view_mode view_mode) {
 
@@ -415,7 +415,7 @@ static b8 scene_pass(
 			// Draw each plane.
 			for (u32 i = 0; i < water_plane_count; ++i) {
 
-				const kforward_pass_water_plane_render_data* plane = &water_planes[i];
+				const kforward_pass_water_plane_render_data *plane = &water_planes[i];
 
 				depth_prepass_immediate_data immediate_data = {
 					.transform_index = plane->plane_render_data.transform};
@@ -438,11 +438,11 @@ static b8 scene_pass(
 
 		// Render only opaque objects in the "standard" forward pass. Just static for now, too.
 		for (u32 m = 0; m < pass_data->opaque_meshes_by_material_count; ++m) {
-			kmaterial_render_data* material = &pass_data->opaque_meshes_by_material[m];
+			kmaterial_render_data *material = &pass_data->opaque_meshes_by_material[m];
 
 			// Each geometry
 			for (u32 g = 0; g < material->geometry_count; ++g) {
-				kgeometry_render_data* geo = &material->geometries[g];
+				kgeometry_render_data *geo = &material->geometries[g];
 
 				depth_prepass_immediate_data immediate_data = {
 					.transform_index = geo->transform};
@@ -546,7 +546,7 @@ static b8 scene_pass(
 	{
 		renderer_begin_debug_label("scene - HF terrain", (vec3){0.5f, 1.0f, 0.5f});
 
-		const hf_terrain_render_data* trd = &pass_data->hf_terrain_data;
+		const hf_terrain_render_data *trd = &pass_data->hf_terrain_data;
 
 		set_render_state_defaults(vp_rect);
 
@@ -563,7 +563,7 @@ static b8 scene_pass(
 		// Ensure wireframe mode is (un)set.
 		KASSERT(kshader_system_set_wireframe(shader, view_mode == RENDERER_VIEW_MODE_WIREFRAME));
 
-		kmaterial_settings_ubo* settings = &renderer->material_renderer->settings;
+		kmaterial_settings_ubo *settings = &renderer->material_renderer->settings;
 
 		// Upload the global UBO data
 		hf_terrain_global_ubo global_ubo_data = {
@@ -607,7 +607,7 @@ static b8 scene_pass(
 
 		// Draw the terrain chunks. This assumes chunks have already been culled at this point.
 		for (u32 b = 0; b < trd->block_count; ++b) {
-			hf_terrain_block_render_data* block_data = &trd->blocks[b];
+			hf_terrain_block_render_data *block_data = &trd->blocks[b];
 
 			// Splatmap
 			kshader_set_binding_texture(shader, 1, block_data->shader_instance_id, 0, 0, block_data->splatmap);
@@ -618,7 +618,7 @@ static b8 scene_pass(
 			kshader_apply_binding_set(shader, 1, block_data->shader_instance_id);
 
 			for (u32 c = 0; c < block_data->chunk_count; ++c) {
-				hf_terrain_chunk_render_data* chunk_data = &block_data->chunks[c];
+				hf_terrain_chunk_render_data *chunk_data = &block_data->chunks[c];
 
 				// Immediate data.
 				hf_terrain_immediate_data immediate = {
@@ -714,14 +714,14 @@ static b8 scene_pass(
 		// Draw each plane.
 		for (u32 i = 0; i < water_plane_count; ++i) {
 
-			const kforward_pass_water_plane_render_data* plane = &water_planes[i];
+			const kforward_pass_water_plane_render_data *plane = &water_planes[i];
 
 			// Apply base-material-level (i.e. group-level) data.
 			kmaterial_renderer_bind_base(renderer->material_renderer, plane->plane_render_data.material.base_material);
 
 			// FIXME: Used to extract tiling/wave_strength/wave_speed. These should be material props in the SSBO
-			const kmaterial_data* materials = kmaterial_system_get_all_base_materials(engine_systems_get()->material_system);
-			const kmaterial_data* material = &materials[plane->plane_render_data.material.base_material];
+			const kmaterial_data *materials = kmaterial_system_get_all_base_materials(engine_systems_get()->material_system);
+			const kmaterial_data *material = &materials[plane->plane_render_data.material.base_material];
 
 			kmaterial_render_immediate_data immediate_data = {
 				.view_index = view_index,
@@ -802,13 +802,13 @@ static b8 scene_pass(
 }
 
 // render frame
-b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_frame_data, kforward_renderer_render_data* render_data) {
+b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_frame_data, kforward_renderer_render_data *render_data) {
 	KASSERT_DEBUG(renderer)
 
 	ktimeline game_timeline = ktimeline_system_get_game();
 
 	// Global material renderer settings
-	kmaterial_settings_ubo* settings = &renderer->material_renderer->settings;
+	kmaterial_settings_ubo *settings = &renderer->material_renderer->settings;
 	settings->game_time = ktimeline_system_total_get(game_timeline);
 	settings->delta_time = ktimeline_system_delta_get(game_timeline);
 	settings->render_mode = render_data->forward_data.render_mode;
@@ -1009,7 +1009,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 			// Each material grouping.
 			for (u32 i = 0, group_arr_idx = 1; i < render_data->shadow_data.transparent_geometries_by_material_count; ++i) {
-				kmaterial_render_data* material = &render_data->shadow_data.transparent_geometries_by_material[i];
+				kmaterial_render_data *material = &render_data->shadow_data.transparent_geometries_by_material[i];
 
 				// Default to the default_instance_id, unless transparent.
 				ktexture base_colour_texture = renderer->shadow_pass.default_base_colour;
@@ -1033,7 +1033,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 				// Now draw each mesh geometry.
 				for (u32 m = 0; m < material->geometry_count; ++m) {
 
-					kgeometry_render_data* geo_data = &material->geometries[m];
+					kgeometry_render_data *geo_data = &material->geometries[m];
 
 					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
 
@@ -1091,7 +1091,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 				// Now draw each mesh geometry.
 				for (u32 m = 0; m < render_data->shadow_data.opaque_geometry_count; ++m) {
 
-					kgeometry_render_data* geo_data = &render_data->shadow_data.opaque_geometries[m];
+					kgeometry_render_data *geo_data = &render_data->shadow_data.opaque_geometries[m];
 
 					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
 
@@ -1143,10 +1143,10 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 				// Apply the global binding set.
 				kshader_apply_binding_set(shader, 0, renderer->shadow_pass.hft_set0_instance_id);
 				for (u32 b = 0; b < render_data->shadow_data.hf_terrain_data.block_count; ++b) {
-					hf_terrain_block_render_data* block_data = &render_data->shadow_data.hf_terrain_data.blocks[b];
+					hf_terrain_block_render_data *block_data = &render_data->shadow_data.hf_terrain_data.blocks[b];
 
 					for (u32 c = 0; c < block_data->chunk_count; ++c) {
-						hf_terrain_chunk_render_data* chunk_data = &block_data->chunks[c];
+						hf_terrain_chunk_render_data *chunk_data = &block_data->chunks[c];
 
 						// Immediate data.
 						shadow_hf_terrain_immediate_data immediate = {.cascade_index = p};
@@ -1173,9 +1173,9 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 0, renderer->shadow_pass.sm_set0_instance_id);
 
 			for (u32 i = 0; i < render_data->shadow_data.terrain_count; ++i) {
-				hm_terrain_render_data* t = &render_data->shadow_data.terrains[i];
+				hm_terrain_render_data *t = &render_data->shadow_data.terrains[i];
 				for (u32 c = 0; c < t->chunk_count; ++c) {
-					hm_terrain_chunk_render_data* chunk = &t->chunks[c];
+					hm_terrain_chunk_render_data *chunk = &t->chunks[c];
 
 					// Set immediate data.
 					shadow_staticmesh_immediate_data immediate_data = {
@@ -1223,7 +1223,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 		// Gather all view matrices first.
 		for (u32 w = 0; w < render_data->forward_data.water_plane_count; ++w) {
-			kforward_pass_water_plane_render_data* plane = &render_data->forward_data.water_planes[w];
+			kforward_pass_water_plane_render_data *plane = &render_data->forward_data.water_planes[w];
 			views[1 + w] = plane->reflection_pass.view_matrix;
 		}
 
@@ -1235,7 +1235,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 				renderer_begin_debug_label(label_text, (vec3){0.0f, 0.3f, 0.8f - (w * 0.1f)});
 			}
 
-			kforward_pass_water_plane_render_data* plane = &render_data->forward_data.water_planes[w];
+			kforward_pass_water_plane_render_data *plane = &render_data->forward_data.water_planes[w];
 
 			ktexture refraction_colour = kmaterial_texture_get(renderer->material_system, plane->plane_render_data.material.base_material, KMATERIAL_TEXTURE_INPUT_REFRACTION);
 			ktexture refraction_depth = kmaterial_texture_get(renderer->material_system, plane->plane_render_data.material.base_material, KMATERIAL_TEXTURE_INPUT_REFRACTION_DEPTH);
@@ -1253,7 +1253,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 				// Viewport
 				rect_2di vp_rect = {0};
-				if (!texture_dimensions_get(refraction_colour, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+				if (!texture_dimensions_get(refraction_colour, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 					return false;
 				}
 
@@ -1296,7 +1296,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 				// Viewport
 				rect_2di vp_rect = {0};
-				if (!texture_dimensions_get(reflection_colour, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+				if (!texture_dimensions_get(reflection_colour, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 					return false;
 				}
 
@@ -1344,7 +1344,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 		// "Standard" pass (draw planes before transparent objects) (NOTE: Done same as above, but with water planes drawn between opaque and transparent geos)
 		{
 			rect_2di vp_rect = {0};
-			if (!texture_dimensions_get(renderer->colour_buffer, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+			if (!texture_dimensions_get(renderer->colour_buffer, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 				return false;
 			}
 
@@ -1390,7 +1390,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 
 			// World debug begin render
 			rect_2di vp_rect = {0};
-			if (!texture_dimensions_get(renderer->colour_buffer, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+			if (!texture_dimensions_get(renderer->colour_buffer, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 				return false;
 			}
 
@@ -1412,7 +1412,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 			kshader_apply_binding_set(renderer->world_debug_pass.debug_shader, 0, renderer->world_debug_pass.debug_set0_instance_id);
 
 			for (u32 i = 0; i < render_data->world_debug_data.geometry_count; ++i) {
-				kdebug_geometry_render_data* geo = &render_data->world_debug_data.geometries[i];
+				kdebug_geometry_render_data *geo = &render_data->world_debug_data.geometries[i];
 
 				debug_shader_immediate_data immediate_data = {
 					.model = geo->model,
@@ -1446,7 +1446,7 @@ b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_fra
 				kshader_set_binding_data(renderer->world_debug_pass.colour_shader, 0, renderer->world_debug_pass.colour_set0_instance_id, 0, 0, &global_ubo_data, sizeof(colour_3d_global_ubo));
 				kshader_apply_binding_set(renderer->world_debug_pass.colour_shader, 0, renderer->world_debug_pass.colour_set0_instance_id);
 
-				kdebug_geometry_render_data* g = &render_data->world_debug_data.grid_geometry;
+				kdebug_geometry_render_data *g = &render_data->world_debug_data.grid_geometry;
 
 				// FIXME: Hook up transform ssbo to editor shader
 				mat4 model = mat4_identity();

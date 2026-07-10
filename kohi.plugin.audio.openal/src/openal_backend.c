@@ -68,8 +68,8 @@ typedef struct kaudio_internal_data {
 
 	u64 pcm_data_size;
 	/** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
-	i16* pcm_data;
-	i16* mono_pcm_data;
+	i16 *pcm_data;
+	i16 *mono_pcm_data;
 	u64 downmixed_size;
 } kaudio_internal_data;
 
@@ -126,54 +126,54 @@ typedef struct kaudio_backend_state {
 	u32 chunk_size;
 
 	// The selected audio device.
-	ALCdevice* device;
+	ALCdevice *device;
 	// The current audio context.
-	ALCcontext* context;
+	ALCcontext *context;
 	// A pool of buffers to be used for all kinds of audio/music playback.
-	ALuint* buffers;
+	ALuint *buffers;
 	// The total number of buffers available.
 	u32 buffer_count;
 
 	// A collection of available sources. config.max_sources has the count of this.
-	kaudio_plugin_source* sources;
+	kaudio_plugin_source *sources;
 
 	// An array to keep free/available buffer ids.
-	u32* free_buffers;
+	u32 *free_buffers;
 
 	// The max number of audios that can be loaded at any one time. Synced with frontend.
 	u32 max_count;
 
 	// Internal data array aligning with that of the frontend.
-	kaudio_internal_data* datas;
+	kaudio_internal_data *datas;
 } kaudio_backend_state;
 
 typedef struct ksource_work_thread_params {
-	kaudio_backend_interface* backend;
-	kaudio_plugin_source* source;
+	kaudio_backend_interface *backend;
+	kaudio_plugin_source *source;
 } ksource_work_thread_params;
 
-static b8 openal_backend_check_error(void);
-static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudio_plugin_source* out_source);
-static void openal_backend_channel_destroy(kaudio_backend_interface* backend, kaudio_plugin_source* source);
-static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend);
+static b8 openal_backend_check_error (void);
+static b8 openal_backend_channel_create (kaudio_backend_interface *backend, kaudio_plugin_source *out_source);
+static void openal_backend_channel_destroy (kaudio_backend_interface *backend, kaudio_plugin_source *source);
+static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend);
 
-static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_space audio_space, kaudio audio);
-static b8 openal_backend_stream_update(kaudio_backend_interface* plugin, kaudio_plugin_source* source);
-static u32 source_work_thread(void* params);
-static b8 source_set_defaults(kaudio_backend_interface* backend, kaudio_plugin_source* source, b8 reset_use);
-static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudio_plugin_source* out_source);
-static void openal_backend_channel_destroy(kaudio_backend_interface* backend, kaudio_plugin_source* source);
-static void openal_backend_find_playing_sources(kaudio_backend_interface* backend, u32 playing[], u32* count);
-static void clear_buffer(kaudio_backend_interface* backend, u32* buf_ptr, u32 amount);
-static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend);
-static const char* openal_backend_error_str(ALCenum err);
-static b8 openal_backend_check_error(void);
-static b8 channel_id_valid(kaudio_backend_state* state, u8 channel_id);
+static b8 stream_data (kaudio_backend_interface *backend, ALuint buffer, kaudio_space audio_space, kaudio audio);
+static b8 openal_backend_stream_update (kaudio_backend_interface *plugin, kaudio_plugin_source *source);
+static u32 source_work_thread (void *params);
+static b8 source_set_defaults (kaudio_backend_interface *backend, kaudio_plugin_source *source, b8 reset_use);
+static b8 openal_backend_channel_create (kaudio_backend_interface *backend, kaudio_plugin_source *out_source);
+static void openal_backend_channel_destroy (kaudio_backend_interface *backend, kaudio_plugin_source *source);
+static void openal_backend_find_playing_sources (kaudio_backend_interface *backend, u32 playing[], u32 *count);
+static void clear_buffer (kaudio_backend_interface *backend, u32 *buf_ptr, u32 amount);
+static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend);
+static const char *openal_backend_error_str (ALCenum err);
+static b8 openal_backend_check_error (void);
+static b8 channel_id_valid (kaudio_backend_state *state, u8 channel_id);
 
-b8 openal_backend_initialize(kaudio_backend_interface* backend, const kaudio_backend_config* config) {
+b8 openal_backend_initialize (kaudio_backend_interface *backend, const kaudio_backend_config *config) {
 	if (backend) {
 		backend->internal_state = kallocate(sizeof(kaudio_backend_state), MEMORY_TAG_AUDIO);
-		kaudio_backend_state* state = backend->internal_state;
+		kaudio_backend_state *state = backend->internal_state;
 
 		// Copy over the relevant frontend config properties.
 		state->max_sources = config->audio_channel_count; // MAX_AUDIO_CHANNELS;
@@ -254,7 +254,7 @@ b8 openal_backend_initialize(kaudio_backend_interface* backend, const kaudio_bac
 	return false;
 }
 
-void openal_backend_shutdown(kaudio_backend_interface* backend) {
+void openal_backend_shutdown (kaudio_backend_interface *backend) {
 	if (backend) {
 		if (backend->internal_state) {
 			// Destroy sources.
@@ -291,14 +291,14 @@ void openal_backend_shutdown(kaudio_backend_interface* backend) {
 	}
 }
 
-b8 openal_backend_update(kaudio_backend_interface* backend, struct frame_data* p_frame_data) {
+b8 openal_backend_update (kaudio_backend_interface *backend, struct frame_data *p_frame_data) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	for (u32 i = 0; i < state->max_sources; ++i) {
-		kaudio_plugin_source* source = &state->sources[i];
+		kaudio_plugin_source *source = &state->sources[i];
 		// For non-looping sounds, notify audio system of sound completion.
 		ALint source_state;
 		alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
@@ -316,11 +316,11 @@ b8 openal_backend_update(kaudio_backend_interface* backend, struct frame_data* p
 	return true;
 }
 
-b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16* pcm_data, b8 is_stream, kaudio audio) {
-	kaudio_backend_state* state = backend->internal_state;
+b8 openal_backend_load (struct kaudio_backend_interface *backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16 *pcm_data, b8 is_stream, kaudio audio) {
+	kaudio_backend_state *state = backend->internal_state;
 
 	// Get the internal data.
-	kaudio_internal_data* data = &state->datas[audio];
+	kaudio_internal_data *data = &state->datas[audio];
 	data->is_stream = is_stream;
 	data->channels = channels;
 	data->sample_rate = sample_rate;
@@ -369,7 +369,7 @@ b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u
 
 		if (data->total_samples_left > 0) {
 			// Load the whole thing into the buffer.
-			alBufferData(data->buffer, data->format, (i16*)data->pcm_data, data->total_samples_left * data->channels, data->sample_rate);
+			alBufferData(data->buffer, data->format, (i16 *)data->pcm_data, data->total_samples_left * data->channels, data->sample_rate);
 			openal_backend_check_error();
 		}
 
@@ -382,7 +382,7 @@ b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u
 		openal_backend_check_error();
 		if (data->total_samples_left > 0) {
 			// Load the whole thing into the buffer.
-			alBufferData(data->mono_buffer, AL_FORMAT_MONO16, (i16*)data->mono_pcm_data, data->downmixed_size ? data->downmixed_size : data->total_samples_left, data->sample_rate);
+			alBufferData(data->mono_buffer, AL_FORMAT_MONO16, (i16 *)data->mono_pcm_data, data->downmixed_size ? data->downmixed_size : data->total_samples_left, data->sample_rate);
 			openal_backend_check_error();
 		}
 
@@ -393,18 +393,18 @@ b8 openal_backend_load(struct kaudio_backend_interface* backend, i32 channels, u
 	return true;
 }
 
-void openal_backend_unload(struct kaudio_backend_interface* backend, kaudio audio) {
-	kaudio_backend_state* state = backend->internal_state;
+void openal_backend_unload (struct kaudio_backend_interface *backend, kaudio audio) {
+	kaudio_backend_state *state = backend->internal_state;
 
 	// Get the internal data.
-	kaudio_internal_data* data = &state->datas[audio];
+	kaudio_internal_data *data = &state->datas[audio];
 
 	if (data->pcm_data && data->pcm_data_size) {
 		kfree(data->pcm_data, data->pcm_data_size, MEMORY_TAG_AUDIO);
 		data->pcm_data = KNULL;
 		data->pcm_data_size = 0;
 
-		if(data->mono_pcm_data == data->pcm_data) {
+		if (data->mono_pcm_data == data->pcm_data) {
 			data->mono_pcm_data = KNULL;
 			data->downmixed_size = 0;
 		}
@@ -421,7 +421,7 @@ void openal_backend_unload(struct kaudio_backend_interface* backend, kaudio audi
 	// FIXME: Mark entry as available for use
 }
 
-b8 openal_backend_listener_position_set(kaudio_backend_interface* backend, vec3 position) {
+b8 openal_backend_listener_position_set (kaudio_backend_interface *backend, vec3 position) {
 	if (!backend) {
 		KERROR("openal_backend_listener_position_set requires a valid pointer to a plugin.");
 		return false;
@@ -433,7 +433,7 @@ b8 openal_backend_listener_position_set(kaudio_backend_interface* backend, vec3 
 	return true;
 }
 
-b8 openal_backend_listener_orientation_set(kaudio_backend_interface* backend, vec3 forward, vec3 up) {
+b8 openal_backend_listener_orientation_set (kaudio_backend_interface *backend, vec3 forward, vec3 up) {
 	if (!backend) {
 		KERROR("openal_backend_listener_orientation_set requires a valid pointer to a plugin.");
 		return false;
@@ -444,13 +444,13 @@ b8 openal_backend_listener_orientation_set(kaudio_backend_interface* backend, ve
 	return openal_backend_check_error();
 }
 
-b8 openal_backend_channel_gain_set(kaudio_backend_interface* backend, u8 channel_id, f32 gain) {
+b8 openal_backend_channel_gain_set (kaudio_backend_interface *backend, u8 channel_id, f32 gain) {
 	if (!backend) {
 		return false;
 	}
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		alSourcef(source->id, AL_GAIN, gain);
 		return openal_backend_check_error();
 	}
@@ -459,13 +459,13 @@ b8 openal_backend_channel_gain_set(kaudio_backend_interface* backend, u8 channel
 	return false;
 }
 
-b8 openal_backend_channel_pitch_set(kaudio_backend_interface* backend, u8 channel_id, f32 pitch) {
+b8 openal_backend_channel_pitch_set (kaudio_backend_interface *backend, u8 channel_id, f32 pitch) {
 	if (!backend) {
 		return false;
 	}
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		alSourcef(source->id, AL_PITCH, pitch);
 		return openal_backend_check_error();
 	}
@@ -474,13 +474,13 @@ b8 openal_backend_channel_pitch_set(kaudio_backend_interface* backend, u8 channe
 	return false;
 }
 
-b8 openal_backend_channel_position_set(kaudio_backend_interface* backend, u8 channel_id, vec3 position) {
+b8 openal_backend_channel_position_set (kaudio_backend_interface *backend, u8 channel_id, vec3 position) {
 	if (!backend) {
 		return false;
 	}
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		alSource3f(source->id, AL_POSITION, position.x, position.y, position.z);
 		return openal_backend_check_error();
 	}
@@ -489,13 +489,13 @@ b8 openal_backend_channel_position_set(kaudio_backend_interface* backend, u8 cha
 	return false;
 }
 
-b8 openal_backend_channel_looping_set(kaudio_backend_interface* backend, u8 channel_id, b8 looping) {
+b8 openal_backend_channel_looping_set (kaudio_backend_interface *backend, u8 channel_id, b8 looping) {
 	if (!backend) {
 		return false;
 	}
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		alSourcei(source->id, AL_LOOPING, looping ? AL_TRUE : AL_FALSE);
 		return openal_backend_check_error();
 	}
@@ -504,14 +504,14 @@ b8 openal_backend_channel_looping_set(kaudio_backend_interface* backend, u8 chan
 	return false;
 }
 
-b8 openal_backend_channel_play(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_play (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		kmutex_lock(&source->data_mutex);
 		if (source->current) {
 			source->trigger_play = true;
@@ -522,17 +522,17 @@ b8 openal_backend_channel_play(kaudio_backend_interface* backend, u8 channel_id)
 	return true;
 }
 
-b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio audio, u16 instance_id, kaudio_space audio_space, u8 channel_id) {
+b8 openal_backend_channel_play_audio (kaudio_backend_interface *backend, kaudio audio, u16 instance_id, kaudio_space audio_space, u8 channel_id) {
 	if (!channel_id_valid(backend->internal_state, channel_id)) {
 		return false;
 	}
 
 	KTRACE("Play on channel %d", channel_id);
-	kaudio_backend_state* state = backend->internal_state;
-	kaudio_internal_data* data = &state->datas[audio];
+	kaudio_backend_state *state = backend->internal_state;
+	kaudio_internal_data *data = &state->datas[audio];
 
 	// Assign the sound's buffer to the source.
-	kaudio_plugin_source* source = &state->sources[channel_id];
+	kaudio_plugin_source *source = &state->sources[channel_id];
 	kmutex_lock(&source->data_mutex);
 	source->current_audio_space = audio_space;
 
@@ -585,7 +585,7 @@ b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio a
 		}
 
 		// Queue up sound buffer.
-		ALuint* bids = 0;
+		ALuint *bids = 0;
 		if (data->channels == 2 && audio_space == KAUDIO_SPACE_3D) {
 			// If stereo sound but wanting to play 3d, use the mono buffer.
 			alSourcei(source->id, AL_SOURCE_RELATIVE, AL_FALSE);
@@ -629,14 +629,14 @@ b8 openal_backend_channel_play_audio(kaudio_backend_interface* backend, kaudio a
 	return true;
 }
 
-b8 openal_backend_channel_stop(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_stop (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 
 		alSourceStop(source->id);
 
@@ -654,15 +654,15 @@ b8 openal_backend_channel_stop(kaudio_backend_interface* backend, u8 channel_id)
 	return false;
 }
 
-b8 openal_backend_channel_pause(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_pause (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
 		// Trigger a pause if the source is currently playing.
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		ALint source_state;
 		alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
 		if (source_state == AL_PLAYING) {
@@ -674,15 +674,15 @@ b8 openal_backend_channel_pause(kaudio_backend_interface* backend, u8 channel_id
 	return false;
 }
 
-b8 openal_backend_channel_resume(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_resume (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
 		// Trigger a resume if the source is currently paused.
-		kaudio_plugin_source* source = &state->sources[channel_id];
+		kaudio_plugin_source *source = &state->sources[channel_id];
 		ALint source_state;
 		alGetSourcei(source->id, AL_SOURCE_STATE, &source_state);
 		if (source_state == AL_PAUSED) {
@@ -694,12 +694,12 @@ b8 openal_backend_channel_resume(kaudio_backend_interface* backend, u8 channel_i
 	return false;
 }
 
-b8 openal_backend_channel_is_playing(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_is_playing (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
 		ALint source_state;
 		alGetSourcei(state->sources[channel_id].id, AL_SOURCE_STATE, &source_state);
@@ -708,12 +708,12 @@ b8 openal_backend_channel_is_playing(kaudio_backend_interface* backend, u8 chann
 	return false;
 }
 
-b8 openal_backend_channel_is_paused(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_is_paused (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
 		ALint source_state;
 		alGetSourcei(state->sources[channel_id].id, AL_SOURCE_STATE, &source_state);
@@ -722,12 +722,12 @@ b8 openal_backend_channel_is_paused(kaudio_backend_interface* backend, u8 channe
 	return false;
 }
 
-b8 openal_backend_channel_is_stopped(kaudio_backend_interface* backend, u8 channel_id) {
+b8 openal_backend_channel_is_stopped (kaudio_backend_interface *backend, u8 channel_id) {
 	if (!backend) {
 		return false;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 	if (channel_id_valid(state, channel_id)) {
 		ALint source_state;
 		alGetSourcei(state->sources[channel_id].id, AL_SOURCE_STATE, &source_state);
@@ -736,10 +736,10 @@ b8 openal_backend_channel_is_stopped(kaudio_backend_interface* backend, u8 chann
 	return false;
 }
 
-static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_space audio_space, kaudio audio) {
-	kaudio_backend_state* state = backend->internal_state;
+static b8 stream_data (kaudio_backend_interface *backend, ALuint buffer, kaudio_space audio_space, kaudio audio) {
+	kaudio_backend_state *state = backend->internal_state;
 
-	kaudio_internal_data* data = &state->datas[audio];
+	kaudio_internal_data *data = &state->datas[audio];
 
 	// Figure out how many samples can be taken.
 	// TODO: This might be _way_ too much between chunk size and samples (maybe samples left * channels?)
@@ -755,7 +755,7 @@ static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_s
 	u64 pos = data->total_sample_count - data->total_samples_left;
 
 	// Figure out the format and source.
-	i16* data_source = 0;
+	i16 *data_source = 0;
 	ALenum format = data->format;
 	if (data->channels == 2) {
 		if (audio_space == KAUDIO_SPACE_3D) {
@@ -776,7 +776,7 @@ static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_s
 		KFATAL("Unsupported channel count %u", data->channels);
 	}
 	// Get the data offset.
-	i16* streamed_data = data_source + pos;
+	i16 *streamed_data = data_source + pos;
 	if (streamed_data) {
 		alBufferData(buffer, format, streamed_data, sample_count * sizeof(ALshort), data->sample_rate);
 		openal_backend_check_error();
@@ -791,8 +791,8 @@ static b8 stream_data(kaudio_backend_interface* backend, ALuint buffer, kaudio_s
 	return true;
 }
 
-static b8 openal_backend_stream_update(kaudio_backend_interface* backend, kaudio_plugin_source* source) {
-	kaudio_backend_state* state = backend->internal_state;
+static b8 openal_backend_stream_update (kaudio_backend_interface *backend, kaudio_plugin_source *source) {
+	kaudio_backend_state *state = backend->internal_state;
 
 	// It's possible sometimes for this to not be playing, even with buffers queued up.
 	// Make sure to handle this case.
@@ -816,7 +816,7 @@ static b8 openal_backend_stream_update(kaudio_backend_interface* backend, kaudio
 			KTRACE("stream_data returned false");
 			b8 done = true;
 
-			kaudio_internal_data* data = &state->datas[source->current];
+			kaudio_internal_data *data = &state->datas[source->current];
 
 			// If set to loop, start over at the beginning.
 			if (data->is_looping) {
@@ -840,11 +840,11 @@ static b8 openal_backend_stream_update(kaudio_backend_interface* backend, kaudio
 	return true;
 }
 
-static u32 source_work_thread(void* params) {
-	ksource_work_thread_params* typed_params = params;
-	kaudio_backend_interface* backend = typed_params->backend;
-	kaudio_backend_state* state = backend->internal_state;
-	kaudio_plugin_source* source = typed_params->source;
+static u32 source_work_thread (void *params) {
+	ksource_work_thread_params *typed_params = params;
+	kaudio_backend_interface *backend = typed_params->backend;
+	kaudio_backend_state *state = backend->internal_state;
+	kaudio_plugin_source *source = typed_params->source;
 
 	// Release this right away since it's no longer needed.
 	kfree(params, sizeof(ksource_work_thread_params), MEMORY_TAG_AUDIO);
@@ -868,7 +868,7 @@ static u32 source_work_thread(void* params) {
 		kmutex_unlock(&source->data_mutex);
 
 		if (source->current != INVALID_KAUDIO) {
-			kaudio_internal_data* data = &state->datas[source->current];
+			kaudio_internal_data *data = &state->datas[source->current];
 			if (data->is_stream) {
 				// If currently playing stream, try updating the stream.
 				openal_backend_stream_update(backend, source);
@@ -882,7 +882,7 @@ static u32 source_work_thread(void* params) {
 	return 0;
 }
 
-static b8 source_set_defaults(kaudio_backend_interface* backend, kaudio_plugin_source* source, b8 reset_use) {
+static b8 source_set_defaults (kaudio_backend_interface *backend, kaudio_plugin_source *source, b8 reset_use) {
 
 	// Mark it as not in use.
 	if (reset_use) {
@@ -910,7 +910,7 @@ static b8 source_set_defaults(kaudio_backend_interface* backend, kaudio_plugin_s
 	return true;
 }
 
-static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudio_plugin_source* out_source) {
+static b8 openal_backend_channel_create (kaudio_backend_interface *backend, kaudio_plugin_source *out_source) {
 	if (!backend || !out_source) {
 		KERROR("openal_backend_channel_create requires valid pointers to a plugin and out_source.");
 		return false;
@@ -930,7 +930,7 @@ static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudi
 	kmutex_create(&out_source->data_mutex);
 
 	// Also create the worker thread itself for this source.
-	ksource_work_thread_params* params = kallocate(sizeof(ksource_work_thread_params), MEMORY_TAG_AUDIO);
+	ksource_work_thread_params *params = kallocate(sizeof(ksource_work_thread_params), MEMORY_TAG_AUDIO);
 	params->source = out_source;
 	params->backend = backend;
 	kthread_create(source_work_thread, params, true, &out_source->thread);
@@ -938,7 +938,7 @@ static b8 openal_backend_channel_create(kaudio_backend_interface* backend, kaudi
 	return true;
 }
 
-static void openal_backend_channel_destroy(kaudio_backend_interface* backend, kaudio_plugin_source* source) {
+static void openal_backend_channel_destroy (kaudio_backend_interface *backend, kaudio_plugin_source *source) {
 	if (backend && source) {
 		alDeleteSources(1, &source->id);
 		kmutex_destroy(&source->data_mutex);
@@ -948,12 +948,12 @@ static void openal_backend_channel_destroy(kaudio_backend_interface* backend, ka
 	}
 }
 
-static void openal_backend_find_playing_sources(kaudio_backend_interface* backend, u32 playing[], u32* count) {
+static void openal_backend_find_playing_sources (kaudio_backend_interface *backend, u32 playing[], u32 *count) {
 	if (!backend || !count) {
 		return;
 	}
 
-	kaudio_backend_state* state = backend->internal_state;
+	kaudio_backend_state *state = backend->internal_state;
 
 	ALint source_state = 0;
 	for (u32 i = 0; i < state->max_sources; ++i) {
@@ -965,10 +965,10 @@ static void openal_backend_find_playing_sources(kaudio_backend_interface* backen
 	}
 }
 
-static void clear_buffer(kaudio_backend_interface* backend, u32* buf_ptr, u32 amount) {
+static void clear_buffer (kaudio_backend_interface *backend, u32 *buf_ptr, u32 amount) {
 	if (backend) {
 
-		kaudio_backend_state* state = backend->internal_state;
+		kaudio_backend_state *state = backend->internal_state;
 
 		for (u32 a = 0; a < amount; ++a) {
 			for (u32 i = 0; i < state->buffer_count; ++i) {
@@ -982,10 +982,10 @@ static void clear_buffer(kaudio_backend_interface* backend, u32* buf_ptr, u32 am
 	KWARN("Buffer could not be cleared.");
 }
 
-static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend) {
+static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend) {
 	if (backend) {
 
-		kaudio_backend_state* state = backend->internal_state;
+		kaudio_backend_state *state = backend->internal_state;
 		u32 free_count = darray_length(state->free_buffers);
 
 		// If there are no free buffers, attempt to free one first.
@@ -996,7 +996,7 @@ static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend) {
 			}
 
 			u32 playing_source_count = 0;
-			u32* playing_sources = kallocate(sizeof(u32) * state->max_sources, MEMORY_TAG_ARRAY);
+			u32 *playing_sources = kallocate(sizeof(u32) * state->max_sources, MEMORY_TAG_ARRAY);
 			openal_backend_find_playing_sources(backend, playing_sources, &playing_source_count);
 			// Avoid a crash when calling alGetSourcei while checking for freeable buffers. Resumed below.
 			for (u32 i = 0; i < playing_source_count; ++i) {
@@ -1022,7 +1022,7 @@ static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend) {
 
 			// Resume the paused sources.
 			for (u32 i = 0; i < playing_source_count; ++i) {
-				kaudio_plugin_source* source = &state->sources[i - 1];
+				kaudio_plugin_source *source = &state->sources[i - 1];
 				alSourcePlay(source->id);
 				openal_backend_check_error();
 			}
@@ -1049,7 +1049,7 @@ static u32 openal_backend_find_free_buffer(kaudio_backend_interface* backend) {
 	return INVALID_ID;
 }
 
-static const char* openal_backend_error_str(ALCenum err) {
+static const char *openal_backend_error_str (ALCenum err) {
 	switch (err) {
 	case AL_INVALID_VALUE:
 		return "AL_INVALID_VALUE";
@@ -1066,7 +1066,7 @@ static const char* openal_backend_error_str(ALCenum err) {
 	}
 }
 
-static b8 openal_backend_check_error(void) {
+static b8 openal_backend_check_error (void) {
 	ALCenum error = alGetError();
 	if (error != AL_NO_ERROR) {
 		KERROR("OpenAL error %u: '%s'", error, openal_backend_error_str(error));
@@ -1075,6 +1075,6 @@ static b8 openal_backend_check_error(void) {
 	return true;
 }
 
-static b8 channel_id_valid(kaudio_backend_state* state, u8 channel_id) {
+static b8 channel_id_valid (kaudio_backend_state *state, u8 channel_id) {
 	return state && channel_id < state->max_sources;
 }

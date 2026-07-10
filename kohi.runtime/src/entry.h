@@ -46,14 +46,14 @@
  *
  * @return const char* The application path.
  */
-extern const char* application_config_path_get(void);
-extern const char* application_klib_name_get(void);
+extern const char *application_config_path_get (void);
+extern const char *application_klib_name_get (void);
 
 /**
  * @brief The main entry point of the application.
  * @returns 0 on successful execution; nonzero on error.
  */
-int main(void) {
+int main (void) {
 
 	application app_inst = {0};
 

@@ -8,7 +8,7 @@
 #include "math/math_types.h"
 #include "strings/kstring.h"
 
-const char* texture_repeat_to_string(texture_repeat repeat) {
+const char *texture_repeat_to_string (texture_repeat repeat) {
 	switch (repeat) {
 	case TEXTURE_REPEAT_REPEAT:
 		return "repeat";
@@ -24,7 +24,7 @@ const char* texture_repeat_to_string(texture_repeat repeat) {
 	}
 }
 
-texture_repeat string_to_texture_repeat(const char* str) {
+texture_repeat string_to_texture_repeat (const char *str) {
 	if (strings_equali("repeat", str)) {
 		return TEXTURE_REPEAT_REPEAT;
 	} else if (strings_equali("clamp_to_edge", str)) {
@@ -39,7 +39,7 @@ texture_repeat string_to_texture_repeat(const char* str) {
 	}
 }
 
-const char* texture_filter_mode_to_string(texture_filter filter) {
+const char *texture_filter_mode_to_string (texture_filter filter) {
 	switch (filter) {
 	case TEXTURE_FILTER_MODE_LINEAR:
 		return "linear";
@@ -51,7 +51,7 @@ const char* texture_filter_mode_to_string(texture_filter filter) {
 	}
 }
 
-texture_filter string_to_texture_filter_mode(const char* str) {
+texture_filter string_to_texture_filter_mode (const char *str) {
 	if (strings_equali("linear", str)) {
 		return TEXTURE_FILTER_MODE_LINEAR;
 	} else if (strings_equali("nearest", str)) {
@@ -62,7 +62,7 @@ texture_filter string_to_texture_filter_mode(const char* str) {
 	}
 }
 
-const char* texture_channel_to_string(texture_channel channel) {
+const char *texture_channel_to_string (texture_channel channel) {
 	switch (channel) {
 	default:
 	case TEXTURE_CHANNEL_R:
@@ -76,7 +76,7 @@ const char* texture_channel_to_string(texture_channel channel) {
 	}
 }
 
-texture_channel string_to_texture_channel(const char* str) {
+texture_channel string_to_texture_channel (const char *str) {
 	if (strings_equali(str, "r")) {
 		return TEXTURE_CHANNEL_R;
 	} else if (strings_equali(str, "g")) {
@@ -91,7 +91,7 @@ texture_channel string_to_texture_channel(const char* str) {
 	}
 }
 
-const char* shader_attribute_type_to_string(shader_attribute_type type) {
+const char *shader_attribute_type_to_string (shader_attribute_type type) {
 	switch (type) {
 	case SHADER_ATTRIB_TYPE_FLOAT32:
 		return "f32";
@@ -131,7 +131,7 @@ const char* shader_attribute_type_to_string(shader_attribute_type type) {
 	}
 }
 
-shader_attribute_type string_to_shader_attribute_type(const char* str) {
+shader_attribute_type string_to_shader_attribute_type (const char *str) {
 	if (strings_equali("f32", str) || strings_equali("float", str)) {
 		return SHADER_ATTRIB_TYPE_FLOAT32;
 	} else if (strings_equali("vec2", str)) {
@@ -172,7 +172,7 @@ shader_attribute_type string_to_shader_attribute_type(const char* str) {
 	}
 }
 
-const char* shader_stage_to_string(shader_stage stage) {
+const char *shader_stage_to_string (shader_stage stage) {
 	switch (stage) {
 	case SHADER_STAGE_VERTEX:
 		return "vertex";
@@ -187,7 +187,7 @@ const char* shader_stage_to_string(shader_stage stage) {
 	}
 }
 
-shader_stage string_to_shader_stage(const char* str) {
+shader_stage string_to_shader_stage (const char *str) {
 	if (strings_equali("vertex", str) || strings_equali("vert", str)) {
 		return SHADER_STAGE_VERTEX;
 	} else if (strings_equali("geometry", str) || strings_equali("geom", str)) {
@@ -202,7 +202,7 @@ shader_stage string_to_shader_stage(const char* str) {
 	}
 }
 
-const char* face_cull_mode_to_string(face_cull_mode mode) {
+const char *face_cull_mode_to_string (face_cull_mode mode) {
 	switch (mode) {
 	default:
 	case FACE_CULL_MODE_NONE:
@@ -216,7 +216,7 @@ const char* face_cull_mode_to_string(face_cull_mode mode) {
 	}
 }
 
-face_cull_mode string_to_face_cull_mode(const char* str) {
+face_cull_mode string_to_face_cull_mode (const char *str) {
 	if (strings_equali(str, "front")) {
 		return FACE_CULL_MODE_FRONT;
 	} else if (strings_equali(str, "back")) {
@@ -231,7 +231,7 @@ face_cull_mode string_to_face_cull_mode(const char* str) {
 	}
 }
 
-const char* topology_type_to_string(primitive_topology_type_bits type) {
+const char *topology_type_to_string (primitive_topology_type_bits type) {
 	switch (type) {
 	case PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT:
 		return "triangle_list";
@@ -251,7 +251,7 @@ const char* topology_type_to_string(primitive_topology_type_bits type) {
 	}
 }
 
-primitive_topology_type_bits string_to_topology_type(const char* str) {
+primitive_topology_type_bits string_to_topology_type (const char *str) {
 
 	if (strings_equali(str, "triangle_list")) {
 		return PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
@@ -273,7 +273,7 @@ primitive_topology_type_bits string_to_topology_type(const char* str) {
 	}
 }
 
-u16 size_from_shader_attribute_type(shader_attribute_type type) {
+u16 size_from_shader_attribute_type (shader_attribute_type type) {
 	switch (type) {
 	case SHADER_ATTRIB_TYPE_FLOAT32:
 		return 4;
@@ -311,7 +311,7 @@ u16 size_from_shader_attribute_type(shader_attribute_type type) {
 
 #define PX_ALPHA_LESS_THAN_MAX(type, array, pixel_count, alpha_max, channel_count, alpha_index) \
 	{                                                                                           \
-		type* px = (type*)array;                                                                \
+		type *px = (type *)array;                                                               \
 		for (u32 i = 0; i < pixel_count; ++i) {                                                 \
 			type alpha = px[(sizeof(type) * channel_count * i) + alpha_index];                  \
 			if (alpha < alpha_max) {                                                            \
@@ -321,7 +321,7 @@ u16 size_from_shader_attribute_type(shader_attribute_type type) {
 		return false;                                                                           \
 	}
 
-b8 pixel_data_has_transparency(const void* pixels, u32 pixel_count, kpixel_format format) {
+b8 pixel_data_has_transparency (const void *pixels, u32 pixel_count, kpixel_format format) {
 	if (!pixels || !pixel_count) {
 		return false;
 	}
@@ -356,7 +356,7 @@ b8 pixel_data_has_transparency(const void* pixels, u32 pixel_count, kpixel_forma
 	}
 }
 
-u8 channel_count_from_pixel_format(kpixel_format format) {
+u8 channel_count_from_pixel_format (kpixel_format format) {
 	switch (format) {
 	case KPIXEL_FORMAT_UNKNOWN:
 	case KPIXEL_FORMAT_RGBA8:
@@ -381,7 +381,7 @@ u8 channel_count_from_pixel_format(kpixel_format format) {
 	}
 }
 
-const char* string_from_kpixel_format(kpixel_format format) {
+const char *string_from_kpixel_format (kpixel_format format) {
 	switch (format) {
 	case KPIXEL_FORMAT_UNKNOWN:
 	case KPIXEL_FORMAT_RGBA8:
@@ -417,7 +417,7 @@ const char* string_from_kpixel_format(kpixel_format format) {
 	}
 }
 
-kpixel_format string_to_kpixel_format(const char* str) {
+kpixel_format string_to_kpixel_format (const char *str) {
 	if (!str) {
 		return KPIXEL_FORMAT_UNKNOWN;
 	}
@@ -458,7 +458,7 @@ kpixel_format string_to_kpixel_format(const char* str) {
 	return KPIXEL_FORMAT_UNKNOWN;
 }
 
-u8 calculate_mip_levels_from_dimension(u32 width, u32 height) {
+u8 calculate_mip_levels_from_dimension (u32 width, u32 height) {
 	// The number of mip levels is calculated by first taking the largest dimension
 	// (either width or height), figuring out how many times that number can be divided
 	// by 2, taking the floor value (rounding down) and adding 1 to represent the
@@ -466,7 +466,7 @@ u8 calculate_mip_levels_from_dimension(u32 width, u32 height) {
 	return (u8)(kfloor(klog2(KMAX(width, height))) + 1);
 }
 
-const char* kmaterial_type_to_string(kmaterial_type type) {
+const char *kmaterial_type_to_string (kmaterial_type type) {
 	switch (type) {
 	case KMATERIAL_TYPE_STANDARD:
 		return "standard";
@@ -482,7 +482,7 @@ const char* kmaterial_type_to_string(kmaterial_type type) {
 	}
 }
 
-kmaterial_type string_to_kmaterial_type(const char* str) {
+kmaterial_type string_to_kmaterial_type (const char *str) {
 	if (strings_equali(str, "standard")) {
 		return KMATERIAL_TYPE_STANDARD;
 	} else if (strings_equali(str, "water")) {
@@ -497,7 +497,7 @@ kmaterial_type string_to_kmaterial_type(const char* str) {
 	}
 }
 
-const char* kmaterial_model_to_string(kmaterial_model model) {
+const char *kmaterial_model_to_string (kmaterial_model model) {
 	switch (model) {
 	case KMATERIAL_MODEL_UNLIT:
 		return "unlit";
@@ -513,7 +513,7 @@ const char* kmaterial_model_to_string(kmaterial_model model) {
 	}
 }
 
-kmaterial_model string_to_kmaterial_model(const char* str) {
+kmaterial_model string_to_kmaterial_model (const char *str) {
 	if (strings_equali(str, "pbr")) {
 		return KMATERIAL_MODEL_PBR;
 	} else if (strings_equali(str, "unlit")) {
@@ -528,7 +528,7 @@ kmaterial_model string_to_kmaterial_model(const char* str) {
 	}
 }
 
-mat4 generate_projection_matrix(rect_2di rect, f32 fov, f32 near_clip, f32 far_clip, projection_matrix_type matrix_type) {
+mat4 generate_projection_matrix (rect_2di rect, f32 fov, f32 near_clip, f32 far_clip, projection_matrix_type matrix_type) {
 	switch (matrix_type) {
 	default:
 	case PROJECTION_MATRIX_TYPE_PERSPECTIVE:
@@ -543,7 +543,7 @@ mat4 generate_projection_matrix(rect_2di rect, f32 fov, f32 near_clip, f32 far_c
 	}
 }
 
-shader_binding_type shader_binding_type_from_string(const char* str) {
+shader_binding_type shader_binding_type_from_string (const char *str) {
 	if (strings_equali(str, "ubo")) {
 		return SHADER_BINDING_TYPE_UBO;
 	} else if (strings_equali(str, "ssbo") || strings_equali(str, "storage")) {
@@ -558,7 +558,7 @@ shader_binding_type shader_binding_type_from_string(const char* str) {
 	}
 }
 
-const char* shader_binding_type_to_string(shader_binding_type type) {
+const char *shader_binding_type_to_string (shader_binding_type type) {
 	switch (type) {
 	case SHADER_BINDING_TYPE_UBO:
 		return "ubo";
@@ -574,7 +574,7 @@ const char* shader_binding_type_to_string(shader_binding_type type) {
 	}
 }
 
-ktexture_type ktexture_type_from_string(const char* str) {
+ktexture_type ktexture_type_from_string (const char *str) {
 	if (strings_equali(str, "texture1D") || strings_equali(str, "1D")) {
 		return KTEXTURE_TYPE_1D;
 	} else if (strings_equali(str, "texture2D") || strings_equali(str, "2D")) {
@@ -595,7 +595,7 @@ ktexture_type ktexture_type_from_string(const char* str) {
 	}
 }
 
-const char* ktexture_type_to_string(ktexture_type type) {
+const char *ktexture_type_to_string (ktexture_type type) {
 	switch (type) {
 	case KTEXTURE_TYPE_1D:
 		return "texture1D";
@@ -615,7 +615,7 @@ const char* ktexture_type_to_string(ktexture_type type) {
 	}
 }
 
-shader_sampler_type shader_sampler_type_from_string(const char* str) {
+shader_sampler_type shader_sampler_type_from_string (const char *str) {
 	if (strings_equali(str, "sampler1D") || strings_equali(str, "1D")) {
 		return SHADER_SAMPLER_TYPE_1D;
 	} else if (strings_equali(str, "sampler2D") || strings_equali(str, "2D")) {
@@ -636,7 +636,7 @@ shader_sampler_type shader_sampler_type_from_string(const char* str) {
 	}
 }
 
-const char* shader_sampler_type_to_string(shader_sampler_type type) {
+const char *shader_sampler_type_to_string (shader_sampler_type type) {
 	switch (type) {
 	case SHADER_SAMPLER_TYPE_1D:
 		return "sampler1D";

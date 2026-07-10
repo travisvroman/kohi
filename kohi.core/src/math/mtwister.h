@@ -24,18 +24,18 @@ typedef struct mtrand_state {
  * @param The seed to use for the RNG.
  * @returns The state for the MT RNG.
  */
-KAPI mtrand_state mtrand_create(u64 seed);
+KAPI mtrand_state mtrand_create (u64 seed);
 
 /**
  * @brief Generates a new random 64-bit unsigned integer from the given generator.
  * @param generator A pointer to the random number generator to be used.
  * @returns A newly generated 64-bit unsigned integer.
  */
-KAPI u64 mtrand_generate(mtrand_state* generator);
+KAPI u64 mtrand_generate (mtrand_state *generator);
 
 /**
  * @brief Generates a new random 64-bit floating-point number from the given generator.
  * @param generator A pointer to the random number generator to be used.
  * @returns A newly generated 64-bit floating-point number.
  */
-KAPI f64 mtrand_generate_d(mtrand_state* generator);
+KAPI f64 mtrand_generate_d (mtrand_state *generator);

@@ -11,10 +11,10 @@
 #include "kui_defines.h"
 #include "kui_types.h"
 
-b8 kui_renderer_create(kui_renderer* out_renderer) {
+b8 kui_renderer_create (kui_renderer *out_renderer) {
 
 	// Pointer to the renderer system state.
-	const engine_system_states* systems = engine_systems_get();
+	const engine_system_states *systems = engine_systems_get();
 	out_renderer->renderer_state = systems->renderer_system;
 
 	out_renderer->standard_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
@@ -28,13 +28,13 @@ b8 kui_renderer_create(kui_renderer* out_renderer) {
 	return true;
 }
 
-void kui_renderer_destroy(kui_renderer* renderer) {
+void kui_renderer_destroy (kui_renderer *renderer) {
 	if (renderer) {
 		// TODO: do the thing
 	}
 }
 
-static void set_render_state_defaults(rect_2di vp_rect) {
+static void set_render_state_defaults (rect_2di vp_rect) {
 	renderer_begin_debug_label("frame defaults", vec3_zero());
 
 	renderer_set_depth_test_enabled(false);
@@ -57,11 +57,11 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 	renderer_end_debug_label();
 }
 
-b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_renderer_render_frame (kui_renderer *renderer, frame_data *p_frame_data, kui_render_data *render_data) {
 	renderer_begin_debug_label("sui", (vec3){0.5f, 0.5f, 0.5});
 
 	rect_2di vp_rect = {0};
-	if (!texture_dimensions_get(render_data->colour_buffer, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+	if (!texture_dimensions_get(render_data->colour_buffer, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 		return false;
 	}
 
@@ -102,7 +102,7 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 
 	u32 renderable_count = render_data->renderable_count;
 	for (u32 i = 0; i < renderable_count; ++i) {
-		kui_renderable* renderable = &render_data->renderables[i];
+		kui_renderable *renderable = &render_data->renderables[i];
 
 		// Per-control binding set.
 		ktexture atlas = renderable->atlas_override != INVALID_KTEXTURE ? renderable->atlas_override : render_data->ui_atlas;

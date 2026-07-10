@@ -17,23 +17,23 @@
 // #define MINIMP3_NO_STDIO
 #include "vendor/minimp3_ex.h"
 
-b8 kasset_audio_import(const char* source_path, const char* target_path) {
+b8 kasset_audio_import (const char *source_path, const char *target_path) {
 	if (!source_path || !target_path) {
 		KERROR("%s requires valid source_path and target_path.", __FUNCTION__);
 		return false;
 	}
 
-	const char* source_extension = string_extension_from_path(source_path, true);
+	const char *source_extension = string_extension_from_path(source_path, true);
 	if (!source_extension) {
 		return false;
 	}
 
 	b8 success = false;
 	u64 serialized_block_size = 0;
-	void* serialized_block = 0;
+	void *serialized_block = 0;
 
 	u64 data_size = 0;
-	const void* data = filesystem_read_entire_binary_file(source_path, &data_size);
+	const void *data = filesystem_read_entire_binary_file(source_path, &data_size);
 	if (!data || !data_size) {
 		KERROR("Error reading audio file (%s) for import.", source_path);
 		goto kasset_importer_audio_cleanup;
@@ -52,7 +52,7 @@ b8 kasset_audio_import(const char* source_path, const char* target_path) {
 		mp3dec_t mp3_decoder;
 		mp3dec_init(&mp3_decoder);
 		mp3dec_file_info_t file_info;
-		i32 err = mp3dec_load_buf(&mp3_decoder, (u8*)data, data_size, &file_info, 0, 0);
+		i32 err = mp3dec_load_buf(&mp3_decoder, (u8 *)data, data_size, &file_info, 0, 0);
 		if (err < 0) {
 			KERROR("Error decoding MP3.");
 			goto kasset_importer_audio_cleanup;
@@ -72,8 +72,8 @@ b8 kasset_audio_import(const char* source_path, const char* target_path) {
 		// Ogg import
 		KTRACE("Importing asset '%s' as OGG Vorbis...", source_path);
 
-		i16* decoded_pcm_data = 0;
-		i32 total_samples = stb_vorbis_decode_memory(data, data_size, &asset.channels, (i32*)&asset.sample_rate, &decoded_pcm_data);
+		i16 *decoded_pcm_data = 0;
+		i32 total_samples = stb_vorbis_decode_memory(data, data_size, &asset.channels, (i32 *)&asset.sample_rate, &decoded_pcm_data);
 		if (!decoded_pcm_data || total_samples < 0) {
 			KERROR("Failed to import OGG Vorbis file.");
 			goto kasset_importer_audio_cleanup;

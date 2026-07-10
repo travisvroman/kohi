@@ -6,7 +6,7 @@
 #include "../expect.h"
 #include "../test_manager.h"
 
-u8 linear_allocator_should_create_and_destroy(void) {
+u8 linear_allocator_should_create_and_destroy (void) {
 	linear_allocator alloc;
 	linear_allocator_create(sizeof(u64), 0, &alloc);
 
@@ -23,12 +23,12 @@ u8 linear_allocator_should_create_and_destroy(void) {
 	return true;
 }
 
-u8 linear_allocator_single_allocation_all_space(void) {
+u8 linear_allocator_single_allocation_all_space (void) {
 	linear_allocator alloc;
 	linear_allocator_create(sizeof(u64), 0, &alloc);
 
 	// Single allocation.
-	void* block = linear_allocator_allocate(&alloc, sizeof(u64));
+	void *block = linear_allocator_allocate(&alloc, sizeof(u64));
 
 	// Validate it
 	expect_should_not_be(0, block);
@@ -39,13 +39,13 @@ u8 linear_allocator_single_allocation_all_space(void) {
 	return true;
 }
 
-u8 linear_allocator_multi_allocation_all_space(void) {
+u8 linear_allocator_multi_allocation_all_space (void) {
 	u64 max_allocs = 1024;
 	linear_allocator alloc;
 	linear_allocator_create(sizeof(u64) * max_allocs, 0, &alloc);
 
 	// Multiple allocations - full.
-	void* block;
+	void *block;
 	for (u64 i = 0; i < max_allocs; ++i) {
 		block = linear_allocator_allocate(&alloc, sizeof(u64));
 		// Validate it
@@ -58,13 +58,13 @@ u8 linear_allocator_multi_allocation_all_space(void) {
 	return true;
 }
 
-u8 linear_allocator_multi_allocation_over_allocate(void) {
+u8 linear_allocator_multi_allocation_over_allocate (void) {
 	u64 max_allocs = 3;
 	linear_allocator alloc;
 	linear_allocator_create(sizeof(u64) * max_allocs, 0, &alloc);
 
 	// Multiple allocations - full.
-	void* block;
+	void *block;
 	for (u64 i = 0; i < max_allocs; ++i) {
 		block = linear_allocator_allocate(&alloc, sizeof(u64));
 		// Validate it
@@ -85,13 +85,13 @@ u8 linear_allocator_multi_allocation_over_allocate(void) {
 	return true;
 }
 
-u8 linear_allocator_multi_allocation_all_space_then_free(void) {
+u8 linear_allocator_multi_allocation_all_space_then_free (void) {
 	u64 max_allocs = 1024;
 	linear_allocator alloc;
 	linear_allocator_create(sizeof(u64) * max_allocs, 0, &alloc);
 
 	// Multiple allocations - full.
-	void* block;
+	void *block;
 	for (u64 i = 0; i < max_allocs; ++i) {
 		block = linear_allocator_allocate(&alloc, sizeof(u64));
 		// Validate it
@@ -108,7 +108,7 @@ u8 linear_allocator_multi_allocation_all_space_then_free(void) {
 	return true;
 }
 
-void linear_allocator_register_tests(void) {
+void linear_allocator_register_tests (void) {
 	test_manager_register_test(linear_allocator_should_create_and_destroy, "Linear allocator should create and destroy");
 	test_manager_register_test(linear_allocator_single_allocation_all_space, "Linear allocator single alloc for all space");
 	test_manager_register_test(linear_allocator_multi_allocation_all_space, "Linear allocator multi alloc for all space");

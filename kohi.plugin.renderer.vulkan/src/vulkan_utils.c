@@ -5,7 +5,7 @@
 #include "strings/kstring.h"
 #include <vulkan/vulkan_core.h>
 
-const char* vulkan_result_string(VkResult result, b8 get_extended) {
+const char *vulkan_result_string (VkResult result, b8 get_extended) {
 	// From: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkResult.html
 	// Success Codes
 	switch (result) {
@@ -90,7 +90,7 @@ const char* vulkan_result_string(VkResult result, b8 get_extended) {
 	}
 }
 
-b8 vulkan_result_is_success(VkResult result) {
+b8 vulkan_result_is_success (VkResult result) {
 	// From: https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkResult.html
 	switch (result) {
 		// Success Codes
@@ -140,7 +140,7 @@ b8 vulkan_result_is_success(VkResult result) {
 }
 
 #if KOHI_DEBUG
-void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name) {
+void vulkan_set_debug_object_name (vulkan_context *context, VkObjectType object_type, void *object_handle, const char *object_name) {
 	const VkDebugUtilsObjectNameInfoEXT name_info = {
 		VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
 		0,
@@ -154,13 +154,13 @@ void vulkan_set_debug_object_name(vulkan_context* context, VkObjectType object_t
 	}
 }
 
-void vulkan_set_debug_object_name_indexed(vulkan_context* context, VkObjectType object_type, void* object_handle, const char* object_name, u32 index) {
-	char* temp_str = string_format("%s_%u", object_name, index);
+void vulkan_set_debug_object_name_indexed (vulkan_context *context, VkObjectType object_type, void *object_handle, const char *object_name, u32 index) {
+	char *temp_str = string_format("%s_%u", object_name, index);
 	vulkan_set_debug_object_name(context, object_type, object_handle, temp_str);
 	string_free(temp_str);
 }
 
-void vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_type, void* object_handle, u64 tag_size, const void* tag_data) {
+void vulkan_set_debug_object_tag (vulkan_context *context, VkObjectType object_type, void *object_handle, u64 tag_size, const void *tag_data) {
 	const VkDebugUtilsObjectTagInfoEXT tag_info = {
 		VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_TAG_INFO_EXT,
 		0,
@@ -175,7 +175,7 @@ void vulkan_set_debug_object_tag(vulkan_context* context, VkObjectType object_ty
 	}
 }
 
-void vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const char* label_name, vec4 colour) {
+void vulkan_begin_label (vulkan_context *context, VkCommandBuffer buffer, const char *label_name, vec4 colour) {
 	VkDebugUtilsLabelEXT label_info = {
 		VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
 		0,
@@ -187,15 +187,15 @@ void vulkan_begin_label(vulkan_context* context, VkCommandBuffer buffer, const c
 	}
 }
 
-void vulkan_end_label(vulkan_context* context, VkCommandBuffer buffer) {
+void vulkan_end_label (vulkan_context *context, VkCommandBuffer buffer) {
 	if (context->pfnCmdEndDebugUtilsLabelEXT) {
 		context->pfnCmdEndDebugUtilsLabelEXT(buffer);
 	}
 }
 #endif
 
-i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 property_flags) {
-	krhi_vulkan* rhi = &context->rhi;
+i32 vulkan_find_memory_index (vulkan_context *context, u32 type_filter, u32 property_flags) {
+	krhi_vulkan *rhi = &context->rhi;
 	VkPhysicalDeviceMemoryProperties memory_properties;
 	rhi->kvkGetPhysicalDeviceMemoryProperties(context->device.physical_device, &memory_properties);
 
@@ -211,7 +211,7 @@ i32 vulkan_find_memory_index(vulkan_context* context, u32 type_filter, u32 prope
 	return -1;
 }
 
-void vulkan_get_vktopology_type_and_pipeline_index(primitive_topology_type type, VkPrimitiveTopology* out_type, u8* out_pipeline_index) {
+void vulkan_get_vktopology_type_and_pipeline_index (primitive_topology_type type, VkPrimitiveTopology *out_type, u8 *out_pipeline_index) {
 	switch (type) {
 	case PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT:
 		*out_type = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;

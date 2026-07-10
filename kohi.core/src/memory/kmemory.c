@@ -32,7 +32,7 @@ struct memory_stats {
 	u64 new_tagged_deallocations[MEMORY_TAG_MAX_TAGS];
 };
 
-static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
+static const char *memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
 	"UNKNOWN    ",
 	"ARRAY      ",
 	"LINEAR_ALLC",
@@ -77,15 +77,15 @@ typedef struct memory_system_state {
 	u64 alloc_count;
 	u64 allocator_memory_requirement;
 	dynamic_allocator allocator;
-	void* allocator_block;
+	void *allocator_block;
 	// A mutex for allocations/frees
 	kmutex allocation_mutex;
 } memory_system_state;
 
 // Pointer to system state.
-static memory_system_state* state_ptr;
+static memory_system_state *state_ptr;
 
-b8 memory_system_initialize(memory_system_configuration config) {
+b8 memory_system_initialize (memory_system_configuration config) {
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
 	// The amount needed by the system state.
 	u64 state_memory_requirement = sizeof(memory_system_state);
@@ -96,20 +96,20 @@ b8 memory_system_initialize(memory_system_configuration config) {
 
 	// Call the platform allocator to get the memory for the whole system, including the state.
 	// TODO: memory alignment
-	void* block = platform_allocate(state_memory_requirement + alloc_requirement, true);
+	void *block = platform_allocate(state_memory_requirement + alloc_requirement, true);
 	if (!block) {
 		KFATAL("Memory system allocation failed and the system cannot continue.");
 		return false;
 	}
 
 	// The state is in the first part of the massive block of memory.
-	state_ptr = (memory_system_state*)block;
+	state_ptr = (memory_system_state *)block;
 	state_ptr->config = config;
 	state_ptr->alloc_count = 0;
 	state_ptr->allocator_memory_requirement = alloc_requirement;
 	platform_zero_memory(&state_ptr->stats, sizeof(state_ptr->stats));
 	// The allocator block is in the same block of memory, but after the state.
-	state_ptr->allocator_block = ((void*)block + state_memory_requirement);
+	state_ptr->allocator_block = ((void *)block + state_memory_requirement);
 
 	if (!dynamic_allocator_create(
 			config.total_alloc_size,
@@ -135,13 +135,13 @@ b8 memory_system_initialize(memory_system_configuration config) {
 	}
 
 	f32 amount = 0;
-	const char* unit = get_unit_for_size(config.total_alloc_size, &amount);
+	const char *unit = get_unit_for_size(config.total_alloc_size, &amount);
 
 	KINFO("Memory system successfully allocated %.2f%s of memory.", amount, unit);
 	return true;
 }
 
-void memory_system_shutdown(void) {
+void memory_system_shutdown (void) {
 	if (state_ptr) {
 		// Destroy allocation mutex
 		kmutex_destroy(&state_ptr->allocation_mutex);
@@ -157,11 +157,11 @@ void memory_system_shutdown(void) {
 	state_ptr = 0;
 }
 
-void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line) {
+void *_kallocate (u64 size, memory_tag tag, const char *file, u32 line) {
 	return _kallocate_aligned(size, 1, tag, file, line);
 }
 
-void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* file, u32 line) {
+void *_kallocate_aligned (u64 size, u16 alignment, memory_tag tag, const char *file, u32 line) {
 	KASSERT_MSG(size, "kallocate_aligned requires a nonzero size.");
 	if (tag == MEMORY_TAG_UNKNOWN) {
 		KWARN("kallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
@@ -172,7 +172,7 @@ void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* fi
 
 	// Either allocate from the system's allocator or the OS. The latter shouldn't ever
 	// really happen.
-	void* block = 0;
+	void *block = 0;
 	if (state_ptr) {
 		// Make sure multithreaded requests don't trample each other.
 		if (!kmutex_lock(&state_ptr->allocation_mutex)) {
@@ -208,7 +208,7 @@ void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* fi
 	return 0;
 }
 
-void kallocate_report(u64 size, memory_tag tag) {
+void kallocate_report (u64 size, memory_tag tag) {
 	// Make sure multithreaded requests don't trample each other.
 	if (!kmutex_lock(&state_ptr->allocation_mutex)) {
 		KFATAL("Error obtaining mutex lock during allocation reporting.");
@@ -221,16 +221,16 @@ void kallocate_report(u64 size, memory_tag tag) {
 	kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
-void* _kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag, const char* filename, u32 line) {
+void *_kreallocate (void *block, u64 old_size, u64 new_size, memory_tag tag, const char *filename, u32 line) {
 	/* if (block) {
 		validate_block(block);
 	} */
 	return kreallocate_aligned(block, old_size, new_size, 1, tag);
 }
 
-void* _kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char* filename, u32 line) {
+void *_kreallocate_aligned (void *block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char *filename, u32 line) {
 	// TODO: keep the original allocation file/line too?
-	void* new_block = _kallocate_aligned(new_size, alignment, tag, filename, line);
+	void *new_block = _kallocate_aligned(new_size, alignment, tag, filename, line);
 	if (block && new_block) {
 		kcopy_memory(new_block, block, old_size);
 		kfree_aligned(block, old_size, alignment, tag);
@@ -238,16 +238,16 @@ void* _kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignmen
 	return new_block;
 }
 
-void kreallocate_report(u64 old_size, u64 new_size, memory_tag tag) {
+void kreallocate_report (u64 old_size, u64 new_size, memory_tag tag) {
 	kfree_report(old_size, tag);
 	kallocate_report(new_size, tag);
 }
 
-void kfree(void* block, u64 size, memory_tag tag) {
+void kfree (void *block, u64 size, memory_tag tag) {
 	kfree_aligned(block, size, 1, tag);
 }
 
-void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
+void kfree_aligned (void *block, u64 size, u16 alignment, memory_tag tag) {
 	if (!block) {
 		KFATAL("%s tried to free null block of memory. Check application logic.", __FUNCTION__);
 		return;
@@ -318,7 +318,7 @@ void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag) {
 	}
 }
 
-void kfree_report(u64 size, memory_tag tag) {
+void kfree_report (u64 size, memory_tag tag) {
 	// Make sure multithreaded requests don't trample each other.
 	if (!kmutex_lock(&state_ptr->allocation_mutex)) {
 		KFATAL("Error obtaining mutex lock during allocation reporting.");
@@ -331,13 +331,13 @@ void kfree_report(u64 size, memory_tag tag) {
 	kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
-b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment, memory_tag* out_tag) {
+b8 kmemory_get_size_alignment (void *block, u64 *out_size, u16 *out_alignment, memory_tag *out_tag) {
 	if (!kmutex_lock(&state_ptr->allocation_mutex)) {
 		KFATAL("Error obtaining mutex lock during kmemory_get_size_alignment.");
 		return false;
 	}
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
-	b8 result = dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment, (u8*)out_tag);
+	b8 result = dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment, (u8 *)out_tag);
 #else
 	*out_size = 0;
 	*out_alignment = 1;
@@ -347,19 +347,19 @@ b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment, me
 	return result;
 }
 
-void* kzero_memory(void* block, u64 size) {
+void *kzero_memory (void *block, u64 size) {
 	return platform_zero_memory(block, size);
 }
 
-void* kcopy_memory(void* dest, const void* source, u64 size) {
+void *kcopy_memory (void *dest, const void *source, u64 size) {
 	return platform_copy_memory(dest, source, size);
 }
 
-void* kset_memory(void* dest, i32 value, u64 size) {
+void *kset_memory (void *dest, i32 value, u64 size) {
 	return platform_set_memory(dest, value, size);
 }
 
-const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
+const char *get_unit_for_size (u64 size_bytes, f32 *out_amount) {
 	if (size_bytes >= GIBIBYTES(1)) {
 		*out_amount = (f64)size_bytes / GIBIBYTES(1);
 		return "GiB";
@@ -375,12 +375,12 @@ const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
 	}
 }
 
-char* get_memory_usage_str(void) {
+char *get_memory_usage_str (void) {
 	char buffer[8000] = "System memory use (tagged):\n";
 	u64 offset = strlen(buffer);
 	for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
 		f32 amounts[3] = {1.0f, 1.0f, 1.0f};
-		const char* units[3] = {
+		const char *units[3] = {
 			get_unit_for_size(state_ptr->stats.tagged_allocations[i], &amounts[0]),
 			get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
 			get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])};
@@ -405,10 +405,10 @@ char* get_memory_usage_str(void) {
 #endif
 
 		f32 used_amount = 1.0f;
-		const char* used_unit = get_unit_for_size(used_space, &used_amount);
+		const char *used_unit = get_unit_for_size(used_space, &used_amount);
 
 		f32 total_amount = 1.0f;
-		const char* total_unit = get_unit_for_size(total_space, &total_amount);
+		const char *total_unit = get_unit_for_size(total_space, &total_amount);
 
 		f64 percent_used = (f64)(used_space) / total_space;
 
@@ -416,32 +416,32 @@ char* get_memory_usage_str(void) {
 		offset += length;
 	}
 
-	char* out_string = string_duplicate(buffer);
+	char *out_string = string_duplicate(buffer);
 	return out_string;
 }
 
-u64 get_memory_alloc_count(void) {
+u64 get_memory_alloc_count (void) {
 	if (state_ptr) {
 		return state_ptr->alloc_count;
 	}
 	return 0;
 }
 
-u64 get_total_memory_space(void) {
+u64 get_total_memory_space (void) {
 	return state_ptr ? dynamic_allocator_total_space(&state_ptr->allocator) : 0;
 }
-u64 get_free_memory_space(void) {
+u64 get_free_memory_space (void) {
 	return state_ptr ? dynamic_allocator_free_space(&state_ptr->allocator) : 0;
 }
-u64 get_used_memory_space(void) {
+u64 get_used_memory_space (void) {
 	return get_total_memory_space() - get_free_memory_space();
 }
 
-u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w) {
+u32 pack_u8_into_u32 (u8 x, u8 y, u8 z, u8 w) {
 	return (x << 24) | (y << 16) | (z << 8) | (w);
 }
 
-b8 unpack_u8_from_u32(u32 n, u8* x, u8* y, u8* z, u8* w) {
+b8 unpack_u8_from_u32 (u32 n, u8 *x, u8 *y, u8 *z, u8 *w) {
 	if (!x || !y || !z || !w) {
 		return false;
 	}

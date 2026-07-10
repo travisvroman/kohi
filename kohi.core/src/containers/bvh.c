@@ -14,17 +14,17 @@
 // Uncomment the below line if wanting to trace BVH selection, etc.
 /* #define BVH_TRACE 1 */
 
-static u32 bvh_alloc_node(bvh* t);
-static void bvh_free_node(bvh* t, u32 id);
-static b8 bvh_is_leaf(const bvh_node* node);
-static u32 bvh_balance(bvh* t, u32 index_a);
-static void bvh_fix_upwards(bvh* t, u32 i);
-static void bvh_insert_leaf(bvh* t, u32 leaf);
-static void bvh_remove_leaf(bvh* t, u32 leaf);
-static void bvh_validate(const bvh* t);
-static void bvh_validate_containment(const bvh* t, u32 node_id);
+static u32 bvh_alloc_node (bvh *t);
+static void bvh_free_node (bvh *t, u32 id);
+static b8 bvh_is_leaf (const bvh_node *node);
+static u32 bvh_balance (bvh *t, u32 index_a);
+static void bvh_fix_upwards (bvh *t, u32 i);
+static void bvh_insert_leaf (bvh *t, u32 leaf);
+static void bvh_remove_leaf (bvh *t, u32 leaf);
+static void bvh_validate (const bvh *t);
+static void bvh_validate_containment (const bvh *t, u32 node_id);
 
-b8 bvh_create(u32 inital_capacity, void* owner_context, bvh* out_bvh) {
+b8 bvh_create (u32 inital_capacity, void *owner_context, bvh *out_bvh) {
 	out_bvh->root = BVH_INVALID_NODE;
 	out_bvh->nodes = KNULL;
 	out_bvh->capacity = 0;
@@ -39,7 +39,7 @@ b8 bvh_create(u32 inital_capacity, void* owner_context, bvh* out_bvh) {
 	return true;
 }
 
-void bvh_destroy(bvh* t) {
+void bvh_destroy (bvh *t) {
 	if (t) {
 		KFREE_TYPE_CARRAY(t->nodes, bvh_node, t->capacity);
 		t->nodes = KNULL;
@@ -50,14 +50,14 @@ void bvh_destroy(bvh* t) {
 	}
 }
 
-b8 bvh_reserve(bvh* t, u32 leaf_capacity) {
+b8 bvh_reserve (bvh *t, u32 leaf_capacity) {
 	// NOTE: This actually requires 2 * leaf_capacity + 1 nodes
 	u32 need = leaf_capacity * 2 + 1;
 	if (need <= t->capacity) {
 		return true;
 	}
 	u32 old_capacity = t->capacity;
-	bvh_node* new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, old_capacity, need);
+	bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, old_capacity, need);
 	if (!new_nodes) {
 		return false;
 	}
@@ -72,9 +72,9 @@ b8 bvh_reserve(bvh* t, u32 leaf_capacity) {
 	return true;
 }
 
-bvh_id bvh_insert(bvh* t, aabb tight_aabb, bvh_userdata user) {
+bvh_id bvh_insert (bvh *t, aabb tight_aabb, bvh_userdata user) {
 	u32 id = bvh_alloc_node(t);
-	bvh_node* n = &t->nodes[id];
+	bvh_node *n = &t->nodes[id];
 	n->aabb = aabb_expand(tight_aabb, BVH_PADDING);
 	n->user = user;
 	n->left = n->right = BVH_INVALID_NODE;
@@ -88,7 +88,7 @@ bvh_id bvh_insert(bvh* t, aabb tight_aabb, bvh_userdata user) {
 	return id;
 }
 
-void bvh_remove(bvh* t, bvh_id id) {
+void bvh_remove (bvh *t, bvh_id id) {
 	if (id == BVH_INVALID_NODE) {
 		return;
 	}
@@ -99,7 +99,7 @@ void bvh_remove(bvh* t, bvh_id id) {
 	bvh_validate_containment(t, t->root);
 }
 
-void bvh_update(bvh* t, bvh_id id, aabb new_tight_aabb) {
+void bvh_update (bvh *t, bvh_id id, aabb new_tight_aabb) {
 	// If a new tight aabb is still inside of the padded aabb, boot. Otherwise insert.
 	aabb old_padded = t->nodes[id].aabb;
 	aabb new_expanded = aabb_expand(new_tight_aabb, BVH_PADDING);
@@ -122,13 +122,13 @@ void bvh_update(bvh* t, bvh_id id, aabb new_tight_aabb) {
 	bvh_validate_containment(t, t->root);
 }
 
-u32 bvh_query_overlaps(const bvh* t, aabb query, bvh_query_callback callback, void* usr) {
+u32 bvh_query_overlaps (const bvh *t, aabb query, bvh_query_callback callback, void *usr) {
 	if (t->root == BVH_INVALID_NODE) {
 		return 0;
 	}
 
 	u32 stack_capacity = 64;
-	u32* stack = KALLOC_TYPE_CARRAY(u32, stack_capacity);
+	u32 *stack = KALLOC_TYPE_CARRAY(u32, stack_capacity);
 	if (!stack) {
 		return 0;
 	}
@@ -145,7 +145,7 @@ u32 bvh_query_overlaps(const bvh* t, aabb query, bvh_query_callback callback, vo
 		} else {
 			if (top + 2 > stack_capacity) {
 				u32 new_capacity = stack_capacity * 2;
-				u32* new_stack = KREALLOC_TYPE_CARRAY(stack, u32, stack_capacity, new_capacity);
+				u32 *new_stack = KREALLOC_TYPE_CARRAY(stack, u32, stack_capacity, new_capacity);
 				if (!new_stack) {
 					break;
 				}
@@ -160,7 +160,7 @@ u32 bvh_query_overlaps(const bvh* t, aabb query, bvh_query_callback callback, vo
 	return hits;
 }
 
-raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback callback, void* usr) {
+raycast_result bvh_raycast (const bvh *t, const ray *r, bvh_raycast_callback callback, void *usr) {
 	raycast_result result = {0};
 	if (t->root == BVH_INVALID_NODE) {
 		return result;
@@ -175,7 +175,7 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 #endif
 
 	u32 stack_capacity = 64;
-	u32* stack = KALLOC_TYPE_CARRAY(u32, stack_capacity);
+	u32 *stack = KALLOC_TYPE_CARRAY(u32, stack_capacity);
 	if (!stack) {
 		return result;
 	}
@@ -192,7 +192,7 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 	while (top) {
 		u32 id = stack[--top];
 
-		const bvh_node* n = &t->nodes[id];
+		const bvh_node *n = &t->nodes[id];
 
 		f32 tmin = 0.0f;
 		f32 tmaxi = r->max_distance;
@@ -266,7 +266,7 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 		} else {
 			if (top + 2 > stack_capacity) {
 				u32 new_capacity = stack_capacity * 2;
-				u32* new_stack = KREALLOC_TYPE_CARRAY(stack, u32, stack_capacity, new_capacity);
+				u32 *new_stack = KREALLOC_TYPE_CARRAY(stack, u32, stack_capacity, new_capacity);
 				if (!new_stack) {
 					break;
 				}
@@ -288,7 +288,7 @@ raycast_result bvh_raycast(const bvh* t, const ray* r, bvh_raycast_callback call
 	return result;
 }
 
-void bvh_rebalance(bvh* t, u32 iterations) {
+void bvh_rebalance (bvh *t, u32 iterations) {
 	u32 it = 0;
 	u32 index = t->root;
 	while (index != BVH_INVALID_NODE && it < iterations) {
@@ -305,7 +305,7 @@ void bvh_rebalance(bvh* t, u32 iterations) {
 	}
 }
 
-void bvh_debug_trace_to_leaf(const bvh* t, bvh_userdata target_user, const ray* r) {
+void bvh_debug_trace_to_leaf (const bvh *t, bvh_userdata target_user, const ray *r) {
 	// First, find the leaf with this user data
 	u32 target_leaf = BVH_INVALID_NODE;
 	for (u32 i = 0; i < t->capacity; i++) {
@@ -335,7 +335,7 @@ void bvh_debug_trace_to_leaf(const bvh* t, bvh_userdata target_user, const ray* 
 	KINFO("Path length: %u nodes", path_len);
 	for (i32 i = path_len - 1; i >= 0; i--) {
 		u32 node_id = path[i];
-		const bvh_node* n = &t->nodes[node_id];
+		const bvh_node *n = &t->nodes[node_id];
 
 		f32 tmin = 0.0f;
 		f32 tmax = r->max_distance;
@@ -356,7 +356,7 @@ void bvh_debug_trace_to_leaf(const bvh* t, bvh_userdata target_user, const ray* 
 
 			// Check each axis
 			for (u32 a = 0; a < 3; ++a) {
-				const char* axis_name[] = {"X", "Y", "Z"};
+				const char *axis_name[] = {"X", "Y", "Z"};
 				f32 origin_a = r->origin.elements[a];
 				f32 direction_a = r->direction.elements[a];
 				f32 min_a = n->aabb.min.elements[a];
@@ -379,8 +379,8 @@ void bvh_debug_trace_to_leaf(const bvh* t, bvh_userdata target_user, const ray* 
 	}
 }
 
-static void bvh_debug_print_node(const bvh* t, u32 id, u32 depth) {
-	const bvh_node* n = &t->nodes[id];
+static void bvh_debug_print_node (const bvh *t, u32 id, u32 depth) {
+	const bvh_node *n = &t->nodes[id];
 
 	char line[512];
 	u32 offset = 0;
@@ -425,8 +425,8 @@ static void bvh_debug_print_node(const bvh* t, u32 id, u32 depth) {
 		bvh_debug_print_node(t, n->right, depth + 1);
 	}
 }
-static void bvh_debug_print_unreachable(const bvh* t) {
-	b8* visited = KALLOC_TYPE_CARRAY(b8, t->capacity);
+static void bvh_debug_print_unreachable (const bvh *t) {
+	b8 *visited = KALLOC_TYPE_CARRAY(b8, t->capacity);
 
 	// DFS mark
 	u32 stack[256];
@@ -454,7 +454,7 @@ static void bvh_debug_print_unreachable(const bvh* t) {
 	KFREE_TYPE_CARRAY(visited, b8, t->capacity);
 }
 
-void bvh_debug_print(const bvh* t) {
+void bvh_debug_print (const bvh *t) {
 #if BVH_TRACE
 	if (!t || t->root == BVH_INVALID_NODE) {
 		KINFO("BVH: <empty>");
@@ -469,12 +469,12 @@ void bvh_debug_print(const bvh* t) {
 #endif
 }
 
-static u32 bvh_alloc_node(bvh* t) {
+static u32 bvh_alloc_node (bvh *t) {
 	if (t->free_list == 0) {
 		// Grow the pool
 		u32 old_capacity = t->capacity;
 		u32 new_capacity = old_capacity ? old_capacity * 2 : 64;
-		bvh_node* new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, old_capacity, new_capacity);
+		bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, old_capacity, new_capacity);
 		t->nodes = new_nodes;
 		t->capacity = new_capacity;
 		// Link new nodes into free list.
@@ -486,7 +486,7 @@ static u32 bvh_alloc_node(bvh* t) {
 	}
 	u32 id = t->free_list;
 	t->free_list = t->nodes[id].next;
-	bvh_node* n = &t->nodes[id];
+	bvh_node *n = &t->nodes[id];
 	n->parent = BVH_INVALID_NODE;
 	n->left = BVH_INVALID_NODE;
 	n->right = BVH_INVALID_NODE;
@@ -499,24 +499,24 @@ static u32 bvh_alloc_node(bvh* t) {
 	return id;
 }
 
-static void bvh_free_node(bvh* t, u32 id) {
-	bvh_node* n = &t->nodes[id];
+static void bvh_free_node (bvh *t, u32 id) {
+	bvh_node *n = &t->nodes[id];
 	n->height = -1;
 	n->next = t->free_list;
 	t->free_list = id;
 	t->count--;
 }
 
-static b8 bvh_is_leaf(const bvh_node* node) {
+static b8 bvh_is_leaf (const bvh_node *node) {
 	return node->left == BVH_INVALID_NODE && node->right == BVH_INVALID_NODE;
 }
 
-static void bvh_check_node(const bvh* t, u32 i) {
+static void bvh_check_node (const bvh *t, u32 i) {
 #if KOHI_DEBUG
 	if (i == BVH_INVALID_NODE) {
 		return;
 	}
-	const bvh_node* n = &t->nodes[i];
+	const bvh_node *n = &t->nodes[i];
 	if (n->height == 0) {
 		KASSERT(n->left == BVH_INVALID_NODE && n->right == BVH_INVALID_NODE);
 	} else {
@@ -531,15 +531,15 @@ static void bvh_check_node(const bvh* t, u32 i) {
 #endif
 }
 
-static void bvh_recalc(bvh* t, u32 i) {
+static void bvh_recalc (bvh *t, u32 i) {
 	u32 left = t->nodes[i].left;
 	u32 right = t->nodes[i].right;
 	t->nodes[i].aabb = aabb_combine(t->nodes[left].aabb, t->nodes[right].aabb);
 	t->nodes[i].height = 1 + KMAX(t->nodes[left].height, t->nodes[right].height);
 }
 
-static u32 bvh_balance(bvh* t, u32 index_a) {
-	bvh_node* a = &t->nodes[index_a];
+static u32 bvh_balance (bvh *t, u32 index_a) {
+	bvh_node *a = &t->nodes[index_a];
 
 	// Don't try to balance leaves.
 	if (bvh_is_leaf(a)) {
@@ -552,8 +552,8 @@ static u32 bvh_balance(bvh* t, u32 index_a) {
 
 	u32 index_b = a->left;
 	u32 index_c = a->right;
-	bvh_node* b = &t->nodes[index_b];
-	bvh_node* c = &t->nodes[index_c];
+	bvh_node *b = &t->nodes[index_b];
+	bvh_node *c = &t->nodes[index_c];
 
 	i32 balance = c->height - b->height;
 
@@ -562,8 +562,8 @@ static u32 bvh_balance(bvh* t, u32 index_a) {
 		u32 index_f = c->left;
 		u32 index_g = c->right;
 		KASSERT(index_f != BVH_INVALID_NODE && index_g != BVH_INVALID_NODE);
-		bvh_node* f = &t->nodes[index_f];
-		bvh_node* g = &t->nodes[index_g];
+		bvh_node *f = &t->nodes[index_f];
+		bvh_node *g = &t->nodes[index_g];
 
 		// C becomes parent of A
 		c->parent = a->parent;
@@ -606,8 +606,8 @@ static u32 bvh_balance(bvh* t, u32 index_a) {
 		u32 index_d = b->left;
 		u32 index_e = b->right;
 		KASSERT(index_d != BVH_INVALID_NODE && index_e != BVH_INVALID_NODE);
-		bvh_node* d = &t->nodes[index_d];
-		bvh_node* e = &t->nodes[index_e];
+		bvh_node *d = &t->nodes[index_d];
+		bvh_node *e = &t->nodes[index_e];
 
 		// B becomes parent of A
 		b->parent = a->parent;
@@ -648,7 +648,7 @@ static u32 bvh_balance(bvh* t, u32 index_a) {
 	return index_a;
 }
 
-static void bvh_fix_upwards(bvh* t, u32 i) {
+static void bvh_fix_upwards (bvh *t, u32 i) {
 	/*
 	while (i != BVH_INVALID_NODE) {
 		u32 index_left = t->nodes[i].left;
@@ -679,7 +679,7 @@ static void bvh_fix_upwards(bvh* t, u32 i) {
 	}
 }
 
-static f32 calculate_cost(aabb leaf_aabb, f32 inheritance, const bvh_node* node) {
+static f32 calculate_cost (aabb leaf_aabb, f32 inheritance, const bvh_node *node) {
 	aabb a = aabb_combine(leaf_aabb, node->aabb);
 	if (bvh_is_leaf(node)) {
 		return aabb_surface_area(a) + inheritance;
@@ -688,7 +688,7 @@ static f32 calculate_cost(aabb leaf_aabb, f32 inheritance, const bvh_node* node)
 	}
 }
 
-static void bvh_insert_leaf(bvh* t, u32 leaf) {
+static void bvh_insert_leaf (bvh *t, u32 leaf) {
 	if (t->root == BVH_INVALID_NODE) {
 		t->root = leaf;
 		t->nodes[leaf].parent = BVH_INVALID_NODE;
@@ -741,7 +741,7 @@ static void bvh_insert_leaf(bvh* t, u32 leaf) {
 	bvh_fix_upwards(t, new_parent);
 }
 
-static void bvh_remove_leaf(bvh* t, u32 leaf) {
+static void bvh_remove_leaf (bvh *t, u32 leaf) {
 	if (leaf == t->root) {
 		KASSERT(t->nodes[leaf].left == BVH_INVALID_NODE);
 		KASSERT(t->nodes[leaf].right == BVH_INVALID_NODE);
@@ -770,12 +770,12 @@ static void bvh_remove_leaf(bvh* t, u32 leaf) {
 	}
 }
 
-static b8 bvh_validate_tree(const bvh* t, u32 node_id, u32 expected_parent) {
+static b8 bvh_validate_tree (const bvh *t, u32 node_id, u32 expected_parent) {
 	if (node_id == BVH_INVALID_NODE) {
 		return true;
 	}
 
-	const bvh_node* n = &t->nodes[node_id];
+	const bvh_node *n = &t->nodes[node_id];
 
 	// Check parent relationship
 	if (n->parent != expected_parent) {
@@ -812,7 +812,7 @@ static b8 bvh_validate_tree(const bvh* t, u32 node_id, u32 expected_parent) {
 	return bvh_validate_tree(t, n->left, node_id) && bvh_validate_tree(t, n->right, node_id);
 }
 
-static void bvh_validate(const bvh* t) {
+static void bvh_validate (const bvh *t) {
 #if KOHI_DEBUG
 	if (t->root != BVH_INVALID_NODE) {
 		if (!bvh_validate_tree(t, t->root, BVH_INVALID_NODE)) {
@@ -822,14 +822,14 @@ static void bvh_validate(const bvh* t) {
 #endif
 }
 
-static void bvh_validate_containment(const bvh* t, u32 node_id) {
+static void bvh_validate_containment (const bvh *t, u32 node_id) {
 	if (node_id == BVH_INVALID_NODE || bvh_is_leaf(&t->nodes[node_id])) {
 		return;
 	}
 
-	const bvh_node* n = &t->nodes[node_id];
-	const bvh_node* left = &t->nodes[n->left];
-	const bvh_node* right = &t->nodes[n->right];
+	const bvh_node *n = &t->nodes[node_id];
+	const bvh_node *left = &t->nodes[n->left];
+	const bvh_node *right = &t->nodes[n->right];
 
 	// Check if parent AABB actually contains children
 	b8 contains_left =

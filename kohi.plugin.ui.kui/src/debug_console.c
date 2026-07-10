@@ -16,10 +16,10 @@
 #include <platform/platform.h>
 #include <strings/kstring.h>
 
-static void debug_console_entry_box_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static void debug_console_entry_box_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
 
-b8 debug_console_consumer_write(void* inst, log_level level, const char* message) {
-	debug_console_state* state = (debug_console_state*)inst;
+b8 debug_console_consumer_write (void *inst, log_level level, const char *message) {
+	debug_console_state *state = (debug_console_state *)inst;
 	if (state) {
 		// Not necessarily a failure, but move on if not loaded.
 		if (!state->loaded) {
@@ -40,7 +40,7 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
 		// here because the strings need to live on so that they can
 		// be accessed by this debug console. Ordinarily a cleanup
 		// via string_cleanup_split_darray would be warranted.
-		char** split_message = darray_create(char*);
+		char **split_message = darray_create(char *);
 		u32 count = string_split(message, '\n', &split_message, true, false, false);
 		// Push each to the array as a new line.
 		for (u32 i = 0; i < count; ++i) {
@@ -55,11 +55,11 @@ b8 debug_console_consumer_write(void* inst, log_level level, const char* message
 	return true;
 }
 
-static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, event_context context) {
+static b8 debug_console_on_resize (u16 code, void *sender, void *listener_inst, event_context context) {
 	u16 width = context.data.u16[0];
 	/* u16 height = context.data.u16[1]; */
 
-	debug_console_state* state = listener_inst;
+	debug_console_state *state = listener_inst;
 	vec2 size = kui_panel_size(state->kui_state, state->bg_panel);
 	kui_panel_control_resize(state->kui_state, state->bg_panel, (vec2){width, size.y});
 
@@ -68,14 +68,14 @@ static b8 debug_console_on_resize(u16 code, void* sender, void* listener_inst, e
 	return false;
 }
 
-b8 debug_console_create(kui_state* kui_state, debug_console_state* out_console_state) {
+b8 debug_console_create (kui_state *kui_state, debug_console_state *out_console_state) {
 	if (!kui_state || !out_console_state) {
 		return false;
 	}
 
 	out_console_state->line_display_count = 10;
 	out_console_state->line_offset = 0;
-	out_console_state->lines = darray_create(char*);
+	out_console_state->lines = darray_create(char *);
 	out_console_state->visible = false;
 	out_console_state->history = darray_create(command_history_entry);
 	out_console_state->history_offset = -1;
@@ -94,7 +94,7 @@ b8 debug_console_create(kui_state* kui_state, debug_console_state* out_console_s
 	return true;
 }
 
-b8 debug_console_load(debug_console_state* state) {
+b8 debug_console_load (debug_console_state *state) {
 	if (!state) {
 		KFATAL("debug_console_load() called before console was initialized!");
 		return false;
@@ -108,7 +108,7 @@ b8 debug_console_load(debug_console_state* state) {
 	f32 width = engine_active_window_get()->width;
 
 	// Create controls.
-	kui_state* kui_state = state->kui_state;
+	kui_state *kui_state = state->kui_state;
 
 	// Background panel.
 	{
@@ -141,7 +141,7 @@ b8 debug_console_load(debug_console_state* state) {
 	return true;
 }
 
-void debug_console_unload(debug_console_state* state) {
+void debug_console_unload (debug_console_state *state) {
 	if (state) {
 		state->loaded = false;
 
@@ -162,7 +162,7 @@ void debug_console_unload(debug_console_state* state) {
 
 #define DEBUG_CONSOLE_BUFFER_LENGTH 32768
 
-void debug_console_update(debug_console_state* state) {
+void debug_console_update (debug_console_state *state) {
 	if (state && state->loaded && state->dirty) {
 		// Build one string out of several lines of console text to display in the console window.
 		// This has a limit of DEBUG_CONSOLE_BUFFER_LENGTH, which should be more than enough anyway,
@@ -183,7 +183,7 @@ void debug_console_update(debug_console_state* state) {
 		for (u32 i = min_line; i <= max_line && buffer_pos < max_buf_pos; ++i) {
 			// TODO: insert colour codes for the message type.
 
-			const char* line = state->lines[i];
+			const char *line = state->lines[i];
 			u32 line_length = string_length(line);
 			for (u32 c = 0; c < line_length && buffer_pos < max_buf_pos; c++, buffer_pos++) {
 				buffer[buffer_pos] = line[c];
@@ -203,20 +203,20 @@ void debug_console_update(debug_console_state* state) {
 	}
 }
 
-static void debug_console_entry_box_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void debug_console_entry_box_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 		/* b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT); */
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				// Keep the command in the history list.
 				command_history_entry entry = {0};
 				entry.command = string_duplicate(entry_control_text);
 				if (entry.command) {
-					debug_console_state* user_data = kui_control_get_user_data(state, self);
+					debug_console_state *user_data = kui_control_get_user_data(state, self);
 					darray_push(user_data->history, entry);
 
 					// Execute the command and clear the text.
@@ -231,7 +231,7 @@ static void debug_console_entry_box_on_key(kui_state* state, kui_control self, k
 	}
 }
 
-void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
+void debug_console_on_lib_load (debug_console_state *state, b8 update_consumer) {
 	if (update_consumer) {
 		kui_control_set_on_key(state->kui_state, state->entry_textbox, debug_console_entry_box_on_key);
 		event_register(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
@@ -239,27 +239,27 @@ void debug_console_on_lib_load(debug_console_state* state, b8 update_consumer) {
 	}
 }
 
-void debug_console_on_lib_unload(debug_console_state* state) {
+void debug_console_on_lib_unload (debug_console_state *state) {
 	kui_control_set_on_key(state->kui_state, state->entry_textbox, KNULL);
 	event_unregister(EVENT_CODE_WINDOW_RESIZED, state, debug_console_on_resize);
 	console_consumer_update(state->console_consumer_id, 0, 0);
 }
 
-kui_control debug_console_get_text(debug_console_state* state) {
+kui_control debug_console_get_text (debug_console_state *state) {
 	if (state) {
 		return state->text_control;
 	}
 	return INVALID_KUI_CONTROL;
 }
 
-kui_control debug_console_get_entry_text(debug_console_state* state) {
+kui_control debug_console_get_entry_text (debug_console_state *state) {
 	if (state) {
 		return state->entry_textbox;
 	}
 	return INVALID_KUI_CONTROL;
 }
 
-b8 debug_console_visible(debug_console_state* state) {
+b8 debug_console_visible (debug_console_state *state) {
 	if (!state) {
 		return false;
 	}
@@ -267,7 +267,7 @@ b8 debug_console_visible(debug_console_state* state) {
 	return state->visible;
 }
 
-void debug_console_visible_set(debug_console_state* state, b8 visible) {
+void debug_console_visible_set (debug_console_state *state, b8 visible) {
 	if (state) {
 		state->visible = visible;
 		kui_control_set_is_visible(state->kui_state, state->bg_panel, visible);
@@ -276,7 +276,7 @@ void debug_console_visible_set(debug_console_state* state, b8 visible) {
 	}
 }
 
-void debug_console_move_up(debug_console_state* state) {
+void debug_console_move_up (debug_console_state *state) {
 	if (state) {
 		state->dirty = true;
 		u32 line_count = darray_length(state->lines);
@@ -290,7 +290,7 @@ void debug_console_move_up(debug_console_state* state) {
 	}
 }
 
-void debug_console_move_down(debug_console_state* state) {
+void debug_console_move_down (debug_console_state *state) {
 	if (state) {
 		if (state->line_offset == 0) {
 			return;
@@ -308,7 +308,7 @@ void debug_console_move_down(debug_console_state* state) {
 	}
 }
 
-void debug_console_move_to_top(debug_console_state* state) {
+void debug_console_move_to_top (debug_console_state *state) {
 	if (state) {
 		state->dirty = true;
 		u32 line_count = darray_length(state->lines);
@@ -322,14 +322,14 @@ void debug_console_move_to_top(debug_console_state* state) {
 	}
 }
 
-void debug_console_move_to_bottom(debug_console_state* state) {
+void debug_console_move_to_bottom (debug_console_state *state) {
 	if (state) {
 		state->dirty = true;
 		state->line_offset = 0;
 	}
 }
 
-void debug_console_history_back(debug_console_state* state) {
+void debug_console_history_back (debug_console_state *state) {
 	if (state) {
 		i32 length = darray_length(state->history);
 		if (length > 0) {
@@ -340,7 +340,7 @@ void debug_console_history_back(debug_console_state* state) {
 	}
 }
 
-void debug_console_history_forward(debug_console_state* state) {
+void debug_console_history_forward (debug_console_state *state) {
 	if (state) {
 		i32 length = darray_length(state->history);
 		if (length > 0) {

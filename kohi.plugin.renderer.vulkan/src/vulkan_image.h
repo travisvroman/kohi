@@ -31,8 +31,8 @@
  * @param mip_levels The number of mip map levels to use. Default is 1.
  * @param out_image A pointer to hold the newly-created image.
  */
-void vulkan_image_create(
-	vulkan_context* context,
+void vulkan_image_create (
+	vulkan_context *context,
 	ktexture_type type,
 	u32 width,
 	u32 height,
@@ -43,9 +43,9 @@ void vulkan_image_create(
 	VkMemoryPropertyFlags memory_flags,
 	b32 create_view,
 	VkImageAspectFlags view_aspect_flags,
-	const char* name,
+	const char *name,
 	u32 mip_levels,
-	vulkan_image* out_image);
+	vulkan_image *out_image);
 
 /**
  * @brief Destroys the given image.
@@ -53,7 +53,7 @@ void vulkan_image_create(
  * @param context A pointer to the Vulkan context.
  * @param image A pointer to the image to be destroyed.
  */
-void vulkan_image_destroy(vulkan_context* context, vulkan_image* image);
+void vulkan_image_destroy (vulkan_context *context, vulkan_image *image);
 
 /**
  * @brief Destroys and recrates internal image and view resources based on current create
@@ -63,7 +63,7 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image);
  * @param context A pointer to the Vulkan context.
  * @param image A pointer to the image to be recreated.
  */
-void vulkan_image_recreate(vulkan_context* context, vulkan_image* image);
+void vulkan_image_recreate (vulkan_context *context, vulkan_image *image);
 
 /**
  * @brief Transitions the provided image from old_layout to new_layout.
@@ -75,10 +75,10 @@ void vulkan_image_recreate(vulkan_context* context, vulkan_image* image);
  * @param old_layout The old layout.
  * @param new_layout The new layout.
  */
-void vulkan_image_transition_layout(
-	vulkan_context* context,
-	vulkan_command_buffer* command_buffer,
-	vulkan_image* image,
+void vulkan_image_transition_layout (
+	vulkan_context *context,
+	vulkan_command_buffer *command_buffer,
+	vulkan_image *image,
 	VkFormat format,
 	VkImageLayout old_layout,
 	VkImageLayout new_layout);
@@ -92,10 +92,10 @@ void vulkan_image_transition_layout(
  * @param command_buffer A pointer to the command buffer to be used for this operation.
  * @returns True on success; otherwise false.
  */
-b8 vulkan_image_mipmaps_generate(
-	vulkan_context* context,
-	vulkan_image* image,
-	vulkan_command_buffer* command_buffer);
+b8 vulkan_image_mipmaps_generate (
+	vulkan_context *context,
+	vulkan_image *image,
+	vulkan_command_buffer *command_buffer);
 
 /**
  * @brief Copies data in buffer to provided image.
@@ -110,15 +110,15 @@ b8 vulkan_image_mipmaps_generate(
  * @param height The height in pixels of the area to write.
  * @param command_buffer A pointer to the command buffer to be used for this operation.
  */
-void vulkan_image_copy_from_buffer(
-	vulkan_context* context,
-	vulkan_image* image,
+void vulkan_image_copy_from_buffer (
+	vulkan_context *context,
+	vulkan_image *image,
 	VkBuffer buffer,
 	u64 buffer_size,
 	u64 buffer_offset,
 	u32 px_x, u32 px_y, i32 layer,
 	u32 width, u32 height,
-	vulkan_command_buffer* command_buffer);
+	vulkan_command_buffer *command_buffer);
 
 /**
  * @brief Copies data in the provided image to the given buffer.
@@ -128,11 +128,11 @@ void vulkan_image_copy_from_buffer(
  * @param buffer The buffer to copy to.
  * @param command_buffer The command buffer to be used for the copy.
  */
-void vulkan_image_copy_to_buffer(
-	vulkan_context* context,
-	vulkan_image* image,
+void vulkan_image_copy_to_buffer (
+	vulkan_context *context,
+	vulkan_image *image,
 	VkBuffer buffer,
-	vulkan_command_buffer* command_buffer);
+	vulkan_command_buffer *command_buffer);
 
 /**
  * @brief Copies a single pixel's data from the given image to the provided buffer.
@@ -146,12 +146,12 @@ void vulkan_image_copy_to_buffer(
  * @param height The height in pixels of the region to copy.
  * @param command_buffer The command buffer to be used for the copy.
  */
-void vulkan_image_copy_region_to_buffer(
-	vulkan_context* context,
-	vulkan_image* image,
+void vulkan_image_copy_region_to_buffer (
+	vulkan_context *context,
+	vulkan_image *image,
 	VkBuffer buffer,
 	u32 x,
 	u32 y,
 	u32 width,
 	u32 height,
-	vulkan_command_buffer* command_buffer);
+	vulkan_command_buffer *command_buffer);

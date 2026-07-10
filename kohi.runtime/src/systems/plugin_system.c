@@ -9,10 +9,10 @@
 
 typedef struct plugin_system_state {
 	// darray
-	kruntime_plugin* plugins;
+	kruntime_plugin *plugins;
 } plugin_system_state;
 
-b8 plugin_system_deserialize_config(const char* config_str, plugin_system_config* out_config) {
+b8 plugin_system_deserialize_config (const char *config_str, plugin_system_config *out_config) {
 	if (!config_str || !out_config) {
 		KERROR("plugin_system_deserialize_config requires a valid string and a pointer to hold the config.");
 		return false;
@@ -75,7 +75,7 @@ b8 plugin_system_deserialize_config(const char* config_str, plugin_system_config
 	return true;
 }
 
-void plugin_system_destroy_config(plugin_system_config* config) {
+void plugin_system_destroy_config (plugin_system_config *config) {
 	u32 len = darray_length(config->plugins);
 	for (u32 i = 0; i < len; ++i) {
 		string_free(config->plugins[i].config_str);
@@ -85,7 +85,7 @@ void plugin_system_destroy_config(plugin_system_config* config) {
 	darray_destroy(config->plugins);
 }
 
-b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* state, struct plugin_system_config* config) {
+b8 plugin_system_intialize (u64 *memory_requirement, struct plugin_system_state *state, struct plugin_system_config *config) {
 	if (!memory_requirement) {
 		return false;
 	}
@@ -101,7 +101,7 @@ b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* 
 	// Stand up all plugins in config. Don't initialize them yet, just create them.
 	u32 plugin_count = darray_length(config->plugins);
 	for (u32 i = 0; i < plugin_count; ++i) {
-		plugin_system_plugin_config* plug_config = &config->plugins[i];
+		plugin_system_plugin_config *plug_config = &config->plugins[i];
 
 		if (!plugin_system_load_plugin(state, plug_config->name, plug_config->config_str)) {
 			// Warn about it, but move on.
@@ -112,12 +112,12 @@ b8 plugin_system_intialize(u64* memory_requirement, struct plugin_system_state* 
 	return true;
 }
 
-void plugin_system_shutdown_all_plugins(struct plugin_system_state* state) {
+void plugin_system_shutdown_all_plugins (struct plugin_system_state *state) {
 	if (state) {
 		if (state->plugins) {
 			u32 plugin_count = darray_length(state->plugins);
 			for (u32 i = 0; i < plugin_count; ++i) {
-				kruntime_plugin* plugin = &state->plugins[i];
+				kruntime_plugin *plugin = &state->plugins[i];
 				if (plugin->kplugin_destroy) {
 					plugin->kplugin_destroy(plugin);
 				}
@@ -131,18 +131,18 @@ void plugin_system_shutdown_all_plugins(struct plugin_system_state* state) {
 	}
 }
 
-void plugin_system_shutdown(struct plugin_system_state* state) {
+void plugin_system_shutdown (struct plugin_system_state *state) {
 	if (state) {
 		darray_destroy(state->plugins);
 		state->plugins = 0;
 	}
 }
 
-b8 plugin_system_initialize_plugins(struct plugin_system_state* state) {
+b8 plugin_system_initialize_plugins (struct plugin_system_state *state) {
 	if (state && state->plugins) {
 		u32 plugin_count = darray_length(state->plugins);
 		for (u32 i = 0; i < plugin_count; ++i) {
-			kruntime_plugin* plugin = &state->plugins[i];
+			kruntime_plugin *plugin = &state->plugins[i];
 			// Invoke post-boot-time initialization of the plugin.
 			if (plugin->kplugin_initialize) {
 				if (!plugin->kplugin_initialize(plugin)) {
@@ -155,11 +155,11 @@ b8 plugin_system_initialize_plugins(struct plugin_system_state* state) {
 	return true;
 }
 
-b8 plugin_system_update_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data) {
+b8 plugin_system_update_plugins (struct plugin_system_state *state, struct frame_data *p_frame_data) {
 	if (state && state->plugins) {
 		u32 plugin_count = darray_length(state->plugins);
 		for (u32 i = 0; i < plugin_count; ++i) {
-			kruntime_plugin* plugin = &state->plugins[i];
+			kruntime_plugin *plugin = &state->plugins[i];
 			if (plugin->kplugin_update) {
 				if (!plugin->kplugin_update(plugin, p_frame_data)) {
 					KERROR("Plugin '%s' failed update. See logs for details.", plugin->name);
@@ -170,11 +170,11 @@ b8 plugin_system_update_plugins(struct plugin_system_state* state, struct frame_
 	return true;
 }
 
-b8 plugin_system_frame_prepare_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data) {
+b8 plugin_system_frame_prepare_plugins (struct plugin_system_state *state, struct frame_data *p_frame_data) {
 	if (state && state->plugins) {
 		u32 plugin_count = darray_length(state->plugins);
 		for (u32 i = 0; i < plugin_count; ++i) {
-			kruntime_plugin* plugin = &state->plugins[i];
+			kruntime_plugin *plugin = &state->plugins[i];
 			if (plugin->kplugin_frame_prepare) {
 				if (!plugin->kplugin_frame_prepare(plugin, p_frame_data)) {
 					KERROR("Plugin '%s' failed frame_prepare. See logs for details.", plugin->name);
@@ -185,11 +185,11 @@ b8 plugin_system_frame_prepare_plugins(struct plugin_system_state* state, struct
 	return true;
 }
 
-b8 plugin_system_render_plugins(struct plugin_system_state* state, struct frame_data* p_frame_data) {
+b8 plugin_system_render_plugins (struct plugin_system_state *state, struct frame_data *p_frame_data) {
 	if (state && state->plugins) {
 		u32 plugin_count = darray_length(state->plugins);
 		for (u32 i = 0; i < plugin_count; ++i) {
-			kruntime_plugin* plugin = &state->plugins[i];
+			kruntime_plugin *plugin = &state->plugins[i];
 			if (plugin->kplugin_render) {
 				if (!plugin->kplugin_render(plugin, p_frame_data)) {
 					KERROR("Plugin '%s' failed render. See logs for details.", plugin->name);
@@ -200,11 +200,11 @@ b8 plugin_system_render_plugins(struct plugin_system_state* state, struct frame_
 	return true;
 }
 
-b8 plugin_system_on_window_resize_plugins(struct plugin_system_state* state, struct kwindow* window, u16 width, u16 height) {
+b8 plugin_system_on_window_resize_plugins (struct plugin_system_state *state, struct kwindow *window, u16 width, u16 height) {
 	if (state && state->plugins) {
 		u32 plugin_count = darray_length(state->plugins);
 		for (u32 i = 0; i < plugin_count; ++i) {
-			kruntime_plugin* plugin = &state->plugins[i];
+			kruntime_plugin *plugin = &state->plugins[i];
 			if (plugin->kplugin_render) {
 				plugin->kplugin_on_window_resized(plugin, window, width, height);
 			}
@@ -213,9 +213,9 @@ b8 plugin_system_on_window_resize_plugins(struct plugin_system_state* state, str
 	return true;
 }
 
-static void* get_func_from_tokenized_name(dynamic_library* lib, const char* plugin_name, b8 required, const char* func_name) {
-	char* fn_name = string_format("%s_%s", plugin_name, func_name);
-	void* pfn = platform_dynamic_library_load_function(fn_name, lib);
+static void *get_func_from_tokenized_name (dynamic_library *lib, const char *plugin_name, b8 required, const char *func_name) {
+	char *fn_name = string_format("%s_%s", plugin_name, func_name);
+	void *pfn = platform_dynamic_library_load_function(fn_name, lib);
 	if (!pfn && required) {
 		KFATAL("Required function '%s' does not exist in library '%s'. Plugin load failed.", fn_name, lib->name);
 		return 0;
@@ -225,7 +225,7 @@ static void* get_func_from_tokenized_name(dynamic_library* lib, const char* plug
 	return pfn;
 }
 
-b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name, const char* config_str) {
+b8 plugin_system_load_plugin (struct plugin_system_state *state, const char *name, const char *config_str) {
 	if (!state) {
 		return false;
 	}
@@ -240,7 +240,7 @@ b8 plugin_system_load_plugin(struct plugin_system_state* state, const char* name
 	kruntime_plugin new_plugin = {0};
 	new_plugin.name = string_duplicate(name);
 
-	char* plugin_fn_prefix = string_duplicate(name);
+	char *plugin_fn_prefix = string_duplicate(name);
 	string_replace_char_all(plugin_fn_prefix, '.', '_');
 
 	// Load the plugin library.
@@ -296,14 +296,14 @@ plugin_system_load_plugin_cleanup:
 	return success;
 }
 
-kruntime_plugin* plugin_system_get(struct plugin_system_state* state, const char* name) {
+kruntime_plugin *plugin_system_get (struct plugin_system_state *state, const char *name) {
 	if (!state || !name) {
 		return 0;
 	}
 
 	u32 plugin_count = darray_length(state->plugins);
 	for (u32 i = 0; i < plugin_count; ++i) {
-		kruntime_plugin* plugin = &state->plugins[i];
+		kruntime_plugin *plugin = &state->plugins[i];
 		if (strings_equali(name, plugin->name)) {
 			return plugin;
 		}

@@ -9,8 +9,8 @@
 
 typedef struct kvar_entry {
 	kvar_types type;
-	const char* name;
-	const char* description;
+	const char *name;
+	const char *description;
 	kvar_value value;
 } kvar_entry;
 
@@ -21,11 +21,11 @@ typedef struct kvar_state {
 	kvar_entry values[KVAR_MAX_COUNT];
 } kvar_state;
 
-static kvar_state* state_ptr;
+static kvar_state *state_ptr;
 
-static void kvar_console_commands_register(kvar_state* state);
+static void kvar_console_commands_register (kvar_state *state);
 
-b8 kvar_system_initialize(u64* memory_requirement, struct kvar_state* memory, void* config) {
+b8 kvar_system_initialize (u64 *memory_requirement, struct kvar_state *memory, void *config) {
 	*memory_requirement = sizeof(kvar_state);
 
 	if (!memory) {
@@ -41,11 +41,11 @@ b8 kvar_system_initialize(u64* memory_requirement, struct kvar_state* memory, vo
 	return true;
 }
 
-void kvar_system_shutdown(struct kvar_state* state) {
+void kvar_system_shutdown (struct kvar_state *state) {
 	if (state) {
 		// Free resources.
 		for (u32 i = 0; i < KVAR_MAX_COUNT; ++i) {
-			kvar_entry* entry = &state->values[i];
+			kvar_entry *entry = &state->values[i];
 			if (entry->name) {
 				string_free(entry->name);
 			}
@@ -59,10 +59,10 @@ void kvar_system_shutdown(struct kvar_state* state) {
 	state_ptr = 0;
 }
 
-static kvar_entry* get_entry_by_name(kvar_state* state, const char* name) {
+static kvar_entry *get_entry_by_name (kvar_state *state, const char *name) {
 	// Check if kvar exists with the name.
 	for (u32 i = 0; i < KVAR_MAX_COUNT; ++i) {
-		kvar_entry* entry = &state->values[i];
+		kvar_entry *entry = &state->values[i];
 		if (entry->name && strings_equali(name, entry->name)) {
 			// Name matches, return.
 			return entry;
@@ -71,7 +71,7 @@ static kvar_entry* get_entry_by_name(kvar_state* state, const char* name) {
 
 	// No match found. Try getting a new one.
 	for (u32 i = 0; i < KVAR_MAX_COUNT; ++i) {
-		kvar_entry* entry = &state->values[i];
+		kvar_entry *entry = &state->values[i];
 		if (!entry->name) {
 			// No name means this one is free. Set its name here.
 			entry->name = string_duplicate(name);
@@ -83,7 +83,7 @@ static kvar_entry* get_entry_by_name(kvar_state* state, const char* name) {
 	return 0;
 }
 
-static b8 kvar_entry_set_desc_value(kvar_entry* entry, kvar_types type, const char* description, void* value) {
+static b8 kvar_entry_set_desc_value (kvar_entry *entry, kvar_types type, const char *description, void *value) {
 	// If a string, value will need to be freed before proceeding.
 	if (entry->type == KVAR_TYPE_STRING) {
 		if (entry->value.s) {
@@ -102,10 +102,10 @@ static b8 kvar_entry_set_desc_value(kvar_entry* entry, kvar_types type, const ch
 		entry->value.s = string_duplicate(value);
 		break;
 	case KVAR_TYPE_FLOAT:
-		entry->value.f = *((f32*)value);
+		entry->value.f = *((f32 *)value);
 		break;
 	case KVAR_TYPE_INT:
-		entry->value.i = *((i32*)value);
+		entry->value.i = *((i32 *)value);
 		break;
 	default:
 		KFATAL("Trying to set a kvar with an unknown type. This should not happen unless a new type has been added.");
@@ -124,7 +124,7 @@ static b8 kvar_entry_set_desc_value(kvar_entry* entry, kvar_types type, const ch
 	event_context context = {0};
 	context.data.custom_data.size = sizeof(kvar_change);
 	context.data.custom_data.data = kallocate(context.data.custom_data.size, MEMORY_TAG_ENGINE);
-	kvar_change* change_data = context.data.custom_data.data;
+	kvar_change *change_data = context.data.custom_data.data;
 	change_data->name = entry->name;
 	change_data->new_type = type;
 	change_data->old_type = old_type;
@@ -136,12 +136,12 @@ static b8 kvar_entry_set_desc_value(kvar_entry* entry, kvar_types type, const ch
 	return true;
 }
 
-b8 kvar_i32_get(const char* name, i32* out_value) {
+b8 kvar_i32_get (const char *name, i32 *out_value) {
 	if (!state_ptr || !name) {
 		return false;
 	}
 
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		KERROR("kvar_int_get could not find a kvar named '%s'.", name);
 		return false;
@@ -169,12 +169,12 @@ b8 kvar_i32_get(const char* name, i32* out_value) {
 	}
 }
 
-b8 kvar_i32_set(const char* name, const char* desc, i32 value) {
+b8 kvar_i32_set (const char *name, const char *desc, i32 value) {
 	if (!state_ptr || !name) {
 		return false;
 	}
 
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		return false;
 	}
@@ -187,12 +187,12 @@ b8 kvar_i32_set(const char* name, const char* desc, i32 value) {
 	return result;
 }
 
-b8 kvar_f32_get(const char* name, f32* out_value) {
+b8 kvar_f32_get (const char *name, f32 *out_value) {
 	if (!state_ptr || !name) {
 		return false;
 	}
 
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		KERROR("kvar_int_get could not find a kvar named '%s'.", name);
 		return false;
@@ -218,12 +218,12 @@ b8 kvar_f32_get(const char* name, f32* out_value) {
 	}
 }
 
-b8 kvar_f32_set(const char* name, const char* desc, f32 value) {
+b8 kvar_f32_set (const char *name, const char *desc, f32 value) {
 	if (!state_ptr || !name) {
 		return false;
 	}
 
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		return false;
 	}
@@ -236,12 +236,12 @@ b8 kvar_f32_set(const char* name, const char* desc, f32 value) {
 	return result;
 }
 
-const char* kvar_string_get(const char* name) {
+const char *kvar_string_get (const char *name) {
 	if (!state_ptr || !name) {
 		return 0;
 	}
 
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		KERROR("kvar_int_get could not find a kvar named '%s'.", name);
 		return 0;
@@ -262,12 +262,12 @@ const char* kvar_string_get(const char* name) {
 	}
 }
 
-b8 kvar_string_set(const char* name, const char* desc, const char* value) {
+b8 kvar_string_set (const char *name, const char *desc, const char *value) {
 	if (!state_ptr || !name) {
 		return false;
 	}
 
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		return false;
 	}
@@ -280,7 +280,7 @@ b8 kvar_string_set(const char* name, const char* desc, const char* value) {
 	return result;
 }
 
-static void kvar_print(kvar_entry* entry, b8 include_name) {
+static void kvar_print (kvar_entry *entry, b8 include_name) {
 	if (!entry) {
 		char name_equals[512] = {0};
 		if (include_name) {
@@ -303,14 +303,14 @@ static void kvar_print(kvar_entry* entry, b8 include_name) {
 	}
 }
 
-static void kvar_console_command_print(console_command_context context) {
+static void kvar_console_command_print (console_command_context context) {
 	if (context.argument_count != 1) {
 		KERROR("kvar_console_command_print requires a context arg count of 1.");
 		return;
 	}
 
-	const char* name = context.arguments[0].value;
-	kvar_entry* entry = get_entry_by_name(state_ptr, name);
+	const char *name = context.arguments[0].value;
+	kvar_entry *entry = get_entry_by_name(state_ptr, name);
 	if (!entry) {
 		KERROR("Unable to find kvar named '%s'.", name);
 		return;
@@ -319,7 +319,7 @@ static void kvar_console_command_print(console_command_context context) {
 	kvar_print(entry, false);
 }
 
-static void kvar_set_by_str(const char* name, const char* value_str, const char* desc, kvar_types type) {
+static void kvar_set_by_str (const char *name, const char *value_str, const char *desc, kvar_types type) {
 	switch (type) {
 	case KVAR_TYPE_INT: {
 		// Try to convert to int and set the value.
@@ -364,34 +364,34 @@ static void kvar_set_by_str(const char* name, const char* value_str, const char*
 	}
 }
 
-static void kvar_console_command_i32_set(console_command_context context) {
+static void kvar_console_command_i32_set (console_command_context context) {
 	// NOTE: argument count is verified by the console.
-	const char* name = context.arguments[0].value;
-	const char* val_str = context.arguments[1].value;
+	const char *name = context.arguments[0].value;
+	const char *val_str = context.arguments[1].value;
 	// TODO: Description support.
 	kvar_set_by_str(name, val_str, 0, KVAR_TYPE_INT);
 }
 
-static void kvar_console_command_f32_set(console_command_context context) {
+static void kvar_console_command_f32_set (console_command_context context) {
 	// NOTE: argument count is verified by the console.
-	const char* name = context.arguments[0].value;
-	const char* val_str = context.arguments[1].value;
+	const char *name = context.arguments[0].value;
+	const char *val_str = context.arguments[1].value;
 	// TODO: Description support.
 	kvar_set_by_str(name, val_str, 0, KVAR_TYPE_FLOAT);
 }
 
-static void kvar_console_command_string_set(console_command_context context) {
+static void kvar_console_command_string_set (console_command_context context) {
 	// NOTE: argument count is verified by the console.
-	const char* name = context.arguments[0].value;
-	const char* val_str = context.arguments[1].value;
+	const char *name = context.arguments[0].value;
+	const char *val_str = context.arguments[1].value;
 	// TODO: Description support.
 	kvar_set_by_str(name, val_str, 0, KVAR_TYPE_STRING);
 }
 
-static void kvar_console_command_print_all(console_command_context context) {
+static void kvar_console_command_print_all (console_command_context context) {
 	// All kvars
 	for (u32 i = 0; i < KVAR_MAX_COUNT; ++i) {
-		kvar_entry* entry = &state_ptr->values[i];
+		kvar_entry *entry = &state_ptr->values[i];
 		if (entry->name) {
 			char val_str[1024] = {0};
 			switch (entry->type) {
@@ -415,7 +415,7 @@ static void kvar_console_command_print_all(console_command_context context) {
 	}
 }
 
-static void kvar_console_commands_register(kvar_state* state) {
+static void kvar_console_commands_register (kvar_state *state) {
 	// Print a var by name.
 	console_command_register("kvar_print", 1, 1, state, kvar_console_command_print);
 	// Print all kvars.

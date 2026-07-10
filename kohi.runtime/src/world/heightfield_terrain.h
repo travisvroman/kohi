@@ -45,7 +45,7 @@
 // How many chunks per block on x and z axes
 #define HF_BLOCK_CHUNK_DIM 16
 
-#define HF_BLOCK_SIZE_WORLD HF_CHUNK_SIZE_WORLD* HF_BLOCK_CHUNK_DIM;
+#define HF_BLOCK_SIZE_WORLD HF_CHUNK_SIZE_WORLD *HF_BLOCK_CHUNK_DIM;
 
 // How many quads per block on x and z axes.
 #define HF_BLOCK_QUAD_COUNT (HF_CHUNK_QUAD_COUNT * HF_BLOCK_CHUNK_DIM)
@@ -125,7 +125,7 @@ typedef struct hf_block {
 	u16 z;
 
 	ktexture splatmap;
-	u8* splatmap_pixels;
+	u8 *splatmap_pixels;
 
 	u32 shader_instance_id;
 
@@ -145,14 +145,14 @@ typedef struct hf_terrain {
 
 	u32 vertex_count;
 	u64 base_vertex_buffer_offset;
-	hf_vertex_3d* vertices;
+	hf_vertex_3d *vertices;
 
 	extents_3d aabb;
 	// Separate AABB with greater extents on Y axis to prevent
 	// actions from getting clipped.
 	extents_3d editor_aabb;
 
-	hf_block* blocks;
+	hf_block *blocks;
 
 	// Storing a reference to the shader for convenience.
 	kshader hf_terrain_shader;
@@ -186,7 +186,7 @@ typedef struct hf_terrain_chunk_render_data {
 
 typedef struct hf_terrain_block_render_data {
 	u64 chunk_count;
-	hf_terrain_chunk_render_data* chunks;
+	hf_terrain_chunk_render_data *chunks;
 	u32 shader_instance_id;
 	ktexture splatmap;
 } hf_terrain_block_render_data;
@@ -196,7 +196,7 @@ typedef struct hf_terrain_render_data {
 	u64 index_count;
 
 	u32 block_count;
-	hf_terrain_block_render_data* blocks;
+	hf_terrain_block_render_data *blocks;
 
 	ktexture albedo_texture_array;
 	ktexture normal_texture_array;
@@ -204,30 +204,30 @@ typedef struct hf_terrain_render_data {
 
 } hf_terrain_render_data;
 
-KAPI hf_terrain hf_terrain_generate(u16 blocks_x, u16 blocks_z);
-KAPI hf_terrain hf_terrain_create_from_asset(const struct kasset_hf_terrain* asset);
+KAPI hf_terrain hf_terrain_generate (u16 blocks_x, u16 blocks_z);
+KAPI hf_terrain hf_terrain_create_from_asset (const struct kasset_hf_terrain *asset);
 
-KAPI void hf_terrain_destroy(hf_terrain* t);
+KAPI void hf_terrain_destroy (hf_terrain *t);
 
-KAPI void hf_terrain_get_render_data(const hf_terrain* t, struct frame_data* p_frame_data, hf_terrain_render_data* render_data);
+KAPI void hf_terrain_get_render_data (const hf_terrain *t, struct frame_data *p_frame_data, hf_terrain_render_data *render_data);
 
-KAPI hf_block* hf_terrain_get_block_at(const hf_terrain* t, u8 x, u8 z);
-KAPI hf_chunk* hf_terrain_block_get_chunk_at(hf_block* block, u8 x, u8 z);
+KAPI hf_block *hf_terrain_get_block_at (const hf_terrain *t, u8 x, u8 z);
+KAPI hf_chunk *hf_terrain_block_get_chunk_at (hf_block *block, u8 x, u8 z);
 
-KAPI i32 hf_terrain_chunk_get_vert_index_at(const hf_chunk* chunk, u8 x, u8 z);
+KAPI i32 hf_terrain_chunk_get_vert_index_at (const hf_chunk *chunk, u8 x, u8 z);
 
 // NOTE: recalculates ALL vertices (normals and tangents) for the entire terrain. Don't do this unless absolutely required.
-KAPI void hf_terrain_recalculate_vertices(hf_terrain* t);
+KAPI void hf_terrain_recalculate_vertices (hf_terrain *t);
 
-KAPI void hf_terrain_chunk_recalculate_vertices(hf_terrain* t, hf_chunk* chunk);
+KAPI void hf_terrain_chunk_recalculate_vertices (hf_terrain *t, hf_chunk *chunk);
 
-KAPI void hf_terrain_material_texture_set(hf_terrain* t, u8 material_index, hf_terrain_material_map map, ktexture texture);
+KAPI void hf_terrain_material_texture_set (hf_terrain *t, u8 material_index, hf_terrain_material_map map, ktexture texture);
 
 /**
  * Attempts to retrieve the terrain height at the given location. A false result means there is no terrain at that
  * location, which can mean _either_ out-of-bounds or that there is a hole in the terrain at that location.
  *
  */
-KAPI b8 hf_terrain_get_height_at(const hf_terrain* t, f32 world_x, f32 world_z, vec3* out_pos, vec3* out_normal);
+KAPI b8 hf_terrain_get_height_at (const hf_terrain *t, f32 world_x, f32 world_z, vec3 *out_pos, vec3 *out_normal);
 
-KAPI hf_vertex_3d* hf_terrain_chunk_get_closest_vertex(const hf_terrain* terrain, const hf_block* block, const hf_chunk* chunk, vec3 pos, u32* out_x, u32* out_z, i64* out_index);
+KAPI hf_vertex_3d *hf_terrain_chunk_get_closest_vertex (const hf_terrain *terrain, const hf_block *block, const hf_chunk *chunk, vec3 pos, u32 *out_x, u32 *out_z, i64 *out_index);

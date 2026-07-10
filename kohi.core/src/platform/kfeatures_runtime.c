@@ -10,7 +10,7 @@
 #		include <cpuid.h>
 #	endif
 
-void detect_x86_features(kcpu_feature_flag_bits* flags) {
+void detect_x86_features (kcpu_feature_flag_bits *flags) {
 	u32 eax, ebx, ecx, edx;
 
 #	if defined(_MSC_VER)
@@ -48,10 +48,10 @@ void detect_x86_features(kcpu_feature_flag_bits* flags) {
 #if defined(__linux__) && defined(__aarch64__)
 #	include <sys/auxv.h>
 
-void detect_arm_featurees(kcpu_feature_flags* flags) {
+void detect_arm_featurees (kcpu_feature_flags *flags) {
 	FLAG_SET(*flags, KCPU_FEATURE_FLAG_NEON_BIT, true); // Mandatory on AArch64
 }
 #else
-void detect_arm_features(kcpu_feature_flag_bits* flags) {
+void detect_arm_features (kcpu_feature_flag_bits *flags) {
 }
 #endif

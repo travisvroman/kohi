@@ -61,11 +61,11 @@ typedef struct event_context {
 			// The size of the data pointed to.
 			u64 size;
 			// A pointer to a memory block of data to be included with the event.
-			void* data;
+			void *data;
 		} custom_data;
 
 		/** @brief A free-form string. If used, should be freed by sender or listener. */
-		const char* s;
+		const char *s;
 	} data;
 } event_context;
 
@@ -78,17 +78,17 @@ typedef struct event_context {
  * @returns True if the message should be considered handled, which means that it will not
  * be sent to any other consumers; otherwise false.
  */
-typedef b8 (*PFN_on_event)(u16 code, void* sender, void* listener_inst, event_context data);
+typedef b8 (*PFN_on_event)(u16 code, void *sender, void *listener_inst, event_context data);
 
 /**
  * @brief Initializes the event system.
  */
-b8 event_system_initialize(u64* memory_requirement, void* state, void* config);
+b8 event_system_initialize (u64 *memory_requirement, void *state, void *config);
 
 /**
  * @brief Shuts the event system down.
  */
-void event_system_shutdown(void* state);
+void event_system_shutdown (void *state);
 
 /**
  * @brief Register to listen for when events are sent with the provided code. Events with duplicate
@@ -98,7 +98,7 @@ void event_system_shutdown(void* state);
  * @param on_event The callback function pointer to be invoked when the event code is fired.
  * @returns True if the event is successfully registered; otherwise false.
  */
-KAPI b8 event_register(u16 code, void* listener, PFN_on_event on_event);
+KAPI b8 event_register (u16 code, void *listener, PFN_on_event on_event);
 
 /**
  * @brief Register to listen for when a single event is sent with the provided code. Events with duplicate
@@ -110,7 +110,7 @@ KAPI b8 event_register(u16 code, void* listener, PFN_on_event on_event);
  * @param on_event The callback function pointer to be invoked when the event code is fired.
  * @returns True if the event is successfully registered; otherwise false.
  */
-KAPI b8 event_register_single(u16 code, void* listener, PFN_on_event on_event);
+KAPI b8 event_register_single (u16 code, void *listener, PFN_on_event on_event);
 
 /**
  * @brief Unregister from listening for when events are sent with the provided code. If no matching
@@ -120,7 +120,7 @@ KAPI b8 event_register_single(u16 code, void* listener, PFN_on_event on_event);
  * @param on_event The callback function pointer to be unregistered.
  * @returns True if the event is successfully unregistered; otherwise false.
  */
-KAPI b8 event_unregister(u16 code, void* listener, PFN_on_event on_event);
+KAPI b8 event_unregister (u16 code, void *listener, PFN_on_event on_event);
 
 /**
  * @brief Fires an event to listeners of the given code. If an event handler returns
@@ -130,7 +130,7 @@ KAPI b8 event_unregister(u16 code, void* listener, PFN_on_event on_event);
  * @param data The event data.
  * @returns True if handled, otherwise false.
  */
-KAPI b8 event_fire(u16 code, void* sender, event_context context);
+KAPI b8 event_fire (u16 code, void *sender, event_context context);
 
 /** @brief System internal event codes. Application should use codes beyond 255. */
 typedef enum system_event_code {

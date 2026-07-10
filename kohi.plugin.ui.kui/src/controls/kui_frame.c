@@ -27,12 +27,12 @@
 #include "math/math_types.h"
 #include "renderer/kui_renderer.h"
 
-kui_control kui_frame_control_create(kui_state* state, const char* name) {
+kui_control kui_frame_control_create (kui_state *state, const char *name) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_FRAME);
 
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 
 	// Reasonable defaults.
 	typed_control->size = (vec2i){200, 200};
@@ -75,11 +75,11 @@ kui_control kui_frame_control_create(kui_state* state, const char* name) {
 	return handle;
 }
 
-void kui_frame_control_destroy(kui_state* state, kui_control* self) {
+void kui_frame_control_destroy (kui_state *state, kui_control *self) {
 
-	kui_base_control* base = kui_system_get_base(state, *self);
+	kui_base_control *base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 	// unload
 
 	nine_slice_destroy(&typed_control->nslice);
@@ -87,10 +87,10 @@ void kui_frame_control_destroy(kui_state* state, kui_control* self) {
 	kui_base_control_destroy(state, self);
 }
 
-b8 kui_frame_control_size_set(kui_state* state, kui_control self, i32 width, i32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_frame_control_size_set (kui_state *state, kui_control self, i32 width, i32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 
 	typed_control->size.x = width;
 	typed_control->size.y = height;
@@ -104,53 +104,53 @@ b8 kui_frame_control_size_set(kui_state* state, kui_control self, i32 width, i32
 
 	return true;
 }
-b8 kui_frame_control_width_set(kui_state* state, kui_control self, i32 width) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_frame_control_width_set (kui_state *state, kui_control self, i32 width) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 	return kui_frame_control_size_set(state, self, width, typed_control->size.y);
 }
-b8 kui_frame_control_height_set(kui_state* state, kui_control self, i32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_frame_control_height_set (kui_state *state, kui_control self, i32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 	return kui_frame_control_size_set(state, self, typed_control->size.x, height);
 }
 
-void kui_frame_control_colour_set(kui_state* state, kui_control self, colour4 colour) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_frame_control_colour_set (kui_state *state, kui_control self, colour4 colour) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 	typed_control->colour = colour;
 }
 
-b8 kui_frame_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_frame_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 
 	nine_slice_render_frame_prepare(&typed_control->nslice, p_frame_data);
 
 	return true;
 }
 
-b8 kui_frame_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_frame_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!kui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
 
 	b8 is_focused = kui_system_is_control_focused(state, self);
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_frame_control* typed_control = (kui_frame_control*)base;
+	kui_frame_control *typed_control = (kui_frame_control *)base;
 
 	// Render the nine-slice.
-	nine_slice* ns = &typed_control->nslice;
+	nine_slice *ns = &typed_control->nslice;
 
 	if (ns->vertex_data.elements) {
 		kui_renderable nineslice_renderable = {0};

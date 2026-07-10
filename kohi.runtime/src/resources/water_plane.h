@@ -18,11 +18,11 @@ typedef struct water_plane {
 
 } water_plane;
 
-KAPI b8 water_plane_create(water_plane* out_plane);
-KAPI void water_plane_destroy(water_plane* plane);
+KAPI b8 water_plane_create (water_plane *out_plane);
+KAPI void water_plane_destroy (water_plane *plane);
 
-KAPI b8 water_plane_initialize(water_plane* plane);
-KAPI b8 water_plane_load(water_plane* plane);
-KAPI b8 water_plane_unload(water_plane* plane);
+KAPI b8 water_plane_initialize (water_plane *plane);
+KAPI b8 water_plane_load (water_plane *plane);
+KAPI b8 water_plane_unload (water_plane *plane);
 
-KAPI b8 water_plane_update(water_plane* plane);
+KAPI b8 water_plane_update (water_plane *plane);

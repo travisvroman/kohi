@@ -19,16 +19,16 @@
 #include "systems/asset_system.h"
 #include "systems/kmaterial_system.h"
 
-static void animator_update(kmodel_system_state* state, kmodel_animator* animator, f32 delta_time);
-static void ensure_arrays_allocated(kmodel_system_state* state, u32 new_count);
-static void ensure_instance_arrays_allocated(kmodel_base* base, u32 new_count);
-static b8 get_base_id(struct kmodel_system_state* state, kname asset_name, kname package_name, u16* out_id);
-static u16 get_new_instance_id(struct kmodel_system_state* state, u16 base_id);
-static void acquire_material_instances(struct kmodel_system_state* state, u16 base_id, u16 instance_id);
+static void animator_update (kmodel_system_state *state, kmodel_animator *animator, f32 delta_time);
+static void ensure_arrays_allocated (kmodel_system_state *state, u32 new_count);
+static void ensure_instance_arrays_allocated (kmodel_base *base, u32 new_count);
+static b8 get_base_id (struct kmodel_system_state *state, kname asset_name, kname package_name, u16 *out_id);
+static u16 get_new_instance_id (struct kmodel_system_state *state, u16 base_id);
+static void acquire_material_instances (struct kmodel_system_state *state, u16 base_id, u16 instance_id);
 
-static void animator_set_animation(kmodel_system_state* state, kmodel_animator* animator, kname name);
+static void animator_set_animation (kmodel_system_state *state, kmodel_animator *animator, kname name);
 
-b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory, const kmodel_system_config* config) {
+b8 kmodel_system_initialize (u64 *memory_requirement, kmodel_system_state *memory, const kmodel_system_config *config) {
 	*memory_requirement = sizeof(kmodel_system_state);
 
 	if (!memory) {
@@ -37,7 +37,7 @@ b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory
 
 	u32 max_instance_count = config->max_instance_count ? config->max_instance_count : 100;
 
-	kmodel_system_state* state = memory;
+	kmodel_system_state *state = memory;
 
 	state->default_application_package_name = config->default_application_package_name;
 	state->max_instance_count = max_instance_count;
@@ -52,14 +52,14 @@ b8 kmodel_system_initialize(u64* memory_requirement, kmodel_system_state* memory
 
 	// The free states of instances here are managed by a pool allocator.
 	state->shader_data_pool = pool_allocator_create(sizeof(kmodel_animation_shader_data), state->max_instance_count);
-	state->shader_data = (kmodel_animation_shader_data*)state->shader_data_pool.memory;
+	state->shader_data = (kmodel_animation_shader_data *)state->shader_data_pool.memory;
 
 	state->instance_queue = darray_create(kmodel_instance_queue_entry);
 
 	return true;
 }
 
-void kmodel_system_shutdown(kmodel_system_state* state) {
+void kmodel_system_shutdown (kmodel_system_state *state) {
 	darray_destroy(state->instance_queue);
 	for (u32 b = 0; b < state->max_mesh_count; ++b) {
 		u32 instance_count = state->models[b].instance_count;
@@ -77,7 +77,7 @@ void kmodel_system_shutdown(kmodel_system_state* state) {
 	}
 }
 
-void kmodel_system_update(kmodel_system_state* state, f32 delta_time, frame_data* p_frame_data) {
+void kmodel_system_update (kmodel_system_state *state, f32 delta_time, frame_data *p_frame_data) {
 	// Iterate all mesh instances and update thier final_bone_matrices.
 	for (u32 b = 0; b < state->max_mesh_count; ++b) {
 		u32 instance_count = state->models[b].instance_count;
@@ -88,36 +88,36 @@ void kmodel_system_update(kmodel_system_state* state, f32 delta_time, frame_data
 	}
 }
 
-void kmodel_system_frame_prepare(kmodel_system_state* state, frame_data* p_frame_data) {
+void kmodel_system_frame_prepare (kmodel_system_state *state, frame_data *p_frame_data) {
 	// Upload all of the mesh instance final_bone_matrices to the SSBO.
-	void* memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->global_animation_ssbo);
+	void *memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->global_animation_ssbo);
 
 	kcopy_memory(memory, state->shader_data, sizeof(kmodel_animation_shader_data) * state->max_instance_count);
 }
 
-void kmodel_system_time_scale(kmodel_system_state* state, f32 time_scale) {
+void kmodel_system_time_scale (kmodel_system_state *state, f32 time_scale) {
 	KASSERT_DEBUG(state);
 	state->global_time_scale = time_scale;
 }
 
-kmodel_instance kmodel_instance_acquire(struct kmodel_system_state* state, kname asset_name, PFN_animated_mesh_loaded callback, void* context) {
+kmodel_instance kmodel_instance_acquire (struct kmodel_system_state *state, kname asset_name, PFN_animated_mesh_loaded callback, void *context) {
 	return kmodel_instance_acquire_from_package(state, asset_name, state->default_application_package_name, callback, context);
 }
 
 typedef struct animated_mesh_asset_request_listener {
-	kmodel_system_state* state;
+	kmodel_system_state *state;
 	u16 base_id;
 } animated_mesh_asset_request_listener;
 
-static void kasset_model_loaded(void* listener, kasset_model* asset) {
-	animated_mesh_asset_request_listener* typed_listener = (animated_mesh_asset_request_listener*)listener;
+static void kasset_model_loaded (void *listener, kasset_model *asset) {
+	animated_mesh_asset_request_listener *typed_listener = (animated_mesh_asset_request_listener *)listener;
 	KDEBUG("%s - model loaded", __FUNCTION__);
 
-	kmodel_system_state* state = typed_listener->state;
+	kmodel_system_state *state = typed_listener->state;
 	u16 base_id = typed_listener->base_id;
 
 	// Base mesh setup.
-	kmodel_base* base = &state->models[base_id];
+	kmodel_base *base = &state->models[base_id];
 	base->global_inverse_transform = asset->global_inverse_transform;
 
 	// NOTE: All these copies are here because the asset and state types here might diverge at some point.
@@ -126,8 +126,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 	if (base->bone_count) {
 		base->bones = KALLOC_TYPE_CARRAY(kmodel_bone, base->bone_count);
 		for (u32 i = 0; i < base->bone_count; ++i) {
-			kasset_model_bone* source = &asset->bones[i];
-			kmodel_bone* target = &base->bones[i];
+			kasset_model_bone *source = &asset->bones[i];
+			kmodel_bone *target = &base->bones[i];
 			target->id = source->id;
 			target->name = source->name;
 			target->offset = source->offset;
@@ -138,8 +138,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 	if (base->node_count) {
 		base->nodes = KALLOC_TYPE_CARRAY(kmodel_node, base->node_count);
 		for (u32 i = 0; i < base->node_count; ++i) {
-			kasset_model_node* source = &asset->nodes[i];
-			kmodel_node* target = &base->nodes[i];
+			kasset_model_node *source = &asset->nodes[i];
+			kmodel_node *target = &base->nodes[i];
 
 			target->name = source->name;
 			/* KTRACE("node: '%k'", target->name); */
@@ -162,8 +162,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 
 		base->animations = KALLOC_TYPE_CARRAY(kmodel_animation, base->animation_count);
 		for (u32 i = 0; i < base->animation_count; ++i) {
-			kasset_model_animation* source = &asset->animations[i];
-			kmodel_animation* target = &base->animations[i];
+			kasset_model_animation *source = &asset->animations[i];
+			kmodel_animation *target = &base->animations[i];
 
 			target->name = source->name;
 			KTRACE(kname_string_get(target->name));
@@ -175,8 +175,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 				target->channels = KALLOC_TYPE_CARRAY(kmodel_channel, target->channel_count);
 
 				for (u32 c = 0; c < target->channel_count; c++) {
-					kasset_model_channel* sc = &source->channels[c];
-					kmodel_channel* tc = &target->channels[c];
+					kasset_model_channel *sc = &source->channels[c];
+					kmodel_channel *tc = &target->channels[c];
 
 					tc->name = sc->name;
 					tc->pos_count = sc->pos_count;
@@ -208,7 +208,7 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 		}
 	}
 
-	struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 	krenderbuffer standard_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
@@ -219,8 +219,8 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 
 		base->meshes = KALLOC_TYPE_CARRAY(kmodel_submesh, base->submesh_count);
 		for (u32 i = 0; i < base->submesh_count; ++i) {
-			kmodel_submesh* target = &base->meshes[i];
-			kasset_model_submesh_data* source = &asset->submeshes[i];
+			kmodel_submesh *target = &base->meshes[i];
+			kasset_model_submesh_data *source = &asset->submeshes[i];
 
 			target->name = source->name;
 			target->material_name = source->material_name;
@@ -245,7 +245,7 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 			vec3 max_pos = vec3_create(-99999999.9f, -99999999.9f, -99999999.9f);
 
 			for (u32 v = 0; v < target->geo.vertex_count; ++v) {
-				vec3* position = (vec3*)(((u8*)source->vertices) + (target->geo.vertex_element_size * v));
+				vec3 *position = (vec3 *)(((u8 *)source->vertices) + (target->geo.vertex_element_size * v));
 				min_pos = vec3_min(min_pos, *position);
 				max_pos = vec3_max(max_pos, *position);
 			}
@@ -315,19 +315,19 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 
 	// Setup queued instances.
 	for (u16 i = 0; i < darray_length(state->instance_queue);) {
-		kmodel_instance_queue_entry* entry = &state->instance_queue[i];
+		kmodel_instance_queue_entry *entry = &state->instance_queue[i];
 		if (entry->base_mesh_id == typed_listener->base_id) {
 
 			u16 instance_id = entry->instance_id;
 
 			// Instance setup.
-			kmodel_instance_data* instance = &state->models[base_id].instances[instance_id];
+			kmodel_instance_data *instance = &state->models[base_id].instances[instance_id];
 
 			acquire_material_instances(state, base_id, instance_id);
 
 			// For animated models, alloc shader data from the animation SSBO.
 			if (base->type == KMODEL_TYPE_ANIMATED) {
-				kmodel_animator* animator = &instance->animator;
+				kmodel_animator *animator = &instance->animator;
 				animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
 				animator->time_scale = 1.0f; // Always default time scale to 1.0f
 				animator->max_bones = base->bone_count;
@@ -364,13 +364,13 @@ static void kasset_model_loaded(void* listener, kasset_model* asset) {
 	KFREE_TYPE(listener, animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
 }
 
-static void acquire_material_instances(struct kmodel_system_state* state, u16 base_id, u16 instance_id) {
+static void acquire_material_instances (struct kmodel_system_state *state, u16 base_id, u16 instance_id) {
 	if (state->states[base_id] != KMODEL_STATE_LOADED) {
 		return;
 	}
 
-	kmodel_base* base = &state->models[base_id];
-	kmodel_instance_data* instance = &base->instances[instance_id];
+	kmodel_base *base = &state->models[base_id];
+	kmodel_instance_data *instance = &base->instances[instance_id];
 
 	// Only do this for acquired instances.
 	if (instance->state == KMODEL_INSTANCE_STATE_ACQUIRED) {
@@ -379,7 +379,7 @@ static void acquire_material_instances(struct kmodel_system_state* state, u16 ba
 
 			// Acquire material instances.
 			for (u32 i = 0; i < base->submesh_count; ++i) {
-				kmodel_submesh* mesh = &base->meshes[i];
+				kmodel_submesh *mesh = &base->meshes[i];
 				if (!kmaterial_system_acquire(engine_systems_get()->material_system, mesh->material_name, &instance->materials[i])) {
 					KERROR("Failed to get material '%s' for model submesh '%s'.", kname_string_get(mesh->material_name), kname_string_get(mesh->name));
 					// TODO: Should this just use the default material instead?
@@ -389,7 +389,7 @@ static void acquire_material_instances(struct kmodel_system_state* state, u16 ba
 	}
 }
 
-kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state* state, kname asset_name, kname package_name, PFN_animated_mesh_loaded callback, void* context) {
+kmodel_instance kmodel_instance_acquire_from_package (struct kmodel_system_state *state, kname asset_name, kname package_name, PFN_animated_mesh_loaded callback, void *context) {
 	KASSERT_MSG(state, "State is required, ya dingus");
 
 	// Obtain a unique id for lookup into the resource arrays.
@@ -402,7 +402,7 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 	// If the base didn't exist, will need to kick off an asset load.
 	if (!exists) {
 		KTRACE("Base mesh for '%k' does NOT already exist. Loading...", asset_name);
-		animated_mesh_asset_request_listener* listener = KALLOC_TYPE(animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
+		animated_mesh_asset_request_listener *listener = KALLOC_TYPE(animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
 		listener->state = state;
 		listener->base_id = base_id;
 
@@ -415,7 +415,7 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 		darray_push(state->instance_queue, new_entry);
 
 		// Kick off async asset load via the asset system.
-		kasset_model* asset = asset_system_request_model_from_package(
+		kasset_model *asset = asset_system_request_model_from_package(
 			engine_systems_get()->asset_state,
 			kname_string_get(package_name),
 			kname_string_get(asset_name),
@@ -425,14 +425,14 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 	} else {
 		KTRACE("Base mesh for '%k' already exists (%u). Getting new instance.", asset_name, base_id);
 		// Base mesh already exists, just need to get material instances.
-		kmodel_base* base = &state->models[base_id];
-		kmodel_instance_data* instance = &state->models[base_id].instances[instance_id];
+		kmodel_base *base = &state->models[base_id];
+		kmodel_instance_data *instance = &state->models[base_id].instances[instance_id];
 
 		acquire_material_instances(state, base_id, instance_id);
 
 		// For animated models, alloc shader data from the animation SSBO.
 		if (base->type == KMODEL_TYPE_ANIMATED) {
-			kmodel_animator* animator = &instance->animator;
+			kmodel_animator *animator = &instance->animator;
 			animator->shader_data = pool_allocator_allocate(&state->shader_data_pool, &animator->shader_data_index);
 			animator->time_scale = 1.0f; // Always default time scale to 1.0f
 			animator->max_bones = base->bone_count;
@@ -470,8 +470,8 @@ kmodel_instance kmodel_instance_acquire_from_package(struct kmodel_system_state*
 		.instance = instance_id};
 }
 
-static u16 get_active_instance_count(struct kmodel_system_state* state, u16 base_id) {
-	kmodel_base* base = &state->models[base_id];
+static u16 get_active_instance_count (struct kmodel_system_state *state, u16 base_id) {
+	kmodel_base *base = &state->models[base_id];
 
 	u16 count = 0;
 	for (u32 i = 0; i < base->instance_count; ++i) {
@@ -483,13 +483,13 @@ static u16 get_active_instance_count(struct kmodel_system_state* state, u16 base
 }
 
 // NOTE: Also releases held material instances.
-void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance* instance) {
+void kmodel_instance_release (struct kmodel_system_state *state, kmodel_instance *instance) {
 	if (instance->instance == INVALID_ID_U16 || instance->base_mesh == INVALID_ID_U16) {
 		KERROR("Tried to release a kmodel instance with an invalid base/instance id.");
 		return;
 	}
-	kmodel_base* base = &state->models[instance->base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance->instance];
+	kmodel_base *base = &state->models[instance->base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance->instance];
 
 	u16 submesh_count = base->submesh_count;
 	if (inst->materials) {
@@ -498,7 +498,7 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 		}
 	}
 
-	kmodel_animator* animator = &inst->animator;
+	kmodel_animator *animator = &inst->animator;
 
 	if (animator->shader_data) {
 		pool_allocator_free(&state->shader_data_pool, animator->shader_data);
@@ -528,14 +528,14 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 		base->asset_name = INVALID_KNAME;
 		base->package_name = INVALID_KNAME;
 
-		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+		struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 		krenderbuffer standard_vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 		krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 		// Unload submeshes from GPU.
 		if (base->meshes && base->submesh_count) {
 			for (u32 i = 0; i < base->submesh_count; ++i) {
-				kmodel_submesh* m = &base->meshes[i];
+				kmodel_submesh *m = &base->meshes[i];
 
 				u64 standard_vert_buf_size = m->geo.vertex_element_size * m->geo.vertex_count;
 				if (!renderer_renderbuffer_free(renderer_system, standard_vertex_buffer, standard_vert_buf_size, m->geo.vertex_buffer_offset)) {
@@ -559,11 +559,11 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 		// Cleanup animations.
 		if (base->animation_count && base->animations) {
 			for (u32 i = 0; i < base->animation_count; ++i) {
-				kmodel_animation* anim = &base->animations[i];
+				kmodel_animation *anim = &base->animations[i];
 
 				if (anim->channels && anim->channel_count) {
 					for (u32 c = 0; c < anim->channel_count; c++) {
-						kmodel_channel* ch = &anim->channels[c];
+						kmodel_channel *ch = &anim->channels[c];
 
 						if (ch->pos_count && ch->positions) {
 							KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
@@ -589,7 +589,7 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 
 		if (base->node_count && base->nodes) {
 			for (u32 i = 0; i < base->node_count; ++i) {
-				kmodel_node* node = &base->nodes[i];
+				kmodel_node *node = &base->nodes[i];
 
 				if (node->child_count && node->children) {
 					KFREE_TYPE_CARRAY(node->children, u16, node->child_count);
@@ -614,7 +614,7 @@ void kmodel_instance_release(struct kmodel_system_state* state, kmodel_instance*
 	instance->instance = INVALID_ID_U16;
 }
 
-b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance instance, const ray* r, mat4 world, raycast_hit* out_hit) {
+b8 kmodel_ray_intersects (struct kmodel_system_state *state, kmodel_instance instance, const ray *r, mat4 world, raycast_hit *out_hit) {
 	if (!state || instance.base_mesh == INVALID_ID_U16) {
 		return false;
 	}
@@ -626,7 +626,7 @@ b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance inst
 	mat4 world_inv = mat4_inverse(world);
 
 	for (u32 i = 0; i < count; ++i) {
-		kmodel_submesh* mesh = &state->models[instance.base_mesh].meshes[i];
+		kmodel_submesh *mesh = &state->models[instance.base_mesh].meshes[i];
 		triangle picked;
 		vec3 pos;
 		vec3 normal;
@@ -655,7 +655,7 @@ b8 kmodel_ray_intersects(struct kmodel_system_state* state, kmodel_instance inst
 	return false;
 }
 
-b8 kmodel_submesh_count_get(struct kmodel_system_state* state, u16 base_mesh_id, u16* out_count) {
+b8 kmodel_submesh_count_get (struct kmodel_system_state *state, u16 base_mesh_id, u16 *out_count) {
 	if (!state || base_mesh_id == INVALID_ID_U16) {
 		return false;
 	}
@@ -663,26 +663,26 @@ b8 kmodel_submesh_count_get(struct kmodel_system_state* state, u16 base_mesh_id,
 	return true;
 }
 
-b8 kmodel_is_loaded(struct kmodel_system_state* state, u16 base_mesh_id) {
+b8 kmodel_is_loaded (struct kmodel_system_state *state, u16 base_mesh_id) {
 	return state->states[base_mesh_id] == KMODEL_STATE_LOADED;
 }
 
-const kgeometry* kmodel_submesh_geometry_get_at(struct kmodel_system_state* state, u16 base_mesh_id, u16 index) {
+const kgeometry *kmodel_submesh_geometry_get_at (struct kmodel_system_state *state, u16 base_mesh_id, u16 index) {
 	return &state->models[base_mesh_id].meshes[index].geo;
 }
 
-const kmaterial_instance* kmodel_submesh_material_instance_get_at(struct kmodel_system_state* state, kmodel_instance instance, u16 index) {
+const kmaterial_instance *kmodel_submesh_material_instance_get_at (struct kmodel_system_state *state, kmodel_instance instance, u16 index) {
 	return &state->models[instance.base_mesh].instances[instance.instance].materials[index];
 }
 
 // NOTE: Returns dynamic array, needs to be freed by caller.
-kname* kmodel_query_animations(struct kmodel_system_state* state, u16 base_mesh, u32* out_count) {
+kname *kmodel_query_animations (struct kmodel_system_state *state, u16 base_mesh, u32 *out_count) {
 	u32 count = state->models[base_mesh].animation_count;
 	if (!count) {
 		return KNULL;
 	}
 
-	kname* anim_names = KALLOC_TYPE_CARRAY(kname, count);
+	kname *anim_names = KALLOC_TYPE_CARRAY(kname, count);
 	for (u32 i = 0; i < count; ++i) {
 		anim_names[i] = state->models[base_mesh].animations[i].name;
 	}
@@ -691,10 +691,10 @@ kname* kmodel_query_animations(struct kmodel_system_state* state, u16 base_mesh,
 	return anim_names;
 }
 
-void kmodel_instance_animation_set(struct kmodel_system_state* state, kmodel_instance instance, kname animation_name) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+void kmodel_instance_animation_set (struct kmodel_system_state *state, kmodel_instance instance, kname animation_name) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 
 	animator_set_animation(state, animator, animation_name);
 
@@ -710,31 +710,31 @@ void kmodel_instance_animation_set(struct kmodel_system_state* state, kmodel_ins
 	}
 }
 
-u32 kmodel_instance_animation_id_get(struct kmodel_system_state* state, kmodel_instance instance) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+u32 kmodel_instance_animation_id_get (struct kmodel_system_state *state, kmodel_instance instance) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 
 	return animator->shader_data_index;
 }
 
-void kmodel_instance_time_scale_set(kmodel_system_state* state, kmodel_instance instance, f32 time_scale) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+void kmodel_instance_time_scale_set (kmodel_system_state *state, kmodel_instance instance, f32 time_scale) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 	animator->time_scale = time_scale;
 }
 
-void kmodel_instance_loop_set(struct kmodel_system_state* state, kmodel_instance instance, b8 loop) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+void kmodel_instance_loop_set (struct kmodel_system_state *state, kmodel_instance instance, b8 loop) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 	animator->loop = loop;
 }
-void kmodel_instance_play(struct kmodel_system_state* state, kmodel_instance instance) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+void kmodel_instance_play (struct kmodel_system_state *state, kmodel_instance instance) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 	if (animator->current_animation != INVALID_ID_U16) {
 		animator->state = KMODEL_ANIMATOR_STATE_PLAYING;
 	} else {
@@ -742,10 +742,10 @@ void kmodel_instance_play(struct kmodel_system_state* state, kmodel_instance ins
 		animator->state = KMODEL_ANIMATOR_STATE_STOPPED;
 	}
 }
-void kmodel_instance_pause(struct kmodel_system_state* state, kmodel_instance instance) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+void kmodel_instance_pause (struct kmodel_system_state *state, kmodel_instance instance) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 	if (animator->current_animation != INVALID_ID_U16) {
 		animator->state = KMODEL_ANIMATOR_STATE_PAUSED;
 	} else {
@@ -753,18 +753,18 @@ void kmodel_instance_pause(struct kmodel_system_state* state, kmodel_instance in
 		animator->state = KMODEL_ANIMATOR_STATE_STOPPED;
 	}
 }
-void kmodel_instance_stop(struct kmodel_system_state* state, kmodel_instance instance) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
+void kmodel_instance_stop (struct kmodel_system_state *state, kmodel_instance instance) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
 	animator->state = KMODEL_ANIMATOR_STATE_STOPPED;
 	animator->time_in_ticks = 0.0f;
 }
-void kmodel_instance_seek(struct kmodel_system_state* state, kmodel_instance instance, f32 time) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
-	kmodel_animation* current = &base->animations[animator->current_animation];
+void kmodel_instance_seek (struct kmodel_system_state *state, kmodel_instance instance, f32 time) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
+	kmodel_animation *current = &base->animations[animator->current_animation];
 	f32 ticks_per_second = current->ticks_per_second;
 
 	// Wrap around.
@@ -777,18 +777,18 @@ void kmodel_instance_seek(struct kmodel_system_state* state, kmodel_instance ins
 	}
 }
 
-void kmodel_instance_seek_percent(struct kmodel_system_state* state, kmodel_instance instance, f32 percent) {
-	kmodel_base* base = &state->models[instance.base_mesh];
-	kmodel_instance_data* inst = &base->instances[instance.instance];
-	kmodel_animator* animator = &inst->animator;
-	kmodel_animation* current = &base->animations[animator->current_animation];
+void kmodel_instance_seek_percent (struct kmodel_system_state *state, kmodel_instance instance, f32 percent) {
+	kmodel_base *base = &state->models[instance.base_mesh];
+	kmodel_instance_data *inst = &base->instances[instance.instance];
+	kmodel_animator *animator = &inst->animator;
+	kmodel_animation *current = &base->animations[animator->current_animation];
 	f32 clamped_pct = KCLAMP(percent, 0, 1.0f);
 	f32 time = current->duration * clamped_pct;
 
 	kmodel_instance_seek(state, instance, time);
 }
 
-static kmodel_channel* kanimation_find_channel(kmodel_animation* animation, kname node_name) {
+static kmodel_channel *kanimation_find_channel (kmodel_animation *animation, kname node_name) {
 	for (u32 i = 0; i < animation->channel_count; ++i) {
 		if (animation->channels[i].name == node_name) {
 			return &animation->channels[i];
@@ -797,7 +797,7 @@ static kmodel_channel* kanimation_find_channel(kmodel_animation* animation, knam
 	return 0;
 }
 
-static u32 base_find_node_index(kmodel_base* base, kname name) {
+static u32 base_find_node_index (kmodel_base *base, kname name) {
 	for (u32 i = 0; i < base->node_count; ++i) {
 		if (base->nodes[i].name == name) {
 			return i;
@@ -807,7 +807,7 @@ static u32 base_find_node_index(kmodel_base* base, kname name) {
 	return INVALID_ID;
 }
 
-static u32 base_find_bone_index(kmodel_base* base, kname name) {
+static u32 base_find_bone_index (kmodel_base *base, kname name) {
 	for (u32 i = 0; i < base->bone_count; ++i) {
 		if (base->bones[i].name == name) {
 			return i;
@@ -817,7 +817,7 @@ static u32 base_find_bone_index(kmodel_base* base, kname name) {
 	return INVALID_ID;
 }
 
-static vec3 interpolate_position(const kmodel_channel* channel, f32 time) {
+static vec3 interpolate_position (const kmodel_channel *channel, f32 time) {
 	if (!channel->pos_count) {
 		return vec3_zero();
 	}
@@ -839,7 +839,7 @@ static vec3 interpolate_position(const kmodel_channel* channel, f32 time) {
 	return vec3_lerp(channel->positions[idx].value, channel->positions[idx + 1].value, factor);
 }
 
-static quat interpolate_rotation(const kmodel_channel* channel, f32 time) {
+static quat interpolate_rotation (const kmodel_channel *channel, f32 time) {
 	if (!channel->rot_count) {
 		return quat_identity();
 	}
@@ -861,7 +861,7 @@ static quat interpolate_rotation(const kmodel_channel* channel, f32 time) {
 	return quat_slerp(channel->rotations[idx].value, channel->rotations[idx + 1].value, factor);
 }
 
-static vec3 interpolate_scale(const kmodel_channel* channel, f32 time) {
+static vec3 interpolate_scale (const kmodel_channel *channel, f32 time) {
 	if (!channel->scale_count) {
 		return vec3_zero();
 	}
@@ -883,18 +883,18 @@ static vec3 interpolate_scale(const kmodel_channel* channel, f32 time) {
 	return vec3_lerp(channel->scales[idx].value, channel->scales[idx + 1].value, factor);
 }
 
-static void process_animator(
-	kmodel_system_state* state,
-	kmodel_animator* animator,
-	kmodel_animation* animation,
+static void process_animator (
+	kmodel_system_state *state,
+	kmodel_animator *animator,
+	kmodel_animation *animation,
 	u32 node_index,
 	const mat4 parent_transform) {
 
-	kmodel_base* asset = &state->models[animator->base];
-	kmodel_node* node = &asset->nodes[node_index];
+	kmodel_base *asset = &state->models[animator->base];
+	kmodel_node *node = &asset->nodes[node_index];
 	mat4 node_transform = node->local_transform;
 
-	kmodel_channel* channel = kanimation_find_channel(animation, node->name);
+	kmodel_channel *channel = kanimation_find_channel(animation, node->name);
 	if (channel) {
 		vec3 translation = interpolate_position(channel, animator->time_in_ticks);
 		quat rotation = interpolate_rotation(channel, animator->time_in_ticks);
@@ -918,7 +918,7 @@ static void process_animator(
 	}
 }
 
-static void animator_create(kmodel_base* asset, kmodel_animator* out_animator) {
+static void animator_create (kmodel_base *asset, kmodel_animator *out_animator) {
 	out_animator->base = asset->id;
 	out_animator->current_animation = (asset->animation_count > 0) ? 0 : INVALID_ID_U16;
 	out_animator->current_animation_name = (asset->animation_count > 0) ? asset->animations[0].name : INVALID_KNAME;
@@ -929,9 +929,9 @@ static void animator_create(kmodel_base* asset, kmodel_animator* out_animator) {
 	}
 }
 
-static void animator_set_animation(kmodel_system_state* state, kmodel_animator* animator, kname name) {
+static void animator_set_animation (kmodel_system_state *state, kmodel_animator *animator, kname name) {
 	if (animator->current_animation_name != name) {
-		kmodel_base* base = &state->models[animator->base];
+		kmodel_base *base = &state->models[animator->base];
 		u32 count = base->animation_count;
 		for (u32 i = 0; i < count; ++i) {
 			if (base->animations[i].name == name) {
@@ -945,7 +945,7 @@ static void animator_set_animation(kmodel_system_state* state, kmodel_animator* 
 	}
 }
 
-static void animator_update(kmodel_system_state* state, kmodel_animator* animator, f32 delta_time) {
+static void animator_update (kmodel_system_state *state, kmodel_animator *animator, f32 delta_time) {
 	if (animator->current_animation == INVALID_ID_U16) {
 		return;
 	}
@@ -953,8 +953,8 @@ static void animator_update(kmodel_system_state* state, kmodel_animator* animato
 	if (animator->state != KMODEL_ANIMATOR_STATE_PLAYING) {
 		return;
 	}
-	kmodel_base* base = &state->models[animator->base];
-	kmodel_animation* current = &base->animations[animator->current_animation];
+	kmodel_base *base = &state->models[animator->base];
+	kmodel_animation *current = &base->animations[animator->current_animation];
 	f32 ticks_per_second = current->ticks_per_second;
 	f32 time_scale = state->global_time_scale * animator->time_scale;
 	f32 delta_ticks = delta_time * time_scale * ticks_per_second;
@@ -985,7 +985,7 @@ static void animator_update(kmodel_system_state* state, kmodel_animator* animato
 	}
 
 	// Process the hierarchy starting at the root.
-	kmodel_base* asset = &state->models[animator->base];
+	kmodel_base *asset = &state->models[animator->base];
 	for (u32 i = 0; i < base->node_count; ++i) {
 		if (base->nodes[i].parent_index == INVALID_ID_U16) {
 			process_animator(state, animator, current, i, asset->global_inverse_transform);
@@ -993,8 +993,8 @@ static void animator_update(kmodel_system_state* state, kmodel_animator* animato
 	}
 }
 
-static void animator_get_bone_transforms(kmodel_system_state* state, kmodel_animator* animator, u32 count, mat4* out_transforms) {
-	kmodel_base* base = &state->models[animator->base];
+static void animator_get_bone_transforms (kmodel_system_state *state, kmodel_animator *animator, u32 count, mat4 *out_transforms) {
+	kmodel_base *base = &state->models[animator->base];
 	u32 n = base->bone_count;
 	if (count < n) {
 		n = count;
@@ -1005,7 +1005,7 @@ static void animator_get_bone_transforms(kmodel_system_state* state, kmodel_anim
 	}
 }
 
-static void ensure_arrays_allocated(kmodel_system_state* state, u32 new_count) {
+static void ensure_arrays_allocated (kmodel_system_state *state, u32 new_count) {
 	KASSERT_DEBUG(state);
 	KASSERT_DEBUG(new_count);
 
@@ -1014,7 +1014,7 @@ static void ensure_arrays_allocated(kmodel_system_state* state, u32 new_count) {
 	state->max_mesh_count = new_count;
 }
 
-static void ensure_instance_arrays_allocated(kmodel_base* base, u32 new_count) {
+static void ensure_instance_arrays_allocated (kmodel_base *base, u32 new_count) {
 	KASSERT_DEBUG(base);
 	KASSERT_DEBUG(new_count);
 
@@ -1023,10 +1023,10 @@ static void ensure_instance_arrays_allocated(kmodel_base* base, u32 new_count) {
 }
 
 // Returns true if already exists; otherwise false.
-static b8 get_base_id(struct kmodel_system_state* state, kname asset_name, kname package_name, u16* out_id) {
+static b8 get_base_id (struct kmodel_system_state *state, kname asset_name, kname package_name, u16 *out_id) {
 	// Search for currently loaded/existing assets for a match first.
 	for (u32 i = 0; i < state->max_mesh_count; ++i) {
-		kmodel_base* base = &state->models[i];
+		kmodel_base *base = &state->models[i];
 		if (base->asset_name == asset_name && base->package_name == package_name) {
 			*out_id = (u16)i;
 			return true;
@@ -1052,7 +1052,7 @@ static b8 get_base_id(struct kmodel_system_state* state, kname asset_name, kname
 
 	state->states[id] = KMODEL_STATE_ACQUIRED;
 
-	kmodel_base* new_base = &state->models[id];
+	kmodel_base *new_base = &state->models[id];
 	new_base->asset_name = asset_name;
 	new_base->package_name = package_name;
 	new_base->id = id;
@@ -1061,8 +1061,8 @@ static b8 get_base_id(struct kmodel_system_state* state, kname asset_name, kname
 	return false;
 }
 
-static u16 get_new_instance_id(struct kmodel_system_state* state, u16 base_id) {
-	kmodel_base* base = &state->models[base_id];
+static u16 get_new_instance_id (struct kmodel_system_state *state, u16 base_id) {
+	kmodel_base *base = &state->models[base_id];
 
 	u16 id = INVALID_ID_U16;
 	for (u16 i = 0; i < base->instance_count; ++i) {
@@ -1079,10 +1079,10 @@ static u16 get_new_instance_id(struct kmodel_system_state* state, u16 base_id) {
 		ensure_instance_arrays_allocated(base, base->instance_count + 1); // TODO: optimize growth size.
 	}
 
-	kmodel_instance_data* inst = &base->instances[id];
+	kmodel_instance_data *inst = &base->instances[id];
 	inst->state = KMODEL_INSTANCE_STATE_ACQUIRED;
 
-	kmodel_animator* animator = &inst->animator;
+	kmodel_animator *animator = &inst->animator;
 	animator->base = base_id;
 	animator->current_animation = INVALID_ID_U16;
 

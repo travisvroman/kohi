@@ -13,13 +13,13 @@
 
 #define SHADER_ASSET_VERSION 1
 
-const char* kasset_shader_serialize(const kasset_shader* asset) {
+const char *kasset_shader_serialize (const kasset_shader *asset) {
 	if (!asset) {
 		KERROR("kasset_shader_serialize requires an asset to serialize, ya dingus!");
 		return 0;
 	}
 
-	kasset_shader* typed_asset = (kasset_shader*)asset;
+	kasset_shader *typed_asset = (kasset_shader *)asset;
 
 	// Validate that there are actual stages, because these are required.
 	if (!typed_asset->pipelines || !typed_asset->pipeline_count || !typed_asset->pipelines[0].stage_count) {
@@ -27,7 +27,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 		return 0;
 	}
 
-	const char* out_str = 0;
+	const char *out_str = 0;
 
 	// Setup the KSON tree to serialize below.
 	kson_tree tree = {0};
@@ -101,7 +101,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 	if (typed_asset->colour_attachment_count) {
 		kson_array colour_attachments_array = kson_array_create();
 		for (u8 i = 0; i < typed_asset->colour_attachment_count; ++i) {
-			kasset_shader_attachment* att = &typed_asset->colour_attachments[i];
+			kasset_shader_attachment *att = &typed_asset->colour_attachments[i];
 
 			kson_object att_obj = kson_object_create();
 			if (att->name) {
@@ -117,7 +117,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 
 	// Depth attachment
 	if (typed_asset->depth_attachment.format != KPIXEL_FORMAT_UNKNOWN) {
-		kasset_shader_attachment* att = &typed_asset->depth_attachment;
+		kasset_shader_attachment *att = &typed_asset->depth_attachment;
 		kson_object att_obj = kson_object_create();
 		if (att->name) {
 			kson_object_value_add_string(&att_obj, "name", att->name);
@@ -129,7 +129,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 
 	// Stencil attachment
 	if (typed_asset->stencil_attachment.format != KPIXEL_FORMAT_UNKNOWN) {
-		kasset_shader_attachment* att = &typed_asset->stencil_attachment;
+		kasset_shader_attachment *att = &typed_asset->stencil_attachment;
 		kson_object att_obj = kson_object_create();
 		if (att->name) {
 			kson_object_value_add_string(&att_obj, "name", att->name);
@@ -144,7 +144,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 	// Vertex layout pipelines
 	kson_array pipelines_array = kson_array_create();
 	for (u8 pi = 0; pi < typed_asset->pipeline_count; ++pi) {
-		kasset_shader_pipeline* pipeline = &typed_asset->pipelines[pi];
+		kasset_shader_pipeline *pipeline = &typed_asset->pipelines[pi];
 
 		kson_object pipeline_obj = kson_object_create();
 
@@ -153,7 +153,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 			kson_array stages_array = kson_array_create();
 			for (u32 i = 0; i < pipeline->stage_count; ++i) {
 				kson_object stage_obj = kson_object_create();
-				kasset_shader_stage* stage = &pipeline->stages[i];
+				kasset_shader_stage *stage = &pipeline->stages[i];
 
 				kson_object_value_add_string(&stage_obj, "type", shader_stage_to_string(stage->type));
 				if (stage->source_asset_name) {
@@ -173,7 +173,7 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 			kson_array attributes_array = kson_array_create();
 			for (u32 i = 0; i < pipeline->attribute_count; ++i) {
 				kson_object attribute_obj = kson_object_create();
-				kasset_shader_attribute* attribute = &pipeline->attributes[i];
+				kasset_shader_attribute *attribute = &pipeline->attributes[i];
 
 				kson_object_value_add_string(&attribute_obj, "type", shader_attribute_type_to_string(attribute->type));
 				kson_object_value_add_string(&attribute_obj, "name", attribute->name);
@@ -194,14 +194,14 @@ const char* kasset_shader_serialize(const kasset_shader* asset) {
 		for (u32 bs = 0; bs < typed_asset->binding_set_count; ++bs) {
 
 			kson_object binding_set_obj = kson_object_create();
-			shader_binding_set_config* binding_set = &typed_asset->binding_sets[bs];
+			shader_binding_set_config *binding_set = &typed_asset->binding_sets[bs];
 
 			kson_object_value_add_kname_as_string(&binding_set_obj, "name", binding_set->name);
 			kson_object_value_add_int(&binding_set_obj, "max_instance_count", binding_set->max_instance_count);
 
 			kson_array bindings_array = kson_array_create();
 			for (u8 b = 0; b < binding_set->binding_count; ++b) {
-				shader_binding_config* binding = &binding_set->bindings[b];
+				shader_binding_config *binding = &binding_set->bindings[b];
 
 				kson_object binding_obj = kson_object_create();
 
@@ -263,10 +263,10 @@ cleanup_kson:
 	return out_str;
 }
 
-b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
+b8 kasset_shader_deserialize (const char *file_text, kasset_shader *out_asset) {
 	if (out_asset) {
 		b8 success = false;
-		kasset_shader* typed_asset = (kasset_shader*)out_asset;
+		kasset_shader *typed_asset = (kasset_shader *)out_asset;
 
 		// Deserialize the loaded asset data
 		kson_tree tree = {0};
@@ -276,7 +276,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 		}
 
 		// version
-		if (!kson_object_property_value_get_int(&tree.root, "version", (i64*)(&typed_asset->version))) {
+		if (!kson_object_property_value_get_int(&tree.root, "version", (i64 *)(&typed_asset->version))) {
 			KERROR("Failed to parse version, which is a required field.");
 			goto cleanup_kson;
 		}
@@ -322,7 +322,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 				// If specified, clear it and process each one.
 				typed_asset->topology_types = PRIMITIVE_TOPOLOGY_TYPE_NONE_BIT;
 				for (u32 i = 0; i < topology_type_count; ++i) {
-					const char* topology_type_str = 0;
+					const char *topology_type_str = 0;
 					if (!kson_array_element_value_get_string(&topology_types_array, i, &topology_type_str)) {
 						KERROR("Possible format error - unable to extract topology type at index %u. Skipping.", i);
 						continue;
@@ -343,7 +343,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 
 		// Default topology type. Uses triangle list if not set.
 		typed_asset->default_topology = PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT;
-		const char* default_topology_type_str = 0;
+		const char *default_topology_type_str = 0;
 		kson_object_property_value_get_string(&tree.root, "default_topology", &default_topology_type_str);
 		if (default_topology_type_str) {
 			typed_asset->default_topology = string_to_topology_type(default_topology_type_str);
@@ -366,13 +366,13 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 			out_asset->colour_attachments = KALLOC_TYPE_CARRAY(kasset_shader_attachment, count);
 
 			for (u32 i = 0; i < count; ++i) {
-				kasset_shader_attachment* att = &out_asset->colour_attachments[i];
+				kasset_shader_attachment *att = &out_asset->colour_attachments[i];
 				kson_object att_obj;
 				kson_array_element_value_get_object(&colour_attachments_array, i, &att_obj);
 
 				kson_object_property_value_get_string(&att_obj, "name", &att->name);
 
-				const char* tmp_format = 0;
+				const char *tmp_format = 0;
 				kson_object_property_value_get_string(&att_obj, "format", &tmp_format);
 				att->format = string_to_kpixel_format(tmp_format);
 				string_free(tmp_format);
@@ -385,11 +385,11 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 		{
 			kson_object att_obj;
 			if (kson_object_property_value_get_object(&attachments_obj, "depth", &att_obj)) {
-				kasset_shader_attachment* att = &out_asset->depth_attachment;
+				kasset_shader_attachment *att = &out_asset->depth_attachment;
 
 				kson_object_property_value_get_string(&att_obj, "name", &att->name);
 
-				const char* tmp_format = 0;
+				const char *tmp_format = 0;
 				kson_object_property_value_get_string(&att_obj, "format", &tmp_format);
 				att->format = string_to_kpixel_format(tmp_format);
 				string_free(tmp_format);
@@ -408,11 +408,11 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 		{
 			kson_object att_obj;
 			if (kson_object_property_value_get_object(&attachments_obj, "stencil", &att_obj)) {
-				kasset_shader_attachment* att = &out_asset->stencil_attachment;
+				kasset_shader_attachment *att = &out_asset->stencil_attachment;
 
 				kson_object_property_value_get_string(&att_obj, "name", &att->name);
 
-				const char* tmp_format = 0;
+				const char *tmp_format = 0;
 				kson_object_property_value_get_string(&att_obj, "format", &tmp_format);
 				att->format = string_to_kpixel_format(tmp_format);
 				string_free(tmp_format);
@@ -446,7 +446,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 			typed_asset->pipelines = KALLOC_TYPE_CARRAY(kasset_shader_pipeline, typed_asset->pipeline_count);
 
 			for (u8 pi = 0; pi < typed_asset->pipeline_count; ++pi) {
-				kasset_shader_pipeline* pipeline = &typed_asset->pipelines[pi];
+				kasset_shader_pipeline *pipeline = &typed_asset->pipelines[pi];
 				kson_object pipeline_obj;
 				kson_array_element_value_get_object(&pipelines_array, pi, &pipeline_obj);
 
@@ -465,8 +465,8 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 						kson_object stage_obj = {0};
 						kson_array_element_value_get_object(&stages_array, i, &stage_obj);
 
-						kasset_shader_stage* stage = &pipeline->stages[i];
-						const char* temp = 0;
+						kasset_shader_stage *stage = &pipeline->stages[i];
+						const char *temp = 0;
 
 						kson_object_property_value_get_string(&stage_obj, "type", &temp);
 						stage->type = string_to_shader_stage(temp);
@@ -494,9 +494,9 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 					for (u32 i = 0; i < pipeline->attribute_count; ++i) {
 						kson_object attribute_obj = {0};
 						kson_array_element_value_get_object(&attributes_array, i, &attribute_obj);
-						kasset_shader_attribute* attribute = &pipeline->attributes[i];
+						kasset_shader_attribute *attribute = &pipeline->attributes[i];
 
-						const char* temp = 0;
+						const char *temp = 0;
 						kson_object_property_value_get_string(&attribute_obj, "type", &temp);
 						attribute->type = string_to_shader_attribute_type(temp);
 						string_free(temp);
@@ -527,7 +527,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 					goto cleanup_kson;
 				}
 
-				shader_binding_set_config* binding_set = &typed_asset->binding_sets[bs];
+				shader_binding_set_config *binding_set = &typed_asset->binding_sets[bs];
 
 				kson_object_property_value_get_string_as_kname(&binding_set_obj, "name", &binding_set->name);
 
@@ -554,10 +554,10 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 					kson_object binding_obj = {0};
 					kson_array_element_value_get_object(&bindings_array, b, &binding_obj);
 
-					shader_binding_config* binding = &binding_set->bindings[b];
+					shader_binding_config *binding = &binding_set->bindings[b];
 
 					// Binding type is required.
-					const char* binding_type_str = 0;
+					const char *binding_type_str = 0;
 					if (!kson_object_property_value_get_string(&binding_obj, "type", &binding_type_str)) {
 						KERROR("Required binding type not present - set=%u, binding=%", bs, b);
 						goto cleanup_kson;
@@ -631,7 +631,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 					if (binding->binding_type == SHADER_BINDING_TYPE_TEXTURE) {
 
 						// texture_type is only looked at for textures. Default = 2D.
-						const char* texture_type_str = 0;
+						const char *texture_type_str = 0;
 						kson_object_property_value_get_string(&binding_obj, "texture_type", &texture_type_str);
 						if (texture_type_str) {
 							binding->texture_type = ktexture_type_from_string(texture_type_str);
@@ -644,7 +644,7 @@ b8 kasset_shader_deserialize(const char* file_text, kasset_shader* out_asset) {
 					if (binding->binding_type == SHADER_BINDING_TYPE_SAMPLER) {
 
 						// sampler_type is only looked at for samplers. Default = 2D.
-						const char* sampler_type_str = 0;
+						const char *sampler_type_str = 0;
 						kson_object_property_value_get_string(&binding_obj, "sampler_type", &sampler_type_str);
 						if (sampler_type_str) {
 							binding->sampler_type = shader_sampler_type_from_string(sampler_type_str);

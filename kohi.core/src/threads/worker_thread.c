@@ -8,11 +8,11 @@
 
 typedef struct work {
 	pfn_thread_start work_fn;
-	void* params;
+	void *params;
 } work;
 
-static u32 worker_thread_loop(void* params) {
-	worker_thread* thread = params;
+static u32 worker_thread_loop (void *params) {
+	worker_thread *thread = params;
 
 	while (true) {
 		kmutex_lock(&thread->queue_mutex);
@@ -35,7 +35,7 @@ static u32 worker_thread_loop(void* params) {
 	return 1;
 }
 
-b8 worker_thread_create(worker_thread* out_thread) {
+b8 worker_thread_create (worker_thread *out_thread) {
 	if (!out_thread) {
 		return false;
 	}
@@ -52,7 +52,7 @@ b8 worker_thread_create(worker_thread* out_thread) {
 	return true;
 }
 
-void worker_thread_destroy(worker_thread* thread) {
+void worker_thread_destroy (worker_thread *thread) {
 	if (!thread) {
 		return;
 	}
@@ -63,7 +63,7 @@ void worker_thread_destroy(worker_thread* thread) {
 	kzero_memory(thread, sizeof(worker_thread));
 }
 
-b8 worker_thread_add(worker_thread* thread, pfn_thread_start work_fn, void* work_params) {
+b8 worker_thread_add (worker_thread *thread, pfn_thread_start work_fn, void *work_params) {
 	if (!thread || !work_fn) {
 		KERROR("worker_thread_add requires valid pointers to a worker_thread and a work function pointer.");
 		return false;
@@ -83,7 +83,7 @@ b8 worker_thread_add(worker_thread* thread, pfn_thread_start work_fn, void* work
 	return true;
 }
 
-b8 worker_thread_start(worker_thread* thread) {
+b8 worker_thread_start (worker_thread *thread) {
 	if (!thread) {
 		return false;
 	}
@@ -97,6 +97,6 @@ b8 worker_thread_start(worker_thread* thread) {
 	return true;
 }
 
-b8 worker_thread_wait(worker_thread* thread) {
+b8 worker_thread_wait (worker_thread *thread) {
 	return kthread_wait(&thread->thread);
 }

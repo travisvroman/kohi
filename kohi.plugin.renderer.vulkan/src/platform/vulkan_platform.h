@@ -152,7 +152,7 @@ typedef struct krhi_vulkan {
  * @param context A pointer to the Vulkan context.
  * @return True on success; otherwise false.
  */
-b8 vulkan_platform_create_vulkan_surface(struct vulkan_context* context, struct kwindow* window);
+b8 vulkan_platform_create_vulkan_surface (struct vulkan_context *context, struct kwindow *window);
 
 /**
  * @brief Appends the names of required extensions for this platform to
@@ -160,13 +160,13 @@ b8 vulkan_platform_create_vulkan_surface(struct vulkan_context* context, struct 
  * @param names_darray A pointer to the array names of required extension names. Must be a darray
  * as this function adds names to the array.
  */
-void vulkan_platform_get_required_extension_names(const char*** names_darray);
+void vulkan_platform_get_required_extension_names (const char ***names_darray);
 
 /**
  * Indicates if the given device/queue family index combo supports presentation.
  */
-b8 vulkan_platform_presentation_support(struct vulkan_context* context, struct VkPhysicalDevice_T* physical_device, u32 queue_family_index);
+b8 vulkan_platform_presentation_support (struct vulkan_context *context, struct VkPhysicalDevice_T *physical_device, u32 queue_family_index);
 
-b8 vulkan_platform_initialize(krhi_vulkan* rhi);
+b8 vulkan_platform_initialize (krhi_vulkan *rhi);
 
-void vulkan_platform_shutdown(krhi_vulkan* rhi);
+void vulkan_platform_shutdown (krhi_vulkan *rhi);

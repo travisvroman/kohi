@@ -26,7 +26,7 @@ typedef struct queue {
 	/** @brief The total amount of currently-allocated memory.*/
 	u32 allocated;
 	/** @brief The allocated memory block. */
-	void* memory;
+	void *memory;
 } queue;
 
 /**
@@ -36,13 +36,13 @@ typedef struct queue {
  * @param element_size The size of each element in the queue.
  * @return True on success; otherwise false.
  */
-KAPI b8 queue_create(queue* out_queue, u32 element_size);
+KAPI b8 queue_create (queue *out_queue, u32 element_size);
 /**
  * @brief Destroys the given queue.
  *
  * @param s A pointer to the queue to be destroyed.
  */
-KAPI void queue_destroy(queue* s);
+KAPI void queue_destroy (queue *s);
 
 /**
  * @brief Pushes an element (a copy of the element data) into the back of the queue.
@@ -51,7 +51,7 @@ KAPI void queue_destroy(queue* s);
  * @param element_data The element data to be pushed. Required.
  * @return True on succcess; otherwise false.
  */
-KAPI b8 queue_push(queue* s, void* element_data);
+KAPI b8 queue_push (queue *s, void *element_data);
 
 /**
  * @brief Attempts to peek an element (writing out a copy of the
@@ -62,7 +62,7 @@ KAPI b8 queue_push(queue* s, void* element_data);
  * @param element_data A pointer to write the element data to. Required.
  * @return True on succcess; otherwise false.
  */
-KAPI b8 queue_peek(const queue* s, void* out_element_data);
+KAPI b8 queue_peek (const queue *s, void *out_element_data);
 
 /**
  * @brief Attempts to pop an element (writing out a copy of the
@@ -73,4 +73,4 @@ KAPI b8 queue_peek(const queue* s, void* out_element_data);
  * @param element_data A pointer to write the element data to. Required.
  * @return True on succcess; otherwise false.
  */
-KAPI b8 queue_pop(queue* s, void* out_element_data);
+KAPI b8 queue_pop (queue *s, void *out_element_data);

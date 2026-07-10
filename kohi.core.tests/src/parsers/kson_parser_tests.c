@@ -10,7 +10,7 @@
 #include "../test_manager.h"
 #include "logger.h"
 
-u8 kson_parser_should_create_and_destroy(void) {
+u8 kson_parser_should_create_and_destroy (void) {
 	kson_parser parser;
 	kson_parser_create(&parser);
 
@@ -27,9 +27,9 @@ u8 kson_parser_should_create_and_destroy(void) {
 	return true;
 }
 
-u8 kson_parser_should_tokenize_file_content(void) {
+u8 kson_parser_should_tokenize_file_content (void) {
 	// TODO: move to test asset folder.
-	char* full_file_path = "../kohi.core.tests/src/parsers/test_scene2.ksn";
+	char *full_file_path = "../kohi.core.tests/src/parsers/test_scene2.ksn";
 	file_handle f;
 	if (!filesystem_open(full_file_path, FILE_MODE_READ, false, &f)) {
 		KERROR("text_loader_load - unable to open file for text reading: '%s'.", full_file_path);
@@ -43,7 +43,7 @@ u8 kson_parser_should_tokenize_file_content(void) {
 		return false;
 	}
 
-	char* test_file_content = kallocate(sizeof(char) * file_size, MEMORY_TAG_ARRAY);
+	char *test_file_content = kallocate(sizeof(char) * file_size, MEMORY_TAG_ARRAY);
 	u64 read_size = 0;
 	if (!filesystem_read_all_text(&f, test_file_content, &read_size)) {
 		KERROR("Unable to text read file: %s.", full_file_path);
@@ -70,13 +70,13 @@ u8 kson_parser_should_tokenize_file_content(void) {
 
 	kson_parser_destroy(&parser);
 
-	const char* str = kson_tree_to_string(&tree);
+	const char *str = kson_tree_to_string(&tree);
 	KINFO(str);
 
 	return true;
 }
 
-void kson_parser_register_tests(void) {
+void kson_parser_register_tests (void) {
 	test_manager_register_test(kson_parser_should_create_and_destroy, "KSON parser should create and destroy");
 	test_manager_register_test(kson_parser_should_tokenize_file_content, "KSON parser should tokenize file content");
 }

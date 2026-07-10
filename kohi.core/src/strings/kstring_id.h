@@ -44,7 +44,7 @@ typedef u64 kstring_id;
  * @param str The source string to use while creating the kstring_id.
  * @returns The hashed kstring_id.
  */
-KAPI kstring_id kstring_id_create(const char* str);
+KAPI kstring_id kstring_id_create (const char *str);
 
 /**
  * Attempts to get the original string associated with the given kname.
@@ -54,6 +54,6 @@ KAPI kstring_id kstring_id_create(const char* str);
  * @param name The kstring_id to lookup.
  * @returns A constant pointer to the string if found, otherwise 0/null. NOTE: Do *NOT* free this string!
  */
-KAPI const char* kstring_id_string_get(kstring_id stringid);
+KAPI const char *kstring_id_string_get (kstring_id stringid);
 
-KAPI void kstring_id_shutdown(void);
+KAPI void kstring_id_shutdown (void);

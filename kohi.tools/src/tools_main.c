@@ -11,12 +11,12 @@
 
 #include "kasset_importer.h"
 
-void print_help(void);
+void print_help (void);
 
 // sed -E 's|(KNAME\(\")(.*?)(\"\))|echo "value of: \2"|g' file.c
 // sed -E 's|(KNAME\(\")(.*?)(\"\))|../kohi.tools -crc "\1"|ge' ../kohi.runtime/src/core/metrics.h
 
-i32 main(i32 argc, char** argv) {
+i32 main (i32 argc, char **argv) {
 	// The first arg is always the program itself.
 	if (argc < 2) {
 		KERROR("kohi tools requires at least one argument.");
@@ -26,7 +26,7 @@ i32 main(i32 argc, char** argv) {
 
 	if (argc == 3 && strings_equali(argv[1], "-crc")) {
 		u64 length = string_length(argv[2]);
-		u64 crc = crc64(0, (u8*)argv[2], length);
+		u64 crc = crc64(0, (u8 *)argv[2], length);
 
 		printf("%llu", crc);
 		return 0;
@@ -40,7 +40,7 @@ i32 main(i32 argc, char** argv) {
 			KERROR("importmanifest command requires an argument specifying the manifest path.");
 			return -3;
 		}
-		const char* manifest_path = argv[2];
+		const char *manifest_path = argv[2];
 
 		// Parse additional flags.
 		kimport_flag_bits flags = KIMPORT_FLAG_NONE;
@@ -65,11 +65,11 @@ i32 main(i32 argc, char** argv) {
 	return 0;
 }
 
-void print_help(void) {
+void print_help (void) {
 #ifdef KPLATFORM_WINDOWS
-	const char* extension = ".exe";
+	const char *extension = ".exe";
 #else
-	const char* extension = "";
+	const char *extension = "";
 #endif
 	KINFO(
 		"Kohi Game Engine Tools, Copyright 2021-2022 Travis Vroman.\n\

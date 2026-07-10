@@ -24,7 +24,7 @@ typedef struct kaudio_category_config {
 	f32 volume;
 	kaudio_space audio_space;
 	u32 channel_id_count;
-	u32* channel_ids;
+	u32 *channel_ids;
 } kaudio_category_config;
 
 typedef struct kaudio_system_config {
@@ -51,10 +51,10 @@ typedef struct kaudio_system_config {
 	u32 max_count;
 
 	u32 category_count;
-	kaudio_category_config* categories;
+	kaudio_category_config *categories;
 
 	/** @brief The name of the plugin to be loaded for the audio backend. */
-	const char* backend_plugin_name;
+	const char *backend_plugin_name;
 } kaudio_system_config;
 
 typedef struct kaudio_emitter_handle_data {
@@ -103,7 +103,7 @@ typedef struct kaudio_category {
 	f32 volume;
 	kaudio_space audio_space;
 	u32 channel_id_count;
-	u32* channel_ids;
+	u32 *channel_ids;
 } kaudio_category;
 
 typedef enum kaudio_instance_state {
@@ -154,21 +154,21 @@ typedef enum kaudio_state {
 
 typedef struct kaudio_data {
 	// Names of kaudios.
-	kname* names;
+	kname *names;
 
-	kaudio_state* states;
+	kaudio_state *states;
 
 	// Indicates if the audio should be streamed in small bits (large files) or loaded all at once (small files). Indexed by kaudio.
-	b8* is_streamings;
+	b8 *is_streamings;
 
-	b8* auto_releases;
+	b8 *auto_releases;
 
 	// The number of audio channels, indexed by kaudio.
-	u8* channel_counts;
+	u8 *channel_counts;
 
 	// array of darrays of instances of kaudios, indexed by kaudio.
 	// ex: data.instances[audio][instance_id]
-	kaudio_instance_data** instances;
+	kaudio_instance_data **instances;
 } kaudio_data;
 
 typedef struct kaudio_system_state {
@@ -207,42 +207,42 @@ typedef struct kaudio_system_state {
 	kaudio_data data;
 
 	// darray of audio emitters.
-	kaudio_emitter_handle_data* emitters;
+	kaudio_emitter_handle_data *emitters;
 
 	vec3 listener_position;
 	vec3 listener_up;
 	vec3 listener_forward;
 
 	// The backend plugin.
-	kruntime_plugin* plugin;
+	kruntime_plugin *plugin;
 
 	// Pointer to the backend interface.
-	kaudio_backend_interface* backend;
+	kaudio_backend_interface *backend;
 } kaudio_system_state;
 
 typedef struct audio_asset_request_listener {
-	kaudio_system_state* state;
+	kaudio_system_state *state;
 	kaudio base;
 } audio_asset_request_listener;
 
-static b8 deserialize_config(const char* config_str, kaudio_system_config* out_config);
-static void destroy_config(kaudio_system_config* config);
-static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 auto_release);
-static u16 issue_new_instance(kaudio_system_state* state, kaudio base);
-static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset);
-static u16 get_active_instance_count(kaudio_system_state* state, kaudio base);
-static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index);
-static kaudio_channel* get_available_channel_from_category(kaudio_system_state* state, u8 category_index);
-static void kaudio_emitter_update(struct kaudio_system_state* state, kaudio_emitter_handle_data* emitter);
+static b8 deserialize_config (const char *config_str, kaudio_system_config *out_config);
+static void destroy_config (kaudio_system_config *config);
+static kaudio create_base_audio (kaudio_system_state *state, b8 is_streaming, b8 auto_release);
+static u16 issue_new_instance (kaudio_system_state *state, kaudio base);
+static void kasset_audio_loaded_callback (void *listener, kasset_audio *asset);
+static u16 get_active_instance_count (kaudio_system_state *state, kaudio base);
+static kaudio_channel *get_channel (kaudio_system_state *state, i8 channel_index);
+static kaudio_channel *get_available_channel_from_category (kaudio_system_state *state, u8 category_index);
+static void kaudio_emitter_update (struct kaudio_system_state *state, kaudio_emitter_handle_data *emitter);
 
-b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* config_str) {
+b8 kaudio_system_initialize (u64 *memory_requirement, void *memory, const char *config_str) {
 
 	*memory_requirement = sizeof(kaudio_system_state);
 	if (!memory) {
 		return true;
 	}
 
-	kaudio_system_state* state = (kaudio_system_state*)memory;
+	kaudio_system_state *state = (kaudio_system_state *)memory;
 
 	// Get config.
 	kaudio_system_config config = {0};
@@ -262,7 +262,7 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 	state->frequency = config.frequency;
 	state->max_count = config.max_count;
 
-	state->data.instances = KALLOC_TYPE_CARRAY(kaudio_instance_data*, state->max_count);
+	state->data.instances = KALLOC_TYPE_CARRAY(kaudio_instance_data *, state->max_count);
 	state->data.is_streamings = KALLOC_TYPE_CARRAY(b8, state->max_count);
 	state->data.auto_releases = KALLOC_TYPE_CARRAY(b8, state->max_count);
 	state->data.states = KALLOC_TYPE_CARRAY(kaudio_state, state->max_count);
@@ -272,7 +272,7 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 	// Default volumes for master and all channels to 1.0 (max);
 	state->master_volume = 1.0f;
 	for (i8 i = 0; i < (i8)state->audio_channel_count; ++i) {
-		kaudio_channel* channel = &state->channels[i];
+		kaudio_channel *channel = &state->channels[i];
 		channel->index = i;
 		channel->volume = 1.0f;
 		// Also set some other reasonable defaults.
@@ -320,7 +320,7 @@ b8 kaudio_system_initialize(u64* memory_requirement, void* memory, const char* c
 	return result;
 }
 
-void kaudio_system_shutdown(struct kaudio_system_state* state) {
+void kaudio_system_shutdown (struct kaudio_system_state *state) {
 	if (state) {
 		for (u16 i = 0; i < state->max_count; ++i) {
 			if (state->data.states[i] == KAUDIO_STATE_LOADED) {
@@ -336,7 +336,7 @@ void kaudio_system_shutdown(struct kaudio_system_state* state) {
 	}
 }
 
-b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_frame_data) {
+b8 kaudio_system_update (struct kaudio_system_state *state, struct frame_data *p_frame_data) {
 	if (state) {
 
 		// Listener updates.
@@ -353,10 +353,10 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
 
 		// Adjust each channel's properties based on what is bound to them (if anything).
 		for (u32 i = 0; i < state->audio_channel_count; ++i) {
-			kaudio_channel* channel = &state->channels[i];
+			kaudio_channel *channel = &state->channels[i];
 			if (channel->bound_audio != INVALID_KAUDIO && channel->bound_instance != INVALID_ID_U16) {
 				b8 is_valid = state->data.states[channel->bound_audio] == KAUDIO_STATE_LOADED;
-				kaudio_instance_data* instance = &state->data.instances[channel->bound_audio][channel->bound_instance];
+				kaudio_instance_data *instance = &state->data.instances[channel->bound_audio][channel->bound_instance];
 
 				// If a play has been triggered and the resource is valid/ready for playing, do it.
 				if (instance->trigger_play && is_valid) {
@@ -428,7 +428,7 @@ b8 kaudio_system_update(struct kaudio_system_state* state, struct frame_data* p_
 	return false;
 }
 
-void _kaudio_system_play_completed(struct kaudio_system_state* state, kaudio audio, u16 instance_id) {
+void _kaudio_system_play_completed (struct kaudio_system_state *state, kaudio audio, u16 instance_id) {
 	KTRACE("Audio '%k', instance_id %u has completed playing.", state->data.names[audio], instance_id);
 
 	// Fire off an event to any other systems that care.
@@ -438,7 +438,7 @@ void _kaudio_system_play_completed(struct kaudio_system_state* state, kaudio aud
 	event_fire(EVENT_CODE_AUDIO_COMPLETE, state, ctx);
 }
 
-void kaudio_system_listener_orientation_set(struct kaudio_system_state* state, vec3 position, vec3 forward, vec3 up) {
+void kaudio_system_listener_orientation_set (struct kaudio_system_state *state, vec3 position, vec3 forward, vec3 up) {
 	if (state) {
 		state->listener_up = up;
 		state->listener_forward = forward;
@@ -446,20 +446,20 @@ void kaudio_system_listener_orientation_set(struct kaudio_system_state* state, v
 	}
 }
 
-void kaudio_master_volume_set(struct kaudio_system_state* state, f32 volume) {
+void kaudio_master_volume_set (struct kaudio_system_state *state, f32 volume) {
 	if (state) {
 		state->master_volume = KCLAMP(volume, 0.0f, 1.0f);
 	}
 }
 
-f32 kaudio_master_volume_get(struct kaudio_system_state* state) {
+f32 kaudio_master_volume_get (struct kaudio_system_state *state) {
 	if (state) {
 		return state->master_volume;
 	}
 	return 0.0f;
 }
 
-static kaudio internal_load_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, b8 auto_release) {
+static kaudio internal_load_from_package (struct kaudio_system_state *state, kname asset_name, kname package_name, b8 is_streaming, b8 auto_release) {
 	// Search first for an existing kaudio with the asset_name as its name.
 	for (u16 i = 0; i < state->max_count; ++i) {
 		if (state->data.names[i] == asset_name) {
@@ -472,12 +472,12 @@ static kaudio internal_load_from_package(struct kaudio_system_state* state, knam
 	kaudio base = create_base_audio(state, is_streaming, auto_release);
 
 	// Listener for the request.
-	audio_asset_request_listener* listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_AUDIO);
+	audio_asset_request_listener *listener = KALLOC_TYPE(audio_asset_request_listener, MEMORY_TAG_AUDIO);
 	listener->state = state;
 	listener->base = base;
 
 	// Request the asset.
-	kasset_audio* asset = asset_system_request_audio_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_audio_loaded_callback);
+	kasset_audio *asset = asset_system_request_audio_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_audio_loaded_callback);
 	if (!asset) {
 		KERROR("Failed to request kaudio asset. See logs for details.");
 		kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_AUDIO);
@@ -486,15 +486,15 @@ static kaudio internal_load_from_package(struct kaudio_system_state* state, knam
 
 	return base;
 }
-kaudio kaudio_preload(struct kaudio_system_state* state, kname asset_name, b8 is_streaming) {
+kaudio kaudio_preload (struct kaudio_system_state *state, kname asset_name, b8 is_streaming) {
 	return kaudio_preload_from_package(state, asset_name, INVALID_KNAME, is_streaming);
 }
 
-kaudio kaudio_preload_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming) {
+kaudio kaudio_preload_from_package (struct kaudio_system_state *state, kname asset_name, kname package_name, b8 is_streaming) {
 	return internal_load_from_package(state, asset_name, package_name, is_streaming, false);
 }
 
-kaudio_instance kaudio_acquire_from_base(struct kaudio_system_state* state, kaudio base, kaudio_space audio_space) {
+kaudio_instance kaudio_acquire_from_base (struct kaudio_system_state *state, kaudio base, kaudio_space audio_space) {
 	// Issue new instance for it.
 	u16 instance_id = issue_new_instance(state, base);
 
@@ -505,11 +505,11 @@ kaudio_instance kaudio_acquire_from_base(struct kaudio_system_state* state, kaud
 		.instance_id = instance_id};
 }
 
-kaudio_instance kaudio_acquire(struct kaudio_system_state* state, kname asset_name, b8 is_streaming, kaudio_space audio_space) {
+kaudio_instance kaudio_acquire (struct kaudio_system_state *state, kname asset_name, b8 is_streaming, kaudio_space audio_space) {
 	return kaudio_acquire_from_package(state, asset_name, INVALID_KNAME, is_streaming, audio_space);
 }
 
-kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space) {
+kaudio_instance kaudio_acquire_from_package (struct kaudio_system_state *state, kname asset_name, kname package_name, b8 is_streaming, kaudio_space audio_space) {
 	if (!state) {
 		return (kaudio_instance){
 			.base = INVALID_KAUDIO,
@@ -520,7 +520,7 @@ kaudio_instance kaudio_acquire_from_package(struct kaudio_system_state* state, k
 	return kaudio_acquire_from_base(state, base, audio_space);
 }
 
-void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance) {
+void kaudio_release (struct kaudio_system_state *state, kaudio_instance *instance) {
 	if (state && instance && instance->base != INVALID_KAUDIO && instance->instance_id != INVALID_ID_U16) {
 
 		// Invalidate the instance data.
@@ -550,7 +550,7 @@ void kaudio_release(struct kaudio_system_state* state, kaudio_instance* instance
 	}
 }
 
-i8 kaudio_category_id_get(struct kaudio_system_state* state, kname name) {
+i8 kaudio_category_id_get (struct kaudio_system_state *state, kname name) {
 	for (i8 i = 0; i < (i8)state->category_count; ++i) {
 		if (state->categories[i].name == name) {
 			return i;
@@ -561,7 +561,7 @@ i8 kaudio_category_id_get(struct kaudio_system_state* state, kname name) {
 	return -1;
 }
 
-b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, kaudio_instance instance, kname category_name) {
+b8 kaudio_play_in_category_by_name (struct kaudio_system_state *state, kaudio_instance instance, kname category_name) {
 	i8 category_index = kaudio_category_id_get(state, category_name);
 	if (category_index < 0) {
 		return false;
@@ -570,13 +570,13 @@ b8 kaudio_play_in_category_by_name(struct kaudio_system_state* state, kaudio_ins
 	return kaudio_play_in_category(state, instance, (u8)category_index);
 }
 
-b8 kaudio_play_in_category(struct kaudio_system_state* state, kaudio_instance instance, u8 category_index) {
+b8 kaudio_play_in_category (struct kaudio_system_state *state, kaudio_instance instance, u8 category_index) {
 	if (!state || category_index >= state->category_count) {
 		return false;
 	}
 
 	// Get a channel belonging to the category.
-	kaudio_channel* channel = get_available_channel_from_category(state, category_index);
+	kaudio_channel *channel = get_available_channel_from_category(state, category_index);
 	if (!channel) {
 		KWARN("No channel available to auto-select - perhaps increase number of channels for category? index=%u", category_index);
 		// Pick the first channel in the category and clobber it's sound.
@@ -588,17 +588,17 @@ b8 kaudio_play_in_category(struct kaudio_system_state* state, kaudio_instance in
 	return kaudio_play(state, instance, channel->index);
 }
 
-b8 kaudio_play(struct kaudio_system_state* state, kaudio_instance instance, i8 channel_index) {
+b8 kaudio_play (struct kaudio_system_state *state, kaudio_instance instance, i8 channel_index) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
 
-	kaudio_instance_data* instance_data = &state->data.instances[instance.base][instance.instance_id];
+	kaudio_instance_data *instance_data = &state->data.instances[instance.base][instance.instance_id];
 	if (!instance_data) {
 		KERROR("%s was called with an invalid or stale instance index.", __FUNCTION__);
 		return false;
 	}
-	kaudio_channel* channel = get_channel(state, channel_index);
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		if (channel_index >= 0) {
 			KERROR("%s was called with an out of bounds channel_index of %hhu (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
@@ -617,13 +617,13 @@ b8 kaudio_play(struct kaudio_system_state* state, kaudio_instance instance, i8 c
 	return true;
 }
 
-b8 kaudio_stop(struct kaudio_system_state* state, kaudio_instance instance) {
+b8 kaudio_stop (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
 
 	for (u32 i = 0; i < state->audio_channel_count; ++i) {
-		kaudio_channel* channel = &state->channels[i];
+		kaudio_channel *channel = &state->channels[i];
 		if (channel->bound_audio == instance.base && channel->bound_instance == instance.instance_id) {
 			// Found the channel it's bound to, stop.
 			return kaudio_channel_stop(state, i);
@@ -634,13 +634,13 @@ b8 kaudio_stop(struct kaudio_system_state* state, kaudio_instance instance) {
 	return false;
 }
 
-b8 kaudio_pause(struct kaudio_system_state* state, kaudio_instance instance) {
+b8 kaudio_pause (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
 
 	for (u32 i = 0; i < state->audio_channel_count; ++i) {
-		kaudio_channel* channel = &state->channels[i];
+		kaudio_channel *channel = &state->channels[i];
 		if (channel->bound_audio == instance.base && channel->bound_instance == instance.instance_id) {
 			// Found the channel it's bound to, stop.
 			return kaudio_channel_pause(state, i);
@@ -651,13 +651,13 @@ b8 kaudio_pause(struct kaudio_system_state* state, kaudio_instance instance) {
 	return false;
 }
 
-b8 kaudio_resume(struct kaudio_system_state* state, kaudio_instance instance) {
+b8 kaudio_resume (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
 
 	for (u32 i = 0; i < state->audio_channel_count; ++i) {
-		kaudio_channel* channel = &state->channels[i];
+		kaudio_channel *channel = &state->channels[i];
 		if (channel->bound_audio == instance.base && channel->bound_instance == instance.instance_id) {
 			// Found the channel it's bound to, stop.
 			return kaudio_channel_resume(state, i);
@@ -668,7 +668,7 @@ b8 kaudio_resume(struct kaudio_system_state* state, kaudio_instance instance) {
 	return false;
 }
 
-b8 kaudio_is_valid(struct kaudio_system_state* state, kaudio_instance instance) {
+b8 kaudio_is_valid (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (instance.base == INVALID_KAUDIO || instance.instance_id == INVALID_ID_U16) {
 		return false;
 	}
@@ -682,14 +682,14 @@ b8 kaudio_is_valid(struct kaudio_system_state* state, kaudio_instance instance) 
 	return true; // state->data.states[instance.base] == KAUDIO_STATE_LOADED;
 }
 
-f32 kaudio_pitch_get(struct kaudio_system_state* state, kaudio_instance instance) {
+f32 kaudio_pitch_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return 0.0f;
 	}
 	return state->data.instances[instance.base][instance.instance_id].pitch;
 }
 
-b8 kaudio_pitch_set(struct kaudio_system_state* state, kaudio_instance instance, f32 pitch) {
+b8 kaudio_pitch_set (struct kaudio_system_state *state, kaudio_instance instance, f32 pitch) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -699,7 +699,7 @@ b8 kaudio_pitch_set(struct kaudio_system_state* state, kaudio_instance instance,
 	return true;
 }
 
-f32 kaudio_volume_get(struct kaudio_system_state* state, kaudio_instance instance) {
+f32 kaudio_volume_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return 0.0f;
 	}
@@ -707,7 +707,7 @@ f32 kaudio_volume_get(struct kaudio_system_state* state, kaudio_instance instanc
 	return state->data.instances[instance.base][instance.instance_id].volume;
 }
 
-b8 kaudio_volume_set(struct kaudio_system_state* state, kaudio_instance instance, f32 volume) {
+b8 kaudio_volume_set (struct kaudio_system_state *state, kaudio_instance instance, f32 volume) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -717,7 +717,7 @@ b8 kaudio_volume_set(struct kaudio_system_state* state, kaudio_instance instance
 	return true;
 }
 
-b8 kaudio_looping_get(struct kaudio_system_state* state, kaudio_instance instance) {
+b8 kaudio_looping_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -725,7 +725,7 @@ b8 kaudio_looping_get(struct kaudio_system_state* state, kaudio_instance instanc
 	return state->data.instances[instance.base][instance.instance_id].looping;
 }
 
-b8 kaudio_looping_set(struct kaudio_system_state* state, kaudio_instance instance, b8 looping) {
+b8 kaudio_looping_set (struct kaudio_system_state *state, kaudio_instance instance, b8 looping) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -734,7 +734,7 @@ b8 kaudio_looping_set(struct kaudio_system_state* state, kaudio_instance instanc
 	return true;
 }
 
-vec3 kaudio_position_get(struct kaudio_system_state* state, kaudio_instance instance) {
+vec3 kaudio_position_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return vec3_zero();
 	}
@@ -742,7 +742,7 @@ vec3 kaudio_position_get(struct kaudio_system_state* state, kaudio_instance inst
 	return state->data.instances[instance.base][instance.instance_id].position;
 }
 
-b8 kaudio_position_set(struct kaudio_system_state* state, kaudio_instance instance, vec3 position) {
+b8 kaudio_position_set (struct kaudio_system_state *state, kaudio_instance instance, vec3 position) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -751,7 +751,7 @@ b8 kaudio_position_set(struct kaudio_system_state* state, kaudio_instance instan
 	return true;
 }
 
-f32 kaudio_inner_radius_get(struct kaudio_system_state* state, kaudio_instance instance) {
+f32 kaudio_inner_radius_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return 0.0f;
 	}
@@ -759,7 +759,7 @@ f32 kaudio_inner_radius_get(struct kaudio_system_state* state, kaudio_instance i
 	return state->data.instances[instance.base][instance.instance_id].inner_radius;
 }
 
-b8 kaudio_inner_radius_set(struct kaudio_system_state* state, kaudio_instance instance, f32 inner_radius) {
+b8 kaudio_inner_radius_set (struct kaudio_system_state *state, kaudio_instance instance, f32 inner_radius) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -768,7 +768,7 @@ b8 kaudio_inner_radius_set(struct kaudio_system_state* state, kaudio_instance in
 	return true;
 }
 
-f32 kaudio_outer_radius_get(struct kaudio_system_state* state, kaudio_instance instance) {
+f32 kaudio_outer_radius_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return 0.0f;
 	}
@@ -776,7 +776,7 @@ f32 kaudio_outer_radius_get(struct kaudio_system_state* state, kaudio_instance i
 	return state->data.instances[instance.base][instance.instance_id].outer_radius;
 }
 
-b8 kaudio_outer_radius_set(struct kaudio_system_state* state, kaudio_instance instance, f32 outer_radius) {
+b8 kaudio_outer_radius_set (struct kaudio_system_state *state, kaudio_instance instance, f32 outer_radius) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -785,7 +785,7 @@ b8 kaudio_outer_radius_set(struct kaudio_system_state* state, kaudio_instance in
 	return true;
 }
 
-f32 kaudio_falloff_get(struct kaudio_system_state* state, kaudio_instance instance) {
+f32 kaudio_falloff_get (struct kaudio_system_state *state, kaudio_instance instance) {
 	if (!kaudio_is_valid(state, instance)) {
 		return 0.0f;
 	}
@@ -793,7 +793,7 @@ f32 kaudio_falloff_get(struct kaudio_system_state* state, kaudio_instance instan
 	return state->data.instances[instance.base][instance.instance_id].falloff;
 }
 
-b8 kaudio_falloff_set(struct kaudio_system_state* state, kaudio_instance instance, f32 falloff) {
+b8 kaudio_falloff_set (struct kaudio_system_state *state, kaudio_instance instance, f32 falloff) {
 	if (!kaudio_is_valid(state, instance)) {
 		return false;
 	}
@@ -802,8 +802,8 @@ b8 kaudio_falloff_set(struct kaudio_system_state* state, kaudio_instance instanc
 	return true;
 }
 
-b8 kaudio_channel_play(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_play (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -817,8 +817,8 @@ b8 kaudio_channel_play(struct kaudio_system_state* state, u8 channel_index) {
 	return false;
 }
 
-b8 kaudio_channel_pause(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_pause (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -827,8 +827,8 @@ b8 kaudio_channel_pause(struct kaudio_system_state* state, u8 channel_index) {
 	return state->backend->channel_pause(state->backend, channel_index);
 }
 
-b8 kaudio_channel_resume(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_resume (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -837,8 +837,8 @@ b8 kaudio_channel_resume(struct kaudio_system_state* state, u8 channel_index) {
 	return state->backend->channel_resume(state->backend, channel_index);
 }
 
-b8 kaudio_channel_stop(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_stop (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -851,8 +851,8 @@ b8 kaudio_channel_stop(struct kaudio_system_state* state, u8 channel_index) {
 	return state->backend->channel_stop(state->backend, channel_index);
 }
 
-b8 kaudio_channel_is_playing(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_is_playing (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -861,8 +861,8 @@ b8 kaudio_channel_is_playing(struct kaudio_system_state* state, u8 channel_index
 	return state->backend->channel_is_playing(state->backend, channel_index);
 }
 
-b8 kaudio_channel_is_paused(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_is_paused (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -871,8 +871,8 @@ b8 kaudio_channel_is_paused(struct kaudio_system_state* state, u8 channel_index)
 	return state->backend->channel_is_paused(state->backend, channel_index);
 }
 
-b8 kaudio_channel_is_stopped(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_is_stopped (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -881,8 +881,8 @@ b8 kaudio_channel_is_stopped(struct kaudio_system_state* state, u8 channel_index
 	return state->backend->channel_is_stopped(state->backend, channel_index);
 }
 
-f32 kaudio_channel_volume_get(struct kaudio_system_state* state, u8 channel_index) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+f32 kaudio_channel_volume_get (struct kaudio_system_state *state, u8 channel_index) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -891,8 +891,8 @@ f32 kaudio_channel_volume_get(struct kaudio_system_state* state, u8 channel_inde
 	return state->channels[channel_index].volume;
 }
 
-b8 kaudio_channel_volume_set(struct kaudio_system_state* state, u8 channel_index, f32 volume) {
-	kaudio_channel* channel = get_channel(state, channel_index);
+b8 kaudio_channel_volume_set (struct kaudio_system_state *state, u8 channel_index, f32 volume) {
+	kaudio_channel *channel = get_channel(state, channel_index);
 	if (!channel) {
 		KERROR("%s called with channel_index %hhu out of range (range = 0-%u)", __FUNCTION__, channel_index, state->audio_channel_count);
 		return false;
@@ -902,7 +902,7 @@ b8 kaudio_channel_volume_set(struct kaudio_system_state* state, u8 channel_index
 	return true;
 }
 
-b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, kaudio_emitter* out_emitter) {
+b8 kaudio_emitter_create (struct kaudio_system_state *state, f32 inner_radius, f32 outer_radius, f32 volume, f32 falloff, b8 is_looping, b8 is_streaming, kname audio_resource_name, kname package_name, kaudio_emitter *out_emitter) {
 	if (!state || !out_emitter) {
 		return false;
 	}
@@ -910,7 +910,7 @@ b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f3
 	*out_emitter = KAUDIO_EMITTER_INVALID;
 
 	// Look for a free slot, or push a new one if needed.
-	kaudio_emitter_handle_data* emitter_data = 0;
+	kaudio_emitter_handle_data *emitter_data = 0;
 	u16 length = darray_length(state->emitters);
 	for (u16 i = 0; i < length; ++i) {
 		if (kaudio_is_valid(state, state->emitters[i].instance)) {
@@ -956,13 +956,13 @@ b8 kaudio_emitter_create(struct kaudio_system_state* state, f32 inner_radius, f3
 	return true;
 }
 
-b8 kaudio_emitter_destroy(struct kaudio_system_state* state, kaudio_emitter* emitter) {
+b8 kaudio_emitter_destroy (struct kaudio_system_state *state, kaudio_emitter *emitter) {
 	if (!state) {
 		return false;
 	}
 
 	if (*emitter != KAUDIO_EMITTER_INVALID) {
-		kaudio_emitter_handle_data* emitter_data = &state->emitters[*emitter];
+		kaudio_emitter_handle_data *emitter_data = &state->emitters[*emitter];
 		if (emitter_data->playing_in_range) {
 			// Stop playing
 			kaudio_stop(state, emitter_data->instance);
@@ -986,13 +986,13 @@ b8 kaudio_emitter_destroy(struct kaudio_system_state* state, kaudio_emitter* emi
 	return false;
 }
 
-b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, kaudio_emitter emitter_handle, vec3 world_position) {
+b8 kaudio_emitter_world_position_set (struct kaudio_system_state *state, kaudio_emitter emitter_handle, vec3 world_position) {
 	if (!state) {
 		return false;
 	}
 
 	if (emitter_handle != KAUDIO_EMITTER_INVALID) {
-		kaudio_emitter_handle_data* emitter = &state->emitters[emitter_handle];
+		kaudio_emitter_handle_data *emitter = &state->emitters[emitter_handle];
 		emitter->world_position = world_position;
 		kaudio_position_set(state, emitter->instance, emitter->world_position);
 		return true;
@@ -1001,7 +1001,7 @@ b8 kaudio_emitter_world_position_set(struct kaudio_system_state* state, kaudio_e
 	return false;
 }
 
-static void kaudio_emitter_update(struct kaudio_system_state* state, kaudio_emitter_handle_data* emitter) {
+static void kaudio_emitter_update (struct kaudio_system_state *state, kaudio_emitter_handle_data *emitter) {
 	if (emitter->playing_in_range) {
 		// Check if still in range. If not, need to stop.
 		if (vec3_distance(state->listener_position, emitter->world_position) > emitter->outer_radius) {
@@ -1034,7 +1034,7 @@ static void kaudio_emitter_update(struct kaudio_system_state* state, kaudio_emit
 	}
 }
 
-static b8 deserialize_config(const char* config_str, kaudio_system_config* out_config) {
+static b8 deserialize_config (const char *config_str, kaudio_system_config *out_config) {
 	if (!config_str || !out_config) {
 		KERROR("audio_system_deserialize_config requires a valid pointer to out_config and config_str");
 		return false;
@@ -1106,7 +1106,7 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
 
 			// Each category.
 			for (u32 i = 0; i < out_config->category_count; ++i) {
-				kaudio_category_config* cat = &out_config->categories[i];
+				kaudio_category_config *cat = &out_config->categories[i];
 				kson_object cat_obj = {0};
 				if (!kson_array_element_value_get_object(&category_obj_array, i, &cat_obj)) {
 					KERROR("Possible format error reading object at index %u in 'categories' array. Skipping", i);
@@ -1126,7 +1126,7 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
 				}
 
 				// Audio space - optional
-				const char* audio_space_str = 0;
+				const char *audio_space_str = 0;
 				if (!kson_object_property_value_get_string(&cat_obj, "audio_space", &audio_space_str)) {
 					cat->audio_space = KAUDIO_SPACE_2D; // default to 2d if not provided.
 				} else {
@@ -1162,11 +1162,11 @@ static b8 deserialize_config(const char* config_str, kaudio_system_config* out_c
 	return true;
 }
 
-static void destroy_config(kaudio_system_config* config) {
+static void destroy_config (kaudio_system_config *config) {
 	string_free(config->backend_plugin_name);
 	if (config->category_count) {
 		for (u32 i = 0; i < config->category_count; ++i) {
-			kaudio_category_config* cc = &config->categories[i];
+			kaudio_category_config *cc = &config->categories[i];
 			if (cc->channel_ids && cc->channel_id_count) {
 				KFREE_TYPE_CARRAY(cc->channel_ids, u32, cc->channel_id_count);
 			}
@@ -1175,7 +1175,7 @@ static void destroy_config(kaudio_system_config* config) {
 	}
 }
 
-static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 auto_release) {
+static kaudio create_base_audio (kaudio_system_state *state, b8 is_streaming, b8 auto_release) {
 	// Look for a new free slot.
 	for (u16 i = 0; i < state->max_count; ++i) {
 		if (state->data.states[i] == KAUDIO_STATE_UNINITIALIZED) {
@@ -1193,7 +1193,7 @@ static kaudio create_base_audio(kaudio_system_state* state, b8 is_streaming, b8 
 	return INVALID_KAUDIO;
 }
 
-static u16 issue_new_instance(kaudio_system_state* state, kaudio base) {
+static u16 issue_new_instance (kaudio_system_state *state, kaudio base) {
 	u16 count = darray_length(state->data.instances[base]);
 	u16 instance_id = INVALID_ID_U16;
 	for (u16 i = 0; i < count; ++i) {
@@ -1210,7 +1210,7 @@ static u16 issue_new_instance(kaudio_system_state* state, kaudio base) {
 		instance_id = count;
 	}
 
-	kaudio_instance_data* instance = &state->data.instances[base][instance_id];
+	kaudio_instance_data *instance = &state->data.instances[base][instance_id];
 
 	// Mark as in-use.
 	instance->state = KAUDIO_INSTANCE_STATE_ACQUIRED;
@@ -1228,10 +1228,10 @@ static u16 issue_new_instance(kaudio_system_state* state, kaudio base) {
 }
 
 // Invoked when an audio asset completes its async load from disk.
-static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset) {
-	audio_asset_request_listener* listener_inst = listener;
+static void kasset_audio_loaded_callback (void *listener, kasset_audio *asset) {
+	audio_asset_request_listener *listener_inst = listener;
 	KTRACE("Audio asset loaded: '%s'.", kname_string_get(asset->name));
-	kaudio_system_state* state = listener_inst->state;
+	kaudio_system_state *state = listener_inst->state;
 	kaudio base = listener_inst->base;
 
 	// Send over to the backend to be loaded.
@@ -1253,9 +1253,9 @@ static void kasset_audio_loaded_callback(void* listener, kasset_audio* asset) {
 	KFREE_TYPE(listener, audio_asset_request_listener, MEMORY_TAG_AUDIO);
 }
 
-static u16 get_active_instance_count(kaudio_system_state* state, kaudio base) {
+static u16 get_active_instance_count (kaudio_system_state *state, kaudio base) {
 	u32 count = 0;
-	kaudio_instance_data* datas = state->data.instances[base];
+	kaudio_instance_data *datas = state->data.instances[base];
 	if (!datas) {
 		return 0;
 	}
@@ -1266,14 +1266,14 @@ static u16 get_active_instance_count(kaudio_system_state* state, kaudio base) {
 	return count;
 }
 
-static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index) {
+static kaudio_channel *get_channel (kaudio_system_state *state, i8 channel_index) {
 	if (!state) {
 		return 0;
 	}
 	if (channel_index < 0) {
 		// First available
 		for (u32 i = 0; i < state->audio_channel_count; ++i) {
-			kaudio_channel* channel = &state->channels[i];
+			kaudio_channel *channel = &state->channels[i];
 			if (channel->bound_instance == INVALID_ID_U16 && channel->bound_audio == INVALID_KAUDIO) {
 				// Available, use it.
 				return channel;
@@ -1290,7 +1290,7 @@ static kaudio_channel* get_channel(kaudio_system_state* state, i8 channel_index)
 	return 0;
 }
 
-static kaudio_channel* get_available_channel_from_category(kaudio_system_state* state, u8 category_index) {
+static kaudio_channel *get_available_channel_from_category (kaudio_system_state *state, u8 category_index) {
 	if (!state) {
 		return 0;
 	}
@@ -1298,12 +1298,12 @@ static kaudio_channel* get_available_channel_from_category(kaudio_system_state* 
 	if (category_index >= state->category_count) {
 		return 0;
 	}
-	kaudio_category* cat = &state->categories[category_index];
+	kaudio_category *cat = &state->categories[category_index];
 
 	// First available
 	for (u32 i = 0; i < cat->channel_id_count; ++i) {
 		u32 channel_id = cat->channel_ids[i];
-		kaudio_channel* channel = &state->channels[channel_id];
+		kaudio_channel *channel = &state->channels[channel_id];
 		if (channel->bound_instance == INVALID_ID_U16 && channel->bound_audio == INVALID_KAUDIO) {
 			// Available, use it.
 			return channel;

@@ -29,20 +29,20 @@
 #include "math/math_types.h"
 #include "renderer/kui_renderer.h"
 
-static f32 kui_textbox_calculate_cursor_offset(kui_state* state, u32 string_pos, const char* full_string, kui_textbox_control* typed_textbox_control);
-static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control* self);
-static void kui_textbox_update_cursor_position(kui_state* state, kui_base_control* self);
-static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 kui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context);
-static void kui_textbox_on_focus(struct kui_state* state, kui_control self);
-static void kui_textbox_on_unfocus(struct kui_state* state, kui_control self);
+static f32 kui_textbox_calculate_cursor_offset (kui_state *state, u32 string_pos, const char *full_string, kui_textbox_control *typed_textbox_control);
+static void kui_textbox_update_highlight_box (kui_state *state, kui_base_control *self);
+static void kui_textbox_update_cursor_position (kui_state *state, kui_base_control *self);
+static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_textbox_on_paste (u16 code, void *sender, void *listener_inst, event_context context);
+static void kui_textbox_on_focus (struct kui_state *state, kui_control self);
+static void kui_textbox_on_unfocus (struct kui_state *state, kui_control self);
 
-kui_control kui_textbox_control_create(kui_state* state, const char* name, font_type font_type, kname font_name, u16 font_size, const char* text, kui_textbox_type type) {
+kui_control kui_textbox_control_create (kui_state *state, const char *name, font_type font_type, kname font_name, u16 font_size, const char *text, kui_textbox_type type) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_TEXTBOX);
 
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 
 	// Reasonable defaults.
 	typed_control->size = (vec2i){200, font_size + 10}; // add padding
@@ -72,7 +72,7 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	}
 
 	// Label internal control
-	char* buffer = string_format("%s_textbox_internal_label", name);
+	char *buffer = string_format("%s_textbox_internal_label", name);
 	typed_control->content_label = kui_label_control_create(state, buffer, font_type, font_name, font_size, text);
 	string_free(buffer);
 	typed_control->label_line_height = kui_label_line_height_get(state, typed_control->content_label);
@@ -163,14 +163,14 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	// NOTE: Only parenting the transform, the control. This is to have control over how the
 	// clipping mask is attached and drawn. See the render function for the other half of this.
 	// TODO: Adjustable padding
-	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
+	kui_base_control *label_base = kui_system_get_base(state, typed_control->content_label);
 	KASSERT(label_base);
 	label_base->parent = handle;
 	ktransform_parent_set(label_base->ktransform, base->ktransform);
 	ktransform_position_set(label_base->ktransform, (vec3){typed_control->nslice.corner_size.x, -2.0f, 0.0f}); // padding/2 for y
 
 	// Create the cursor and attach it as a child.
-	kui_base_control* cursor_base = kui_system_get_base(state, typed_control->cursor);
+	kui_base_control *cursor_base = kui_system_get_base(state, typed_control->cursor);
 	KASSERT(cursor_base);
 	if (!kui_system_control_add_child(state, handle, typed_control->cursor)) {
 		KERROR("Failed to parent textbox system text.");
@@ -187,7 +187,7 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	// clipping mask is attached and drawn. See the render function for the other half of this.
 
 	// Set an initial position.
-	kui_base_control* highlight_base = kui_system_get_base(state, typed_control->highlight_box);
+	kui_base_control *highlight_base = kui_system_get_base(state, typed_control->highlight_box);
 	FLAG_SET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, false);
 	ktransform_parent_set(highlight_base->ktransform, base->ktransform);
 
@@ -202,11 +202,11 @@ kui_control kui_textbox_control_create(kui_state* state, const char* name, font_
 	return handle;
 }
 
-void kui_textbox_control_destroy(kui_state* state, kui_control* self) {
+void kui_textbox_control_destroy (kui_state *state, kui_control *self) {
 
-	kui_base_control* base = kui_system_get_base(state, *self);
+	kui_base_control *base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 	// unload
 	// TODO: unload sub-controls that aren't children (i.e content_label and highlight_box)
 	event_unregister(EVENT_CODE_KEY_PRESSED, typed_control->listener, kui_textbox_on_key);
@@ -225,10 +225,10 @@ void kui_textbox_control_destroy(kui_state* state, kui_control* self) {
 	kui_base_control_destroy(state, self);
 }
 
-b8 kui_textbox_control_size_set(kui_state* state, kui_control self, i32 width, i32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_textbox_control_size_set (kui_state *state, kui_control self, i32 width, i32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 
 	typed_control->size.x = width;
 	typed_control->size.y = height;
@@ -247,7 +247,7 @@ b8 kui_textbox_control_size_set(kui_state* state, kui_control self, i32 width, i
 	vec2i corner_size = (vec2i){10, 10};
 
 	if (base->clipping_area.type == KUI_CLIP_TYPE_STENCIL) {
-		kgeometry* vg = &base->clipping_area.stencil_data.geometry;
+		kgeometry *vg = &base->clipping_area.stencil_data.geometry;
 
 		kgeometry quad = geometry_generate_quad(typed_control->size.x - (corner_size.x * 2), typed_control->size.y, 0, 0, 0, 0, 0);
 		kfree(quad.indices, quad.index_element_size * quad.index_count, MEMORY_TAG_ARRAY);
@@ -267,34 +267,34 @@ b8 kui_textbox_control_size_set(kui_state* state, kui_control self, i32 width, i
 
 	return true;
 }
-b8 kui_textbox_control_width_set(kui_state* state, kui_control self, i32 width) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_textbox_control_width_set (kui_state *state, kui_control self, i32 width) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 	return kui_textbox_control_size_set(state, self, width, typed_control->size.y);
 }
-b8 kui_textbox_control_height_set(kui_state* state, kui_control self, i32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_textbox_control_height_set (kui_state *state, kui_control self, i32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 	return kui_textbox_control_size_set(state, self, typed_control->size.x, height);
 }
 
-void kui_textbox_control_colour_set(kui_state* state, kui_control self, colour4 colour) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_textbox_control_colour_set (kui_state *state, kui_control self, colour4 colour) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 	typed_control->colour = colour;
 }
 
-b8 kui_textbox_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_textbox_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 
 	nine_slice_render_frame_prepare(&typed_control->nslice, p_frame_data);
 	nine_slice_render_frame_prepare(&typed_control->focused_nslice, p_frame_data);
@@ -302,31 +302,31 @@ b8 kui_textbox_control_update(kui_state* state, kui_control self, struct frame_d
 	return true;
 }
 
-b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_textbox_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!kui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
 
 	b8 is_focused = kui_system_is_control_focused(state, self);
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_control = (kui_textbox_control*)base;
+	kui_textbox_control *typed_control = (kui_textbox_control *)base;
 
-	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
+	kui_base_control *label_base = kui_system_get_base(state, typed_control->content_label);
 	KASSERT(label_base);
 	/* kui_textbox_control* label_typed_control = (kui_textbox_control*)label_base; */
 
-	kui_base_control* cursor_base = kui_system_get_base(state, typed_control->cursor);
+	kui_base_control *cursor_base = kui_system_get_base(state, typed_control->cursor);
 	KASSERT(cursor_base);
 	/* kui_textbox_control* cursor_typed_control = (kui_textbox_control*)cursor_base; */
 
-	kui_base_control* highlight_base = kui_system_get_base(state, typed_control->highlight_box);
+	kui_base_control *highlight_base = kui_system_get_base(state, typed_control->highlight_box);
 	KASSERT(highlight_base);
 	/* kui_textbox_control* highlight_typed_control = (kui_textbox_control*)highlight_base; */
 
 	// Render the nine-slice.
-	nine_slice* ns = 0;
+	nine_slice *ns = 0;
 	if (state->focused.val == self.val) {
 		ns = &typed_control->focused_nslice;
 	} else {
@@ -398,18 +398,18 @@ b8 kui_textbox_control_render(kui_state* state, kui_control self, struct frame_d
 	return true;
 }
 
-const char* kui_textbox_text_get(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+const char *kui_textbox_text_get (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_data = (kui_textbox_control*)base;
+	kui_textbox_control *typed_data = (kui_textbox_control *)base;
 
 	return kui_label_text_get(state, typed_data->content_label);
 }
 
-void kui_textbox_text_set(kui_state* state, kui_control self, const char* text) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_textbox_text_set (kui_state *state, kui_control self, const char *text) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_data = (kui_textbox_control*)base;
+	kui_textbox_control *typed_data = (kui_textbox_control *)base;
 
 	if (string_length(text)) {
 		if (typed_data->type == KUI_TEXTBOX_TYPE_FLOAT) {
@@ -435,23 +435,23 @@ void kui_textbox_text_set(kui_state* state, kui_control self, const char* text) 
 	kui_textbox_update_cursor_position(state, base);
 }
 
-void kui_textbox_i64_set(kui_state* state, kui_control self, i64 i) {
-	const char* str = i64_to_string(i);
+void kui_textbox_i64_set (kui_state *state, kui_control self, i64 i) {
+	const char *str = i64_to_string(i);
 	kui_textbox_text_set(state, self, str);
 	string_free(str);
 }
 
-void kui_textbox_f32_set(kui_state* state, kui_control self, f32 f) {
-	const char* str = f32_to_string(f);
+void kui_textbox_f32_set (kui_state *state, kui_control self, f32 f) {
+	const char *str = f32_to_string(f);
 	kui_textbox_text_set(state, self, str);
 	string_free(str);
 }
 
-void kui_textbox_delete_at_cursor(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_textbox_delete_at_cursor (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_data = (kui_textbox_control*)base;
-	const char* entry_control_text = kui_label_text_get(state, typed_data->content_label);
+	kui_textbox_control *typed_data = (kui_textbox_control *)base;
+	const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 	u32 len = string_length(entry_control_text);
 
 	if (!len) {
@@ -460,7 +460,7 @@ void kui_textbox_delete_at_cursor(kui_state* state, kui_control self) {
 		return;
 	}
 
-	char* str = string_duplicate(entry_control_text);
+	char *str = string_duplicate(entry_control_text);
 	if (typed_data->highlight_range.size == (i32)len) {
 		// Whole range is selected, delete and reset cursor position.
 		str = string_empty(str);
@@ -483,15 +483,15 @@ void kui_textbox_delete_at_cursor(kui_state* state, kui_control self) {
 
 	kui_label_text_set(state, typed_data->content_label, str);
 	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-	kfree((char*)str, len + 1, MEMORY_TAG_STRING);
+	kfree((char *)str, len + 1, MEMORY_TAG_STRING);
 	kui_textbox_update_cursor_position(state, base);
 }
 
-void kui_textbox_select_all(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_textbox_select_all (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_data = (kui_textbox_control*)base;
-	const char* entry_control_text = kui_label_text_get(state, typed_data->content_label);
+	kui_textbox_control *typed_data = (kui_textbox_control *)base;
+	const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 	u32 len = string_length(entry_control_text);
 	typed_data->highlight_range.size = len;
 	typed_data->highlight_range.offset = 0;
@@ -500,10 +500,10 @@ void kui_textbox_select_all(kui_state* state, kui_control self) {
 	kui_textbox_update_cursor_position(state, base);
 }
 
-void kui_textbox_select_none(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_textbox_select_none (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_textbox_control* typed_data = (kui_textbox_control*)base;
+	kui_textbox_control *typed_data = (kui_textbox_control *)base;
 	typed_data->highlight_range.size = 0;
 	typed_data->highlight_range.offset = 0;
 	typed_data->cursor_position = 0;
@@ -511,20 +511,20 @@ void kui_textbox_select_none(kui_state* state, kui_control self) {
 	kui_textbox_update_cursor_position(state, base);
 }
 
-static f32 kui_textbox_calculate_cursor_offset(kui_state* state, u32 string_pos, const char* full_string, kui_textbox_control* typed_textbox_control) {
+static f32 kui_textbox_calculate_cursor_offset (kui_state *state, u32 string_pos, const char *full_string, kui_textbox_control *typed_textbox_control) {
 	if (string_pos == 0) {
 		return 0;
 	}
 
-	char* copy = string_duplicate(full_string);
+	char *copy = string_duplicate(full_string);
 	u32 len = string_length(copy);
-	char* mid_target = copy;
+	char *mid_target = copy;
 	string_mid(mid_target, full_string, 0, string_pos);
 
 	vec2 size = vec2_zero();
 
-	kui_base_control* label_base = kui_system_get_base(state, typed_textbox_control->content_label);
-	kui_label_control* typed_label_control = (kui_label_control*)label_base;
+	kui_base_control *label_base = kui_system_get_base(state, typed_textbox_control->content_label);
+	kui_label_control *typed_label_control = (kui_label_control *)label_base;
 
 	if (typed_label_control->type == FONT_TYPE_BITMAP) {
 		font_system_bitmap_font_measure_string(state->font_system, typed_label_control->bitmap_font, mid_target, 0, &size);
@@ -536,16 +536,16 @@ static f32 kui_textbox_calculate_cursor_offset(kui_state* state, u32 string_pos,
 
 	// Make sure to cleanup the string.
 	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-	kfree((char*)copy, len + 1, MEMORY_TAG_STRING);
+	kfree((char *)copy, len + 1, MEMORY_TAG_STRING);
 
 	// Use the x-axis of the mesurement to place the cursor.
 	return size.x;
 }
 
-static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control* self) {
-	kui_textbox_control* typed_control = (kui_textbox_control*)self;
+static void kui_textbox_update_highlight_box (kui_state *state, kui_base_control *self) {
+	kui_textbox_control *typed_control = (kui_textbox_control *)self;
 
-	kui_base_control* highlight_base = kui_system_get_base(state, typed_control->highlight_box);
+	kui_base_control *highlight_base = kui_system_get_base(state, typed_control->highlight_box);
 	/* kui_panel_control* typed_highlight_control = (kui_panel_control*)highlight_base; */
 
 	if (typed_control->highlight_range.size == 0) {
@@ -553,8 +553,8 @@ static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control*
 		return;
 	}
 
-	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
-	kui_label_control* typed_label_control = (kui_label_control*)label_base;
+	kui_base_control *label_base = kui_system_get_base(state, typed_control->content_label);
+	kui_label_control *typed_label_control = (kui_label_control *)label_base;
 
 	FLAG_SET(highlight_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, true);
 
@@ -573,14 +573,14 @@ static void kui_textbox_update_highlight_box(kui_state* state, kui_base_control*
 	ktransform_scale_set(highlight_base->ktransform, (vec3){width, 1.0f, 1.0f});
 }
 
-static void kui_textbox_update_cursor_position(kui_state* state, kui_base_control* self) {
-	kui_textbox_control* typed_control = (kui_textbox_control*)self;
+static void kui_textbox_update_cursor_position (kui_state *state, kui_base_control *self) {
+	kui_textbox_control *typed_control = (kui_textbox_control *)self;
 
-	kui_base_control* cursor_base = kui_system_get_base(state, typed_control->cursor);
+	kui_base_control *cursor_base = kui_system_get_base(state, typed_control->cursor);
 	/* kui_panel_control* typed_cursor_control = (kui_panel_control*)cursor_base; */
 
-	kui_base_control* label_base = kui_system_get_base(state, typed_control->content_label);
-	kui_label_control* typed_label_control = (kui_label_control*)label_base;
+	kui_base_control *label_base = kui_system_get_base(state, typed_control->content_label);
+	kui_label_control *typed_label_control = (kui_label_control *)label_base;
 
 	// Offset from the start of the string.
 	f32 offset = kui_textbox_calculate_cursor_offset(state, typed_control->cursor_position, typed_label_control->text, typed_control);
@@ -619,13 +619,13 @@ static void kui_textbox_update_cursor_position(kui_state* state, kui_base_contro
 	ktransform_position_set(cursor_base->ktransform, cursor_pos);
 }
 
-static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_context context) {
-	kui_textbox_event_listener* listener = listener_inst;
-	kui_state* state = listener->state;
+static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_textbox_event_listener *listener = listener_inst;
+	kui_state *state = listener->state;
 
 	kui_control handle = listener->control;
-	kui_base_control* base = kui_system_get_base(state, handle);
-	kui_textbox_control* typed_data = (kui_textbox_control*)base;
+	kui_base_control *base = kui_system_get_base(state, handle);
+	kui_textbox_control *typed_data = (kui_textbox_control *)base;
 
 	if (state->focused.val != typed_data->base.handle.val) {
 		return false;
@@ -642,13 +642,13 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 		b8 ctrl_held = input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL) || input_is_key_down(KEY_CONTROL);
 #endif
 
-		const char* entry_control_text = kui_label_text_get(state, typed_data->content_label);
+		const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 		u32 len = string_length(entry_control_text);
 		if (key_code == KEY_BACKSPACE) {
 			if (len == 0) {
 				kui_label_text_set(state, typed_data->content_label, "");
 			} else if ((typed_data->cursor_position > 0 || typed_data->highlight_range.size > 0)) {
-				char* str = string_duplicate(entry_control_text);
+				char *str = string_duplicate(entry_control_text);
 				if (typed_data->highlight_range.size > 0) {
 					if (typed_data->highlight_range.size == (i32)len) {
 						str = string_empty(str);
@@ -667,7 +667,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 				}
 				kui_label_text_set(state, typed_data->content_label, str);
 				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-				kfree((char*)str, len + 1, MEMORY_TAG_STRING);
+				kfree((char *)str, len + 1, MEMORY_TAG_STRING);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
 		} else if (key_code == KEY_DELETE) {
@@ -769,10 +769,10 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 						if (typed_data->highlight_range.size > 0) {
 
 							// Copy the selected text to the clipboard, if any is selected.
-							const range32* hl = &typed_data->highlight_range;
-							char* buf = kallocate(hl->size + 1, MEMORY_TAG_STRING);
+							const range32 *hl = &typed_data->highlight_range;
+							char *buf = kallocate(hl->size + 1, MEMORY_TAG_STRING);
 
-							const char* entry_control_text = kui_label_text_get(state, typed_data->content_label);
+							const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 							for (i32 i = 0; i < hl->size; ++i) {
 								buf[i] = entry_control_text[hl->offset + i];
 							}
@@ -873,7 +873,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 			}
 
 			if (char_code != 0) {
-				const char* entry_control_text = kui_label_text_get(state, typed_data->content_label);
+				const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 				u32 len = string_length(entry_control_text);
 
 				// Need to verify that the input is valid before doing it. Otherwise boot.
@@ -901,7 +901,7 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 						return true;
 					}
 				}
-				char* str = kallocate(sizeof(char) * (len + 2), MEMORY_TAG_STRING);
+				char *str = kallocate(sizeof(char) * (len + 2), MEMORY_TAG_STRING);
 
 				// If text is highlighted, delete highlighted text, then insert at cursor position.
 				if (typed_data->highlight_range.size > 0) {
@@ -946,18 +946,18 @@ static b8 kui_textbox_on_key(u16 code, void* sender, void* listener_inst, event_
 	return false;
 }
 
-static b8 kui_textbox_on_paste(u16 code, void* sender, void* listener_inst, event_context context) {
+static b8 kui_textbox_on_paste (u16 code, void *sender, void *listener_inst, event_context context) {
 
-	kclipboard_context* clip = context.data.custom_data.data;
+	kclipboard_context *clip = context.data.custom_data.data;
 
 	// Only handle string data.
 	if (clip->content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
-		kui_base_control* self = listener_inst;
+		kui_base_control *self = listener_inst;
 
-		kui_textbox_control* typed_data = (kui_textbox_control*)self;
-		kui_state* state = typed_data->listener->state;
+		kui_textbox_control *typed_data = (kui_textbox_control *)self;
+		kui_state *state = typed_data->listener->state;
 
-		const char* entry_control_text = kui_label_text_get(state, typed_data->content_label);
+		const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 		u32 insert_length = string_length(clip->content);
 
 		// Verify the text content. If numeric is required and it isn't numeric, cancel the paste.
@@ -976,7 +976,7 @@ static b8 kui_textbox_on_paste(u16 code, void* sender, void* listener_inst, even
 		}
 
 		u32 len = string_length(entry_control_text);
-		char* str = kallocate(sizeof(char) * (len + insert_length + 1), MEMORY_TAG_STRING);
+		char *str = kallocate(sizeof(char) * (len + insert_length + 1), MEMORY_TAG_STRING);
 
 		// If text is highlighted, delete highlighted text, then insert at cursor position.
 		if (typed_data->highlight_range.size > 0) {
@@ -1010,10 +1010,10 @@ static b8 kui_textbox_on_paste(u16 code, void* sender, void* listener_inst, even
 	return true;
 }
 
-static void kui_textbox_on_focus(struct kui_state* state, kui_control self) {
+static void kui_textbox_on_focus (struct kui_state *state, kui_control self) {
 	kui_textbox_select_all(state, self);
 }
 
-static void kui_textbox_on_unfocus(struct kui_state* state, kui_control self) {
+static void kui_textbox_on_unfocus (struct kui_state *state, kui_control self) {
 	kui_textbox_select_none(state, self);
 }

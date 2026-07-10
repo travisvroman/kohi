@@ -57,7 +57,7 @@ typedef struct kgeometry {
 	/** @brief The size of each vertex's standard data. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
 	u32 vertex_element_size;
 	/** @brief The standard vertex data. */
-	void* vertices;
+	void *vertices;
 	/** @brief The offset from the beginning of the standard  vertex buffer. */
 	u64 vertex_buffer_offset;
 
@@ -66,7 +66,7 @@ typedef struct kgeometry {
 	/** @brief The size of each index. Ignored unless type is KGEOMETRY_TYPE_CUSTOM. */
 	u32 index_element_size;
 	/** @brief The index data. */
-	void* indices;
+	void *indices;
 	/** @brief The offset from the beginning of the index buffer. */
 	u64 index_buffer_offset;
 } kgeometry;
@@ -96,7 +96,7 @@ typedef enum grid_orientation {
  * @param index_count The number of indices.
  * @param indices An array of vertices.
  */
-KAPI void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices);
+KAPI void geometry_generate_normals (u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices);
 
 /**
  * @brief Calculates tangents for the given vertex and index data. Modifies
@@ -107,7 +107,7 @@ KAPI void geometry_generate_normals(u32 vertex_count, vertex_3d* vertices, u32 i
  * @param index_count The number of indices.
  * @param indices An array of vertices.
  */
-KAPI void geometry_generate_tangents(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices);
+KAPI void geometry_generate_tangents (u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices);
 
 /**
  * @brief De-duplicates vertices, leaving only unique ones. Leaves the original
@@ -123,7 +123,7 @@ KAPI void geometry_generate_tangents(u32 vertex_count, vertex_3d* vertices, u32 
  * @param out_vertex_count A pointer to hold the final vertex count.
  * @param out_vertices A pointer to hold the array of de-duplicated vertices.
  */
-KAPI void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d* vertices, u32 index_count, u32* indices, u32* out_vertex_count, vertex_3d** out_vertices);
+KAPI void geometry_deduplicate_vertices (u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices, u32 *out_vertex_count, vertex_3d **out_vertices);
 
 /**
  * @brief Generates texture coordinates based on pixel position within an image's dimensions.
@@ -135,7 +135,7 @@ KAPI void geometry_deduplicate_vertices(u32 vertex_count, vertex_3d* vertices, u
  * @param out_tx A pointer to hold the generated texture coordinate on the x-axis.
  * @param out_ty A pointer to hold the generated texture coordinate on the y-axis.
  */
-KAPI void generate_uvs_from_image_coords(u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32* out_tx, f32* out_ty);
+KAPI void generate_uvs_from_image_coords (u32 img_width, u32 img_height, u32 px_x, u32 px_y, f32 *out_tx, f32 *out_ty);
 
 /**
  * @brief Generates a two-dimensional quad (two triangles) of geometry. Note that memory for the
@@ -151,7 +151,7 @@ KAPI void generate_uvs_from_image_coords(u32 img_width, u32 img_height, u32 px_x
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_quad(f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, kname name);
+KAPI kgeometry geometry_generate_quad (f32 width, f32 height, f32 tx_min, f32 tx_max, f32 ty_min, f32 ty_max, kname name);
 
 /**
  * @brief Generates a two-dimensional line of geometry. Note that the memory for the
@@ -163,7 +163,7 @@ KAPI kgeometry geometry_generate_quad(f32 width, f32 height, f32 tx_min, f32 tx_
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name);
+KAPI kgeometry geometry_generate_line2d (vec2 point_0, vec2 point_1, kname name);
 
 /**
  * @brief Generates a three-dimensional line of geometry. Note that the memory for the
@@ -175,11 +175,11 @@ KAPI kgeometry geometry_generate_line2d(vec2 point_0, vec2 point_1, kname name);
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_line3d(vec3 point_0, vec3 point_1, kname name);
-KAPI kgeometry geometry_generate_line3d_typed(vec3 point_0, vec3 point_1, kname name, kgeometry_type type);
+KAPI kgeometry geometry_generate_line3d (vec3 point_0, vec3 point_1, kname name);
+KAPI kgeometry geometry_generate_line3d_typed (vec3 point_0, vec3 point_1, kname name, kgeometry_type type);
 
-KAPI kgeometry geometry_generate_line_sphere3d(f32 radius, u32 segment_count, kname name);
-KAPI kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_count, kname name, kgeometry_type type);
+KAPI kgeometry geometry_generate_line_sphere3d (f32 radius, u32 segment_count, kname name);
+KAPI kgeometry geometry_generate_line_sphere3d_typed (f32 radius, u32 segment_count, kname name, kgeometry_type type);
 
 /**
  * @brief Generates a three-dimensional plane of geometry. Note that memory for the
@@ -195,7 +195,7 @@ KAPI kgeometry geometry_generate_line_sphere3d_typed(f32 radius, u32 segment_cou
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name);
+KAPI kgeometry geometry_generate_plane (f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name);
 
 /**
  * @brief Generates a two-dimensional plane of geometry. Note that memory for the
@@ -211,7 +211,7 @@ KAPI kgeometry geometry_generate_plane(f32 width, f32 height, u32 x_segment_coun
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, b8 centered);
+KAPI kgeometry geometry_generate_plane_2d (f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, kname name, b8 centered);
 
 /**
  * @brief Recalculates the vertices in the given geometry based off the given points.
@@ -219,7 +219,7 @@ KAPI kgeometry geometry_generate_plane_2d(f32 width, f32 height, u32 x_segment_c
  * @param geometry A pointer to the geometry to modify.
  * @param points The 8 points (i.e. corners of a box) that will be used for the modification.
  */
-KAPI void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 points[8]);
+KAPI void geometry_recalculate_line_box3d_by_points (kgeometry *geometry, vec3 points[8]);
 
 /**
  * @brief Recalculates the vertices in the given geometry based off the given extents.
@@ -227,7 +227,7 @@ KAPI void geometry_recalculate_line_box3d_by_points(kgeometry* geometry, vec3 po
  * @param geometry A pointer to the geometry to modify.
  * @param extents The extents of which to base the modification.
  */
-KAPI void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extents_3d extents, vec3 offset);
+KAPI void geometry_recalculate_line_box3d_by_extents (kgeometry *geometry, extents_3d extents, vec3 offset);
 
 /**
  * @brief Generates a line-based 3d box based on the provided size.
@@ -236,8 +236,8 @@ KAPI void geometry_recalculate_line_box3d_by_extents(kgeometry* geometry, extent
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_line_box3d(vec3 size, kname name, vec3 offset);
-KAPI kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeometry_type type, vec3 offset);
+KAPI kgeometry geometry_generate_line_box3d (vec3 size, kname name, vec3 offset);
+KAPI kgeometry geometry_generate_line_box3d_typed (vec3 size, kname name, kgeometry_type type, vec3 offset);
 
 /**
  * @brief Generates a three-dimensional cube of geometry. Note that memory for the
@@ -252,7 +252,7 @@ KAPI kgeometry geometry_generate_line_box3d_typed(vec3 size, kname name, kgeomet
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, kname name);
+KAPI kgeometry geometry_generate_cube (f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, kname name);
 
 /**
  * @brief Create a geometry-based grid using the given parameters. The grid is based on line
@@ -267,16 +267,16 @@ KAPI kgeometry geometry_generate_cube(f32 width, f32 height, f32 depth, f32 tile
  * @param name The name of the geometry.
  * @returns The newly-created geometry.
  */
-KAPI kgeometry geometry_generate_grid(grid_orientation orientation, u32 segment_count_dim_0, u32 segment_count_dim_1, f32 segment_size, b8 use_third_axis, kname name);
+KAPI kgeometry geometry_generate_grid (grid_orientation orientation, u32 segment_count_dim_0, u32 segment_count_dim_1, f32 segment_size, b8 use_third_axis, kname name);
 
 /**
  * @brief Destroys the given geometry.
  *
  * @param geometry A pointer to the geometry to be destroyed.
  */
-KAPI void geometry_destroy(kgeometry* geometry);
+KAPI void geometry_destroy (kgeometry *geometry);
 
-KAPI void generate_axis_geometry(
+KAPI void generate_axis_geometry (
 	axis_3d axis,
 	f32 base_offset,
 	f32 length,
@@ -286,21 +286,21 @@ KAPI void generate_axis_geometry(
 	f32 arrowhead_length,
 	u32 segment_count,
 	b8 include_arrowhead,
-	u32* out_vertex_count,
-	u32* out_index_count,
-	colour_vertex_3d* vertices,
-	u32* indices,
+	u32 *out_vertex_count,
+	u32 *out_index_count,
+	colour_vertex_3d *vertices,
+	u32 *indices,
 	u32 vertex_offset);
 
-KAPI void generate_axis_ring_geometry(
+KAPI void generate_axis_ring_geometry (
 	axis_3d axis,
 	f32 radius,
 	f32 thickness,
 	colour4 colour,
 	u32 ring_segments,
 	u32 tube_segments,
-	u32* out_vertex_count,
-	u32* out_index_count,
-	colour_vertex_3d* vertices,
-	u32* indices,
+	u32 *out_vertex_count,
+	u32 *out_index_count,
+	colour_vertex_3d *vertices,
+	u32 *indices,
 	u32 vertex_offset);

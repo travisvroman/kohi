@@ -18,20 +18,20 @@
 #include "renderer/kui_renderer.h"
 #include "systems/ktransform_system.h"
 
-static b8 dec_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 inc_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 on_mouse_wheel(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 on_y_drag_start(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 on_y_drag(kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 on_y_drag_end(kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 dec_y_on_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 inc_y_on_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 on_mouse_wheel (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 on_y_drag_start (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 on_y_drag (kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 on_y_drag_end (kui_state *state, kui_control self, struct kui_mouse_event event);
 
-kui_control kui_scrollable_control_create(kui_state* state, const char* name, vec2 size, b8 scroll_x, b8 scroll_y) {
+kui_control kui_scrollable_control_create (kui_state *state, const char *name, vec2 size, b8 scroll_x, b8 scroll_y) {
 	kui_control handle = kui_base_control_create(state, name, KUI_CONTROL_TYPE_SCROLLABLE);
 
-	kui_base_control* base = kui_system_get_base(state, handle);
+	kui_base_control *base = kui_system_get_base(state, handle);
 	KASSERT(base);
 
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	base->bounds = vec4_create(0, 0, size.x, size.y);
 
@@ -75,14 +75,14 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 	base->clip_mask.stencil_data.clip_ktransform = ktransform_create(0);
 	ktransform_parent_set(base->clip_mask.stencil_data.clip_ktransform, base->ktransform); */
 
-	const char* content_name = string_format("%s_content", name);
+	const char *content_name = string_format("%s_content", name);
 	typed_control->content_wrapper = kui_base_control_create(state, content_name, KUI_CONTROL_TYPE_BASE);
 	string_free(content_name);
 
 	kui_system_control_add_child(state, handle, typed_control->content_wrapper);
 
 	// The content wrapper itself shouldn't block events.
-	kui_base_control* content_wrapper_base = kui_system_get_base(state, typed_control->content_wrapper);
+	kui_base_control *content_wrapper_base = kui_system_get_base(state, typed_control->content_wrapper);
 	FLAG_SET(content_wrapper_base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, false);
 
 	vec2i atlas_size = (vec2i){state->atlas_texture_size.x, state->atlas_texture_size.y};
@@ -115,7 +115,7 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 		KASSERT(typed_control->scrollbar_y.bg_binding_instance_id != INVALID_ID);
 	}
 
-	const char* scroll_y_name = KNULL;
+	const char *scroll_y_name = KNULL;
 
 	scroll_y_name = string_format("%s_scroll_y_dec", name);
 	typed_control->scrollbar_y.dec_button = kui_button_control_create_uparrow(state, scroll_y_name);
@@ -145,7 +145,7 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 	kui_button_control_height_set(state, typed_control->scrollbar_y.thumb_button, typed_control->scrollbar_width);
 	kui_control_set_is_visible(state, typed_control->scrollbar_y.thumb_button, false);
 	kui_control_position_set(state, typed_control->scrollbar_y.thumb_button, (vec3){size.x - typed_control->scrollbar_width, base->bounds.height - (typed_control->scrollbar_width * 2) - 4, 0});
-	kui_base_control* thumb_base = kui_system_get_base(state, typed_control->scrollbar_y.thumb_button);
+	kui_base_control *thumb_base = kui_system_get_base(state, typed_control->scrollbar_y.thumb_button);
 	thumb_base->on_mouse_drag_begin = on_y_drag_start;
 	thumb_base->on_mouse_drag = on_y_drag;
 	thumb_base->on_mouse_drag_end = on_y_drag_end;
@@ -155,10 +155,10 @@ kui_control kui_scrollable_control_create(kui_state* state, const char* name, ve
 	return handle;
 }
 
-void kui_scrollable_control_destroy(kui_state* state, kui_control* self) {
-	kui_base_control* base = kui_system_get_base(state, *self);
+void kui_scrollable_control_destroy (kui_state *state, kui_control *self) {
+	kui_base_control *base = kui_system_get_base(state, *self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	// destroy clipping mask
 	if (base->clipping_area.type == KUI_CLIP_TYPE_STENCIL) {
@@ -172,28 +172,28 @@ void kui_scrollable_control_destroy(kui_state* state, kui_control* self) {
 	kui_base_control_destroy(state, self);
 }
 
-b8 kui_scrollable_control_update(kui_state* state, kui_control self, struct frame_data* p_frame_data) {
+b8 kui_scrollable_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
 	if (!kui_base_control_update(state, self, p_frame_data)) {
 		return false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	nine_slice_render_frame_prepare(&typed_control->scrollbar_y.bg, p_frame_data);
 
 	return true;
 }
 
-b8 kui_scrollable_control_render(kui_state* state, kui_control self, struct frame_data* p_frame_data, kui_render_data* render_data) {
+b8 kui_scrollable_control_render (kui_state *state, kui_control self, struct frame_data *p_frame_data, kui_render_data *render_data) {
 	if (!kui_base_control_render(state, self, p_frame_data, render_data)) {
 		return false;
 	}
 
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	if (typed_control->is_dirty) {
 		// TODO: reupload vertex geometry for clipping mask?
@@ -204,7 +204,7 @@ b8 kui_scrollable_control_render(kui_state* state, kui_control self, struct fram
 	// Render the nine-slice.
 	b8 y_visible = typed_control->min_offset.y < 0;
 	if (y_visible) {
-		nine_slice* ns = &typed_control->scrollbar_y.bg;
+		nine_slice *ns = &typed_control->scrollbar_y.bg;
 
 		if (ns->vertex_data.elements) {
 			kui_renderable nineslice_renderable = {0};
@@ -239,26 +239,26 @@ b8 kui_scrollable_control_render(kui_state* state, kui_control self, struct fram
 
 	return true;
 }
-vec2 kui_scrollable_size(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+vec2 kui_scrollable_size (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
 
 	return (vec2){base->bounds.width, base->bounds.height};
 }
 
-void kui_scrollable_set_height(kui_state* state, kui_control self, f32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_scrollable_set_height (kui_state *state, kui_control self, f32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_scrollable_control_resize(state, self, (vec2){base->bounds.width, height});
 }
-void kui_scrollable_set_width(kui_state* state, kui_control self, f32 width) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_scrollable_set_width (kui_state *state, kui_control self, f32 width) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_scrollable_control_resize(state, self, (vec2){width, base->bounds.height});
 }
 
-static void recalculate(kui_state* state, kui_scrollable_control* typed_control) {
-	kui_base_control* container_base = kui_system_get_base(state, typed_control->content_wrapper);
+static void recalculate (kui_state *state, kui_scrollable_control *typed_control) {
+	kui_base_control *container_base = kui_system_get_base(state, typed_control->content_wrapper);
 
 	typed_control->min_offset.y = KMIN(0.0f, typed_control->base.bounds.height - container_base->bounds.height);
 	typed_control->min_offset.x = KMIN(0.0f, typed_control->base.bounds.width - container_base->bounds.width);
@@ -272,7 +272,7 @@ static void recalculate(kui_state* state, kui_scrollable_control* typed_control)
 	f32 max_y = typed_control->base.bounds.height - (typed_control->scrollbar_width * 2) - 4;
 	f32 pos_y = min_y + (pct_y * (max_y - min_y));
 	f32 pos_x = typed_control->base.bounds.width - (typed_control->scrollbar_width + 4);
-	kui_base_control* y_thumb_base = kui_system_get_base(state, typed_control->scrollbar_y.thumb_button);
+	kui_base_control *y_thumb_base = kui_system_get_base(state, typed_control->scrollbar_y.thumb_button);
 	ktransform_position_set(y_thumb_base->ktransform, (vec3){pos_x, pos_y, 0});
 
 	// Determine if we can scroll in any direction, and show that scrollbar.
@@ -283,15 +283,15 @@ static void recalculate(kui_state* state, kui_scrollable_control* typed_control)
 	kui_control_set_is_visible(state, typed_control->scrollbar_y.thumb_button, y_visible);
 }
 
-b8 kui_scrollable_control_resize(kui_state* state, kui_control self, vec2 new_size) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_scrollable_control_resize (kui_state *state, kui_control self, vec2 new_size) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	base->bounds.width = new_size.x;
 	base->bounds.height = new_size.y;
 	if (base->clipping_area.type == KUI_CLIP_TYPE_STENCIL) {
-		vertex_2d* vertices = base->clipping_area.stencil_data.geometry.vertices;
+		vertex_2d *vertices = base->clipping_area.stencil_data.geometry.vertices;
 		vertices[1].position.y = new_size.y;
 		vertices[1].position.x = new_size.x;
 		vertices[2].position.y = new_size.y;
@@ -312,69 +312,69 @@ b8 kui_scrollable_control_resize(kui_state* state, kui_control self, vec2 new_si
 	return true;
 }
 
-kui_control kui_scrollable_control_get_content_container(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+kui_control kui_scrollable_control_get_content_container (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 	return typed_control->content_wrapper;
 }
 
-void kui_scrollable_control_scroll_y(kui_state* state, kui_control self, f32 amount) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_scrollable_control_scroll_y (kui_state *state, kui_control self, f32 amount) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	typed_control->offset.y += amount;
 	recalculate(state, typed_control);
 }
-void kui_scrollable_control_scroll_x(kui_state* state, kui_control self, f32 amount) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_scrollable_control_scroll_x (kui_state *state, kui_control self, f32 amount) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	typed_control->offset.x += amount;
 	recalculate(state, typed_control);
 }
 
-void kui_scrollable_control_scroll_y_set(kui_state* state, kui_control self, f32 pos) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_scrollable_control_scroll_y_set (kui_state *state, kui_control self, f32 pos) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	pos = KCLAMP(pos, 0, 1);
 
 	typed_control->offset.y = typed_control->min_offset.y * pos;
 	recalculate(state, typed_control);
 }
-void kui_scrollable_control_scroll_x_set(kui_state* state, kui_control self, f32 pos) {
+void kui_scrollable_control_scroll_x_set (kui_state *state, kui_control self, f32 pos) {
 }
 
-void kui_scrollable_set_content_size(kui_state* state, kui_control self, f32 width, f32 height) {
-	kui_base_control* base = kui_system_get_base(state, self);
+void kui_scrollable_set_content_size (kui_state *state, kui_control self, f32 width, f32 height) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
-	kui_base_control* container_base = kui_system_get_base(state, typed_control->content_wrapper);
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
+	kui_base_control *container_base = kui_system_get_base(state, typed_control->content_wrapper);
 	container_base->bounds.height = height;
 	container_base->bounds.width = width;
 
 	recalculate(state, typed_control);
 }
 
-b8 kui_scrollable_can_scroll_x(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_scrollable_can_scroll_x (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 	return typed_control->min_offset.x < 0;
 }
-b8 kui_scrollable_can_scroll_y(kui_state* state, kui_control self) {
-	kui_base_control* base = kui_system_get_base(state, self);
+b8 kui_scrollable_can_scroll_y (kui_state *state, kui_control self) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 	return typed_control->min_offset.y < 0;
 }
 
-static b8 dec_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* button_base = kui_system_get_base(state, self);
+static b8 dec_y_on_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *button_base = kui_system_get_base(state, self);
 	KASSERT(button_base);
 	kui_control parent = button_base->parent;
 
@@ -383,8 +383,8 @@ static b8 dec_y_on_clicked(struct kui_state* state, kui_control self, struct kui
 	return false;
 }
 
-static b8 inc_y_on_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* button_base = kui_system_get_base(state, self);
+static b8 inc_y_on_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *button_base = kui_system_get_base(state, self);
 	KASSERT(button_base);
 	kui_control parent = button_base->parent;
 
@@ -393,21 +393,21 @@ static b8 inc_y_on_clicked(struct kui_state* state, kui_control self, struct kui
 	return false;
 }
 
-static b8 on_mouse_wheel(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
+static b8 on_mouse_wheel (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 	kui_scrollable_control_scroll_y(typed_control->kui_state, typed_control->base.handle, (f32)event.delta_z * 5.0f);
 	return false;
 }
 
-static b8 on_y_drag_start(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* thumb_base = kui_system_get_base(state, self);
+static b8 on_y_drag_start (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *thumb_base = kui_system_get_base(state, self);
 	KASSERT(thumb_base);
-	kui_button_control* thumb = (kui_button_control*)thumb_base;
+	kui_button_control *thumb = (kui_button_control *)thumb_base;
 
-	kui_base_control* base = kui_system_get_base(state, thumb->base.parent);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_base_control *base = kui_system_get_base(state, thumb->base.parent);
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	if (typed_control) {
 
@@ -421,13 +421,13 @@ static b8 on_y_drag_start(kui_state* state, kui_control self, struct kui_mouse_e
 	return false;
 }
 
-static b8 on_y_drag(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* thumb_base = kui_system_get_base(state, self);
+static b8 on_y_drag (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *thumb_base = kui_system_get_base(state, self);
 	KASSERT(thumb_base);
-	kui_button_control* thumb = (kui_button_control*)thumb_base;
+	kui_button_control *thumb = (kui_button_control *)thumb_base;
 
-	kui_base_control* base = kui_system_get_base(state, thumb->base.parent);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_base_control *base = kui_system_get_base(state, thumb->base.parent);
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	if (typed_control) {
 
@@ -443,13 +443,13 @@ static b8 on_y_drag(kui_state* state, kui_control self, struct kui_mouse_event e
 	return false;
 }
 
-static b8 on_y_drag_end(kui_state* state, kui_control self, struct kui_mouse_event event) {
-	kui_base_control* thumb_base = kui_system_get_base(state, self);
+static b8 on_y_drag_end (kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_base_control *thumb_base = kui_system_get_base(state, self);
 	KASSERT(thumb_base);
-	kui_button_control* thumb = (kui_button_control*)thumb_base;
+	kui_button_control *thumb = (kui_button_control *)thumb_base;
 
-	kui_base_control* base = kui_system_get_base(state, thumb->base.parent);
-	kui_scrollable_control* typed_control = (kui_scrollable_control*)base;
+	kui_base_control *base = kui_system_get_base(state, thumb->base.parent);
+	kui_scrollable_control *typed_control = (kui_scrollable_control *)base;
 
 	if (typed_control) {
 		KTRACE("drag end offset y: %f", (typed_control->scrollbar_width + 4) - event.local_y);

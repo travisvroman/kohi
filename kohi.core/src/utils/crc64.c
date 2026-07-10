@@ -305,7 +305,7 @@ static const uint64_t crc64_tab[256] = {
 	UINT64_C(0x29b7d047efec8728),
 };
 
-u64 crc64(u64 crc, const u8* data, u64 length) {
+u64 crc64 (u64 crc, const u8 *data, u64 length) {
 	for (u64 j = 0; j < length; ++j) {
 		u8 byte = data[j];
 		crc = crc64_tab[(u8)crc ^ byte] ^ (crc >> 8);

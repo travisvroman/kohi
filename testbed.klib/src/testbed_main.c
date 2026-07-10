@@ -79,53 +79,53 @@ struct kaudio_system_state;
  *
  * @returns If in editor mode, returns the editor scene, if in game mode, return the active zone's scene. Otherwise KNULL.
  */
-static struct kscene* get_current_render_scene(application* app);
-static kcamera get_current_render_camera(application* app);
+static struct kscene *get_current_render_scene (application *app);
+static kcamera get_current_render_camera (application *app);
 
-static void setup_keymaps(application* app);
-static void remove_keymaps(application* app);
+static void setup_keymaps (application *app);
+static void remove_keymaps (application *app);
 
-static f32 get_engine_delta_time(void);
-static f32 get_engine_total_time(void);
+static f32 get_engine_delta_time (void);
+static f32 get_engine_total_time (void);
 
-static void game_register_events(application* app);
-static void game_unregister_events(application* app);
-static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context context);
+static void game_register_events (application *app);
+static void game_unregister_events (application *app);
+static b8 game_on_mouse_move (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 game_on_drag (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 game_on_button (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 game_on_event (u16 code, void *sender, void *listener_inst, event_context context);
 
-static void trigger_scene_load(console_command_context context);
-static void trigger_scene_unload(console_command_context context);
+static void trigger_scene_load (console_command_context context);
+static void trigger_scene_unload (console_command_context context);
 
-static void game_register_commands(application* app);
-static void game_unregister_commands(application* app);
-static void game_command_exit(console_command_context context);
-static void game_command_load_scene(console_command_context context);
-static void game_command_unload_scene(console_command_context context);
+static void game_register_commands (application *app);
+static void game_unregister_commands (application *app);
+static void game_command_exit (console_command_context context);
+static void game_command_load_scene (console_command_context context);
+static void game_command_unload_scene (console_command_context context);
 
-static void game_command_set_camera_pos(console_command_context context);
-static void game_command_set_camera_rot(console_command_context context);
-static void game_command_set_render_mode(console_command_context context);
+static void game_command_set_camera_pos (console_command_context context);
+static void game_command_set_camera_rot (console_command_context context);
+static void game_command_set_render_mode (console_command_context context);
 
-u64 application_state_size(void) {
+u64 application_state_size (void) {
 	return sizeof(application_state);
 }
 
-b8 application_boot(struct application* app) {
+b8 application_boot (struct application *app) {
 	KINFO("Booting %s (%s)...", app->app_config.name, KVERSION);
 
 	// Allocate the game state.
 	app->state = kallocate(sizeof(application_state), MEMORY_TAG_GAME);
 	app->state->running = false;
 
-	application_config* config = &app->app_config;
+	application_config *config = &app->app_config;
 
 	/* config->frame_allocator_size = MEBIBYTES(64); */
 	config->app_frame_data_size = sizeof(application_frame_data);
 
 	// Setup game constants.
-	game_constants* constants = &app->state->game.constants;
+	game_constants *constants = &app->state->game.constants;
 	constants->base_movement_speed = 2.0f;
 	constants->turn_speed = 2.5f;
 
@@ -147,7 +147,7 @@ b8 application_boot(struct application* app) {
 	return true;
 }
 
-b8 application_initialize(struct application* app) {
+b8 application_initialize (struct application *app) {
 	KINFO("Initializing application...");
 
 	app->state->audio_system = engine_systems_get()->audio_system;
@@ -159,7 +159,7 @@ b8 application_initialize(struct application* app) {
 
 	// Setup forward renderer.
 	// Get colourbuffer and depthbuffer from the currently active window.
-	kwindow* current_window = engine_active_window_get();
+	kwindow *current_window = engine_active_window_get();
 	ktexture global_colourbuffer = current_window->renderer_state->colourbuffer;
 	ktexture global_depthbuffer = current_window->renderer_state->depthbuffer;
 	if (!kforward_renderer_create(global_colourbuffer, global_depthbuffer, &app->state->game_renderer)) {
@@ -212,7 +212,7 @@ b8 application_initialize(struct application* app) {
 #endif
 
 	// Setup some UI elements
-	kui_state* kui_state = app->state->kui_state;
+	kui_state *kui_state = app->state->kui_state;
 
 	// Create test ui text objects
 	// black background text
@@ -263,8 +263,8 @@ b8 application_initialize(struct application* app) {
 	return true;
 }
 
-b8 application_update(struct application* app, struct frame_data* p_frame_data) {
-	application_frame_data* app_frame_data = p_frame_data->app_frame_data;
+b8 application_update (struct application *app, struct frame_data *p_frame_data) {
+	application_frame_data *app_frame_data = p_frame_data->app_frame_data;
 	if (!app_frame_data) {
 		return true;
 	}
@@ -298,7 +298,7 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
 		pos = kcamera_get_position(app->state->world_camera);
 		rot = kcamera_get_euler_rotation(app->state->world_camera);
 
-		struct kscene* cur_scene = get_current_render_scene(app);
+		struct kscene *cur_scene = get_current_render_scene(app);
 		if (cur_scene) {
 			// Update the current scene. TODO: Perhaps the zone system should do this?
 			if (!kscene_update(cur_scene, p_frame_data)) {
@@ -365,19 +365,19 @@ b8 application_update(struct application* app, struct frame_data* p_frame_data) 
 			accumulated_ms = 0;
 		}
 
-		char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
-		const char* time_str = time_as_string_from_seconds(get_engine_total_time());
-		const char* game_mode_text = testbed_application_mode_to_string(app->state->mode);
+		char *vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
+		const char *time_str = time_as_string_from_seconds(get_engine_total_time());
+		const char *game_mode_text = testbed_application_mode_to_string(app->state->mode);
 
 		// Calculate frame allocator pressure from the previous frame.
 		f32 size_div = 0;
 		f32 total_div = 0;
 		u64 allocated = app->state->prev_framealloc_allocated;
 		u64 total = app->state->prev_framealloc_total;
-		const char* size_str = get_unit_for_size(allocated, &size_div);
-		const char* total_str = get_unit_for_size(total, &total_div);
+		const char *size_str = get_unit_for_size(allocated, &size_div);
+		const char *total_str = get_unit_for_size(total, &total_div);
 
-		char* text_buffer = string_format(
+		char *text_buffer = string_format(
 			"\
 FPS: %5.1f(%4.1fms)        Pos=%V3.3 Rot=%V3D.3\n\
 Upd: %8.3fus, Prep: %8.3fus, Rend: %8.3fus, Tot: %8.3fus \n\
@@ -425,7 +425,7 @@ FAllocP: %.2f%s/%.2f%s (%.3f %%)",
 	return true;
 }
 
-b8 application_prepare_frame(struct application* app, struct frame_data* p_frame_data) {
+b8 application_prepare_frame (struct application *app, struct frame_data *p_frame_data) {
 	if (!app->state->running) {
 		return false;
 	}
@@ -434,11 +434,11 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 
 	p_frame_data->drawn_mesh_count = 0;
 
-	kwindow* current_window = engine_active_window_get();
+	kwindow *current_window = engine_active_window_get();
 	ktexture global_colourbuffer = current_window->renderer_state->colourbuffer;
 	ktexture global_depthbuffer = current_window->renderer_state->depthbuffer;
 
-	frame_allocator_int* frame_allocator = &p_frame_data->allocator;
+	frame_allocator_int *frame_allocator = &p_frame_data->allocator;
 
 	// Setup the frame's render data structures.
 	// Forward renderer
@@ -447,15 +447,15 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 	// kui renderer
 	p_frame_data->kui_render_data = frame_allocator->allocate(sizeof(kui_render_data));
 	kzero_memory(p_frame_data->kui_render_data, sizeof(kui_render_data));
-	kui_render_data* ui_render_data = p_frame_data->kui_render_data;
+	kui_render_data *ui_render_data = p_frame_data->kui_render_data;
 	// Editor
 #if TESTBED_EDITOR
 	app->state->editor->editor_gizmo_render_data = frame_allocator->allocate(sizeof(keditor_gizmo_pass_render_data));
 	kzero_memory(app->state->editor->editor_gizmo_render_data, sizeof(keditor_gizmo_pass_render_data));
-	keditor_gizmo_pass_render_data* editor_gizmo_render_data = app->state->editor->editor_gizmo_render_data;
+	keditor_gizmo_pass_render_data *editor_gizmo_render_data = app->state->editor->editor_gizmo_render_data;
 #endif
 
-	struct kscene* current_scene = get_current_render_scene(app);
+	struct kscene *current_scene = get_current_render_scene(app);
 	kcamera current_camera = get_current_render_camera(app);
 
 	// SCENE
@@ -491,7 +491,7 @@ b8 application_prepare_frame(struct application* app, struct frame_data* p_frame
 	return true;
 }
 
-b8 application_render_frame(struct application* app, struct frame_data* p_frame_data) {
+b8 application_render_frame (struct application *app, struct frame_data *p_frame_data) {
 	// Start the frame
 	if (!app->state->running) {
 		return true;
@@ -507,7 +507,7 @@ b8 application_render_frame(struct application* app, struct frame_data* p_frame_
 
 #if TESTBED_EDITOR
 	b8 draw_gizmo = app->state->mode == TESTBED_APP_MODE_EDITOR;
-	kwindow* current_window = engine_active_window_get();
+	kwindow *current_window = engine_active_window_get();
 	ktexture global_colourbuffer = current_window->renderer_state->colourbuffer;
 	if (!editor_render(app->state->editor, p_frame_data, app->state->editor->editor_camera, global_colourbuffer, draw_gizmo, app->state->editor->editor_gizmo_render_data)) {
 		KERROR("Failed to render editor frame! See logs for details.");
@@ -522,14 +522,14 @@ b8 application_render_frame(struct application* app, struct frame_data* p_frame_
 	kclock_update(&app->state->render_clock);
 
 	// Save off frame metrics.
-	frame_allocator_int* frame_allocator = &p_frame_data->allocator;
+	frame_allocator_int *frame_allocator = &p_frame_data->allocator;
 	app->state->prev_framealloc_allocated = frame_allocator->allocated();
 	app->state->prev_framealloc_total = frame_allocator->total_space();
 
 	return result;
 }
 
-void application_on_window_resize(struct application* app, const struct kwindow* window) {
+void application_on_window_resize (struct application *app, const struct kwindow *window) {
 	if (!app->state) {
 		return;
 	}
@@ -567,8 +567,8 @@ void application_on_window_resize(struct application* app, const struct kwindow*
 }
 
 #if KOHI_DEBUG
-static b8 application_on_debug_action(struct application* app_inst, u32 action_code) {
-	application_state* state = app_inst->state;
+static b8 application_on_debug_action (struct application *app_inst, u32 action_code) {
+	application_state *state = app_inst->state;
 
 	switch (action_code) {
 	// Debug actions
@@ -614,8 +614,8 @@ static b8 application_on_debug_action(struct application* app_inst, u32 action_c
 
 #if TESTBED_EDITOR
 // only called when in-editor
-static b8 application_on_editor_action(struct application* app_inst, u32 action_code) {
-	application_state* state = app_inst->state;
+static b8 application_on_editor_action (struct application *app_inst, u32 action_code) {
+	application_state *state = app_inst->state;
 
 	if (editor_on_action(state->editor, action_code)) {
 		// Handled
@@ -645,11 +645,11 @@ static b8 application_on_editor_action(struct application* app_inst, u32 action_
 /**
  * Gameplay actions
  */
-static b8 application_on_gameplay_action(struct application* app_inst, u32 action_code) {
-	application_state* state = app_inst->state;
+static b8 application_on_gameplay_action (struct application *app_inst, u32 action_code) {
+	application_state *state = app_inst->state;
 
 	f32 delta = get_engine_delta_time();
-	game_constants* constants = &state->game.constants;
+	game_constants *constants = &state->game.constants;
 
 	switch (action_code) {
 
@@ -690,8 +690,8 @@ static b8 application_on_gameplay_action(struct application* app_inst, u32 actio
 	return false;
 }
 
-void application_on_action(struct application* app_inst, u32 action_code) {
-	application_state* state = app_inst->state;
+void application_on_action (struct application *app_inst, u32 action_code) {
+	application_state *state = app_inst->state;
 
 #if KOHI_DEBUG
 	if (application_on_debug_action(app_inst, action_code)) {
@@ -723,7 +723,7 @@ void application_on_action(struct application* app_inst, u32 action_code) {
 				// TODO: Should be the zone that was just edited.
 
 				// Load up the current editor scene.
-				kasset_text* asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "test_scene");
+				kasset_text *asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "test_scene");
 				if (!asset) {
 					KERROR("Failed to load test_scene scene asset.");
 					return;
@@ -778,7 +778,7 @@ void application_on_action(struct application* app_inst, u32 action_code) {
 		console_command_execute(cmd);
 	} break;
 	case GAME_ACTION_LOAD_TEST_SCENE: {
-		char* command = string_format("load_scene %s", "test_zone");
+		char *command = string_format("load_scene %s", "test_zone");
 		console_command_execute(command);
 		string_free(command);
 	} break;
@@ -789,7 +789,7 @@ void application_on_action(struct application* app_inst, u32 action_code) {
 	}
 }
 
-void application_shutdown(struct application* app) {
+void application_shutdown (struct application *app) {
 	app->state->running = false;
 
 #if TESTBED_EDITOR
@@ -806,7 +806,7 @@ void application_shutdown(struct application* app) {
 #endif
 }
 
-void application_lib_on_unload(struct application* app) {
+void application_lib_on_unload (struct application *app) {
 	// Unregister game events.
 	game_unregister_events(app);
 	game_unregister_commands(app);
@@ -820,7 +820,7 @@ void application_lib_on_unload(struct application* app) {
 	/* game_remove_keymaps(app); */
 }
 
-void application_lib_on_load(struct application* app) {
+void application_lib_on_load (struct application *app) {
 #if KOHI_DEBUG
 	debug_console_on_lib_load(&app->state->debug_console, app->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
 #endif
@@ -842,7 +842,7 @@ void application_lib_on_load(struct application* app) {
 	}
 }
 
-static struct kscene* get_current_render_scene(application* app) {
+static struct kscene *get_current_render_scene (application *app) {
 	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
 		return app->state->current_scene;
 	}
@@ -855,7 +855,7 @@ static struct kscene* get_current_render_scene(application* app) {
 	return KNULL;
 }
 
-static kcamera get_current_render_camera(application* app) {
+static kcamera get_current_render_camera (application *app) {
 	if (app->state->mode == TESTBED_APP_MODE_WORLD) {
 		return app->state->world_camera;
 	}
@@ -868,7 +868,7 @@ static kcamera get_current_render_camera(application* app) {
 	return DEFAULT_KCAMERA;
 }
 
-static void setup_keymaps(application* app) {
+static void setup_keymaps (application *app) {
 
 	// Global keymap
 	app->state->global_keymap = keymap_create();
@@ -940,21 +940,21 @@ static void setup_keymaps(application* app) {
 #endif
 }
 
-static void remove_keymaps(application* app) {
+static void remove_keymaps (application *app) {
 	//
 }
 
-static f32 get_engine_delta_time(void) {
+static f32 get_engine_delta_time (void) {
 	ktimeline engine = ktimeline_system_get_engine();
 	return ktimeline_system_delta_get(engine);
 }
 
-static f32 get_engine_total_time(void) {
+static f32 get_engine_total_time (void) {
 	ktimeline engine = ktimeline_system_get_engine();
 	return ktimeline_system_total_get(engine);
 }
 
-static void game_register_events(application* app) {
+static void game_register_events (application *app) {
 	KASSERT(event_register(GAME_EVENT_CODE_SHOW_CONTEXT_DISPLAY, app, game_on_event));
 	KASSERT(event_register(GAME_EVENT_CODE_HIDE_CONTEXT_DISPLAY, app, game_on_event));
 	KASSERT(event_register(EVENT_CODE_BUTTON_RELEASED, app, game_on_button));
@@ -964,7 +964,7 @@ static void game_register_events(application* app) {
 	KASSERT(event_register(EVENT_CODE_MOUSE_DRAGGED, app, game_on_drag));
 }
 
-static void game_unregister_events(application* app) {
+static void game_unregister_events (application *app) {
 	KASSERT(event_unregister(GAME_EVENT_CODE_SHOW_CONTEXT_DISPLAY, app, game_on_event));
 	KASSERT(event_unregister(GAME_EVENT_CODE_HIDE_CONTEXT_DISPLAY, app, game_on_event));
 	KASSERT(event_unregister(EVENT_CODE_BUTTON_RELEASED, app, game_on_button));
@@ -974,7 +974,7 @@ static void game_unregister_events(application* app) {
 	KASSERT(event_unregister(EVENT_CODE_MOUSE_DRAGGED, app, game_on_drag));
 }
 
-static void game_register_commands(application* app) {
+static void game_register_commands (application *app) {
 	KASSERT(console_command_register("exit", 0, 0, app, game_command_exit));
 	KASSERT(console_command_register("quit", 0, 0, app, game_command_exit));
 	KASSERT(console_command_register("load_scene", 1, 1, app, game_command_load_scene));
@@ -984,7 +984,7 @@ static void game_register_commands(application* app) {
 	KASSERT(console_command_register("render_mode_set", 1, 1, app, game_command_set_render_mode));
 }
 
-static void game_unregister_commands(application* app) {
+static void game_unregister_commands (application *app) {
 	KASSERT(console_command_unregister("exit"));
 	KASSERT(console_command_unregister("quit"));
 	KASSERT(console_command_unregister("load_scene"));
@@ -994,9 +994,9 @@ static void game_unregister_commands(application* app) {
 	KASSERT(console_command_unregister("render_mode_set"));
 }
 
-static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context) {
-	application* app = (application*)listener_inst;
-	application_state* state = app->state;
+static b8 game_on_mouse_move (u16 code, void *sender, void *listener_inst, event_context context) {
+	application *app = (application *)listener_inst;
+	application_state *state = app->state;
 
 	if (!state->running) {
 		// Do nothing, but allow other handlers to process the event.
@@ -1018,9 +1018,9 @@ static b8 game_on_mouse_move(u16 code, void* sender, void* listener_inst, event_
 	return false; // Allow other event handlers to process this event.
 }
 
-static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_context context) {
-	application* app = (application*)listener_inst;
-	application_state* state = app->state;
+static b8 game_on_drag (u16 code, void *sender, void *listener_inst, event_context context) {
+	application *app = (application *)listener_inst;
+	application_state *state = app->state;
 
 	if (!state->running) {
 		// Do nothing, but allow other handlers to process the event.
@@ -1040,7 +1040,7 @@ static b8 game_on_drag(u16 code, void* sender, void* listener_inst, event_contex
 
 /* KAPI void kquick_sort(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn); */
 
-static b8 game_on_button(u16 code, void* sender, void* listener_inst, event_context context) {
+static b8 game_on_button (u16 code, void *sender, void *listener_inst, event_context context) {
 	if (code == EVENT_CODE_BUTTON_PRESSED) {
 		//
 	} else if (code == EVENT_CODE_BUTTON_RELEASED) {
@@ -1049,9 +1049,9 @@ static b8 game_on_button(u16 code, void* sender, void* listener_inst, event_cont
 		case MOUSE_BUTTON_LEFT: {
 			/* i16 x = context.data.i16[1]; */
 			/* i16 y = context.data.i16[2]; */
-			application* app = listener_inst;
+			application *app = listener_inst;
 
-			struct kscene* current_scene = get_current_render_scene(app);
+			struct kscene *current_scene = get_current_render_scene(app);
 			if (current_scene) {
 				kscene_state scene_state = kscene_state_get(current_scene);
 				if (scene_state == KSCENE_STATE_LOADED) {
@@ -1065,8 +1065,8 @@ static b8 game_on_button(u16 code, void* sender, void* listener_inst, event_cont
 	return false;
 }
 
-static b8 game_on_event(u16 code, void* sender, void* listener_inst, event_context context) {
-	application* app = (application*)listener_inst;
+static b8 game_on_event (u16 code, void *sender, void *listener_inst, event_context context) {
+	application *app = (application *)listener_inst;
 
 	switch (code) {
 
@@ -1085,11 +1085,11 @@ static b8 game_on_event(u16 code, void* sender, void* listener_inst, event_conte
 	return false;
 }
 
-static void trigger_scene_load(console_command_context context) {
-	application* app = (application*)context.listener;
+static void trigger_scene_load (console_command_context context) {
+	application *app = (application *)context.listener;
 
 	// Trigger loading of the scene.
-	kasset_text* asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "test_scene");
+	kasset_text *asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "test_scene");
 	if (!asset) {
 		KERROR("Failed to load test_scene scene asset.");
 		return;
@@ -1097,8 +1097,8 @@ static void trigger_scene_load(console_command_context context) {
 	app->state->current_scene = kscene_create(kname_create("test_scene"), asset->content, 0, 0, false);
 }
 
-static void trigger_scene_unload(console_command_context context) {
-	application* app = (application*)context.listener;
+static void trigger_scene_unload (console_command_context context) {
+	application *app = (application *)context.listener;
 
 	// Trigger unloading of the scene.
 	if (app->state->current_scene) {
@@ -1107,22 +1107,22 @@ static void trigger_scene_unload(console_command_context context) {
 	}
 }
 
-static void game_command_exit(console_command_context context) {
+static void game_command_exit (console_command_context context) {
 	KDEBUG("game exit called!");
 	event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
 }
 
-static void game_command_load_scene(console_command_context context) {
+static void game_command_load_scene (console_command_context context) {
 	trigger_scene_load(context);
 }
 
-static void game_command_unload_scene(console_command_context context) {
+static void game_command_unload_scene (console_command_context context) {
 	trigger_scene_unload(context);
 }
 
-static void game_command_set_camera_pos(console_command_context context) {
+static void game_command_set_camera_pos (console_command_context context) {
 	KTRACE("teleport disabled.");
-	application* app = (application*)context.listener;
+	application *app = (application *)context.listener;
 
 	vec3 new_position = {0};
 	string_to_f32(context.arguments[0].value, &new_position.x);
@@ -1132,9 +1132,9 @@ static void game_command_set_camera_pos(console_command_context context) {
 }
 
 // Takes rotation in degrees
-static void game_command_set_camera_rot(console_command_context context) {
+static void game_command_set_camera_rot (console_command_context context) {
 	KTRACE("teleport disabled.");
-	application* app = (application*)context.listener;
+	application *app = (application *)context.listener;
 
 	vec3 new_rotation_degrees = {0};
 	string_to_f32(context.arguments[0].value, &new_rotation_degrees.x);
@@ -1144,9 +1144,9 @@ static void game_command_set_camera_rot(console_command_context context) {
 	kcamera_set_euler_rotation(get_current_render_camera(app), new_rotation_degrees);
 }
 
-static void game_command_set_render_mode(console_command_context context) {
+static void game_command_set_render_mode (console_command_context context) {
 	if (context.argument_count == 1) {
-		application* app = (application*)context.listener;
+		application *app = (application *)context.listener;
 
 		string_to_u32(context.arguments[0].value, &app->state->render_mode);
 	}

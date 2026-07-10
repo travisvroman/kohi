@@ -24,7 +24,7 @@ typedef struct kshader_pipeline_data {
 
 	u8 attribute_count;
 	/** @brief An array of attributes. */
-	shader_attribute* attributes;
+	shader_attribute *attributes;
 
 	/** @brief The size of all attributes combined, a.k.a. the size of a vertex. */
 	u16 attribute_stride;
@@ -32,18 +32,18 @@ typedef struct kshader_pipeline_data {
 	u8 shader_stage_count;
 
 	// Array of stages.
-	shader_stage* stages;
+	shader_stage *stages;
 	// Array of pointers to text assets, one per stage.
-	kasset_text** stage_source_text_assets;
+	kasset_text **stage_source_text_assets;
 	// Array of generations of stage source text resources. Matches size of stage_source_text_resources;
-	u32* stage_source_text_generations;
+	u32 *stage_source_text_generations;
 	// Array of names of stage assets.
-	kname* stage_names;
+	kname *stage_names;
 	// Array of source text for stages. Matches size of stage_source_text_resources;
-	const char** stage_sources;
+	const char **stage_sources;
 #if KOHI_DEBUG
 	// Array of file watch ids, one per stage.
-	u32* watch_ids;
+	u32 *watch_ids;
 #endif
 } kshader_pipeline_data;
 
@@ -69,24 +69,24 @@ typedef struct kshader_data {
 	shader_state state;
 
 	// A constant pointer to the shader config asset.
-	const kasset_shader* shader_asset;
+	const kasset_shader *shader_asset;
 
 	u8 colour_attachment_count;
-	kshader_attachment* colour_attachments;
+	kshader_attachment *colour_attachments;
 
 	kshader_attachment depth_attachment;
 	kshader_attachment stencil_attachment;
 
 	u8 pipeline_count;
-	kshader_pipeline_data* pipelines;
+	kshader_pipeline_data *pipelines;
 
 } kshader_data;
 
 // The internal shader system state.
 typedef struct kshader_system_state {
 	// A pointer to the renderer system state.
-	struct renderer_system_state* renderer;
-	struct texture_system_state* texture_system;
+	struct renderer_system_state *renderer;
+	struct texture_system_state *texture_system;
 
 	// The max number of textures that can be bound for a single draw call, provided by the renderer.
 	u16 max_bound_texture_count;
@@ -96,39 +96,39 @@ typedef struct kshader_system_state {
 	// This system's configuration.
 	kshader_system_config config;
 	// A collection of created shaders.
-	kshader_data* shaders;
+	kshader_data *shaders;
 
 } kshader_system_state;
 
 // A pointer to hold the internal system state.
 // FIXME: Get rid of this and all references to it and use the engine_systems_get() instead where needed.
-static kshader_system_state* state_ptr = 0;
+static kshader_system_state *state_ptr = 0;
 
-static kshader generate_new_shader_handle(void);
-static kshader shader_create(const kasset_shader* asset);
-static b8 shader_reload(kshader_data* shader, kshader shader_handle);
+static kshader generate_new_shader_handle (void);
+static kshader shader_create (const kasset_shader *asset);
+static b8 shader_reload (kshader_data *shader, kshader shader_handle);
 
-static void internal_shader_destroy(kshader* shader);
+static void internal_shader_destroy (kshader *shader);
 ///////////////////////
 
 #if KOHI_HOT_RELOAD
-static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_context context) {
-	kshader_system_state* typed_state = (kshader_system_state*)listener_inst;
+static b8 file_watch_event (u16 code, void *sender, void *listener_inst, event_context context) {
+	kshader_system_state *typed_state = (kshader_system_state *)listener_inst;
 
 	u32 watch_id = context.data.u32[0];
 	if (code == EVENT_CODE_ASSET_HOT_RELOADED) {
 
 		// TODO: more verification to make sure this is correct.
-		kasset_text* shader_source_asset = (kasset_text*)sender;
+		kasset_text *shader_source_asset = (kasset_text *)sender;
 
 		// Search shaders for the one whose generations are out of sync.
 		for (u32 i = 0; i < typed_state->config.max_shader_count; ++i) {
-			kshader_data* shader = &typed_state->shaders[i];
+			kshader_data *shader = &typed_state->shaders[i];
 
 			b8 reload_required = false;
 
 			for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
-				kshader_pipeline_data* p = &shader->pipelines[pi];
+				kshader_pipeline_data *p = &shader->pipelines[pi];
 
 				for (u32 w = 0; w < p->shader_stage_count; ++w) {
 					if (p->watch_ids[w] == watch_id) {
@@ -160,8 +160,8 @@ static b8 file_watch_event(u16 code, void* sender, void* listener_inst, event_co
 }
 #endif
 
-b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config) {
-	kshader_system_config* typed_config = (kshader_system_config*)config;
+b8 kshader_system_initialize (u64 *memory_requirement, void *memory, void *config) {
+	kshader_system_config *typed_config = (kshader_system_config *)config;
 	// Verify configuration.
 	if (typed_config->max_shader_count < 512) {
 		if (typed_config->max_shader_count == 0) {
@@ -184,7 +184,7 @@ b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config
 	// Setup the state pointer, memory block, shader array, etc.
 	state_ptr = memory;
 	u64 addr = (u64)memory;
-	state_ptr->shaders = (void*)(addr + struct_requirement);
+	state_ptr->shaders = (void *)(addr + struct_requirement);
 	state_ptr->config = *typed_config;
 
 	// Invalidate all shader ids.
@@ -208,12 +208,12 @@ b8 kshader_system_initialize(u64* memory_requirement, void* memory, void* config
 	return true;
 }
 
-void kshader_system_shutdown(void* state) {
+void kshader_system_shutdown (void *state) {
 	if (state) {
 		// Destroy any shaders still in existence.
-		kshader_system_state* st = (kshader_system_state*)state;
+		kshader_system_state *st = (kshader_system_state *)state;
 		for (u32 i = 0; i < st->config.max_shader_count; ++i) {
-			kshader_data* s = &st->shaders[i];
+			kshader_data *s = &st->shaders[i];
 			if (s->state != SHADER_STATE_FREE) {
 				kshader temp_handle = i;
 				internal_shader_destroy(&temp_handle);
@@ -225,7 +225,7 @@ void kshader_system_shutdown(void* state) {
 	state_ptr = 0;
 }
 
-kshader kshader_system_get(kname name, kname package_name) {
+kshader kshader_system_get (kname name, kname package_name) {
 	if (name == INVALID_KNAME) {
 		return KSHADER_INVALID;
 	}
@@ -238,7 +238,7 @@ kshader kshader_system_get(kname name, kname package_name) {
 	}
 
 	// Not found, attempt to load the shader asset.
-	kasset_shader* shader_asset = asset_system_request_shader_from_package_sync(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(name));
+	kasset_shader *shader_asset = asset_system_request_shader_from_package_sync(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(name));
 	if (!shader_asset) {
 		KERROR("Failed to load shader resource for shader '%s'.", kname_string_get(name));
 		return KSHADER_INVALID;
@@ -256,12 +256,12 @@ kshader kshader_system_get(kname name, kname package_name) {
 	return shader_handle;
 }
 
-kshader kshader_system_get_from_source(kname name, const char* shader_config_source) {
+kshader kshader_system_get_from_source (kname name, const char *shader_config_source) {
 	if (name == INVALID_KNAME) {
 		return KSHADER_INVALID;
 	}
 
-	kasset_shader* temp_asset = KALLOC_TYPE(kasset_shader, MEMORY_TAG_ASSET);
+	kasset_shader *temp_asset = KALLOC_TYPE(kasset_shader, MEMORY_TAG_ASSET);
 	if (!kasset_shader_deserialize(shader_config_source, temp_asset)) {
 		return KSHADER_INVALID;
 	}
@@ -270,7 +270,7 @@ kshader kshader_system_get_from_source(kname name, const char* shader_config_sou
 	// Create the shader.
 	kshader shader_handle = shader_create(temp_asset);
 
-	kshader_data* s = &state_ptr->shaders[shader_handle];
+	kshader_data *s = &state_ptr->shaders[shader_handle];
 	// Clear the shader asset on shaders loaded directly from source.
 	s->shader_asset = KNULL;
 
@@ -284,12 +284,12 @@ kshader kshader_system_get_from_source(kname name, const char* shader_config_sou
 	return shader_handle;
 }
 
-static void internal_shader_destroy(kshader* shader) {
+static void internal_shader_destroy (kshader *shader) {
 	if (*shader == KSHADER_INVALID) {
 		return;
 	}
 
-	kshader_data* s = &state_ptr->shaders[*shader];
+	kshader_data *s = &state_ptr->shaders[*shader];
 	if (s->state == SHADER_STATE_FREE) {
 		return;
 	}
@@ -299,11 +299,11 @@ static void internal_shader_destroy(kshader* shader) {
 
 	renderer_shader_destroy(state_ptr->renderer, *shader);
 
-	struct asset_system_state* asset_state = engine_systems_get()->asset_state;
+	struct asset_system_state *asset_state = engine_systems_get()->asset_state;
 
 	if (s->pipeline_count && s->pipelines) {
 		for (u8 i = 0; i < s->pipeline_count; ++i) {
-			kshader_pipeline_data* p = &s->pipelines[i];
+			kshader_pipeline_data *p = &s->pipelines[i];
 
 			if (p->shader_stage_count) {
 				for (u8 si = 0; si < p->shader_stage_count; ++si) {
@@ -314,8 +314,8 @@ static void internal_shader_destroy(kshader* shader) {
 					asset_system_release_text(asset_state, p->stage_source_text_assets[si]);
 					p->stage_source_text_assets[si] = KNULL;
 				}
-				KFREE_TYPE_CARRAY(p->stage_source_text_assets, kasset_text*, p->shader_stage_count);
-				KFREE_TYPE_CARRAY(p->stage_sources, const char*, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->stage_source_text_assets, kasset_text *, p->shader_stage_count);
+				KFREE_TYPE_CARRAY(p->stage_sources, const char *, p->shader_stage_count);
 				KFREE_TYPE_CARRAY(p->stage_source_text_generations, u32, p->shader_stage_count);
 				KFREE_TYPE_CARRAY(p->stage_names, kname, p->shader_stage_count);
 				KFREE_TYPE_CARRAY(p->stages, shader_stage, p->shader_stage_count);
@@ -333,7 +333,7 @@ static void internal_shader_destroy(kshader* shader) {
 		KFREE_TYPE_CARRAY(s->colour_attachments, kshader_attachment, s->colour_attachment_count);
 	}
 
-	asset_system_release_shader(asset_state, (kasset_shader*)s->shader_asset);
+	asset_system_release_shader(asset_state, (kasset_shader *)s->shader_asset);
 
 	s->name = INVALID_KNAME;
 
@@ -341,7 +341,7 @@ static void internal_shader_destroy(kshader* shader) {
 	*shader = KSHADER_INVALID;
 }
 
-void kshader_system_destroy(kshader* shader) {
+void kshader_system_destroy (kshader *shader) {
 	if (*shader == KSHADER_INVALID) {
 		return;
 	}
@@ -349,7 +349,7 @@ void kshader_system_destroy(kshader* shader) {
 	internal_shader_destroy(shader);
 }
 
-b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled) {
+b8 kshader_system_set_wireframe (kshader shader, b8 wireframe_enabled) {
 	if (shader == KSHADER_INVALID) {
 		KERROR("Invalid shader passed.");
 		return false;
@@ -366,12 +366,12 @@ b8 kshader_system_set_wireframe(kshader shader, b8 wireframe_enabled) {
 	return true;
 }
 
-b8 kshader_system_use(kshader shader, u8 vertex_layout_index) {
+b8 kshader_system_use (kshader shader, u8 vertex_layout_index) {
 	if (shader == KSHADER_INVALID) {
 		KERROR("Invalid shader passed.");
 		return false;
 	}
-	kshader_data* next_shader = &state_ptr->shaders[shader];
+	kshader_data *next_shader = &state_ptr->shaders[shader];
 	if (!renderer_shader_use(state_ptr->renderer, shader, vertex_layout_index)) {
 		KERROR("Failed to use shader '%s'.", next_shader->name);
 		return false;
@@ -379,12 +379,12 @@ b8 kshader_system_use(kshader shader, u8 vertex_layout_index) {
 	return true;
 }
 
-b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topology, u8 vertex_layout_index) {
+b8 kshader_system_use_with_topology (kshader shader, primitive_topology_type topology, u8 vertex_layout_index) {
 	if (shader == KSHADER_INVALID) {
 		KERROR("Invalid shader passed.");
 		return false;
 	}
-	kshader_data* next_shader = &state_ptr->shaders[shader];
+	kshader_data *next_shader = &state_ptr->shaders[shader];
 	if (!renderer_shader_use_with_topology(state_ptr->renderer, shader, topology, vertex_layout_index)) {
 		KERROR("Failed to use shader '%s'.", next_shader->name);
 		return false;
@@ -392,34 +392,34 @@ b8 kshader_system_use_with_topology(kshader shader, primitive_topology_type topo
 	return true;
 }
 
-void kshader_set_immediate_data(kshader shader, const void* data, u8 size) {
+void kshader_set_immediate_data (kshader shader, const void *data, u8 size) {
 	renderer_shader_set_immediate_data(engine_systems_get()->renderer_system, shader, data, size);
 }
-void kshader_set_binding_data(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void* data, u64 size) {
+void kshader_set_binding_data (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void *data, u64 size) {
 	renderer_shader_set_binding_data(engine_systems_get()->renderer_system, shader, binding_set, instance_id, binding_index, offset, data, size);
 }
-void kshader_set_binding_texture(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture) {
+void kshader_set_binding_texture (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture) {
 	renderer_shader_set_binding_texture(engine_systems_get()->renderer_system, shader, binding_set, instance_id, binding_index, array_index, texture);
 }
-void kshader_set_binding_sampler(kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler) {
+void kshader_set_binding_sampler (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler) {
 	renderer_shader_set_binding_sampler(engine_systems_get()->renderer_system, shader, binding_set, instance_id, binding_index, array_index, sampler);
 }
-u32 kshader_acquire_binding_set_instance(kshader shader, u8 binding_set) {
+u32 kshader_acquire_binding_set_instance (kshader shader, u8 binding_set) {
 	return renderer_shader_acquire_binding_set_instance(engine_systems_get()->renderer_system, shader, binding_set);
 }
-void kshader_release_binding_set_instance(kshader shader, u8 binding_set, u32 instance_id) {
+void kshader_release_binding_set_instance (kshader shader, u8 binding_set, u32 instance_id) {
 	renderer_shader_release_binding_set_instance(engine_systems_get()->renderer_system, shader, binding_set, instance_id);
 }
 
-u32 kshader_binding_set_instance_count_get(kshader shader, u8 binding_set) {
+u32 kshader_binding_set_instance_count_get (kshader shader, u8 binding_set) {
 	return renderer_shader_binding_set_get_max_instance_count(engine_systems_get()->renderer_system, shader, binding_set);
 }
 
-b8 kshader_apply_binding_set(kshader shader, u8 binding_set, u32 instance_id) {
+b8 kshader_apply_binding_set (kshader shader, u8 binding_set, u32 instance_id) {
 	return renderer_shader_apply_binding_set(engine_systems_get()->renderer_system, shader, binding_set, instance_id);
 }
 
-static kshader generate_new_shader_handle(void) {
+static kshader generate_new_shader_handle (void) {
 	for (u32 i = 0; i < state_ptr->config.max_shader_count; ++i) {
 		if (state_ptr->shaders[i].state == SHADER_STATE_FREE) {
 			state_ptr->shaders[i].state = SHADER_STATE_NOT_CREATED;
@@ -429,16 +429,16 @@ static kshader generate_new_shader_handle(void) {
 	return KSHADER_INVALID;
 }
 
-static kshader shader_create(const kasset_shader* asset) {
+static kshader shader_create (const kasset_shader *asset) {
 	kshader new_handle = generate_new_shader_handle();
 	if (new_handle == KSHADER_INVALID) {
 		KERROR("Unable to find free slot to create new shader. Aborting.");
 		return new_handle;
 	}
 
-	struct asset_system_state* asset_state = engine_systems_get()->asset_state;
+	struct asset_system_state *asset_state = engine_systems_get()->asset_state;
 
-	kshader_data* out_shader = &state_ptr->shaders[new_handle];
+	kshader_data *out_shader = &state_ptr->shaders[new_handle];
 	kzero_memory(out_shader, sizeof(kshader));
 	// Sync handle uniqueid
 	out_shader->state = SHADER_STATE_NOT_CREATED;
@@ -500,11 +500,11 @@ static kshader shader_create(const kasset_shader* asset) {
 
 	out_shader->pipeline_count = asset->pipeline_count;
 	out_shader->pipelines = KALLOC_TYPE_CARRAY(kshader_pipeline_data, out_shader->pipeline_count);
-	shader_pipeline_config* pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, out_shader->pipeline_count);
+	shader_pipeline_config *pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, out_shader->pipeline_count);
 	for (u8 pi = 0; pi < out_shader->pipeline_count; ++pi) {
-		kasset_shader_pipeline* ap = &asset->pipelines[pi];
-		kshader_pipeline_data* p = &out_shader->pipelines[pi];
-		shader_pipeline_config* pc = &pipeline_configs[pi];
+		kasset_shader_pipeline *ap = &asset->pipelines[pi];
+		kshader_pipeline_data *p = &out_shader->pipelines[pi];
+		shader_pipeline_config *pc = &pipeline_configs[pi];
 
 		p->attribute_stride = 0;
 		p->attribute_count = ap->attribute_count;
@@ -513,10 +513,10 @@ static kshader shader_create(const kasset_shader* asset) {
 		// Create arrays to track stage "text" resources.
 		p->shader_stage_count = ap->stage_count;
 		p->stages = KALLOC_TYPE_CARRAY(shader_stage, ap->stage_count);
-		p->stage_source_text_assets = KALLOC_TYPE_CARRAY(kasset_text*, ap->stage_count);
+		p->stage_source_text_assets = KALLOC_TYPE_CARRAY(kasset_text *, ap->stage_count);
 		p->stage_source_text_generations = KALLOC_TYPE_CARRAY(u32, ap->stage_count);
 		p->stage_names = KALLOC_TYPE_CARRAY(kname, ap->stage_count);
-		p->stage_sources = KALLOC_TYPE_CARRAY(const char*, ap->stage_count);
+		p->stage_sources = KALLOC_TYPE_CARRAY(const char *, ap->stage_count);
 #if KOHI_DEBUG
 		p->watch_ids = KALLOC_TYPE_CARRAY(u32, ap->stage_count);
 #endif
@@ -540,9 +540,9 @@ static kshader shader_create(const kasset_shader* asset) {
 
 		// Process attributes
 		for (u32 i = 0; i < p->attribute_count; ++i) {
-			kasset_shader_attribute* aa = &ap->attributes[i];
+			kasset_shader_attribute *aa = &ap->attributes[i];
 
-			shader_attribute* a = &p->attributes[i];
+			shader_attribute *a = &p->attributes[i];
 			a->name = kname_create(aa->name);
 			a->type = aa->type;
 			a->size = size_from_shader_attribute_type(a->type);
@@ -558,13 +558,13 @@ static kshader shader_create(const kasset_shader* asset) {
 		KDUPLICATE_TYPE_CARRAY(pc->stages, p->stages, shader_stage, p->shader_stage_count);
 		KDUPLICATE_TYPE_CARRAY(pc->stage_names, p->stage_names, kname, p->shader_stage_count);
 		// Shallow copy of the array of strings.
-		KDUPLICATE_TYPE_CARRAY(pc->stage_sources, p->stage_sources, const char*, p->shader_stage_count);
+		KDUPLICATE_TYPE_CARRAY(pc->stage_sources, p->stage_sources, const char *, p->shader_stage_count);
 	}
 
 	// Ready to be initialized.
 	out_shader->state = SHADER_STATE_UNINITIALIZED;
 
-	kpixel_format* colour_formats = 0;
+	kpixel_format *colour_formats = 0;
 	if (out_shader->colour_attachment_count) {
 		colour_formats = KALLOC_TYPE_CARRAY(kpixel_format, out_shader->colour_attachment_count);
 		for (u8 i = 0; i < out_shader->colour_attachment_count; ++i) {
@@ -593,13 +593,13 @@ static kshader shader_create(const kasset_shader* asset) {
 
 	// Cleanup config.
 	for (u8 pi = 0; pi < out_shader->pipeline_count; ++pi) {
-		shader_pipeline_config* pc = &pipeline_configs[pi];
+		shader_pipeline_config *pc = &pipeline_configs[pi];
 		KFREE_TYPE_CARRAY(pc->attributes, shader_attribute, pc->attribute_count);
 
 		KFREE_TYPE_CARRAY(pc->stages, shader_stage, pc->stage_count);
 		KFREE_TYPE_CARRAY(pc->stage_names, kname, pc->stage_count);
 		// NOTE: was just a shallow copy of strings that need to be kept, so only get rid of the array.
-		KFREE_TYPE_CARRAY(pc->stage_sources, const char*, pc->stage_count);
+		KFREE_TYPE_CARRAY(pc->stage_sources, const char *, pc->stage_count);
 	}
 	KFREE_TYPE_CARRAY(pipeline_configs, shader_pipeline_config, out_shader->pipeline_count);
 
@@ -610,12 +610,12 @@ static kshader shader_create(const kasset_shader* asset) {
 	return new_handle;
 }
 
-static b8 shader_reload(kshader_data* shader, kshader shader_handle) {
+static b8 shader_reload (kshader_data *shader, kshader shader_handle) {
 
-	shader_pipeline_config* pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, shader->pipeline_count);
+	shader_pipeline_config *pipeline_configs = KALLOC_TYPE_CARRAY(shader_pipeline_config, shader->pipeline_count);
 	for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
-		kshader_pipeline_data* p = &shader->pipelines[pi];
-		shader_pipeline_config* pc = &pipeline_configs[pi];
+		kshader_pipeline_data *p = &shader->pipelines[pi];
+		shader_pipeline_config *pc = &pipeline_configs[pi];
 
 		pc->attribute_count = p->attribute_count;
 		KDUPLICATE_TYPE_CARRAY(pc->attributes, p->attributes, shader_attribute, p->attribute_count);
@@ -625,20 +625,20 @@ static b8 shader_reload(kshader_data* shader, kshader shader_handle) {
 		KDUPLICATE_TYPE_CARRAY(pc->stages, p->stages, shader_stage, p->shader_stage_count);
 		KDUPLICATE_TYPE_CARRAY(pc->stage_names, p->stage_names, kname, p->shader_stage_count);
 		// Shallow copy of the array of strings.
-		KDUPLICATE_TYPE_CARRAY(pc->stage_sources, p->stage_sources, const char*, p->shader_stage_count);
+		KDUPLICATE_TYPE_CARRAY(pc->stage_sources, p->stage_sources, const char *, p->shader_stage_count);
 	}
 
 	b8 result = renderer_shader_reload(state_ptr->renderer, shader_handle, shader->pipeline_count, pipeline_configs);
 
 	// Cleanup config.
 	for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
-		shader_pipeline_config* pc = &pipeline_configs[pi];
+		shader_pipeline_config *pc = &pipeline_configs[pi];
 		KFREE_TYPE_CARRAY(pc->attributes, shader_attribute, pc->attribute_count);
 
 		KFREE_TYPE_CARRAY(pc->stages, shader_stage, pc->stage_count);
 		KFREE_TYPE_CARRAY(pc->stage_names, kname, pc->stage_count);
 		// NOTE: was just a shallow copy of strings that need to be kept, so only get rid of the array.
-		KFREE_TYPE_CARRAY(pc->stage_sources, const char*, pc->stage_count);
+		KFREE_TYPE_CARRAY(pc->stage_sources, const char *, pc->stage_count);
 	}
 	KFREE_TYPE_CARRAY(pipeline_configs, shader_pipeline_config, shader->pipeline_count);
 

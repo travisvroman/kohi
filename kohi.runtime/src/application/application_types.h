@@ -53,14 +53,14 @@ typedef struct application {
 	 * @param app_inst A pointer to the application instance.
 	 * @returns True on success; otherwise false.
 	 */
-	b8 (*boot)(struct application* app_inst);
+	b8 (*boot)(struct application *app_inst);
 
 	/**
 	 * @brief Function pointer to application's initialize function.
 	 * @param app_inst A pointer to the application instance.
 	 * @returns True on success; otherwise false.
 	 * */
-	b8 (*initialize)(struct application* app_inst);
+	b8 (*initialize)(struct application *app_inst);
 
 	/**
 	 * @brief Function pointer to application's update function.
@@ -68,7 +68,7 @@ typedef struct application {
 	 * @param p_frame_data A pointer to the current frame's data.
 	 * @returns True on success; otherwise false.
 	 * */
-	b8 (*update)(struct application* app_inst, struct frame_data* p_frame_data);
+	b8 (*update)(struct application *app_inst, struct frame_data *p_frame_data);
 
 	/**
 	 * @brief Function pointer to application's prepare_frame function.
@@ -76,7 +76,7 @@ typedef struct application {
 	 * @param p_frame_data A pointer to the current frame's data.
 	 * @returns True on success; otherwise false.
 	 */
-	b8 (*prepare_frame)(struct application* app_inst, struct frame_data* p_frame_data);
+	b8 (*prepare_frame)(struct application *app_inst, struct frame_data *p_frame_data);
 
 	/**
 	 * @brief Function pointer to application's render_frame function.
@@ -84,7 +84,7 @@ typedef struct application {
 	 * @param p_frame_data A pointer to the current frame's data.
 	 * @returns True on success; otherwise false.
 	 * */
-	b8 (*render_frame)(struct application* app_inst, struct frame_data* p_frame_data);
+	b8 (*render_frame)(struct application *app_inst, struct frame_data *p_frame_data);
 
 	/**
 	 * @brief Function pointer to handle resizes, if applicable.
@@ -92,30 +92,30 @@ typedef struct application {
 	 * @param window A constant pointer to the window that was resized.
 	 * @param height The height of the window in pixels.
 	 * */
-	void (*on_window_resize)(struct application* app_inst, const struct kwindow* window);
+	void (*on_window_resize)(struct application *app_inst, const struct kwindow *window);
 
-	void (*on_action)(struct application* app_inst, u32 action_code);
+	void (*on_action)(struct application *app_inst, u32 action_code);
 
 	/**
 	 * @brief Shuts down the application, prompting release of resources.
 	 * @param app_inst A pointer to the application instance.
 	 */
-	void (*shutdown)(struct application* app_inst);
+	void (*shutdown)(struct application *app_inst);
 
-	void (*lib_on_unload)(struct application* game_inst);
+	void (*lib_on_unload)(struct application *game_inst);
 
-	void (*lib_on_load)(struct application* game_inst);
+	void (*lib_on_load)(struct application *game_inst);
 
 	/** @brief The application stage of execution. */
 	application_stage stage;
 
 	/** @brief application-specific state. Created and managed by the application. */
-	struct application_state* state;
+	struct application_state *state;
 
 	/** @brief A block of memory to hold the engine state. Created and managed by the engine. */
-	void* engine_state;
+	void *engine_state;
 
 	dynamic_library game_library;
-	const char* game_library_name;
-	const char* game_library_loaded_name;
+	const char *game_library_name;
+	const char *game_library_loaded_name;
 } application;

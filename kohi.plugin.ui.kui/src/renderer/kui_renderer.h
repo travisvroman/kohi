@@ -15,8 +15,8 @@ typedef struct kui_pass_data {
  */
 typedef struct kui_renderer {
 
-	struct renderer_system_state* renderer_state;
-	struct texture_system_state* texture_system;
+	struct renderer_system_state *renderer_state;
+	struct texture_system_state *texture_system;
 
 	krenderbuffer standard_vertex_buffer;
 	krenderbuffer extended_vertex_buffer;
@@ -26,8 +26,8 @@ typedef struct kui_renderer {
 
 } kui_renderer;
 
-KAPI b8 kui_renderer_create(kui_renderer* out_renderer);
+KAPI b8 kui_renderer_create (kui_renderer *out_renderer);
 
-KAPI void kui_renderer_destroy(kui_renderer* renderer);
+KAPI void kui_renderer_destroy (kui_renderer *renderer);
 
-KAPI b8 kui_renderer_render_frame(kui_renderer* renderer, struct frame_data* p_frame_data, kui_render_data* render_data);
+KAPI b8 kui_renderer_render_frame (kui_renderer *renderer, struct frame_data *p_frame_data, kui_render_data *render_data);
