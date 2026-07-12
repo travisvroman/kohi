@@ -15,3 +15,5 @@ docs/
 *.ksm
 *.kaf
 *.k3d
+
+*kbuilder
