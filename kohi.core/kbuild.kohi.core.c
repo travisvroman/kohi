@@ -11,13 +11,13 @@ where d=debug, r=release, c=clean
 */
 
 #include "../submodules/kbuild/src/kbuild.h"
-#include <stdlib.h>
-#include <string.h>
 
-// Entry point to the builder.
+// Entry point to the ber.
 int main (int argc, char *argv[]) {
+	printf("dingus\n");
 	if (argc != 3) {
-		fprintf(stderr, "Usage: %s <source-directory> <build-type[D,R]>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <source-directory> <build-type[D,R,C]>\n", argv[0]);
+		fprintf(stdout, "Usage: %s <source-directory> <build-type[D,R,C]>\n", argv[0]);
 		return 1;
 	}
 
@@ -89,7 +89,11 @@ int main (int argc, char *argv[]) {
 	{
 		char vgcmd[16384];
 		memset(vgcmd, 0, 16384);
+#if KPLATFORM_WINDOWS
+		strcpy(vgcmd, "..\\misc\\versiongen.exe version.txt -outfile=src\\");
+#else
 		strcpy(vgcmd, "../misc/versiongen version.txt -outfile=src/");
+#endif
 		strcat(vgcmd, config.assembly_name);
 		strcat(vgcmd, "_version.h -build_type=");
 		strcat(vgcmd, build_type);
@@ -99,12 +103,17 @@ int main (int argc, char *argv[]) {
 	{
 		char cfcmd[16384];
 		memset(cfcmd, 0, 16384);
+#if KPLATFORM_WINDOWS
+		strcpy(cfcmd, "..\\misc\\cfgen.exe -outfile=compile_flags.txt -ferror-limit=0 ");
+#else
 		strcpy(cfcmd, "../misc/cfgen -outfile=compile_flags.txt -ferror-limit=0 ");
+#endif
 		strcat(cfcmd, include_flags);
 		strcat(cfcmd, " ");
 		strcat(cfcmd, defines);
 		system(cfcmd);
 	}
+
 	build_project(dir_path, &config, __FILE_NAME__);
 	return 0;
 }

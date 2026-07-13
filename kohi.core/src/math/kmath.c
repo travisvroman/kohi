@@ -5,7 +5,6 @@
 
 #include "debug/kassert.h"
 #include "defines.h"
-#include "logger.h"
 #include "math/math_types.h"
 #include "math/mtwister.h" // for 64-bit RNG
 
