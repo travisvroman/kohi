@@ -41,6 +41,11 @@ static void set_render_state_defaults (rect_2di vp_rect) {
 	renderer_set_depth_write_enabled(false);
 	renderer_set_stencil_test_enabled(false);
 	renderer_set_stencil_compare_mask(0);
+	renderer_set_stencil_op(
+		RENDERER_STENCIL_OP_KEEP,
+		RENDERER_STENCIL_OP_KEEP,
+		RENDERER_STENCIL_OP_KEEP,
+		RENDERER_COMPARE_OP_EQUAL);
 	renderer_set_depth_bias_enabled(false);
 	renderer_set_depth_bias(0.0f, 0.0f, 0.0f);
 
@@ -67,13 +72,13 @@ b8 kui_renderer_render_frame (kui_renderer *renderer, frame_data *p_frame_data, 
 
 	// SUI begin render
 	renderer_begin_rendering(renderer->renderer_state, p_frame_data, vp_rect, 1, &render_data->colour_buffer, render_data->depth_stencil_buffer, 0);
-	set_render_state_defaults(vp_rect);
 
 	// Renderables
 	if (!kshader_system_use(renderer->kui_pass.kui_shader, 0)) {
 		KERROR("Failed to use StandardUI shader. Render frame failed.");
 		return false;
 	}
+	set_render_state_defaults(vp_rect);
 
 	// Make sure depth test/write is disabled for this pass.
 	renderer_set_depth_test_enabled(false);

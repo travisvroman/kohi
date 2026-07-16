@@ -216,6 +216,9 @@ typedef struct kgeometry_data {
 
 	// The material instance for this geometry.
 	u16 material_instance_id;
+
+	// non-transformed extents of the geometry
+	extents_3d extents;
 } kgeometry_data;
 
 #if KOHI_DEBUG
@@ -952,6 +955,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 		vec3 view_euler = kcamera_get_euler_rotation(current_camera);
 		rect_2di vp_rect = kcamera_get_vp_rect(current_camera);
 		f32 fov = kcamera_get_fov(current_camera);
+		kfrustum current_frustum = kcamera_get_frustum(current_camera);
 
 		f32 near_clip = kcamera_get_near_clip(current_camera);
 		f32 far_clip = kcamera_get_far_clip(current_camera);
@@ -1019,6 +1023,8 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 				global_corners[j] = (vec4_div_scalar(inv_corner, inv_corner.w));
 			}
 
+			kfrustum *frusts = p_frame_data->allocator.allocate(sizeof(kfrustum) * render_data->shadow_data.cascade_count);
+
 			// Pass over shadow map "camera" view and projection matrices (one per cascade).
 			for (u32 c = 0; c < render_data->shadow_data.cascade_count; c++) {
 				kshadow_pass_cascade_render_data *cascade = &render_data->shadow_data.cascades[c];
@@ -1081,6 +1087,8 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 				// Generate ortho projection based on extents.
 				mat4 light_ortho = mat4_orthographic(extents.min.x, extents.max.x, extents.min.y, extents.max.y, 0.0f, extents.max.z - extents.min.z);
 
+				frusts[c] = kfrustum_create(shadow_camera_position, center, vec3_up(), 1.0f, 0.0f, 0.0f, extents.max.z - extents.min.z);
+
 				// combined view/projection
 				shadow_camera_view_projections[c] = (mat4_mul(light_view, light_ortho));
 
@@ -1089,10 +1097,12 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 				last_split_dist = split_dist;
 			}
 
+			// FIXME: There should be one frustum per cascade... not globally ya dingus.
+			// This should be called once per cascade.
 			render_data->shadow_data.hf_terrain_data = kscene_get_hf_terrain_render_data(
 				scene,
 				p_frame_data,
-				KNULL, // FIXME: frustum culling disabled for now.
+				&frusts[0],
 				KSCENE_RENDER_DATA_FLAG_NONE);
 
 			// Gather the geometries to be rendered.
@@ -1262,7 +1272,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			render_data->forward_data.standard_pass.opaque_meshes_by_material = kscene_get_static_model_render_data(
 				scene,
 				p_frame_data,
-				0, // FIXME: frustum culling disabled for now.
+				&current_frustum,
 				KSCENE_RENDER_DATA_FLAG_NONE,
 				&render_data->forward_data.standard_pass.opaque_meshes_by_material_count);
 
@@ -1275,7 +1285,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			render_data->forward_data.standard_pass.animated_opaque_meshes_by_material = kscene_get_animated_model_render_data(
 				scene,
 				p_frame_data,
-				0, // FIXME: frustum culling disabled for now.
+				&current_frustum,
 				KSCENE_RENDER_DATA_FLAG_NONE,
 				&render_data->forward_data.standard_pass.animated_opaque_meshes_by_material_count);
 
@@ -1288,7 +1298,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			render_data->forward_data.standard_pass.transparent_meshes_by_material = kscene_get_static_model_render_data(
 				scene,
 				p_frame_data,
-				0, // FIXME: frustum culling disabled for now.
+				&current_frustum,
 				KSCENE_RENDER_DATA_FLAG_TRANSPARENT_BIT,
 				&render_data->forward_data.standard_pass.transparent_meshes_by_material_count);
 			// Get a count of all the geometries
@@ -1300,7 +1310,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			render_data->forward_data.standard_pass.animated_transparent_meshes_by_material = kscene_get_animated_model_render_data(
 				scene,
 				p_frame_data,
-				0, // FIXME: frustum culling disabled for now.
+				&current_frustum,
 				KSCENE_RENDER_DATA_FLAG_TRANSPARENT_BIT,
 				&render_data->forward_data.standard_pass.animated_transparent_meshes_by_material_count);
 			// Get a count of all the geometries
@@ -1312,28 +1322,28 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			render_data->forward_data.standard_pass.terrains = kscene_get_hm_terrain_render_data(
 				scene,
 				p_frame_data,
-				0, // FIXME: frustum culling disabled for now.
+				&current_frustum,
 				0,
 				&render_data->forward_data.standard_pass.terrain_count);
-
-			// Get terrain geometry count (i.e. number of chunks)
-			for (u16 i = 0; i < render_data->forward_data.standard_pass.terrain_count; ++i) {
-				// TODO: Counter for terrain geometries.
-				p_frame_data->drawn_mesh_count += render_data->forward_data.standard_pass.terrains[i].chunk_count;
-			}
 
 			// Heightfield Terrain
 			render_data->forward_data.standard_pass.hf_terrain_data = kscene_get_hf_terrain_render_data(
 				scene,
 				p_frame_data,
-				KNULL, // FIXME: frustum culling disabled for now
+				&current_frustum,
 				KSCENE_RENDER_DATA_FLAG_NONE);
+
+			p_frame_data->drawn_hft_block_count += render_data->forward_data.standard_pass.hf_terrain_data.block_count;
+			for (u32 i = 0; i < render_data->forward_data.standard_pass.hf_terrain_data.block_count; ++i) {
+				hf_terrain_block_render_data *block_rd = &render_data->forward_data.standard_pass.hf_terrain_data.blocks[i];
+				p_frame_data->drawn_hft_chunk_count += block_rd->chunk_count;
+			}
 
 			// Obtain the water plane render datas and setup pass data for each.
 			kwater_plane_render_data *water_planes = kscene_get_water_plane_render_data(
 				scene,
 				p_frame_data,
-				0, // FIXME: frustum culling disabled for now.
+				&current_frustum,
 				0,
 				&render_data->forward_data.water_plane_count);
 
@@ -1385,11 +1395,13 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						wp_data->reflection_pass.view_position = inv_cam_pos;
 						wp_data->reflection_pass.view_matrix = kcamera_get_view(scene->world_inv_camera);
 
+						kfrustum curr_reflect_frustum = kcamera_get_frustum(scene->world_inv_camera);
+
 						// Get a list of opaque geometries from the "reflection" camera perspective.
 						wp_data->reflection_pass.opaque_meshes_by_material = kscene_get_static_model_render_data(
 							scene,
 							p_frame_data,
-							0, // FIXME: frustum culling disabled for now.
+							&curr_reflect_frustum,
 							KSCENE_RENDER_DATA_FLAG_NONE,
 							&wp_data->reflection_pass.opaque_meshes_by_material_count);
 
@@ -1397,7 +1409,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						wp_data->reflection_pass.animated_opaque_meshes_by_material = kscene_get_animated_model_render_data(
 							scene,
 							p_frame_data,
-							0, // FIXME: frustum culling disabled for now.
+							&curr_reflect_frustum,
 							KSCENE_RENDER_DATA_FLAG_NONE,
 							&wp_data->reflection_pass.animated_opaque_meshes_by_material_count);
 
@@ -1405,7 +1417,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						wp_data->reflection_pass.transparent_meshes_by_material = kscene_get_static_model_render_data(
 							scene,
 							p_frame_data,
-							0, // FIXME: frustum culling disabled for now.
+							&curr_reflect_frustum,
 							KSCENE_RENDER_DATA_FLAG_TRANSPARENT_BIT,
 							&wp_data->reflection_pass.transparent_meshes_by_material_count);
 
@@ -1413,7 +1425,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						wp_data->reflection_pass.animated_transparent_meshes_by_material = kscene_get_animated_model_render_data(
 							scene,
 							p_frame_data,
-							0, // FIXME: frustum culling disabled for now.
+							&curr_reflect_frustum,
 							KSCENE_RENDER_DATA_FLAG_TRANSPARENT_BIT,
 							&wp_data->reflection_pass.animated_transparent_meshes_by_material_count);
 
@@ -1421,7 +1433,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						wp_data->reflection_pass.terrains = kscene_get_hm_terrain_render_data(
 							scene,
 							p_frame_data,
-							0, // FIXME: frustum culling disabled for now.
+							&curr_reflect_frustum,
 							0,
 							&wp_data->reflection_pass.terrain_count);
 
@@ -1429,12 +1441,12 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						wp_data->reflection_pass.hf_terrain_data = kscene_get_hf_terrain_render_data(
 							scene,
 							p_frame_data,
-							KNULL, // FIXME: frustum culling disabled for now
+							&curr_reflect_frustum,
 							KSCENE_RENDER_DATA_FLAG_NONE);
 					}
 				}
 			} // end water planes
-		}	  // end forward pass
+		} // end forward pass
 
 #if KOHI_DEBUG
 
@@ -2713,10 +2725,15 @@ static kmaterial_render_data *kscene_get_model_render_data (
 
 			// TODO: check entity visibility
 
-			/* mat4 world_model = ktransform_world_get(entity->base.transform); */
-
 			if (frustum) {
-				// TODO: frustum cull check, continue to next if fails.
+				mat4 xform_mat = ktransform_world_get(entity->base.transform);
+				aabb a = aabb_from_mat4_extents(geo->extents.min, geo->extents.max, xform_mat);
+
+				vec3 aabb_center = extents_3d_center(a);
+				vec3 half = extents_3d_half(a);
+				if (!kfrustum_intersects_aabb(frustum, &aabb_center, &half)) {
+					continue;
+				}
 			}
 
 			kmodel_system_state *model_state = engine_systems_get()->model_system;
@@ -2817,21 +2834,40 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data (
 	data.normal_texture_array = t->normal_texture_array;
 	data.mra_texture_array = t->mra_texture_array;
 
-	// TODO: frustum culling.
+	u16 block_count = 0;
 	for (u16 i = 0; i < data.block_count; ++i) {
-		// TODO: frustum cull the block
 		hf_block *block = &t->blocks[i];
-		hf_terrain_block_render_data *block_rd = &data.blocks[i];
+
+		if (frustum) {
+			vec3 half = extents_3d_half(block->aabb);
+			vec3 center = extents_3d_center(block->aabb);
+			b8 intersects = kfrustum_intersects_aabb(frustum, &center, &half);
+			if (!intersects) {
+				continue;
+			}
+		}
+
+		hf_terrain_block_render_data *block_rd = &data.blocks[block_count];
 
 		block_rd->chunk_count = HF_BLOCK_CHUNK_COUNT;
 		block_rd->chunks = p_frame_data->allocator.allocate(sizeof(hf_terrain_chunk_render_data) * block_rd->chunk_count);
 		block_rd->splatmap = block->splatmap;
 		block_rd->shader_instance_id = block->shader_instance_id;
 
-		// TODO: frustum culling within this block
+		u16 chunk_count = 0;
 		for (u16 c = 0; c < block_rd->chunk_count; ++c) {
 			hf_chunk *chunk = &block->chunks[c];
-			hf_terrain_chunk_render_data *chunk_rd = &block_rd->chunks[c];
+
+			if (frustum) {
+				vec3 half = extents_3d_half(chunk->aabb);
+				vec3 center = extents_3d_center(chunk->aabb);
+				b8 intersects = kfrustum_intersects_aabb(frustum, &center, &half);
+				if (!intersects) {
+					continue;
+				}
+			}
+
+			hf_terrain_chunk_render_data *chunk_rd = &block_rd->chunks[chunk_count];
 
 			// TODO: LOD
 			chunk_rd->vertex_count = HF_CHUNK_VERTEX_COUNT;
@@ -2849,8 +2885,17 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data (
 				// TODO: distance check.
 				chunk_rd->bound_point_light_indices[l] = scene->point_lights[l].handle;
 			}
+
+			chunk_count++;
 		}
+		// The actual unculled chunk count.
+		block_rd->chunk_count = chunk_count;
+
+		block_count++;
 	}
+
+	// The actual unculled block count.
+	data.block_count = block_count;
 
 	return data;
 }
@@ -3216,6 +3261,7 @@ static void map_model_submesh_geometries (kscene *scene, kentity entity, u16 sub
 	new_geo->index_count = geo->index_count;
 	new_geo->index_offset = geo->index_buffer_offset;
 	new_geo->material_instance_id = mat_inst->instance_id;
+	new_geo->extents = geo->extents;
 
 	// Set flags.
 	new_geo->flags = KGEOMETRY_DATA_FLAG_NONE;
