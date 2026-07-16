@@ -121,8 +121,7 @@ b8 vulkan_renderer_backend_initialize (renderer_backend_interface *backend, cons
 		KFATAL(
 			"Failed to create custom Vulkan allocator. Continuing using the "
 			"driver's default allocator.");
-		kfree(context->allocator, sizeof(VkAllocationCallbacks),
-			  MEMORY_TAG_RENDERER);
+		kfree(context->allocator);
 		context->allocator = 0;
 	}
 #else
@@ -367,15 +366,14 @@ void vulkan_renderer_backend_shutdown (renderer_backend_interface *backend) {
 	context->shaders = KNULL;
 	darray_destroy(context->samplers);
 	context->samplers = KNULL;
-	KFREE_TYPE_CARRAY(context->textures, vulkan_texture_handle_data, context->max_texture_count);
+	kfree(context->textures);
 	context->textures = KNULL;
 
 	// Cleanup backend of renderbuffer data.
 	u32 rbcount = darray_length(context->renderbuffers);
 	for (u32 i = 0; i < rbcount; ++i) {
 		if (context->renderbuffers[i].infos) {
-			u32 array_size = context->triple_buffering_enabled ? 3 : 1;
-			KFREE_TYPE_CARRAY(context->renderbuffers[i].infos, vkbuffer_info, array_size);
+			kfree(context->renderbuffers[i].infos);
 		}
 	}
 	darray_destroy(context->renderbuffers);
@@ -393,7 +391,7 @@ void vulkan_renderer_backend_shutdown (renderer_backend_interface *backend) {
 
 	// Destroy the allocator callbacks if set.
 	if (context->allocator) {
-		kfree_aligned(context->allocator, sizeof(VkAllocationCallbacks), 16, MEMORY_TAG_RENDERER);
+		kfree_aligned(context->allocator);
 		context->allocator = 0;
 	}
 
@@ -402,7 +400,7 @@ void vulkan_renderer_backend_shutdown (renderer_backend_interface *backend) {
 
 	// Free the context last.
 	if (backend->internal_context) {
-		kfree_aligned(backend->internal_context, backend->internal_context_size, 16, MEMORY_TAG_RENDERER);
+		kfree_aligned(backend->internal_context);
 		backend->internal_context_size = 0;
 		backend->internal_context = KNULL;
 	}
@@ -536,7 +534,7 @@ void vulkan_renderer_on_window_destroyed (renderer_backend_interface *backend, k
 			window_backend->submit_semaphores[i] = 0;
 		}
 	}
-	KFREE_TYPE_CARRAY(window_backend->submit_semaphores, VkSemaphore, window_backend->swapchain.image_count);
+	kfree(window_backend->submit_semaphores);
 	window_backend->submit_semaphores = 0;
 
 	// Destroy per-frame-in-flight resources.
@@ -561,19 +559,19 @@ void vulkan_renderer_on_window_destroyed (renderer_backend_interface *backend, k
 
 			darray_destroy(window_backend->frame_texture_updated_list[i]);
 		}
-		KFREE_TYPE_CARRAY(window_backend->acquire_semaphores, VkSemaphore, window_backend->max_frames_in_flight);
+		kfree(window_backend->acquire_semaphores);
 		window_backend->acquire_semaphores = KNULL;
 
-		KFREE_TYPE_CARRAY(window_backend->in_flight_fences, VkFence, window_backend->max_frames_in_flight);
+		kfree(window_backend->in_flight_fences);
 		window_backend->in_flight_fences = KNULL;
 
-		KFREE_TYPE_CARRAY(window_backend->staging, krenderbuffer, window_backend->max_frames_in_flight);
+		kfree(window_backend->staging);
 		window_backend->staging = KNULL;
 
-		KFREE_TYPE_CARRAY(window_backend->graphics_command_buffers, vulkan_command_buffer, window_backend->max_frames_in_flight);
+		kfree(window_backend->graphics_command_buffers);
 		window_backend->graphics_command_buffers = KNULL;
 
-		KFREE_TYPE_CARRAY(window_backend->frame_texture_updated_list, ktexture *, window_backend->max_frames_in_flight);
+		kfree(window_backend->frame_texture_updated_list);
 		window_backend->frame_texture_updated_list = KNULL;
 	}
 
@@ -588,7 +586,7 @@ void vulkan_renderer_on_window_destroyed (renderer_backend_interface *backend, k
 	}
 
 	// Free the backend state.
-	kfree(window_internal->backend_state, sizeof(kwindow_renderer_backend_state), MEMORY_TAG_RENDERER);
+	kfree(window_internal->backend_state);
 	window_internal->backend_state = KNULL;
 }
 
@@ -1970,7 +1968,7 @@ void vulkan_renderer_texture_resources_release (renderer_backend_interface *back
 		for (u32 i = 0; i < texture_data->image_count; ++i) {
 			vulkan_image_destroy(context, &texture_data->images[i]);
 		}
-		KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, texture_data->image_count);
+		kfree(texture_data->images);
 	}
 	texture_data->images = 0;
 	texture_data->image_count = 0;
@@ -2441,7 +2439,7 @@ b8 vulkan_renderer_shader_create (
 				}
 			}
 		} // end instances setup
-	}	  // end binding sets setup
+	} // end binding sets setup
 
 	// Setup descriptor pools
 	{
@@ -2714,7 +2712,7 @@ void vulkan_renderer_shader_destroy (renderer_backend_interface *backend, kshade
 		}
 
 		if (internal_shader->colour_attachment_count && internal_shader->colour_attachments) {
-			KFREE_TYPE_CARRAY(internal_shader->colour_attachments, VkFormat, internal_shader->colour_attachment_count);
+			kfree(internal_shader->colour_attachments);
 		}
 
 		// Descriptor set layouts.
@@ -2722,7 +2720,7 @@ void vulkan_renderer_shader_destroy (renderer_backend_interface *backend, kshade
 			// Destroy descriptor set configs.
 			vulkan_descriptor_set_config *set_config = &internal_shader->descriptor_set_configs[i];
 			if (set_config->bindings && set_config->binding_count) {
-				KFREE_TYPE_CARRAY(set_config->bindings, VkDescriptorSetLayoutBinding, set_config->binding_count);
+				kfree(set_config->bindings);
 				set_config->bindings = 0;
 			}
 
@@ -2732,32 +2730,32 @@ void vulkan_renderer_shader_destroy (renderer_backend_interface *backend, kshade
 					vulkan_shader_binding_set_instance_state *instance_state = &binding_set_state->instances[u];
 
 					if (binding_set_state->ssbo_binding_count && instance_state->ssbo_states) {
-						KFREE_TYPE_CARRAY(instance_state->ssbo_states, vulkan_ssbo_state, binding_set_state->ssbo_binding_count);
+						kfree(instance_state->ssbo_states);
 					}
 
 					if (binding_set_state->sampler_binding_count && instance_state->sampler_states) {
 						for (u8 s = 0; s < binding_set_state->sampler_binding_count; ++s) {
 							vulkan_sampler_state *samp_state = &instance_state->sampler_states[s];
-							KFREE_TYPE_CARRAY(samp_state->sampler_handles, ksampler_backend, samp_state->array_size);
-							KFREE_TYPE_CARRAY(samp_state->descriptor_states, vulkan_descriptor_state, samp_state->array_size);
+							kfree(samp_state->sampler_handles);
+							kfree(samp_state->descriptor_states);
 						}
-						KFREE_TYPE_CARRAY(instance_state->sampler_states, vulkan_sampler_state, binding_set_state->sampler_binding_count);
+						kfree(instance_state->sampler_states);
 					}
 
 					if (binding_set_state->texture_binding_count && instance_state->texture_states) {
 						for (u8 t = 0; t < binding_set_state->texture_binding_count; ++t) {
 							vulkan_texture_state *tex_state = &instance_state->texture_states[t];
-							KFREE_TYPE_CARRAY(tex_state->texture_handles, ktexture, tex_state->array_size);
-							KFREE_TYPE_CARRAY(tex_state->descriptor_states, vulkan_descriptor_state, tex_state->array_size);
+							kfree(tex_state->texture_handles);
+							kfree(tex_state->descriptor_states);
 						}
-						KFREE_TYPE_CARRAY(instance_state->texture_states, vulkan_texture_state, binding_set_state->texture_binding_count);
+						kfree(instance_state->texture_states);
 					}
 				}
 
-				KFREE_TYPE_CARRAY(binding_set_state->instances, vulkan_shader_binding_set_instance_state, binding_set_state->max_instance_count);
+				kfree(binding_set_state->instances);
 			}
 
-			KFREE_TYPE_CARRAY(binding_set_state->bindings, vulkan_shader_binding, binding_set_state->binding_count);
+			kfree(binding_set_state->bindings);
 			binding_set_state->binding_count = 0;
 
 			if (internal_shader->descriptor_set_layouts[i]) {
@@ -2765,9 +2763,9 @@ void vulkan_renderer_shader_destroy (renderer_backend_interface *backend, kshade
 				internal_shader->descriptor_set_layouts[i] = 0;
 			}
 		}
-		KFREE_TYPE_CARRAY(internal_shader->binding_set_states, vulkan_shader_binding_set_state, internal_shader->descriptor_set_count);
-		KFREE_TYPE_CARRAY(internal_shader->descriptor_set_configs, vulkan_descriptor_set_config, internal_shader->descriptor_set_count);
-		KFREE_TYPE_CARRAY(internal_shader->descriptor_set_layouts, VkDescriptorSetLayout, internal_shader->descriptor_set_count);
+		kfree(internal_shader->binding_set_states);
+		kfree(internal_shader->descriptor_set_configs);
+		kfree(internal_shader->descriptor_set_layouts);
 
 		// Descriptor pool
 		if (internal_shader->descriptor_pool) {
@@ -2792,24 +2790,24 @@ void vulkan_renderer_shader_destroy (renderer_backend_interface *backend, kshade
 				}
 			}
 			// topology type pipelines
-			KFREE_TYPE_CARRAY(p->pipelines, vulkan_pipeline, 3);
+			kfree(p->pipelines);
 			if (p->wireframe_pipelines) {
-				KFREE_TYPE_CARRAY(p->wireframe_pipelines, vulkan_pipeline, 3);
+				kfree(p->wireframe_pipelines);
 			}
 
 			// Attributes
-			KFREE_TYPE_CARRAY(p->attributes, VkVertexInputAttributeDescription, p->attribute_count);
+			kfree(p->attributes);
 
 			// Shader modules
 			for (u32 i = 0; i < p->stage_count; ++i) {
 				rhi->kvkDestroyShaderModule(context->device.logical_device, p->stages[i].handle, context->allocator);
 			}
-			KFREE_TYPE_CARRAY(p->stage_create_infos, VkPipelineShaderStageCreateInfo, p->stage_count);
-			KFREE_TYPE_CARRAY(p->stage_sources, const char *, p->stage_count);
-			KFREE_TYPE_CARRAY(p->stages, vulkan_shader_stage, p->stage_count);
+			kfree(p->stage_create_infos);
+			kfree(p->stage_sources);
+			kfree(p->stages);
 			p->stage_count = 0;
 		}
-		KFREE_TYPE_CARRAY(internal_shader->vertex_layout_pipelines, vulkan_vertex_layout_pipeline, internal_shader->vertex_layout_pipeline_count);
+		kfree(internal_shader->vertex_layout_pipelines);
 
 		KZERO_TYPE(internal_shader, vulkan_shader);
 	}
@@ -3354,7 +3352,7 @@ static b8 create_shader_module (vulkan_context *context, vulkan_shader *internal
 	VK_CHECK(rhi->kvkCreateShaderModule(context->device.logical_device, &out_stage->create_info, context->allocator, &out_stage->handle));
 
 	// Release the copy of the code.
-	kfree(code, result_length, MEMORY_TAG_RENDERER);
+	kfree(code);
 
 	// Shader stage info
 	kzero_memory(&out_stage->shader_stage_create_info, sizeof(VkPipelineShaderStageCreateInfo));
@@ -3566,7 +3564,7 @@ void vulkan_renderbuffer_destroy (renderer_backend_interface *backend, krenderbu
 			}
 		}
 		if (internal_buffer->infos) {
-			KFREE_TYPE_CARRAY(internal_buffer->infos, vkbuffer_info, internal_buffer->handle_count);
+			kfree(internal_buffer->infos);
 			internal_buffer->infos = KNULL;
 		}
 
@@ -4298,7 +4296,7 @@ static b8 vulkan_graphics_pipeline_create (vulkan_context *context, const vulkan
 		&out_pipeline->handle);
 
 	// Cleanup
-	KFREE_TYPE_CARRAY(out_attribs, VkVertexInputAttributeDescription, config->attribute_count);
+	kfree(out_attribs);
 	darray_destroy(dynamic_states);
 
 #if KOHI_DEBUG
@@ -4487,9 +4485,9 @@ static b8 shader_create_modules_and_pipelines (renderer_backend_interface *backe
 	}
 
 shader_module_pipeline_cleanup:
-	kfree(new_pipelines, sizeof(vulkan_pipeline) * pipeline_count, MEMORY_TAG_ARRAY);
+	kfree(new_pipelines);
 	if (new_wireframe_pipelines) {
-		kfree(new_wireframe_pipelines, sizeof(vulkan_pipeline) * pipeline_count, MEMORY_TAG_ARRAY);
+		kfree(new_wireframe_pipelines);
 	}
 
 	return !has_error;
@@ -4746,7 +4744,7 @@ static void vulkan_alloc_free (void *user_data, void *memory) {
 		// Size must be aligned also.
 		size = get_aligned(size, alignment);
 
-		kfree_aligned(memory, size, alignment, MEMORY_TAG_VULKAN);
+		kfree_aligned(memory);
 	} else {
 		KERROR("vulkan_alloc_free failed to get alignment lookup for block %p.", memory);
 	}
@@ -4820,7 +4818,7 @@ static void *vulkan_alloc_reallocation (
 		KTRACE("Freeing original aligned block %p...", original);
 #	endif
 		// Free the original memory only if the new allocation was successful.
-		kfree_aligned(original, original_alloc_size, original_alloc_alignment, MEMORY_TAG_VULKAN);
+		kfree_aligned(original);
 	} else {
 #	ifdef KVULKAN_ALLOCATOR_TRACE
 		KERROR("Failed to realloc %p.", original);

@@ -29,7 +29,7 @@ void threadpool_destroy (threadpool *pool) {
 				worker_thread_destroy(&pool->threads[i]);
 			}
 
-			kfree(pool->threads, sizeof(worker_thread) * pool->thread_count, MEMORY_TAG_ARRAY);
+			kfree(pool->threads);
 			pool->threads = 0;
 		}
 		pool->thread_count = 0;

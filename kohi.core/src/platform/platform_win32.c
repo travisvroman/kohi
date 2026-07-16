@@ -55,8 +55,8 @@ typedef LONG NTSTATUS;
 } RTL_OSVERSIONINFOW; */
 
 __declspec(dllimport)
-	NTSTATUS NTAPI
-	RtlGetVersion(RTL_OSVERSIONINFOW *lpVersionInformation);
+NTSTATUS NTAPI
+RtlGetVersion (RTL_OSVERSIONINFOW *lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
@@ -733,13 +733,11 @@ b8 platform_dynamic_library_unload (dynamic_library *library) {
 	}
 
 	if (library->name) {
-		u64 length = string_length(library->name);
-		kfree((void *)library->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+		kfree((void *)library->name);
 	}
 
 	if (library->filename) {
-		u64 length = string_length(library->filename);
-		kfree((void *)library->filename, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+		kfree((void *)library->filename);
 	}
 
 	if (library->functions) {
@@ -747,8 +745,7 @@ b8 platform_dynamic_library_unload (dynamic_library *library) {
 		for (u32 i = 0; i < count; ++i) {
 			dynamic_library_function *f = &library->functions[i];
 			if (f->name) {
-				u64 length = string_length(f->name);
-				kfree((void *)f->name, sizeof(char) * (length + 1), MEMORY_TAG_STRING);
+				kfree((void *)f->name);
 			}
 		}
 
@@ -916,8 +913,7 @@ static b8 unregister_watch (u32 watch_id) {
 
 	win32_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
-	u32 len = string_length(w->file_path);
-	kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+	kfree((void *)w->file_path);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(FILETIME));
 
@@ -1108,7 +1104,7 @@ static u32 windows_get_ram_speed_mhz (void) {
 	}
 
 	if (!GetSystemFirmwareTable('RSMB', 0, buf, size)) {
-		kfree(buf, size, MEMORY_TAG_PLATFORM);
+		kfree(buf);
 		return 0;
 	}
 
@@ -1122,7 +1118,7 @@ static u32 windows_get_ram_speed_mhz (void) {
 		if (type == 17 && len >= 0x15) { // Memory Device
 			u16 speed = *(u16 *)(p + 0x15);
 			if (speed != 0 && speed != 0xFFFF) {
-				kfree(buf, size, MEMORY_TAG_PLATFORM);
+				kfree(buf);
 				return speed;
 			}
 		}
@@ -1135,7 +1131,7 @@ static u32 windows_get_ram_speed_mhz (void) {
 		p += 2;
 	}
 
-	kfree(buf, size, MEMORY_TAG_PLATFORM);
+	kfree(buf);
 	return 0;
 }
 static u32 windows_get_cpu_base_clock_mhz (void) {
@@ -1427,7 +1423,7 @@ void free_file_list (file_list *list) {
 		string_free(list->items[i]);
 	}
 
-	KFREE_TYPE_CARRAY(list->items, const char *, list->count);
+	kfree(list->items);
 
 	list->items = NULL;
 	list->count = 0;
@@ -1710,7 +1706,7 @@ static LPCWSTR cstr_to_wcstr (const char *str) {
 		return 0;
 	}
 	if (MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len) == 0) {
-		kfree(wstr, sizeof(WCHAR) * len, MEMORY_TAG_STRING);
+		kfree(wstr);
 		return 0;
 	}
 	return wstr;
@@ -1719,7 +1715,7 @@ static LPCWSTR cstr_to_wcstr (const char *str) {
 static void wcstr_free (LPCWSTR wstr) {
 	if (wstr) {
 		u32 len = lstrlen(wstr); // Note that lstrlen doesn't account for the null terminator.
-		kfree((WCHAR *)wstr, sizeof(WCHAR) * (len + 1), MEMORY_TAG_STRING);
+		kfree((WCHAR *)wstr);
 	}
 }
 
@@ -1737,7 +1733,7 @@ static const char *wcstr_to_cstr (LPCWSTR wstr) {
 		return 0;
 	}
 	if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, length, NULL, NULL) == 0) {
-		kfree((char *)str, sizeof(char) * length, MEMORY_TAG_STRING);
+		kfree((char *)str);
 		return 0;
 	}
 

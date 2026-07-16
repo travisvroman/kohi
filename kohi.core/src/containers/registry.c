@@ -32,7 +32,7 @@ void kregistry_destroy (kregistry *registry) {
 
 			// Free resources
 			if (entry->block) {
-				kfree(entry->block, entry->block_size, MEMORY_TAG_REGISTRY);
+				kfree(entry->block);
 				entry->block = 0;
 				entry->block_size = 0;
 			}
@@ -133,7 +133,7 @@ b8 kregistry_entry_set (kregistry *registry, khandle entry_handle, const void *b
 
 	// If block and size are set (they should be) release them first.
 	KASSERT_MSG((entry->block && entry->block_size), "kregistry_entry_set called against an entry which somehow does not have a block and/or size. This means something is terribly wrong here.");
-	kfree(entry->block, entry->block_size, MEMORY_TAG_REGISTRY);
+	kfree(entry->block);
 
 	// Update the block and size.
 	entry->block = kallocate(size, MEMORY_TAG_REGISTRY);
@@ -298,7 +298,7 @@ void kregistry_entry_release (kregistry *registry, khandle entry_handle, void *l
 	// If setup to auto-release, do it if the counter reaches 0.
 	if (entry->reference_count < 1 && entry->auto_release) {
 		if (entry->block && entry->block_size) {
-			kfree(entry->block, entry->block_size, MEMORY_TAG_REGISTRY);
+			kfree(entry->block);
 			entry->block = 0;
 			entry->block_size = 0;
 		}

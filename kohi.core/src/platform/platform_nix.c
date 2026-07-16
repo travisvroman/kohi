@@ -327,7 +327,7 @@ void ksemaphore_destroy (ksemaphore *semaphore) {
 	}
 
 	string_free(internal->name);
-	kfree(semaphore->internal_data, sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
+	kfree(semaphore->internal_data);
 	semaphore->internal_data = 0;
 }
 

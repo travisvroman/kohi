@@ -60,18 +60,18 @@ void terrain_destroy (terrain *t) {
 			terrain_chunk_destroy(t, chunk);
 		}
 
-		kfree(t->chunks, sizeof(terrain_chunk) * t->chunk_count, MEMORY_TAG_ARRAY);
+		kfree(t->chunks);
 		t->chunks = 0;
 		t->chunk_count = 0;
 	}
 
 	if (t->material_names) {
-		kfree(t->material_names, sizeof(char *) * t->material_count, MEMORY_TAG_ARRAY);
+		kfree(t->material_names);
 		t->material_names = 0;
 	}
 
 	if (t->vertex_datas) {
-		kfree(t->vertex_datas, sizeof(terrain_vertex_data) * t->vertex_data_length, MEMORY_TAG_ARRAY);
+		kfree(t->vertex_datas);
 		t->vertex_datas = 0;
 	}
 
@@ -288,7 +288,7 @@ static void terrain_chunk_destroy (terrain *t, terrain_chunk *chunk) {
 
 	// Destroy vertex data.
 	if (chunk->vertices) {
-		kfree(chunk->vertices, sizeof(terrain_vertex) * chunk->total_vertex_count, MEMORY_TAG_ARRAY);
+		kfree(chunk->vertices);
 		chunk->vertex_buffer_offset = 0;
 		chunk->total_vertex_count = 0;
 	}
@@ -298,11 +298,11 @@ static void terrain_chunk_destroy (terrain *t, terrain_chunk *chunk) {
 		for (u32 j = 0; j < t->lod_count; ++j) {
 			terrain_chunk_lod *lod = &chunk->lods[j];
 			if (lod->indices) {
-				kfree(lod->indices, sizeof(u32) * lod->total_index_count, MEMORY_TAG_ARRAY);
+				kfree(lod->indices);
 			}
 		}
 		// Make sure to clean up the lods data as well.
-		kfree(chunk->lods, sizeof(terrain_chunk_lod) * t->lod_count, MEMORY_TAG_ARRAY);
+		kfree(chunk->lods);
 		chunk->lods = 0;
 	}
 }

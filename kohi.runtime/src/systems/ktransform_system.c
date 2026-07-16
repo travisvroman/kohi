@@ -132,35 +132,35 @@ void ktransform_system_shutdown (void *state) {
 		renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, typed_state->transform_global_ssbo);
 
 		if (typed_state->local_matrices) {
-			kfree_aligned(typed_state->local_matrices, sizeof(mat4) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->local_matrices);
 			typed_state->local_matrices = 0;
 		}
 		if (typed_state->world_matrices) {
-			kfree_aligned(typed_state->world_matrices, sizeof(mat4) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->world_matrices);
 			typed_state->world_matrices = 0;
 		}
 		if (typed_state->positions) {
-			kfree_aligned(typed_state->positions, sizeof(vec3) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->positions);
 			typed_state->positions = 0;
 		}
 		if (typed_state->rotations) {
-			kfree_aligned(typed_state->rotations, sizeof(quat) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->rotations);
 			typed_state->rotations = 0;
 		}
 		if (typed_state->scales) {
-			kfree_aligned(typed_state->scales, sizeof(vec3) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->scales);
 			typed_state->scales = 0;
 		}
 		if (typed_state->flags) {
-			kfree_aligned(typed_state->flags, sizeof(ktransform_flag_bits) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->flags);
 			typed_state->flags = 0;
 		}
 		if (typed_state->user) {
-			kfree_aligned(typed_state->user, sizeof(u64) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->user);
 			typed_state->user = 0;
 		}
 		if (typed_state->local_dirty_handles) {
-			kfree_aligned(typed_state->local_dirty_handles, sizeof(ktransform) * typed_state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(typed_state->local_dirty_handles);
 			typed_state->local_dirty_handles = 0;
 		}
 	}
@@ -757,14 +757,14 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		mat4 *new_local_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_matrices) {
 			kcopy_memory(new_local_matrices, state->local_matrices, sizeof(mat4) * state->capacity);
-			kfree_aligned(state->local_matrices, sizeof(mat4) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->local_matrices);
 		}
 		state->local_matrices = new_local_matrices;
 
 		mat4 *new_world_matrices = kallocate_aligned(sizeof(mat4) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->world_matrices) {
 			kcopy_memory(new_world_matrices, state->world_matrices, sizeof(mat4) * state->capacity);
-			kfree_aligned(state->world_matrices, sizeof(mat4) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->world_matrices);
 		}
 		state->world_matrices = new_world_matrices;
 
@@ -772,21 +772,21 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		vec3 *new_positions = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->positions) {
 			kcopy_memory(new_positions, state->positions, sizeof(vec3) * state->capacity);
-			kfree_aligned(state->positions, sizeof(vec3) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->positions);
 		}
 		state->positions = new_positions;
 
 		quat *new_rotations = kallocate_aligned(sizeof(quat) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->rotations) {
 			kcopy_memory(new_rotations, state->rotations, sizeof(quat) * state->capacity);
-			kfree_aligned(state->rotations, sizeof(quat) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->rotations);
 		}
 		state->rotations = new_rotations;
 
 		vec3 *new_scales = kallocate_aligned(sizeof(vec3) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->scales) {
 			kcopy_memory(new_scales, state->scales, sizeof(vec3) * state->capacity);
-			kfree_aligned(state->scales, sizeof(vec3) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->scales);
 		}
 		state->scales = new_scales;
 
@@ -794,7 +794,7 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		ktransform_flag_bits *new_flags = kallocate_aligned(sizeof(ktransform_flag_bits) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->flags) {
 			kcopy_memory(new_flags, state->flags, sizeof(ktransform_flag_bits) * state->capacity);
-			kfree_aligned(state->flags, sizeof(ktransform_flag_bits) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->flags);
 		}
 		state->flags = new_flags;
 		// Mark all new slots as free.
@@ -806,7 +806,7 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		u64 *new_user = kallocate_aligned(sizeof(u64) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->user) {
 			kcopy_memory(new_user, state->user, sizeof(u64) * state->capacity);
-			kfree_aligned(state->user, sizeof(u64) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->user);
 		}
 		state->user = new_user;
 
@@ -814,7 +814,7 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		ktransform *new_parent = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->parents) {
 			kcopy_memory(new_parent, state->parents, sizeof(ktransform) * state->capacity);
-			kfree_aligned(state->parents, sizeof(ktransform) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->parents);
 		}
 		state->parents = new_parent;
 		// Invalidate new parent datas.
@@ -826,7 +826,7 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		u8 *new_depth = kallocate_aligned(sizeof(u8) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->depths) {
 			kcopy_memory(new_depth, state->depths, sizeof(u8) * state->capacity);
-			kfree_aligned(state->depths, sizeof(u8) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->depths);
 		}
 		state->depths = new_depth;
 
@@ -834,7 +834,7 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		u32 *new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_dirty_handles) {
 			kcopy_memory(new_dirty_handles, state->local_dirty_handles, sizeof(ktransform) * state->capacity);
-			kfree_aligned(state->local_dirty_handles, sizeof(ktransform) * state->capacity, 16, MEMORY_TAG_TRANSFORM);
+			kfree_aligned(state->local_dirty_handles);
 		}
 		state->local_dirty_handles = new_dirty_handles;
 

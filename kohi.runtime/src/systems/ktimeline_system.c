@@ -36,14 +36,12 @@ typedef struct ktimeline_system_state {
 static void ensure_allocated (ktimeline_system_state *state, u32 entry_count) {
 	if (state->entry_count < entry_count) {
 		{
-			u64 old_size = sizeof(ktimeline_data) * state->entry_count;
 			u64 new_size = sizeof(ktimeline_data) * entry_count;
-			state->timelines = kreallocate(state->timelines, old_size, new_size, MEMORY_TAG_ARRAY);
+			state->timelines = kreallocate(state->timelines, new_size);
 		}
 		{
-			u64 old_size = sizeof(ktimeline_flag_bits) * state->entry_count;
 			u64 new_size = sizeof(ktimeline_flag_bits) * entry_count;
-			state->flags = kreallocate(state->flags, old_size, new_size, MEMORY_TAG_ARRAY);
+			state->flags = kreallocate(state->flags, new_size);
 		}
 		// Set all new "slots" to "free".
 		for (u32 i = state->entry_count; i < entry_count; ++i) {
@@ -81,12 +79,12 @@ b8 ktimeline_system_initialize (u64 *memory_requirement, void *memory, void *con
 void ktimeline_system_shutdown (void *state) {
 	ktimeline_system_state *typed_state = state;
 	if (typed_state->timelines) {
-		kfree(typed_state->timelines, sizeof(ktimeline_data) * typed_state->entry_count, MEMORY_TAG_ARRAY);
+		kfree(typed_state->timelines);
 		typed_state->timelines = 0;
 	}
 
 	if (typed_state->flags) {
-		kfree(typed_state->flags, sizeof(ktimeline_flag_bits) * typed_state->entry_count, MEMORY_TAG_ARRAY);
+		kfree(typed_state->flags);
 		typed_state->flags = 0;
 	}
 

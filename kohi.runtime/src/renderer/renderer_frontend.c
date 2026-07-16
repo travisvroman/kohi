@@ -373,7 +373,7 @@ void renderer_on_window_destroyed (struct renderer_system_state *state, struct k
 		texture_release(window->renderer_state->colourbuffer);
 		texture_release(window->renderer_state->depthbuffer);
 
-		kfree(window->renderer_state, sizeof(kwindow_renderer_state), MEMORY_TAG_RENDERER);
+		kfree(window->renderer_state);
 	}
 }
 
@@ -1065,7 +1065,7 @@ void renderer_renderbuffer_destroy (struct renderer_system_state *state, krender
 
 	if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_FREELIST) {
 		freelist_destroy(&buffer->buffer_freelist);
-		kfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+		kfree(buffer->freelist_block);
 		buffer->freelist_memory_requirement = 0;
 	} else if (buffer->track_type == RENDERBUFFER_TRACK_TYPE_LINEAR) {
 		buffer->offset = 0;
@@ -1131,12 +1131,12 @@ b8 renderer_renderbuffer_resize (struct renderer_system_state *state, krenderbuf
 		void *old_block = 0;
 		if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_total_size, &old_block)) {
 			KERROR("renderer_renderbuffer_resize failed to resize internal free list.");
-			kfree(new_block, new_memory_requirement, MEMORY_TAG_RENDERER);
+			kfree(new_block);
 			return false;
 		}
 
 		// Clean up the old memory, then assign the new properties over.
-		kfree(old_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+		kfree(old_block);
 		buffer->freelist_memory_requirement = new_memory_requirement;
 		buffer->freelist_block = new_block;
 	}

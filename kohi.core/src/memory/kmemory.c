@@ -42,6 +42,7 @@ static const char *memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
 	"RING_QUEUE ",
 	"BST        ",
 	"STRING     ",
+	"KSTRING    ",
 	"ENGINE     ",
 	"JOB        ",
 	"TEXTURE    ",
@@ -221,19 +222,33 @@ void kallocate_report (u64 size, memory_tag tag) {
 	kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
-void *_kreallocate (void *block, u64 old_size, u64 new_size, memory_tag tag, const char *filename, u32 line) {
+void *_kreallocate (void *block, u64 new_size, const char *filename, u32 line) {
 	/* if (block) {
 		validate_block(block);
 	} */
-	return kreallocate_aligned(block, old_size, new_size, 1, tag);
+	return _kreallocate_aligned(block, new_size, 1, filename, line);
 }
 
-void *_kreallocate_aligned (void *block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char *filename, u32 line) {
+void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, const char *filename, u32 line) {
 	// TODO: keep the original allocation file/line too?
-	void *new_block = _kallocate_aligned(new_size, alignment, tag, filename, line);
+
+#if K_USE_CUSTOM_MEMORY_ALLOCATOR
+	u64 osize = 0;
+	u16 oalignment = 0;
+	u8 otag = MEMORY_TAG_UNKNOWN;
+	dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment, &otag);
+	// Ensure alignment is the same. Original alignment of 0 means there was no previous allocation
+	// and this check can be skipped.
+	if (oalignment != 0 && oalignment != alignment) {
+		KFATAL("Alignment mismatch on reallocate - likely means memory corruption. Alignment of new allocation must match the original allocation.");
+		return KNULL;
+	}
+#endif
+
+	void *new_block = _kallocate_aligned(new_size, alignment, otag, filename, line);
 	if (block && new_block) {
-		kcopy_memory(new_block, block, old_size);
-		kfree_aligned(block, old_size, alignment, tag);
+		kcopy_memory(new_block, block, osize);
+		kfree_aligned(block);
 	}
 	return new_block;
 }
@@ -243,17 +258,15 @@ void kreallocate_report (u64 old_size, u64 new_size, memory_tag tag) {
 	kallocate_report(new_size, tag);
 }
 
-void kfree (void *block, u64 size, memory_tag tag) {
-	kfree_aligned(block, size, 1, tag);
+void kfree (void *block) {
+	kfree_aligned(block);
 }
 
-void kfree_aligned (void *block, u64 size, u16 alignment, memory_tag tag) {
+void kfree_aligned (void *block) {
 	if (!block) {
-		KFATAL("%s tried to free null block of memory. Check application logic.", __FUNCTION__);
+		// Don't treat this as an error anymore, just roll with it.
+		/* KFATAL("%s tried to free null block of memory. Check application logic.", __FUNCTION__); */
 		return;
-	}
-	if (tag == MEMORY_TAG_UNKNOWN) {
-		KWARN("kfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
 	}
 	if (state_ptr) {
 		// Make sure multithreaded requests don't trample each other.
@@ -269,34 +282,16 @@ void kfree_aligned (void *block, u64 size, u16 alignment, memory_tag tag) {
 		u16 oalignment = 0;
 		u8 otag;
 		dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment, &otag);
-		b8 print_debug = false;
-		if (osize != size) {
-			printf("Free size mismatch! (original=%llu, requested=%llu)\n", osize, size);
-			print_debug = true;
-		}
-		if (oalignment != alignment) {
-			printf("Free alignment mismatch! (original=%hu, requested=%hu)\n", oalignment, alignment);
-			print_debug = true;
-		}
-		if (otag != tag) {
-			printf("Free tag mismatch! (original=%s, requested=%s)\n", memory_tag_strings[KCLAMP(otag, MEMORY_TAG_UNKNOWN, MEMORY_TAG_MAX_TAGS - 1)], memory_tag_strings[tag]);
-			print_debug = true;
-		}
 
-		if (print_debug) {
-#	if KOHI_DEBUG
-			printf("Original allocation made at %s:%u\n", dynamic_allocator_get_file(&state_ptr->allocator, block), dynamic_allocator_get_line(&state_ptr->allocator, block));
-#	endif
-		}
 #endif
-		u64 aligned_size = get_aligned(size, alignment);
+		u64 aligned_size = get_aligned(osize, oalignment);
 
 		state_ptr->stats.total_allocated -= aligned_size;
-		state_ptr->stats.tagged_allocations[tag] -= aligned_size;
-		state_ptr->stats.new_tagged_deallocations[tag] += aligned_size;
+		state_ptr->stats.tagged_allocations[otag] -= aligned_size;
+		state_ptr->stats.new_tagged_deallocations[otag] += aligned_size;
 		state_ptr->alloc_count--;
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
-		b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block, tag);
+		b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block, otag);
 #else
 		kaligned_free(block);
 		b8 result = true;

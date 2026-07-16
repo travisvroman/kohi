@@ -120,7 +120,7 @@ void geometry_deduplicate_vertices (u32 vertex_count, vertex_3d *vertices,
 	kcopy_memory(*out_vertices, unique_verts,
 				 sizeof(vertex_3d) * (*out_vertex_count));
 	// Destroy temp array
-	kfree(unique_verts, sizeof(vertex_3d) * vertex_count, MEMORY_TAG_ARRAY);
+	kfree(unique_verts);
 
 	KDEBUG("geometry_deduplicate_vertices: removed %d vertices, orig/now %d/%d.",
 		   vertex_count - *out_vertex_count, vertex_count, *out_vertex_count);
@@ -1191,10 +1191,10 @@ kgeometry geometry_generate_grid (grid_orientation orientation, u32 segment_coun
 void geometry_destroy (kgeometry *geometry) {
 	if (geometry) {
 		if (geometry->vertices) {
-			kfree(geometry->vertices, geometry->vertex_count * geometry->vertex_element_size, MEMORY_TAG_ARRAY);
+			kfree(geometry->vertices);
 		}
 		if (geometry->indices) {
-			kfree(geometry->indices, geometry->index_count * geometry->index_element_size, MEMORY_TAG_ARRAY);
+			kfree(geometry->indices);
 		}
 		kzero_memory(geometry, sizeof(kgeometry));
 

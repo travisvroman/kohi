@@ -6,7 +6,8 @@
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
-#include "strings/kstring.h"
+
+#include <stdio.h> // FIXME: for snprintf, replace that and remove this.
 
 // The amount of padding around a tight AABB.
 #define BVH_PADDING 0.1f
@@ -41,7 +42,7 @@ b8 bvh_create (u32 inital_capacity, void *owner_context, bvh *out_bvh) {
 
 void bvh_destroy (bvh *t) {
 	if (t) {
-		KFREE_TYPE_CARRAY(t->nodes, bvh_node, t->capacity);
+		kfree(t->nodes);
 		t->nodes = KNULL;
 		t->capacity = 0;
 		t->count = 0;
@@ -57,7 +58,7 @@ b8 bvh_reserve (bvh *t, u32 leaf_capacity) {
 		return true;
 	}
 	u32 old_capacity = t->capacity;
-	bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, old_capacity, need);
+	bvh_node *new_nodes = kreallocate(t->nodes, need);
 	if (!new_nodes) {
 		return false;
 	}
@@ -145,7 +146,7 @@ u32 bvh_query_overlaps (const bvh *t, aabb query, bvh_query_callback callback, v
 		} else {
 			if (top + 2 > stack_capacity) {
 				u32 new_capacity = stack_capacity * 2;
-				u32 *new_stack = KREALLOC_TYPE_CARRAY(stack, u32, stack_capacity, new_capacity);
+				u32 *new_stack = KREALLOC_TYPE_CARRAY(stack, u32, new_capacity);
 				if (!new_stack) {
 					break;
 				}
@@ -156,7 +157,7 @@ u32 bvh_query_overlaps (const bvh *t, aabb query, bvh_query_callback callback, v
 			stack[top++] = t->nodes[id].right;
 		}
 	}
-	KFREE_TYPE_CARRAY(stack, u32, stack_capacity);
+	kfree(stack);
 	return hits;
 }
 
@@ -266,7 +267,7 @@ raycast_result bvh_raycast (const bvh *t, const ray *r, bvh_raycast_callback cal
 		} else {
 			if (top + 2 > stack_capacity) {
 				u32 new_capacity = stack_capacity * 2;
-				u32 *new_stack = KREALLOC_TYPE_CARRAY(stack, u32, stack_capacity, new_capacity);
+				u32 *new_stack = KREALLOC_TYPE_CARRAY(stack, u32, new_capacity);
 				if (!new_stack) {
 					break;
 				}
@@ -283,7 +284,7 @@ raycast_result bvh_raycast (const bvh *t, const ray *r, bvh_raycast_callback cal
 		  nodes_tested, nodes_passed, leaves_tested, result.hits ? darray_length(result.hits) : 0);
 #endif
 
-	KFREE_TYPE_CARRAY(stack, u32, stack_capacity);
+	kfree(stack);
 
 	return result;
 }
@@ -451,7 +452,7 @@ static void bvh_debug_print_unreachable (const bvh *t) {
 		}
 	}
 
-	KFREE_TYPE_CARRAY(visited, b8, t->capacity);
+	kfree(visited);
 }
 
 void bvh_debug_print (const bvh *t) {
@@ -474,7 +475,7 @@ static u32 bvh_alloc_node (bvh *t) {
 		// Grow the pool
 		u32 old_capacity = t->capacity;
 		u32 new_capacity = old_capacity ? old_capacity * 2 : 64;
-		bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, old_capacity, new_capacity);
+		bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, new_capacity);
 		t->nodes = new_nodes;
 		t->capacity = new_capacity;
 		// Link new nodes into free list.

@@ -16,7 +16,9 @@
 #include "strings/kname.h"
 #include "strings/kstring_id.h"
 
-#include <stdio.h>
+#include <stdarg.h>
+
+typedef unsigned short kwchar;
 
 /**
  * @brief Gets the number of bytes of the given string, minus the null terminator.
@@ -822,6 +824,8 @@ KAPI void string_to_upper (char *str);
 // KString implementation
 // ----------------------
 
+#define KSTRING_DEFAULT_BUF_SIZE 20
+
 /**
  * @brief A kstring is a managed string for higher-level logic to use. It is
  * safer and, in some cases quicker than a typical cstring because it maintains
@@ -829,20 +833,74 @@ KAPI void string_to_upper (char *str);
  * internal operations.
  */
 typedef struct kstring {
-	/** @brief The current length of the string in bytes. */
+	/** @brief The current length of the string in bytes. This is _not_ character length! */
 	u32 length;
 	/** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
 	u32 allocated;
-	/** @brief The raw string data. */
+	/**
+	 * @brief The raw string data. All data is stored as narrow strings, or multibyte.
+	 * Functions that require wide strings can convert them thusly.
+	 * NOTE: If data == base_buffer, then no allocation exists.
+	 */
 	char *data;
+
+	// For short strings, just use this instead of a fresh allocation.
+	char base_buffer[KSTRING_DEFAULT_BUF_SIZE];
 } kstring;
 
-KAPI void kstring_create (kstring *out_string);
-KAPI void kstring_from_cstring (const char *source, kstring *out_string);
+KAPI kstring kstring_create (void);
+KAPI kstring kstring_from_cstring (const char *source);
+KAPI kstring kstring_duplicate (kstring source);
 KAPI void kstring_destroy (kstring *string);
 
-KAPI u32 kstring_length (const kstring *string);
-KAPI u32 kstring_utf8_length (const kstring *string);
+// Allocates and returns new c-string. Returns allocated "" on empty, which still must be freed.
+KAPI char *kstring_cstr (kstring source);
 
-KAPI void kstring_append_str (kstring *string, const char *s);
-KAPI void kstring_append_kstring (kstring *string, const kstring *other);
+KAPI b8 kstrings_equal (kstring a, kstring b);
+KAPI b8 kstrings_equali (kstring a, kstring b);
+
+KAPI b8 kstring_cstr_equal (kstring a, const char *b);
+KAPI b8 kstring_cstr_equali (kstring a, const char *b);
+
+KAPI u32 kstring_length (kstring string);
+KAPI u32 kstring_utf8_length (kstring string);
+
+KAPI i32 kstring_index_of_char (kstring string, char c);
+KAPI i32 kstring_index_of_kstring (kstring string, kstring text);
+KAPI i32 kstring_index_of_cstr (kstring string, const char *text);
+
+KAPI kstring kstring_append_data (kstring string, const void *data, u32 length);
+
+KAPI kstring kstring_append_cstr (kstring string, const char *s);
+KAPI kstring kstring_append_kstring (kstring string, kstring other);
+
+KAPI kstring kstring_append_char (kstring string, char c);
+// Appends "true" or "false" to the end of the given string.
+KAPI kstring kstring_append_bool (kstring string, b8 b);
+
+KAPI kstring kstring_append_i8 (kstring string, i8 i);
+KAPI kstring kstring_append_i16 (kstring string, i16 i);
+KAPI kstring kstring_append_i32 (kstring string, i32 i);
+KAPI kstring kstring_append_i64 (kstring string, i64 i);
+
+KAPI kstring kstring_append_u8 (kstring string, u8 u);
+KAPI kstring kstring_append_u16 (kstring string, u16 u);
+KAPI kstring kstring_append_u32 (kstring string, u32 u);
+KAPI kstring kstring_append_u64 (kstring string, u64 u);
+
+// These are simple functions that truncate instead of round.
+KAPI kstring kstring_append_f32 (kstring string, f32 f, u8 decimal_places);
+KAPI kstring kstring_append_f64 (kstring string, f64 f, u8 decimal_places);
+
+KAPI kstring kstring_append_vec2 (kstring string, vec2 v, u8 decimal_places);
+KAPI kstring kstring_append_vec3 (kstring string, vec3 v, u8 decimal_places);
+KAPI kstring kstring_append_vec4 (kstring string, vec4 v, u8 decimal_places);
+
+KAPI kstring kstring_append_mat4 (kstring string, mat4 m, u8 decimal_places);
+
+KAPI kstring kstring_ltrim (kstring string);
+KAPI kstring kstring_rtrim (kstring string);
+KAPI kstring kstring_trim (kstring string);
+KAPI kstring kstring_substr (kstring string, u32 start, u32 length);
+
+KAPI kstring kstring_format (const char *fmt, ...);

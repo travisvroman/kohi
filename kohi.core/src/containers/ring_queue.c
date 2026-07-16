@@ -28,7 +28,7 @@ b8 ring_queue_create (u32 stride, u32 capacity, void *memory, ring_queue *out_qu
 void ring_queue_destroy (ring_queue *queue) {
 	if (queue) {
 		if (queue->owns_memory) {
-			kfree(queue->block, queue->capacity * queue->stride, MEMORY_TAG_RING_QUEUE);
+			kfree(queue->block);
 		}
 		kzero_memory(queue, sizeof(ring_queue));
 	}

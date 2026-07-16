@@ -480,7 +480,7 @@ static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_nam
 			}
 			if (child_index != INVALID_ID_U16) {
 				kasset_model_node *cn = &nodes[index];
-				cn->children = KREALLOC_TYPE_CARRAY(cn->children, u16, cn->child_count, cn->child_count + 1);
+				cn->children = KREALLOC_TYPE_CARRAY(cn->children, u16, cn->child_count + 1);
 				cn->children[cn->child_count] = child_index;
 				cn->child_count++;
 				nodes[child_index].parent_index = index;
@@ -669,7 +669,7 @@ static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_nam
 			}
 
 			if (bone_data) {
-				KFREE_TYPE_CARRAY(bone_data, vertex_weight_accumulator, mesh->mNumVertices);
+				kfree(bone_data);
 			}
 
 			// Process all Indices
@@ -696,16 +696,16 @@ static void anim_asset_destroy (kasset_model *asset) {
 		kasset_model_animation *a = &asset->animations[i];
 		for (u16 c = 0; c < a->channel_count; c++) {
 			kasset_model_channel *ch = &a->channels[c];
-			KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
-			KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
-			KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);
+			kfree(ch->positions);
+			kfree(ch->rotations);
+			kfree(ch->scales);
 		}
-		KFREE_TYPE_CARRAY(a->channels, kmodel_channel, a->channel_count);
+		kfree(a->channels);
 	}
-	KFREE_TYPE_CARRAY(asset->animations, kmodel_animation, asset->animation_count);
-	KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
+	kfree(asset->animations);
+	kfree(asset->bones);
 	for (u16 i = 0; i < asset->node_count; ++i) {
-		KFREE_TYPE_CARRAY(asset->nodes[i].children, u16, asset->nodes[i].child_count);
+		kfree(asset->nodes[i].children);
 	}
-	KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
+	kfree(asset->nodes);
 }

@@ -480,7 +480,7 @@ static kaudio internal_load_from_package (struct kaudio_system_state *state, kna
 	kasset_audio *asset = asset_system_request_audio_from_package(engine_systems_get()->asset_state, kname_string_get(package_name), kname_string_get(asset_name), listener, kasset_audio_loaded_callback);
 	if (!asset) {
 		KERROR("Failed to request kaudio asset. See logs for details.");
-		kfree(listener, sizeof(audio_asset_request_listener), MEMORY_TAG_AUDIO);
+		kfree(listener);
 		return INVALID_KAUDIO;
 	}
 
@@ -1168,10 +1168,10 @@ static void destroy_config (kaudio_system_config *config) {
 		for (u32 i = 0; i < config->category_count; ++i) {
 			kaudio_category_config *cc = &config->categories[i];
 			if (cc->channel_ids && cc->channel_id_count) {
-				KFREE_TYPE_CARRAY(cc->channel_ids, u32, cc->channel_id_count);
+				kfree(cc->channel_ids);
 			}
 		}
-		KFREE_TYPE_CARRAY(config->categories, kaudio_category_config, config->category_count);
+		kfree(config->categories);
 	}
 }
 
@@ -1250,7 +1250,7 @@ static void kasset_audio_loaded_callback (void *listener, kasset_audio *asset) {
 	asset_system_release_audio(engine_systems_get()->asset_state, asset);
 
 	// Cleanup the listener.
-	KFREE_TYPE(listener, audio_asset_request_listener, MEMORY_TAG_AUDIO);
+	kfree(listener);
 }
 
 static u16 get_active_instance_count (kaudio_system_state *state, kaudio base) {

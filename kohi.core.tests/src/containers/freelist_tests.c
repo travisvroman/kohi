@@ -29,7 +29,7 @@ u8 freelist_should_create_and_destroy (void) {
 	// Destroy and verify that the memory was unassigned.
 	freelist_destroy(&list);
 	expect_should_be(0, list.memory);
-	kfree(block, memory_requirement, MEMORY_TAG_ENGINE);
+	kfree(block);
 
 	return true;
 }
@@ -69,7 +69,7 @@ u8 freelist_should_allocate_one_and_free_one (void) {
 	// Destroy and verify that the memory was unassigned.
 	freelist_destroy(&list);
 	expect_should_be(0, list.memory);
-	kfree(block, memory_requirement, MEMORY_TAG_ENGINE);
+	kfree(block);
 
 	return true;
 }
@@ -152,7 +152,7 @@ u8 freelist_should_allocate_one_and_free_multi (void) {
 	// Destroy and verify that the memory was unassigned.
 	freelist_destroy(&list);
 	expect_should_be(0, list.memory);
-	kfree(block, memory_requirement, MEMORY_TAG_ENGINE);
+	kfree(block);
 
 	return true;
 }
@@ -236,7 +236,7 @@ u8 freelist_should_allocate_one_and_free_multi_varying_sizes (void) {
 	// Destroy and verify that the memory was unassigned.
 	freelist_destroy(&list);
 	expect_should_be(0, list.memory);
-	kfree(block, memory_requirement, MEMORY_TAG_ENGINE);
+	kfree(block);
 
 	return true;
 }
@@ -278,7 +278,7 @@ u8 freelist_should_allocate_to_full_and_fail_to_allocate_more (void) {
 	// Destroy and verify that the memory was unassigned.
 	freelist_destroy(&list);
 	expect_should_be(0, list.memory);
-	kfree(block, memory_requirement, MEMORY_TAG_ENGINE);
+	kfree(block);
 
 	return true;
 }
@@ -405,7 +405,7 @@ u8 freelist_multiple_alloc_and_free_random (void) {
 	// Destroy and verify that the memory was unassigned.
 	freelist_destroy(&list);
 	expect_should_be(0, list.memory);
-	kfree(block, memory_requirement, MEMORY_TAG_ENGINE);
+	kfree(block);
 	return true;
 }
 

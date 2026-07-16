@@ -164,17 +164,17 @@ void texture_system_shutdown (void *state) {
 			}
 		}
 
-		KFREE_TYPE_CARRAY(state_ptr->types, ktexture_type, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->widths, u32, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->heights, u32, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->formats, kpixel_format, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->flags, ktexture_flag_bits, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->array_sizes, u16, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->mip_level_counts, u8, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->texture_reference_counts, u16, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->auto_releases, b8, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->states, texture_state, typed_config->max_texture_count);
-		KFREE_TYPE_CARRAY(state_ptr->names, kname, typed_config->max_texture_count);
+		kfree(state_ptr->types);
+		kfree(state_ptr->widths);
+		kfree(state_ptr->heights);
+		kfree(state_ptr->formats);
+		kfree(state_ptr->flags);
+		kfree(state_ptr->array_sizes);
+		kfree(state_ptr->mip_level_counts);
+		kfree(state_ptr->texture_reference_counts);
+		kfree(state_ptr->auto_releases);
+		kfree(state_ptr->states);
+		kfree(state_ptr->names);
 
 		state_ptr->renderer = 0;
 		state_ptr = 0;
@@ -489,8 +489,8 @@ ktexture texture_acquire_with_options (ktexture_load_options options, void *list
 texture_acquire_with_options_async_cleanup:
 
 	if (t != INVALID_KTEXTURE) {
-		KFREE_TYPE_CARRAY(image_asset_names, kname, state_ptr->array_sizes[t]);
-		KFREE_TYPE_CARRAY(package_names, kname, state_ptr->array_sizes[t]);
+		kfree(image_asset_names);
+		kfree(package_names);
 	}
 
 	if (!success) {
@@ -661,17 +661,17 @@ ktexture texture_acquire_with_options_sync (ktexture_load_options options) {
 texture_acquire_with_options_sync_cleanup:
 
 	if (all_pixels && free_pixels) {
-		kfree(all_pixels, all_pixel_size, MEMORY_TAG_TEXTURE);
+		kfree(all_pixels);
 	}
 	if (t) {
 		if (assets) {
-			KFREE_TYPE_CARRAY(assets, kasset_image *, state_ptr->array_sizes[t]);
+			kfree(assets);
 		}
 		if (image_asset_names) {
-			KFREE_TYPE_CARRAY(image_asset_names, kname, state_ptr->array_sizes[t]);
+			kfree(image_asset_names);
 		}
 		if (package_names) {
-			KFREE_TYPE_CARRAY(package_names, kname, state_ptr->array_sizes[t]);
+			kfree(package_names);
 		}
 	}
 
@@ -997,7 +997,7 @@ static b8 create_default_textures (texture_system_state *state) {
 		u32 pixel_array_size = image_size;
 		state->default_cube_texture = texture_cubemap_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, tex_dimension, tex_dimension, kname_create(DEFAULT_CUBE_TEXTURE_NAME));
 		KASSERT_DEBUG(state->default_cube_texture != INVALID_KTEXTURE);
-		kfree(pixels, image_size, MEMORY_TAG_ARRAY);
+		kfree(pixels);
 		state->auto_releases[state->default_cube_texture] = false;
 	}
 
@@ -1097,10 +1097,10 @@ static void texture_kasset_image_loaded (void *listener, kasset_image *asset) {
 		state_ptr->states[t] = TEXTURE_STATE_LOADED;
 
 		if (context->assets) {
-			KFREE_TYPE_CARRAY(context->assets, kasset_image *, state_ptr->array_sizes[t]);
+			kfree(context->assets);
 		}
-		KFREE_TYPE_CARRAY(context->image_asset_names, kname, state_ptr->array_sizes[t]);
-		KFREE_TYPE_CARRAY(context->package_names, kname, state_ptr->array_sizes[t]);
+		kfree(context->image_asset_names);
+		kfree(context->package_names);
 
 		if (!success) {
 			if (t != INVALID_KTEXTURE) {
@@ -1114,7 +1114,7 @@ static void texture_kasset_image_loaded (void *listener, kasset_image *asset) {
 			context->user_callback(t, context->user_listener);
 		}
 
-		KFREE_TYPE(context, texture_asset_load_listener_context, MEMORY_TAG_TEXTURE);
+		kfree(context);
 	}
 }
 
@@ -1394,7 +1394,7 @@ static b8 texture_apply_asset_data (ktexture t, kname name, const ktexture_load_
 texture_apply_asset_data_cleanup:
 
 	if (all_pixels && free_pixels) {
-		kfree(all_pixels, all_pixel_size, MEMORY_TAG_TEXTURE);
+		kfree(all_pixels);
 	}
 
 	if (!success) {

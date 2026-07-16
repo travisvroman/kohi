@@ -42,7 +42,7 @@ KAPI bt_node *u64_bst_delete (bt_node *root, u64 key) {
 		root->left = u64_bst_delete(root->left, key);
 	} else {
 		if (!root->left && !root->right) {
-			kfree(root, sizeof(bt_node), MEMORY_TAG_BST);
+			kfree(root);
 			return 0;
 		} else if (!root->left || !root->right) {
 			bt_node *temp;
@@ -51,7 +51,7 @@ KAPI bt_node *u64_bst_delete (bt_node *root, u64 key) {
 			} else {
 				temp = root->left;
 			}
-			kfree(root, sizeof(bt_node), MEMORY_TAG_BST);
+			kfree(root);
 			return temp;
 		} else {
 			bt_node *temp = find_min(root->right);
@@ -82,7 +82,7 @@ void u64_bst_cleanup (bt_node *node) {
 			u64_bst_cleanup(node->right);
 			node->right = 0;
 		}
-		kfree(node, sizeof(bt_node), MEMORY_TAG_BST);
+		kfree(node);
 	}
 }
 
@@ -99,6 +99,6 @@ void u64_bst_cleanup_with_strings (bt_node *node) {
 		if (node->value.str) {
 			string_free(node->value.str);
 		}
-		kfree(node, sizeof(bt_node), MEMORY_TAG_BST);
+		kfree(node);
 	}
 }

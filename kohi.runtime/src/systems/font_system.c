@@ -1029,11 +1029,11 @@ static void setup_tab_xadvance (font_data *font) {
 static void cleanup_font_data (font_data *font) {
 
 	if (font->glyphs && font->glyph_count) {
-		KFREE_TYPE_CARRAY(font->glyphs, font_glyph, font->glyph_count);
+		kfree(font->glyphs);
 	}
 
 	if (font->kernings && font->kerning_count) {
-		KFREE_TYPE_CARRAY(font->kernings, font_kerning, font->kerning_count);
+		kfree(font->kernings);
 	}
 }
 
@@ -1133,12 +1133,12 @@ static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_
 	}
 
 	// Free pixel/rgba_pixel data.
-	kfree(pixels, pack_image_size, MEMORY_TAG_ARRAY);
-	kfree(rgba_pixels, pack_image_size * 4, MEMORY_TAG_ARRAY);
+	kfree(pixels);
+	kfree(rgba_pixels);
 
 	// Regenerate glyphs
 	if (variant->data.glyphs && variant->data.glyph_count) {
-		kfree(variant->data.glyphs, sizeof(font_glyph) * variant->data.glyph_count, MEMORY_TAG_ARRAY);
+		kfree(variant->data.glyphs);
 	}
 	variant->data.glyph_count = codepoint_count;
 	variant->data.glyphs = kallocate(sizeof(font_glyph) * codepoint_count, MEMORY_TAG_ARRAY);
@@ -1156,11 +1156,11 @@ static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_
 		g->x_advance = pc->xadvance;
 	}
 
-	kfree(packed_chars, sizeof(stbtt_packedchar) * codepoint_count, MEMORY_TAG_ARRAY);
+	kfree(packed_chars);
 
 	// Regenerate kernings
 	if (variant->data.kernings && variant->data.kerning_count) {
-		kfree(variant->data.kernings, sizeof(font_kerning) * variant->data.kerning_count, MEMORY_TAG_ARRAY);
+		kfree(variant->data.kernings);
 	}
 	variant->data.kerning_count = stbtt_GetKerningTableLength(&lookup->info);
 	if (variant->data.kerning_count) {
@@ -1180,7 +1180,7 @@ static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_
 			k->amount = kerning_table[i].advance;
 		}
 
-		kfree(kerning_table, sizeof(stbtt_kerningentry) * variant->data.kerning_count, MEMORY_TAG_ARRAY);
+		kfree(kerning_table);
 	} else {
 		variant->data.kernings = 0;
 	}
@@ -1242,7 +1242,7 @@ static void bitmap_font_release (font_system_state *state, bitmap_font_lookup *l
 					texture_release(lookup->pages[i].atlas);
 				}
 			}
-			KFREE_TYPE_CARRAY(lookup->pages, bitmap_font_page, lookup->page_count);
+			kfree(lookup->pages);
 			lookup->pages = 0;
 			lookup->page_count = 0;
 		}
@@ -1273,7 +1273,7 @@ static void system_font_release (font_system_state *state, system_font_lookup *l
 		darray_destroy(lookup->size_variants);
 
 		if (lookup->binary_size && lookup->font_binary) {
-			kfree(lookup->font_binary, lookup->binary_size, MEMORY_TAG_SYSTEM_FONT);
+			kfree(lookup->font_binary);
 		}
 	}
 }
@@ -1619,7 +1619,7 @@ static b8 generate_font_geometry (const font_data *data, font_type type, const c
 
 	// Clean up.
 	if (codepoints) {
-		kfree(codepoints, sizeof(i32) * text_length_utf8, MEMORY_TAG_ARRAY);
+		kfree(codepoints);
 	}
 
 	darray_destroy(wrap_indices);

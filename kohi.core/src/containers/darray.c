@@ -35,7 +35,7 @@ void darray_destroy (void *array) {
 		if (header->allocator) {
 			header->allocator->free(header, total_size);
 		} else {
-			kfree(header, total_size, MEMORY_TAG_DARRAY);
+			kfree(header);
 		}
 	}
 }
@@ -217,7 +217,7 @@ void _kdarray_free (u32 *length, u32 *capacity, u32 *stride, void **block, struc
 	if (*out_allocator) {
 		(*out_allocator)->free(*block, (*capacity) * (*stride));
 	} else {
-		kfree(*block, (*capacity) * (*stride), MEMORY_TAG_DARRAY);
+		kfree(*block);
 	}
 	*length = 0;
 	*capacity = 0;
@@ -235,7 +235,7 @@ void _kdarray_ensure_size (u32 required_length, u32 stride, u32 *out_capacity, s
 			allocator->free(*block, (*out_capacity) * stride);
 			*block = new_block;
 		} else {
-			*block = kreallocate(*block, (*out_capacity) * stride, new_capacity * stride, MEMORY_TAG_DARRAY);
+			*block = kreallocate(*block, new_capacity * stride);
 		}
 		*base_block = *block;
 		*out_capacity = new_capacity;

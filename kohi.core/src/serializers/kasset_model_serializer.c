@@ -825,42 +825,42 @@ KAPI void *kasset_model_serialize (const kasset_model *asset, u32 exporter_type,
 	offset = write_binary(block, string_table_serialized, offset, string_table_size);
 
 	// Cleanup submeshes
-	KFREE_TYPE_CARRAY(submeshes.name_ids, u16, header.submesh_count);
-	KFREE_TYPE_CARRAY(submeshes.material_name_ids, u16, header.submesh_count);
-	KFREE_TYPE_CARRAY(submeshes.vertex_counts, u32, header.submesh_count);
-	KFREE_TYPE_CARRAY(submeshes.index_counts, u32, header.submesh_count);
-	KFREE_TYPE_CARRAY(submeshes.mesh_types, u8, header.submesh_count);
-	KFREE_TYPE_CARRAY(submeshes.centers, vec3, header.submesh_count);
-	KFREE_TYPE_CARRAY(submeshes.extents, extents_3d, header.submesh_count);
-	kfree(submeshes.vertex_data_buffer, total_submesh_vertex_buffer_size, MEMORY_TAG_BINARY_DATA);
-	kfree(submeshes.index_data_buffer, total_submesh_index_buffer_size, MEMORY_TAG_BINARY_DATA);
+	kfree(submeshes.name_ids);
+	kfree(submeshes.material_name_ids);
+	kfree(submeshes.vertex_counts);
+	kfree(submeshes.index_counts);
+	kfree(submeshes.mesh_types);
+	kfree(submeshes.centers);
+	kfree(submeshes.extents);
+	kfree(submeshes.vertex_data_buffer);
+	kfree(submeshes.index_data_buffer);
 
 	// cleanup bones
-	KFREE_TYPE_CARRAY(bones.name_ids, u16, header.bone_count);
-	KFREE_TYPE_CARRAY(bones.offset_matrices, mat4, header.bone_count);
+	kfree(bones.name_ids);
+	kfree(bones.offset_matrices);
 
 	// cleanup nodes
-	KFREE_TYPE_CARRAY(nodes.name_ids, u16, header.node_count);
-	KFREE_TYPE_CARRAY(nodes.parent_indices, u16, header.node_count);
-	KFREE_TYPE_CARRAY(nodes.local_transforms, mat4, header.node_count);
+	kfree(nodes.name_ids);
+	kfree(nodes.parent_indices);
+	kfree(nodes.local_transforms);
 
 	// cleanup animations
-	KFREE_TYPE_CARRAY(animations.name_ids, u16, header.animation_count);
-	KFREE_TYPE_CARRAY(animations.durations, f32, header.animation_count);
-	KFREE_TYPE_CARRAY(animations.ticks_per_seconds, f32, header.animation_count);
-	KFREE_TYPE_CARRAY(animations.channel_counts, u16, header.animation_count);
+	kfree(animations.name_ids);
+	kfree(animations.durations);
+	kfree(animations.ticks_per_seconds);
+	kfree(animations.channel_counts);
 
 	// cleanup animation channels
-	KFREE_TYPE_CARRAY(channels.animation_ids, u16, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.name_ids, u16, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.pos_counts, u32, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.pos_offsets, u32, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.rot_counts, u32, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.rot_offsets, u32, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.scale_counts, u32, animations.total_channel_count);
-	KFREE_TYPE_CARRAY(channels.scale_offsets, u32, animations.total_channel_count);
+	kfree(channels.animation_ids);
+	kfree(channels.name_ids);
+	kfree(channels.pos_counts);
+	kfree(channels.pos_offsets);
+	kfree(channels.rot_counts);
+	kfree(channels.rot_offsets);
+	kfree(channels.scale_counts);
+	kfree(channels.scale_offsets);
 	if (channels.data_buffer) {
-		kfree(channels.data_buffer, channel_buffer_size, MEMORY_TAG_BINARY_DATA);
+		kfree(channels.data_buffer);
 	}
 
 	// Cleanup strings binary table.

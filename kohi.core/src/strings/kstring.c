@@ -1,4 +1,5 @@
 #include "strings/kstring.h"
+#include "debug/kassert.h"
 #include "math/kmath.h"
 #include "strings/kname.h"
 #include "strings/kstring_id.h"
@@ -199,10 +200,7 @@ char *string_duplicate (const char *str) {
 
 void string_free (const char *str) {
 	if (str) {
-		// NOTE: Using kfree instead of aligned version because this might be
-		// called without the memory system being initialized (i.e. unit tests).
-		u64 length = string_length(str);
-		kfree((char *)str, length + 1, MEMORY_TAG_STRING);
+		kfree((char *)str);
 	}
 }
 
@@ -1352,8 +1350,7 @@ void string_cleanup_split_darray (char **str_darray) {
 		u32 count = darray_length(str_darray);
 		// Free each string.
 		for (u32 i = 0; i < count; ++i) {
-			u32 len = string_length(str_darray[i]);
-			kfree(str_darray[i], sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+			kfree(str_darray[i]);
 		}
 
 		// Clear the darray
@@ -1368,7 +1365,7 @@ void string_cleanup_array (const char **str_array, u32 length) {
 				string_free(str_array[i]);
 			}
 		}
-		KFREE_TYPE_CARRAY(str_array, const char *, length);
+		kfree(str_array);
 	}
 }
 
@@ -1496,7 +1493,7 @@ char *string_join (const char **strings, u32 count, char delimiter) {
 	// Overwrite the final delimiter character with null terminator.
 	out_str[total_length - 1] = 0;
 
-	KFREE_TYPE_CARRAY(lengths, u32, count);
+	kfree(lengths);
 
 	return out_str;
 }
@@ -1531,7 +1528,7 @@ char *kstring_id_join (const kstring_id *strings, u32 count, char delimiter) {
 	// Null-terminate the string
 	out_str[total_length - 1] = 0;
 
-	KFREE_TYPE_CARRAY(lengths, u32, count);
+	kfree(lengths);
 
 	return out_str;
 }
@@ -1566,7 +1563,7 @@ char *kname_join (const kname *strings, u32 count, char delimiter) {
 	// Overwrite the final delimiter character with null terminator.
 	out_str[total_length - 1] = 0;
 
-	KFREE_TYPE_CARRAY(lengths, u32, count);
+	kfree(lengths);
 
 	return out_str;
 }
@@ -1756,89 +1753,449 @@ void string_to_upper (char *str) {
 // kstring implementation
 // ----------------------
 
-/**
- * @brief
- *
- * @param string
- * @param length The string length not including the null terminator.
- */
-void kstring_ensure_allocated (kstring *string, u32 length) {
-	if (string) {
-		if (string->allocated < length + 1) {
-			char *new_data = kallocate(sizeof(char) * length + 1, MEMORY_TAG_STRING);
-			if (string->data) {
-				// Copy over data if there is data to copy.
-				if (string->length > 0) {
-					string_ncopy(new_data, string->data, string->length);
-				}
-				// Clean up old data
-				kfree(string->data, sizeof(char) * string->length + 1, MEMORY_TAG_STRING);
-			}
+static void kstring_ensure_allocated (kstring *str, u32 byte_length) {
+	if (byte_length < KSTRING_DEFAULT_BUF_SIZE) {
+		return;
+	}
 
-			string->data = new_data;
-			string->length = length;
-			string->allocated = length + 1;
+	if (str->allocated < byte_length) {
+		char *new_data = kallocate(sizeof(char) * byte_length, MEMORY_TAG_KSTRING);
+		KASSERT(new_data);
+		if (str->allocated) {
+			kcopy_memory(new_data, str->data, str->allocated);
 		}
+		kfree(str->data);
+		str->data = new_data;
+
+		str->allocated = byte_length;
 	}
 }
 
-void kstring_create (kstring *out_string) {
-	if (!out_string) {
-		KERROR("kstring_create requires a valid pointer to a string.");
-		return;
-	}
-
-	kzero_memory(out_string, sizeof(kstring));
-
-	kstring_ensure_allocated(out_string, 0);
-	out_string->data[0] = 0; // Null terminator.
+kstring kstring_create (void) {
+	kstring str;
+	kzero_memory(&str, sizeof(kstring));
+	str.data = str.base_buffer;
+	return str;
 }
 
-void kstring_from_cstring (const char *source, kstring *out_string) {
-	if (!out_string) {
-		KERROR("kstring_from_cstring requires a valid pointer to a string.");
-		return;
+kstring kstring_from_cstring (const char *source) {
+	if (!source) {
+		return kstring_create();
 	}
 
-	u32 source_length = string_length(source);
-	kzero_memory(out_string, sizeof(kstring));
+	kstring str;
+	kzero_memory(&str, sizeof(kstring));
 
-	kstring_ensure_allocated(out_string, source_length);
+	str.length = string_length(source);
+	if (str.length <= KSTRING_DEFAULT_BUF_SIZE) {
+		kcopy_memory(str.base_buffer, source, KSTRING_DEFAULT_BUF_SIZE);
+	} else {
+		kstring_ensure_allocated(&str, str.length);
+		kcopy_memory(str.data, source, str.length);
+	}
 
-	string_ncopy(out_string->data, source, source_length);
-	out_string->data[source_length] = 0;
+	return str;
+}
+
+kstring kstring_duplicate (kstring source) {
+	kstring str;
+	kzero_memory(&str, sizeof(kstring));
+
+	str.length = source.length;
+	if (str.length <= KSTRING_DEFAULT_BUF_SIZE) {
+		kcopy_memory(str.base_buffer, source.base_buffer, KSTRING_DEFAULT_BUF_SIZE);
+	} else {
+		kstring_ensure_allocated(&str, str.length);
+		kcopy_memory(str.data, source.data, str.length);
+	}
+
+	return str;
 }
 
 void kstring_destroy (kstring *string) {
 	if (string) {
-		kfree(string->data, sizeof(char) * string->allocated, MEMORY_TAG_STRING);
+		if (string->allocated && string->data != string->base_buffer) {
+			kfree(string->data);
+		}
 		kzero_memory(string, sizeof(kstring));
 	}
 }
 
-u32 kstring_length (const kstring *string) {
-	return string ? string->length : 0;
-}
+char *kstring_cstr (kstring source) {
+	char *out_str = KNULL;
 
-u32 kstring_utf8_length (const kstring *string) {
-	return string ? string_utf8_length(string->data) : 0;
-}
-
-void kstring_append_str (kstring *string, const char *s) {
-	if (string && s) {
-		u32 length = string_length(s);
-		kstring_ensure_allocated(string, string->length + length);
-		string_ncopy(string->data + string->length, s, length);
-		string->data[string->length + length] = 0;
-		string->length = string->length + length;
+	out_str = kallocate(source.length + 1, MEMORY_TAG_KSTRING);
+	if (source.length) {
+		kcopy_memory(out_str, source.data, source.length);
 	}
+	out_str[source.length] = 0;
+
+	return out_str;
 }
 
-void kstring_append_kstring (kstring *string, const kstring *other) {
-	if (string && other) {
-		kstring_ensure_allocated(string, string->length + other->length);
-		string_ncopy(string->data + string->length, other->data, other->length);
-		string->data[string->length + other->length] = 0;
-		string->length = string->length + other->length;
+b8 kstrings_equal (kstring a, kstring b) {
+	if (a.length != b.length) {
+		return false;
 	}
+
+	return strings_equal(a.data, b.data);
+}
+
+b8 kstrings_equali (kstring a, kstring b) {
+	if (a.length != b.length) {
+		return false;
+	}
+
+	return strings_equali(a.data, b.data);
+}
+
+b8 kstring_cstr_equal (kstring a, const char *b) {
+	return strings_equal(a.data, b);
+}
+
+b8 kstring_cstr_equali (kstring a, const char *b) {
+	return strings_equali(a.data, b);
+}
+
+u32 kstring_length (kstring string) {
+	return string.length;
+}
+
+u32 kstring_utf8_length (kstring string) {
+	// TODO: cache utf8 length?
+	return string_utf8_length(string.data);
+}
+
+i32 kstring_index_of_char (kstring string, char c) {
+	for (u32 i = 0; i < string.length; ++i) {
+		if (string.data[i] == c) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+i32 kstring_index_of_kstring (kstring string, kstring text) {
+	u32 searchlen = text.length;
+
+	i32 len = searchlen - string.length;
+	for (i32 i = 0; i < len; ++i) {
+		i32 j;
+		for (j = 0; text.data[j]; ++j) {
+			if (string.data[i + j] != text.data[j]) {
+				break;
+			}
+		}
+
+		if (!text.data[j]) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+i32 kstring_index_of_cstr (kstring string, const char *text) {
+	u32 searchlen = string_length(text);
+
+	i32 len = searchlen - string.length;
+	for (i32 i = 0; i < len; ++i) {
+		i32 j;
+		for (j = 0; text[j]; ++j) {
+			if (string.data[i + j] != text[j]) {
+				break;
+			}
+		}
+
+		if (!text[j]) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+kstring kstring_append_data (kstring string, const void *data, u32 length) {
+	kstring out_str;
+	kzero_memory(&out_str, sizeof(kstring));
+
+	if (!length || !data) {
+		return out_str;
+	}
+
+	u32 new_length = string.length + length;
+	if (new_length > KSTRING_DEFAULT_BUF_SIZE) {
+		kstring_ensure_allocated(&out_str, new_length);
+	}
+
+	kcopy_memory(out_str.data, string.base_buffer, string.length);
+	kcopy_memory(out_str.data + string.length, data, length);
+	out_str.length += length;
+
+	return out_str;
+}
+
+kstring kstring_append_cstr (kstring string, const char *s) {
+	u32 slen = string_length(s);
+
+	return kstring_append_data(string, s, slen);
+}
+
+kstring kstring_append_kstring (kstring string, kstring other) {
+	return kstring_append_data(string, other.data, other.length);
+}
+
+kstring kstring_append_char (kstring string, char c) {
+	return kstring_append_data(string, &c, 1);
+}
+
+kstring kstring_append_bool (kstring string, b8 b) {
+	return kstring_append_data(string, b ? "true" : "false", b ? 4 : 5);
+}
+
+static char *u64_to_cstring_internal (u64 value, char *out) {
+	char temp[20];
+	u32 digits = 0;
+
+	if (value == 0) {
+		out[0] = '0';
+		out[1] = 0;
+		return out;
+	}
+
+	while (value) {
+		temp[digits++] = (char)('0' + (value % 10));
+		value /= 10;
+	}
+
+	for (u32 i = 0; i < digits; ++i) {
+		out[i] = temp[digits - i - 1];
+	}
+
+	out[digits] = 0;
+	return out;
+}
+
+static char *i64_to_cstring_internal (i64 value, char *out) {
+	if (value >= 0) {
+		return u64_to_cstring_internal((u64)value, out);
+	}
+
+	out[0] = '-';
+	out++;
+
+	u64 mag = (u64)(-(value + 1)) + 1;
+	u64_to_cstring_internal(mag, out);
+
+	return out - 1;
+}
+
+static char *f64_to_cstring_internal (f64 value, char *out, u8 decimals) {
+	if (value < 0.0) {
+		out[0] = '-';
+		out++;
+		value = -value;
+	}
+
+	u64 whole = (u64)value;
+	u64_to_cstring_internal(whole, out);
+
+	while (*out) {
+		++out;
+	}
+
+	if (decimals == 0) {
+		return out;
+	}
+
+	*out++ = '.';
+
+	f64 frac = value - (f64)whole;
+
+	for (u8 i = 0; i < decimals; ++i) {
+		frac *= 10.0;
+		u32 digit = (u32)frac;
+		*out++ = (char)('0' + digit);
+		frac -= digit;
+	}
+
+	*out = 0;
+	return out;
+}
+
+kstring kstring_append_i8 (kstring string, i8 i) {
+	char buf[20];
+	i64_to_cstring_internal(i, buf);
+
+	return kstring_from_cstring(buf);
+}
+kstring kstring_append_i16 (kstring string, i16 i) {
+	char buf[20];
+	i64_to_cstring_internal(i, buf);
+
+	return kstring_from_cstring(buf);
+}
+kstring kstring_append_i32 (kstring string, i32 i) {
+	char buf[20];
+	i64_to_cstring_internal(i, buf);
+
+	return kstring_from_cstring(buf);
+}
+kstring kstring_append_i64 (kstring string, i64 i) {
+	char buf[20];
+	i64_to_cstring_internal(i, buf);
+
+	return kstring_from_cstring(buf);
+}
+
+kstring kstring_append_u8 (kstring string, u8 u) {
+	char buf[20];
+	u64_to_cstring_internal(u, buf);
+
+	return kstring_from_cstring(buf);
+}
+kstring kstring_append_u16 (kstring string, u16 u) {
+	char buf[20];
+	u64_to_cstring_internal(u, buf);
+
+	return kstring_from_cstring(buf);
+}
+kstring kstring_append_u32 (kstring string, u32 u) {
+	char buf[20];
+	u64_to_cstring_internal(u, buf);
+
+	return kstring_from_cstring(buf);
+}
+kstring kstring_append_u64 (kstring string, u64 u) {
+	char buf[20];
+	u64_to_cstring_internal(u, buf);
+
+	return kstring_from_cstring(buf);
+}
+
+kstring kstring_append_f32 (kstring string, f32 f, u8 decimal_places) {
+	char buf[20];
+	f64_to_cstring_internal(f, buf, decimal_places);
+
+	return kstring_from_cstring(buf);
+}
+
+kstring kstring_append_f64 (kstring string, f64 f, u8 decimal_places) {
+	char buf[20];
+	f64_to_cstring_internal(f, buf, decimal_places);
+
+	return kstring_from_cstring(buf);
+}
+
+static char *kstring_stringify_vector (f32 *elements, b8 element_count, b8 decimal_places, char *out) {
+	char buf[64];
+	u8 offset = 0;
+	kzero_memory(buf, sizeof(buf));
+	for (u8 i = 0; i < element_count; ++i) {
+		f64_to_cstring_internal(elements[i], buf + offset, decimal_places);
+
+		while (buf[offset]) {
+			++offset;
+		}
+
+		if (i != element_count - 1) {
+			buf[offset] = ' ';
+			offset++;
+		}
+	}
+
+	return out;
+}
+
+kstring kstring_append_vec2 (kstring string, vec2 v, u8 decimal_places) {
+	char buf[64];
+	char *vstr = kstring_stringify_vector(v.elements, 2, decimal_places, buf);
+	return kstring_append_cstr(string, vstr);
+}
+
+kstring kstring_append_vec3 (kstring string, vec3 v, u8 decimal_places) {
+	char buf[64];
+	char *vstr = kstring_stringify_vector(v.elements, 3, decimal_places, buf);
+	return kstring_append_cstr(string, vstr);
+}
+
+kstring kstring_append_vec4 (kstring string, vec4 v, u8 decimal_places) {
+	char buf[64];
+	char *vstr = kstring_stringify_vector(v.elements, 4, decimal_places, buf);
+	return kstring_append_cstr(string, vstr);
+}
+
+kstring kstring_append_mat4 (kstring string, mat4 m, u8 decimal_places) {
+	char buf[256];
+	char *vstr = kstring_stringify_vector(m.data, 16, decimal_places, buf);
+	return kstring_append_cstr(string, vstr);
+}
+
+kstring kstring_ltrim (kstring string) {
+	kstring out_str;
+	kzero_memory(&out_str, sizeof(kstring));
+
+	for (u32 i = 0; i < string.length; ++i) {
+		if (!char_is_whitespace(string.data[i])) {
+			out_str.length = string.length - i;
+			if (out_str.length > KSTRING_DEFAULT_BUF_SIZE) {
+				out_str.data = kallocate(sizeof(char) * out_str.length, MEMORY_TAG_KSTRING);
+				out_str.allocated = sizeof(char) * out_str.length;
+			}
+			kcopy_memory(out_str.data, string.data + i, out_str.length);
+			break;
+		}
+	}
+
+	// If at the end of the string, then the entire thing was whitespace.
+	return kstring_create();
+}
+
+kstring kstring_rtrim (kstring string) {
+	kstring out_str;
+	kzero_memory(&out_str, sizeof(kstring));
+
+	for (i32 i = string.length; i >= 0; --i) {
+		if (!char_is_whitespace(string.data[i])) {
+			out_str.length = i;
+			if (out_str.length > KSTRING_DEFAULT_BUF_SIZE) {
+				out_str.data = kallocate(sizeof(char) * out_str.length, MEMORY_TAG_KSTRING);
+				out_str.allocated = sizeof(char) * out_str.length;
+			}
+			kcopy_memory(out_str.data, string.data, out_str.length);
+			break;
+		}
+	}
+
+	// If at the start of the string, then the entire thing was whitespace.
+	return kstring_create();
+}
+
+kstring kstring_trim (kstring string) {
+	kstring trimmed_l = kstring_ltrim(string);
+	kstring trimmed_r = kstring_rtrim(trimmed_l);
+	kstring_destroy(&trimmed_l);
+
+	return trimmed_r;
+}
+kstring kstring_substr (kstring string, u32 start, u32 length) {
+	kstring out_str = kstring_create();
+
+	start = KMIN(start, string.length);
+	u32 end = KMIN(start + length, string.length);
+
+	// Actual length
+	u32 len = end - start;
+	if (len) {
+		kstring_ensure_allocated(&out_str, len);
+		kcopy_memory(out_str.data, string.data + start, len);
+		out_str.length = len;
+	}
+
+	return out_str;
+}
+
+kstring kstring_format (const char *fmt, ...) {
+	// LEFTOFF: kstring format function
 }

@@ -121,7 +121,7 @@ b8 kasset_system_font_deserialize (const char *file_text, kasset_system_font *ou
 		kson_tree_cleanup(&tree);
 		if (!success) {
 			if (out_asset->face_count && out_asset->faces) {
-				kfree(out_asset->faces, sizeof(kasset_system_font_face) * out_asset->face_count, MEMORY_TAG_ARRAY);
+				kfree(out_asset->faces);
 				out_asset->faces = 0;
 				out_asset->face_count = 0;
 			}

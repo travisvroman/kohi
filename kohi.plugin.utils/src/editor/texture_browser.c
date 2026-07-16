@@ -145,10 +145,10 @@ void texture_browser_create (texture_browser *tb, texture_browser_create_info cr
 
 void texture_browser_destroy (texture_browser *tb) {
 	if (tb->image_boxes) {
-		KFREE_TYPE_CARRAY(tb->image_boxes, kui_control, tb->tex_count);
+		kfree(tb->image_boxes);
 	}
 	if (tb->labels) {
-		KFREE_TYPE_CARRAY(tb->labels, kui_control, tb->tex_count);
+		kfree(tb->labels);
 	}
 }
 
@@ -206,9 +206,9 @@ void texture_browser_refresh (texture_browser *tb) {
 			kui_image_box_control_destroy(tb->ui, &tb->tex_browser_image_boxes[i]);
 			kui_label_control_destroy(tb->ui, &tb->tex_browser_labels[i]);
 		} */
-		KFREE_TYPE_CARRAY(tb->image_boxes, kui_control, tb->tex_count);
+		kfree(tb->image_boxes);
 		tb->image_boxes = KNULL;
-		KFREE_TYPE_CARRAY(tb->labels, kui_control, tb->tex_count);
+		kfree(tb->labels);
 		tb->labels = KNULL;
 	}
 
@@ -222,7 +222,7 @@ void texture_browser_refresh (texture_browser *tb) {
 				darray_push(search_names, texture_names[i]);
 			}
 		}
-		KFREE_TYPE_CARRAY(texture_names, kname, tb->tex_count);
+		kfree(texture_names);
 		texture_names = KNULL;
 		tb->tex_count = darray_length(search_names);
 		if (tb->tex_count) {
@@ -261,7 +261,7 @@ void texture_browser_refresh (texture_browser *tb) {
 				element_data->texture = texture_get_by_name(texture_names[i]);
 				if (!texture_properties_get(element_data->texture, &element_data->properties)) {
 					KERROR("Unable to get properties for texture '%k'", texture_names[i]);
-					KFREE_TYPE(element_data, texture_browser_element_data, MEMORY_TAG_EDITOR);
+					kfree(element_data);
 					continue;
 				}
 				kui_control_set_user_data(tb->ui, tb->image_boxes[i], sizeof(texture_browser_element_data), element_data, true, MEMORY_TAG_EDITOR);
@@ -350,7 +350,7 @@ void texture_browser_refresh (texture_browser *tb) {
 	/* kui_scrollable_control_scroll_x_set(tb->ui, tb->tex_browser_scrollable_control, 0); */
 
 	if (texture_names) {
-		KFREE_TYPE_CARRAY(texture_names, kname, tb->tex_count);
+		kfree(texture_names);
 	}
 }
 
@@ -482,7 +482,7 @@ static b8 texture_browser_import_button_clicked (struct kui_state *state, kui_co
 		for (u8 i = 0; i < result.file_count; ++i) {
 			string_free(result.file_paths[i]);
 		}
-		KFREE_TYPE_CARRAY(result.file_paths, const char *, result.file_count);
+		kfree(result.file_paths);
 	}
 
 	texture_browser_refresh(tb);

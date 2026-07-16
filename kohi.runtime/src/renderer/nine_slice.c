@@ -356,10 +356,10 @@ void nine_slice_destroy (nine_slice *nslice) {
 
 	const u32 vert_size = sizeof(vertex_2d);
 	const u32 vert_count = 4 * 9;
-	kfree(nslice->vertex_data.elements, vert_size * vert_count, MEMORY_TAG_ARRAY);
+	kfree(nslice->vertex_data.elements);
 	const u32 idx_size = sizeof(u32);
 	const u32 idx_count = 6 * 9;
-	kfree(nslice->index_data.elements, idx_size * idx_count, MEMORY_TAG_ARRAY);
+	kfree(nslice->index_data.elements);
 
 	struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 

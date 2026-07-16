@@ -43,7 +43,7 @@ void binary_string_table_destroy (binary_string_table *table) {
 	darray_destroy(table->lookup);
 
 	if (table->data) {
-		kfree(table->data, table->header.data_block_size, MEMORY_TAG_BINARY_STRING_TABLE);
+		kfree(table->data);
 	}
 
 	kzero_memory(table, sizeof(binary_string_table));
@@ -57,7 +57,7 @@ u32 binary_string_table_add (binary_string_table *table, const char *string) {
 		.length = string_length(string),
 		.offset = table->header.data_block_size};
 
-	table->data = kreallocate(table->data, table->header.data_block_size, table->header.data_block_size + new_entry.length, MEMORY_TAG_BINARY_STRING_TABLE);
+	table->data = kreallocate(table->data, table->header.data_block_size + new_entry.length);
 	table->header.data_block_size += new_entry.length;
 
 	// Copy the string's content.

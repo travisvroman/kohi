@@ -8,7 +8,7 @@ static void stack_ensure_allocated (stack *s, u32 count) {
 		void *temp = kallocate(count * s->element_size, MEMORY_TAG_ARRAY);
 		if (s->memory) {
 			kcopy_memory(temp, s->memory, s->allocated);
-			kfree(s->memory, s->allocated, MEMORY_TAG_ARRAY);
+			kfree(s->memory);
 		}
 		s->memory = temp;
 		s->allocated = count * s->element_size;
@@ -31,7 +31,7 @@ b8 stack_create (stack *out_stack, u32 element_size) {
 void stack_destroy (stack *s) {
 	if (s) {
 		if (s->memory) {
-			kfree(s->memory, s->allocated, MEMORY_TAG_ARRAY);
+			kfree(s->memory);
 		}
 		kzero_memory(s, sizeof(stack));
 	}

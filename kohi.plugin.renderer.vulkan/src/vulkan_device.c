@@ -120,7 +120,7 @@ b8 vulkan_device_create (vulkan_context *context, b8 require_discrete_gpu) {
 			}
 		}
 	}
-	kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+	kfree(available_extensions);
 
 	// Setup an array large enough to hold all, even if we don't use them all.
 	const char *extension_names[6] = {0};
@@ -326,13 +326,13 @@ void vulkan_device_destroy (vulkan_context *context) {
 	context->device.physical_device = 0;
 
 	if (context->device.swapchain_support.formats) {
-		kfree(context->device.swapchain_support.formats, sizeof(VkSurfaceFormatKHR) * context->device.swapchain_support.format_count, MEMORY_TAG_RENDERER);
+		kfree(context->device.swapchain_support.formats);
 		context->device.swapchain_support.formats = 0;
 		context->device.swapchain_support.format_count = 0;
 	}
 
 	if (context->device.swapchain_support.present_modes) {
-		kfree(context->device.swapchain_support.present_modes, sizeof(VkPresentModeKHR) * context->device.swapchain_support.present_mode_count, MEMORY_TAG_RENDERER);
+		kfree(context->device.swapchain_support.present_modes);
 		context->device.swapchain_support.present_modes = 0;
 		context->device.swapchain_support.present_mode_count = 0;
 	}
@@ -351,12 +351,12 @@ void vulkan_device_query_swapchain_support (
 	vulkan_swapchain_support_info *out_support_info) {
 
 	if (out_support_info->formats) {
-		kfree(out_support_info->formats, sizeof(VkSurfaceFormatKHR) * out_support_info->format_count, MEMORY_TAG_RENDERER);
+		kfree(out_support_info->formats);
 		out_support_info->formats = KNULL;
 		out_support_info->format_count = 0;
 	}
 	if (out_support_info->present_modes) {
-		kfree(out_support_info->present_modes, sizeof(VkPresentModeKHR) * out_support_info->present_mode_count, MEMORY_TAG_RENDERER);
+		kfree(out_support_info->present_modes);
 		out_support_info->present_modes = KNULL;
 		out_support_info->present_mode_count = 0;
 	}
@@ -739,12 +739,12 @@ static b8 physical_device_meets_requirements (
 
 					if (!found) {
 						KINFO("Required extension not found: '%s', skipping device.", requirements->device_extension_names[i]);
-						kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+						kfree(available_extensions);
 						return false;
 					}
 				}
 			}
-			kfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+			kfree(available_extensions);
 		}
 
 		// Sampler anisotropy

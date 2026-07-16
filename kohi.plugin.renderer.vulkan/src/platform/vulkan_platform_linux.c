@@ -52,7 +52,7 @@ b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindo
 		KFATAL("Vulkan surface creation failed.");
 		return false;
 	}
-	kfree_aligned(block, size, 16, MEMORY_TAG_RENDERER);
+	kfree_aligned(block);
 
 	return true;
 }
@@ -67,7 +67,7 @@ b8 vulkan_platform_presentation_support (vulkan_context *context, VkPhysicalDevi
 
 	PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR kvkGetPhysicalDeviceXcbPresentationSupportKHR = platform_dynamic_library_load_function("vkGetPhysicalDeviceXcbPresentationSupportKHR", &context->rhi.vulkan_lib);
 	b8 result = (b8)kvkGetPhysicalDeviceXcbPresentationSupportKHR(physical_device, queue_family_index, handle->connection, handle->screen->root_visual);
-	kfree_aligned(block, size, 16, MEMORY_TAG_RENDERER);
+	kfree_aligned(block);
 	return result;
 }
 

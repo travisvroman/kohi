@@ -1,8 +1,4 @@
-#include "defines.h"
-#include "platform.h"
 #include "platform/platform.h"
-#include <AppKit/AppKit.h>
-#include <string.h>
 
 #if defined(KPLATFORM_APPLE)
 
@@ -13,6 +9,7 @@
 
 #	include "containers/darray.h"
 
+#	include <string.h>
 #	include <crt_externs.h>
 #	include <mach/mach_time.h>
 
@@ -23,6 +20,7 @@
 #	include <CoreFoundation/CoreFoundation.h>
 #	include <DiskArbitration/DiskArbitration.h>
 #	include <IOKit/IOKitLib.h>
+#	include <AppKit/AppKit.h>
 #	include <sys/mount.h>
 
 #	import <Cocoa/Cocoa.h>
@@ -41,33 +39,33 @@ typedef struct macos_handle_info {
 
 typedef struct macos_file_watch {
 	u32 id;
-	const char* file_path;
+	const char *file_path;
 	b8 is_binary;
 	platform_filewatcher_file_written_callback watcher_written_callback;
-	void* watcher_written_context;
+	void *watcher_written_context;
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback;
-	void* watcher_deleted_context;
+	void *watcher_deleted_context;
 	long last_write_time;
 } macos_file_watch;
 
 typedef struct kwindow_platform_state {
-	WindowDelegate* wnd_delegate;
-	NSWindow* handle;
-	ContentView* view;
-	CAMetalLayer* layer;
+	WindowDelegate *wnd_delegate;
+	NSWindow *handle;
+	ContentView *view;
+	CAMetalLayer *layer;
 	f32 device_pixel_ratio;
 } kwindow_platform_state;
 
 typedef struct platform_state {
-	ApplicationDelegate* app_delegate;
+	ApplicationDelegate *app_delegate;
 	macos_handle_info handle;
 	b8 quit_flagged;
 	u8 modifier_key_states;
 	// darray
-	macos_file_watch* watches;
+	macos_file_watch *watches;
 
 	// darray of pointers to created windows (owned by the application);
-	kwindow** windows;
+	kwindow **windows;
 	platform_window_closed_callback window_closed_callback;
 	platform_window_resized_callback window_resized_callback;
 	platform_process_key process_key;
@@ -88,38 +86,38 @@ enum macos_modifier_keys {
 	MACOS_MODIFIER_KEY_RCOMMAND = 0x80
 } macos_modifier_keys;
 
-static platform_state* state_ptr;
+static platform_state *state_ptr;
 
-static void handle_resize(kwindow* w, u16 width, u16 height);
+static void handle_resize (kwindow *w, u16 width, u16 height);
 
 // Key translation
-static keys translate_keycode(u32 ns_keycode);
+static keys translate_keycode (u32 ns_keycode);
 // Modifier key handling
-static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
-static void platform_update_watches(void);
+static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags);
+static void platform_update_watches (void);
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
   @public
-	kwindow* kohi_window;
+	kwindow *kohi_window;
 }
 
-- (instancetype)initWithState:(kwindow*)init_state;
+- (instancetype)initWithState:(kwindow *)init_state;
 
 @end // WindowDelegate
 
 @interface ContentView : NSView <NSTextInputClient> {
-	NSWindow* window;
-	NSTrackingArea* trackingArea;
-	NSMutableAttributedString* markedText;
+	NSWindow *window;
+	NSTrackingArea *trackingArea;
+	NSMutableAttributedString *markedText;
 }
 
-- (instancetype)initWithWindow:(NSWindow*)initWindow;
+- (instancetype)initWithWindow:(NSWindow *)initWindow;
 
 @end // ContentView
 
 @implementation ContentView
 
-- (instancetype)initWithWindow:(NSWindow*)initWindow {
+- (instancetype)initWithWindow:(NSWindow *)initWindow {
 	self = [super init];
 	if (self != nil) {
 		window = initWindow;
@@ -140,27 +138,27 @@ static void platform_update_watches(void);
 	return YES;
 }
 
-- (BOOL)acceptsFirstMouse:(NSEvent*)event {
+- (BOOL)acceptsFirstMouse:(NSEvent *)event {
 	return YES;
 }
 
-- (void)mouseDown:(NSEvent*)event {
+- (void)mouseDown:(NSEvent *)event {
 	state_ptr->process_mouse_button(MOUSE_BUTTON_LEFT, true);
 }
 
-- (void)mouseDragged:(NSEvent*)event {
+- (void)mouseDragged:(NSEvent *)event {
 	// Equivalent to moving the mouse for now
 	[self mouseMoved:event];
 }
 
-- (void)mouseUp:(NSEvent*)event {
+- (void)mouseUp:(NSEvent *)event {
 	state_ptr->process_mouse_button(MOUSE_BUTTON_LEFT, false);
 }
 
-- (void)mouseMoved:(NSEvent*)event {
+- (void)mouseMoved:(NSEvent *)event {
 	const NSPoint pos = [event locationInWindow];
-	kwindow* w = ((WindowDelegate*)event.window.delegate)->kohi_window;
-	kwindow_platform_state* ps = w->platform_state;
+	kwindow *w = ((WindowDelegate *)event.window.delegate)->kohi_window;
+	kwindow_platform_state *ps = w->platform_state;
 
 	// Need to invert Y on macOS, since origin is bottom-left.
 	// Also need to scale the mouse position by the device pixel ratio so screen lookups are correct.
@@ -171,40 +169,40 @@ static void platform_update_watches(void);
 	state_ptr->process_mouse_move(x, y);
 }
 
-- (void)rightMouseDown:(NSEvent*)event {
+- (void)rightMouseDown:(NSEvent *)event {
 	state_ptr->process_mouse_button(MOUSE_BUTTON_RIGHT, true);
 }
 
-- (void)rightMouseDragged:(NSEvent*)event {
+- (void)rightMouseDragged:(NSEvent *)event {
 	// Equivalent to moving the mouse for now
 	[self mouseMoved:event];
 }
 
-- (void)rightMouseUp:(NSEvent*)event {
+- (void)rightMouseUp:(NSEvent *)event {
 	state_ptr->process_mouse_button(MOUSE_BUTTON_RIGHT, false);
 }
 
-- (void)otherMouseDown:(NSEvent*)event {
+- (void)otherMouseDown:(NSEvent *)event {
 	// Interpreted as middle click
 	state_ptr->process_mouse_button(MOUSE_BUTTON_MIDDLE, true);
 }
 
-- (void)otherMouseDragged:(NSEvent*)event {
+- (void)otherMouseDragged:(NSEvent *)event {
 	// Equivalent to moving the mouse for now
 	[self mouseMoved:event];
 }
 
-- (void)otherMouseUp:(NSEvent*)event {
+- (void)otherMouseUp:(NSEvent *)event {
 	// Interpreted as middle click
 	state_ptr->process_mouse_button(MOUSE_BUTTON_MIDDLE, false);
 }
 
 // Handle modifier keys since they are only registered via modifier flags being set/unset.
-- (void)flagsChanged:(NSEvent*)event {
+- (void)flagsChanged:(NSEvent *)event {
 	handle_modifier_keys([event keyCode], [event modifierFlags]);
 }
 
-- (void)keyDown:(NSEvent*)event {
+- (void)keyDown:(NSEvent *)event {
 	keys key = translate_keycode((u32)[event keyCode]);
 
 	state_ptr->process_key(key, true, [event isARepeat]);
@@ -212,13 +210,13 @@ static void platform_update_watches(void);
 	// [self interpretKeyEvents:@[event]];
 }
 
-- (void)keyUp:(NSEvent*)event {
+- (void)keyUp:(NSEvent *)event {
 	keys key = translate_keycode((u32)[event keyCode]);
 
 	state_ptr->process_key(key, false, false);
 }
 
-- (void)scrollWheel:(NSEvent*)event {
+- (void)scrollWheel:(NSEvent *)event {
 	state_ptr->process_mouse_wheel((i8)[event scrollingDeltaY]);
 }
 
@@ -246,11 +244,11 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 	return false;
 }
 
-- (nullable NSAttributedString*)attributedSubstringForProposedRange:(NSRange)range actualRange:(nullable NSRangePointer)actualRange {
+- (nullable NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range actualRange:(nullable NSRangePointer)actualRange {
 	return nil;
 }
 
-- (NSArray<NSAttributedStringKey>*)validAttributesForMarkedText {
+- (NSArray<NSAttributedStringKey> *)validAttributesForMarkedText {
 	return [NSArray array];
 }
 
@@ -271,11 +269,11 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 
 @implementation ApplicationDelegate
 
-- (void)applicationDidFinishLaunching:(NSNotification*)notification {
+- (void)applicationDidFinishLaunching:(NSNotification *)notification {
 	// Posting an empty event at start
 	@autoreleasepool {
 
-		NSEvent* event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+		NSEvent *event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
 											location:NSMakePoint(0, 0)
 									   modifierFlags:0
 										   timestamp:0
@@ -298,7 +296,7 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
  */
 @implementation WindowDelegate
 
-- (instancetype)initWithState:(kwindow*)init_state {
+- (instancetype)initWithState:(kwindow *)init_state {
 	self = [super init];
 
 	if (self != nil) {
@@ -309,11 +307,11 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 	return self;
 }
 
-- (BOOL)windowShouldClose:(NSWindow*)sender {
+- (BOOL)windowShouldClose:(NSWindow *)sender {
 	state_ptr->quit_flagged = true;
 
 	if (state_ptr->window_closed_callback) {
-		kwindow* w = ((WindowDelegate*)sender.delegate)->kohi_window;
+		kwindow *w = ((WindowDelegate *)sender.delegate)->kohi_window;
 		if (!w) {
 			KERROR("Recieved a window close event for a non-registered window!");
 			return NO;
@@ -324,10 +322,10 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 	return YES;
 }
 
-- (void)windowDidChangeScreen:(NSNotification*)notification {
-	NSWindow* window = [notification object];
-	kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
-	kwindow_platform_state* ps = w->platform_state;
+- (void)windowDidChangeScreen:(NSNotification *)notification {
+	NSWindow *window = [notification object];
+	kwindow *w = ((WindowDelegate *)window.delegate)->kohi_window;
+	kwindow_platform_state *ps = w->platform_state;
 	CGSize viewSize = ps->view.bounds.size;
 	NSSize newDrawableSize = [ps->view convertSizeToBacking:viewSize];
 	ps->layer.drawableSize = newDrawableSize;
@@ -340,10 +338,10 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 	handle_resize(w, width, height);
 }
 
-- (void)windowDidResize:(NSNotification*)notification {
-	NSWindow* window = [notification object];
-	kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
-	kwindow_platform_state* ps = w->platform_state;
+- (void)windowDidResize:(NSNotification *)notification {
+	NSWindow *window = [notification object];
+	kwindow *w = ((WindowDelegate *)window.delegate)->kohi_window;
+	kwindow_platform_state *ps = w->platform_state;
 	CGSize viewSize = ps->view.bounds.size;
 	NSSize newDrawableSize = [ps->view convertSizeToBacking:viewSize];
 	ps->layer.drawableSize = newDrawableSize;
@@ -356,21 +354,21 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 	handle_resize(w, width, height);
 }
 
-- (void)windowDidMiniaturize:(NSNotification*)notification {
+- (void)windowDidMiniaturize:(NSNotification *)notification {
 	// Send a size of 0, which tells the application it was minimized.
-	NSWindow* window = [notification object];
-	kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
-	kwindow_platform_state* ps = w->platform_state;
+	NSWindow *window = [notification object];
+	kwindow *w = ((WindowDelegate *)window.delegate)->kohi_window;
+	kwindow_platform_state *ps = w->platform_state;
 
 	handle_resize(w, 0, 0);
 
 	[ps->handle miniaturize:nil];
 }
 
-- (void)windowDidDeminiaturize:(NSNotification*)notification {
-	NSWindow* window = [notification object];
-	kwindow* w = ((WindowDelegate*)window.delegate)->kohi_window;
-	kwindow_platform_state* ps = w->platform_state;
+- (void)windowDidDeminiaturize:(NSNotification *)notification {
+	NSWindow *window = [notification object];
+	kwindow *w = ((WindowDelegate *)window.delegate)->kohi_window;
+	kwindow_platform_state *ps = w->platform_state;
 	CGSize viewSize = ps->view.bounds.size;
 	NSSize newDrawableSize = [ps->view convertSizeToBacking:viewSize];
 	ps->layer.drawableSize = newDrawableSize;
@@ -387,7 +385,7 @@ static const NSRange kEmptyRange = {NSNotFound, 0};
 
 @end // WindowDelegate
 
-static void handle_resize(kwindow* w, u16 width, u16 height) {
+static void handle_resize (kwindow *w, u16 width, u16 height) {
 
 	// Check if different. If so, trigger a resize event.
 	if (width != w->width || height != w->height) {
@@ -404,7 +402,7 @@ static void handle_resize(kwindow* w, u16 width, u16 height) {
 	}
 }
 
-b8 platform_system_startup(u64* memory_requirement, platform_state* state, platform_system_config* config) {
+b8 platform_system_startup (u64 *memory_requirement, platform_state *state, platform_system_config *config) {
 	*memory_requirement = sizeof(platform_state);
 	if (state == 0) {
 		return true;
@@ -413,7 +411,7 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
 	state_ptr = state;
 
 	// Create the array of window pointers.
-	state->windows = darray_create(kwindow*);
+	state->windows = darray_create(kwindow *);
 	state->window_closed_callback = 0;
 	state->window_resized_callback = 0;
 	state->process_key = 0;
@@ -447,7 +445,7 @@ b8 platform_system_startup(u64* memory_requirement, platform_state* state, platf
 	} // autoreleasepool
 }
 
-void platform_system_shutdown(platform_state* state) {
+void platform_system_shutdown (platform_state *state) {
 	if (state_ptr) {
 
 		u32 window_count = darray_length(state_ptr->windows);
@@ -467,13 +465,13 @@ void platform_system_shutdown(platform_state* state) {
 	state_ptr = 0;
 }
 
-b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately) {
+b8 platform_window_create (const kwindow_config *config, struct kwindow *window, b8 show_immediately) {
 	if (!window) {
 		return false;
 	}
 
 	window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
-	kwindow_platform_state* ps = window->platform_state;
+	kwindow_platform_state *ps = window->platform_state;
 	ps->device_pixel_ratio = 1.0f;
 
 	// Window delegate creation
@@ -573,15 +571,15 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 	return true;
 }
 
-void platform_window_destroy(struct kwindow* window) {
+void platform_window_destroy (struct kwindow *window) {
 	if (window) {
 		u32 len = darray_length(state_ptr->windows);
 		for (u32 i = 0; i < len; ++i) {
-			kwindow* w = state_ptr->windows[i];
+			kwindow *w = state_ptr->windows[i];
 			if (w == window) {
 				KTRACE("Destroying window...");
 
-				kwindow_platform_state* ps = w->platform_state;
+				kwindow_platform_state *ps = w->platform_state;
 
 				[ps->handle orderOut:nil];
 
@@ -600,7 +598,7 @@ void platform_window_destroy(struct kwindow* window) {
 		}
 		KERROR("Destroying a window that was somehow not registered with the platform layer.");
 
-		kwindow_platform_state* ps = window->platform_state;
+		kwindow_platform_state *ps = window->platform_state;
 		[ps->handle orderOut:nil];
 
 		[ps->handle setDelegate:nil];
@@ -614,12 +612,12 @@ void platform_window_destroy(struct kwindow* window) {
 	}
 }
 
-b8 platform_window_show(struct kwindow* window) {
+b8 platform_window_show (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
 
-	kwindow_platform_state* ps = window->platform_state;
+	kwindow_platform_state *ps = window->platform_state;
 	//[ps->handle show];
 
 	// TODO: is this it?
@@ -629,25 +627,25 @@ b8 platform_window_show(struct kwindow* window) {
 	return true;
 }
 
-b8 platform_window_hide(struct kwindow* window) {
+b8 platform_window_hide (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
 
-	kwindow_platform_state* ps = window->platform_state;
+	kwindow_platform_state *ps = window->platform_state;
 	[ps->handle setIsVisible:(BOOL)NO];
 
 	return true;
 }
 
-const char* platform_window_title_get(const struct kwindow* window) {
+const char *platform_window_title_get (const struct kwindow *window) {
 	if (window && window->title) {
 		return string_duplicate(window->title);
 	}
 	return 0;
 }
 
-b8 platform_window_title_set(struct kwindow* window, const char* title) {
+b8 platform_window_title_set (struct kwindow *window, const char *title) {
 	if (!window) {
 		return false;
 	}
@@ -656,16 +654,16 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 		string_free(window->title);
 	}
 	window->title = string_duplicate(title);
-	kwindow_platform_state* ps = window->platform_state;
+	kwindow_platform_state *ps = window->platform_state;
 	[ps->handle setTitle:@(window->title)];
 	return true;
 }
 
-b8 platform_pump_messages(void) {
+b8 platform_pump_messages (void) {
 	if (state_ptr) {
 		@autoreleasepool {
 
-			NSEvent* event;
+			NSEvent *event;
 
 			for (;;) {
 				event = [NSApp
@@ -689,29 +687,29 @@ b8 platform_pump_messages(void) {
 	return true;
 }
 
-void* platform_allocate(u64 size, b8 aligned) {
+void *platform_allocate (u64 size, b8 aligned) {
 	return malloc(size);
 }
 
-void platform_free(void* block, b8 aligned) {
+void platform_free (void *block, b8 aligned) {
 	free(block);
 }
 
-void* platform_zero_memory(void* block, u64 size) {
+void *platform_zero_memory (void *block, u64 size) {
 	return memset(block, 0, size);
 }
 
-void* platform_copy_memory(void* dest, const void* source, u64 size) {
+void *platform_copy_memory (void *dest, const void *source, u64 size) {
 	return memcpy(dest, source, size);
 }
 
-void* platform_set_memory(void* dest, i32 value, u64 size) {
+void *platform_set_memory (void *dest, i32 value, u64 size) {
 	return memset(dest, value, size);
 }
 
-void platform_console_write(struct platform_state* platform, log_level level, const char* message) {
+void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
 	// FATAL,ERROR,WARN,INFO,DEBUG,TRACE
-	const char* colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
+	const char *colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
 	printf("\033[%sm%s\033[0m", colour_strings[level], message);
 }
 
@@ -721,7 +719,7 @@ void platform_console_write(struct platform_state* platform, log_level level, co
 	printf("\033[%sm%s\033[0m", colour_strings[colour], message);
 }*/
 
-f64 platform_get_absolute_time(void) {
+f64 platform_get_absolute_time (void) {
 	mach_timebase_info_data_t clock_timebase;
 	mach_timebase_info(&clock_timebase);
 
@@ -731,7 +729,7 @@ f64 platform_get_absolute_time(void) {
 	return nanos / 1.0e9; // Convert to seconds
 }
 
-void platform_sleep(u64 ms) {
+void platform_sleep (u64 ms) {
 #	if _POSIX_C_SOURCE >= 199309L
 	struct timespec ts;
 	ts.tv_sec = ms / 1000;
@@ -745,11 +743,11 @@ void platform_sleep(u64 ms) {
 #	endif
 }
 
-i32 platform_get_processor_count(void) {
+i32 platform_get_processor_count (void) {
 	return [[NSProcessInfo processInfo] processorCount];
 }
 
-void platform_get_handle_info(u64* out_size, void* memory) {
+void platform_get_handle_info (u64 *out_size, void *memory) {
 
 	*out_size = sizeof(macos_handle_info);
 	if (!memory) {
@@ -759,46 +757,46 @@ void platform_get_handle_info(u64* out_size, void* memory) {
 	kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(const struct kwindow* window) {
+f32 platform_device_pixel_ratio (const struct kwindow *window) {
 	return window->platform_state->device_pixel_ratio;
 }
 
-const char* platform_dynamic_library_extension(void) {
+const char *platform_dynamic_library_extension (void) {
 	return ".dylib";
 }
 
-const char* platform_dynamic_library_prefix(void) {
+const char *platform_dynamic_library_prefix (void) {
 	return "lib";
 }
 
-void platform_register_window_closed_callback(platform_window_closed_callback callback) {
+void platform_register_window_closed_callback (platform_window_closed_callback callback) {
 	state_ptr->window_closed_callback = callback;
 }
 
-void platform_register_window_resized_callback(platform_window_resized_callback callback) {
+void platform_register_window_resized_callback (platform_window_resized_callback callback) {
 	state_ptr->window_resized_callback = callback;
 }
 
-void platform_register_process_key(platform_process_key callback) {
+void platform_register_process_key (platform_process_key callback) {
 	state_ptr->process_key = callback;
 }
 
-void platform_register_process_mouse_button_callback(platform_process_mouse_button callback) {
+void platform_register_process_mouse_button_callback (platform_process_mouse_button callback) {
 	state_ptr->process_mouse_button = callback;
 }
 
-void platform_register_process_mouse_move_callback(platform_process_mouse_move callback) {
+void platform_register_process_mouse_move_callback (platform_process_mouse_move callback) {
 	state_ptr->process_mouse_move = callback;
 }
 
-void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
+void platform_register_process_mouse_wheel_callback (platform_process_mouse_wheel callback) {
 	state_ptr->process_mouse_wheel = callback;
 }
-void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback) {
 	state_ptr->on_paste = callback;
 }
 
-platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
+platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
 	u32 flags = COPYFILE_ALL;
 	if (!overwrite_if_exists) {
 		flags |= overwrite_if_exists;
@@ -817,14 +815,14 @@ platform_error_code platform_copy_file(const char* source, const char* dest, b8 
 	return PLATFORM_ERROR_SUCCESS;
 }
 
-static b8 register_watch(
-	const char* file_path,
+static b8 register_watch (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 
 	if (!state_ptr || !file_path || !out_watch_id) {
 		if (out_watch_id) {
@@ -849,7 +847,7 @@ static b8 register_watch(
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		macos_file_watch* w = &state_ptr->watches[i];
+		macos_file_watch *w = &state_ptr->watches[i];
 		if (w->id == INVALID_ID) {
 			// Found a free slot to use.
 			w->id = i;
@@ -875,7 +873,7 @@ static b8 register_watch(
 	return true;
 }
 
-static b8 unregister_watch(u32 watch_id) {
+static b8 unregister_watch (u32 watch_id) {
 	if (!state_ptr || !state_ptr->watches) {
 		return false;
 	}
@@ -885,24 +883,24 @@ static b8 unregister_watch(u32 watch_id) {
 		return false;
 	}
 
-	macos_file_watch* w = &state_ptr->watches[watch_id];
+	macos_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
 	u32 len = string_length(w->file_path);
-	kfree((void*)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+	kfree((void *)w->file_path);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(long));
 
 	return true;
 }
 
-b8 platform_watch_file(
-	const char* file_path,
+b8 platform_watch_file (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 	return register_watch(
 		file_path,
 		is_binary,
@@ -913,18 +911,18 @@ b8 platform_watch_file(
 		out_watch_id);
 }
 
-b8 platform_unwatch_file(u32 watch_id) {
+b8 platform_unwatch_file (u32 watch_id) {
 	return unregister_watch(watch_id);
 }
 
-static void platform_update_watches(void) {
+static void platform_update_watches (void) {
 	if (!state_ptr || !state_ptr->watches) {
 		return;
 	}
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		macos_file_watch* f = &state_ptr->watches[i];
+		macos_file_watch *f = &state_ptr->watches[i];
 		if (f->id != INVALID_ID) {
 			struct stat info;
 			int result = stat(f->file_path, &info);
@@ -961,12 +959,12 @@ static void platform_update_watches(void) {
 }
 
 static inline kunix_time_ns
-unix_time_from_stat(const struct stat* s) {
+unix_time_from_stat (const struct stat *s) {
 	return (kunix_time_ns)s->st_mtimespec.tv_sec * 1000000000ULL +
 		   (kunix_time_ns)s->st_mtimespec.tv_nsec;
 }
 
-kunix_time_ns platform_get_file_mtime(const char* path) {
+kunix_time_ns platform_get_file_mtime (const char *path) {
 	struct stat s;
 	if (stat(path, &s) != 0) {
 		return 0;
@@ -975,7 +973,7 @@ kunix_time_ns platform_get_file_mtime(const char* path) {
 	return unix_time_from_stat(&s);
 }
 
-static void sysctl_str(const char* key, char* out, size_t cap) {
+static void sysctl_str (const char *key, char *out, size_t cap) {
 	size_t len = 0;
 	if (sysctlbyname(key, NULL, &len, KNULL, 0) != 0) {
 		return;
@@ -988,12 +986,12 @@ static void sysctl_str(const char* key, char* out, size_t cap) {
 	out[len] = 0;
 }
 
-static void sysctl_u64(const char* key, u64* out) {
+static void sysctl_u64 (const char *key, u64 *out) {
 	size_t sz = sizeof(*out);
 	sysctlbyname(key, out, &sz, KNULL, 0);
 }
 
-static const char* macos_codename_from_version(i32 major, i32 minor) {
+static const char *macos_codename_from_version (i32 major, i32 minor) {
 	// macOS 11+
 	if (major >= 11) {
 		switch (major) {
@@ -1039,13 +1037,13 @@ static const char* macos_codename_from_version(i32 major, i32 minor) {
 	return "Unknown";
 }
 
-static int cfstring_to_cstr(CFStringRef str, char* out, size_t out_size) {
+static int cfstring_to_cstr (CFStringRef str, char *out, size_t out_size) {
 	if (!str)
 		return 0;
 	return CFStringGetCString(str, out, out_size, kCFStringEncodingUTF8);
 }
 
-b8 is_volume_relevant(const char* mount_point, u64 total_bytes, kdrive_type type) {
+b8 is_volume_relevant (const char *mount_point, u64 total_bytes, kdrive_type type) {
 	// Ignore tiny volumes
 	if (total_bytes < 1024 * 1024)
 		return false;
@@ -1072,13 +1070,13 @@ b8 is_volume_relevant(const char* mount_point, u64 total_bytes, kdrive_type type
 	return true;
 }
 
-static void macos_query_storage(ksystem_info* out, u32 max_devices) {
-	struct statfs* mounts = NULL;
+static void macos_query_storage (ksystem_info *out, u32 max_devices) {
+	struct statfs *mounts = NULL;
 	int count = getfsstat(NULL, 0, MNT_NOWAIT);
 	if (count <= 0)
 		return;
 
-	mounts = (struct statfs*)malloc(sizeof(struct statfs) * count);
+	mounts = (struct statfs *)malloc(sizeof(struct statfs) * count);
 	if (!mounts)
 		return;
 
@@ -1097,11 +1095,11 @@ static void macos_query_storage(ksystem_info* out, u32 max_devices) {
 	out->storage_count = 0;
 
 	for (int i = 0; i < count && out->storage_count < max_devices; i++) {
-		struct statfs* s = &mounts[i];
-		kstorage_info* info = &out->storage[out->storage_count];
+		struct statfs *s = &mounts[i];
+		kstorage_info *info = &out->storage[out->storage_count];
 
 		// Device (disk0s2)
-		const char* dev = strrchr(s->f_mntfromname, '/');
+		const char *dev = strrchr(s->f_mntfromname, '/');
 		snprintf(info->name, sizeof(info->name), "%s", dev ? dev + 1 : s->f_mntfromname);
 
 		// Mount point
@@ -1182,7 +1180,7 @@ static void macos_query_storage(ksystem_info* out, u32 max_devices) {
 	free(mounts);
 }
 
-b8 platform_system_info_collect(ksystem_info* out_info) {
+b8 platform_system_info_collect (ksystem_info *out_info) {
 	kzero_memory(out_info, sizeof(ksystem_info));
 
 	// Intel macs
@@ -1212,8 +1210,8 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 
 	i32 major = 0, minor = 0, patch = 0;
 	sscanf(os_version, "%d.%d.%d", &major, &minor, &patch);
-	const char* codename = macos_codename_from_version(major, minor);
-	char* ver_str = string_format("%s %d.%d.%d", codename, major, minor, patch);
+	const char *codename = macos_codename_from_version(major, minor);
+	char *ver_str = string_format("%s %d.%d.%d", codename, major, minor, patch);
 	strcpy(out_info->os_version, ver_str);
 	string_free(ver_str);
 
@@ -1225,7 +1223,7 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	kern_return_t kr = host_statistics64(mach_host_self(), HOST_VM_INFO64, vm_info, &count);
 
 	if (kr == KERN_SUCCESS) {
-		vm_statistics64_data_t* vm = (vm_statistics64_data_t*)vm_info;
+		vm_statistics64_data_t *vm = (vm_statistics64_data_t *)vm_info;
 		u64 page_size;
 		size_t sz = sizeof(page_size);
 		if (sysctlbyname("hw.pagesize", &page_size, &sz, KNULL, 0) == 0) {
@@ -1248,14 +1246,14 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	return true;
 }
 
-void platform_request_clipboard_content(kwindow* window) {
-	NSPasteboard* pb = [NSPasteboard generalPasteboard];
-	NSString* str = [pb stringForType:NSPasteboardTypeString];
+void platform_request_clipboard_content (kwindow *window) {
+	NSPasteboard *pb = [NSPasteboard generalPasteboard];
+	NSString *str = [pb stringForType:NSPasteboardTypeString];
 	if (!str) {
 		return;
 	}
 
-	const char* utf8 = [str UTF8String];
+	const char *utf8 = [str UTF8String];
 	kclipboard_context ctx = {
 		.size = string_length(utf8) + 1,
 		.content = utf8,
@@ -1266,7 +1264,7 @@ void platform_request_clipboard_content(kwindow* window) {
 	}
 }
 
-void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
+void platform_clipboard_content_set (kwindow *window, kclipboard_content_type type, u32 size, void *content) {
 	if (!content) {
 		return;
 	}
@@ -1279,7 +1277,7 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 
 	CFDataRef data = CFDataCreate(
 		kCFAllocatorDefault,
-		(const UInt8*)content,
+		(const UInt8 *)content,
 		(CFIndex)strlen(content));
 	if (!data) {
 		CFRelease(pb);
@@ -1298,17 +1296,17 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 }
 
 typedef struct open_file_filter_type_data {
-	const char* description;
+	const char *description;
 	u8 extension_count;
-	const char** extensions;
+	const char **extensions;
 } open_file_filter_type_data;
 
-static open_file_filter_type_data* parse_open_file_filters(const char* filter_str, u8* out_count) {
+static open_file_filter_type_data *parse_open_file_filters (const char *filter_str, u8 *out_count) {
 	if (!filter_str || !out_count) {
 		return KNULL;
 	}
 
-	char** parts = darray_create(char*);
+	char **parts = darray_create(char *);
 	u32 parts_count = string_split(filter_str, '|', &parts, true, false, false);
 	if (parts_count < 2) {
 		KERROR("Invalid open file filter string '%s'. Must have at least 2 parts.");
@@ -1317,15 +1315,15 @@ static open_file_filter_type_data* parse_open_file_filters(const char* filter_st
 	}
 
 	u32 type_count = parts_count / 2;
-	open_file_filter_type_data* types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
+	open_file_filter_type_data *types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
 	for (u32 i = 0; i < type_count; ++i) {
-		char** extensions = darray_create(char*);
+		char **extensions = darray_create(char *);
 		u32 extensions_count = string_split(parts[(i * 2) + 1], ';', &extensions, true, false, false);
 		open_file_filter_type_data type_data = {
 			.description = string_duplicate(parts[(i * 2)]),
 			.extension_count = (u8)extensions_count,
 		};
-		type_data.extensions = KALLOC_TYPE_CARRAY(const char*, extensions_count);
+		type_data.extensions = KALLOC_TYPE_CARRAY(const char *, extensions_count);
 		for (u8 j = 0; j < extensions_count; ++j) {
 			type_data.extensions[j] = string_duplicate(extensions[j]);
 		}
@@ -1340,16 +1338,16 @@ static open_file_filter_type_data* parse_open_file_filters(const char* filter_st
 	return types;
 }
 
-platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options) {
+platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
 	platform_open_file_dialog_result ofd_result = {0};
 
 	@autoreleasepool {
-		NSOpenPanel* panel = [NSOpenPanel openPanel];
+		NSOpenPanel *panel = [NSOpenPanel openPanel];
 
 		if (!options.starting_dir) {
 			options.starting_dir = ".";
 		}
-		NSURL* startUrl = [NSURL fileURLWithPath:@(options.starting_dir)];
+		NSURL *startUrl = [NSURL fileURLWithPath:@(options.starting_dir)];
 
 		[panel setDirectoryURL:startUrl];
 
@@ -1361,17 +1359,17 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 		// Filters, if included. If not, a default of *.*/all files is assumed.
 		if (options.filter) {
 			u8 type_count = 0;
-			open_file_filter_type_data* types = parse_open_file_filters(options.filter, &type_count);
+			open_file_filter_type_data *types = parse_open_file_filters(options.filter, &type_count);
 			if (type_count > 0) {
-				NSMutableArray<UTType*>* nstypes = [[NSMutableArray alloc] init];
+				NSMutableArray<UTType *> *nstypes = [[NSMutableArray alloc] init];
 
 				// Each type
 				for (u8 i = 0; i < type_count; ++i) {
-					open_file_filter_type_data* type = &types[i];
+					open_file_filter_type_data *type = &types[i];
 
 					for (u32 j = 0; j < type->extension_count; ++j) {
-						const char* ex = type->extensions[j];
-						UTType* oType = [UTType typeWithFilenameExtension:@(ex + 2)]; // NOTE: ignoring the leading '*.'
+						const char *ex = type->extensions[j];
+						UTType *oType = [UTType typeWithFilenameExtension:@(ex + 2)]; // NOTE: ignoring the leading '*.'
 						[nstypes addObject:oType];
 					}
 				}
@@ -1383,13 +1381,13 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 		NSInteger result = [panel runModal];
 
 		if (result == NSModalResponseOK) {
-			NSArray<NSURL*>* urls = [panel URLs];
+			NSArray<NSURL *> *urls = [panel URLs];
 			ofd_result.file_count = (u8)urls.count;
-			ofd_result.file_paths = KALLOC_TYPE_CARRAY(const char*, ofd_result.file_count);
+			ofd_result.file_paths = KALLOC_TYPE_CARRAY(const char *, ofd_result.file_count);
 
 			u32 i = 0;
-			for (NSURL* url in urls) {
-				const char* path = [[url path] UTF8String];
+			for (NSURL *url in urls) {
+				const char *path = [[url path] UTF8String];
 				ofd_result.file_paths[i] = string_duplicate(path);
 				++i;
 			}
@@ -1402,7 +1400,7 @@ platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_fi
 	}
 }
 
-static keys translate_keycode(u32 ns_keycode) {
+static keys translate_keycode (u32 ns_keycode) {
 	// https://boredzo.org/blog/wp-content/uploads/2007/05/IMTx-virtual-keycodes.pdf
 	// https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 	switch (ns_keycode) {
@@ -1649,7 +1647,7 @@ static keys translate_keycode(u32 ns_keycode) {
 #	define MACOS_LALT_MASK (1 << 5)
 #	define MACOS_RALT_MASK (1 << 6)
 
-static void handle_modifier_key(
+static void handle_modifier_key (
 	u32 ns_keycode,
 	u32 ns_key_mask,
 	u32 ns_l_keycode,
@@ -1698,7 +1696,7 @@ static void handle_modifier_key(
 	}
 }
 
-static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
+static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 	// Shift
 	handle_modifier_key(
 		ns_keycode,

@@ -314,23 +314,23 @@ static void internal_shader_destroy (kshader *shader) {
 					asset_system_release_text(asset_state, p->stage_source_text_assets[si]);
 					p->stage_source_text_assets[si] = KNULL;
 				}
-				KFREE_TYPE_CARRAY(p->stage_source_text_assets, kasset_text *, p->shader_stage_count);
-				KFREE_TYPE_CARRAY(p->stage_sources, const char *, p->shader_stage_count);
-				KFREE_TYPE_CARRAY(p->stage_source_text_generations, u32, p->shader_stage_count);
-				KFREE_TYPE_CARRAY(p->stage_names, kname, p->shader_stage_count);
-				KFREE_TYPE_CARRAY(p->stages, shader_stage, p->shader_stage_count);
+				kfree(p->stage_source_text_assets);
+				kfree(p->stage_sources);
+				kfree(p->stage_source_text_generations);
+				kfree(p->stage_names);
+				kfree(p->stages);
 #if KOHI_DEBUG
-				KFREE_TYPE_CARRAY(p->watch_ids, u32, p->shader_stage_count);
+				kfree(p->watch_ids);
 #endif
 			}
 
-			KFREE_TYPE_CARRAY(p->attributes, shader_attribute, p->attribute_count);
+			kfree(p->attributes);
 		}
-		KFREE_TYPE_CARRAY(s->pipelines, kshader_pipeline_data, s->pipeline_count);
+		kfree(s->pipelines);
 	}
 
 	if (s->colour_attachment_count && s->colour_attachments) {
-		KFREE_TYPE_CARRAY(s->colour_attachments, kshader_attachment, s->colour_attachment_count);
+		kfree(s->colour_attachments);
 	}
 
 	asset_system_release_shader(asset_state, (kasset_shader *)s->shader_asset);
@@ -589,19 +589,19 @@ static kshader shader_create (const kasset_shader *asset) {
 		asset->binding_set_count,
 		asset->binding_sets);
 
-	KFREE_TYPE_CARRAY(colour_formats, kpixel_format, out_shader->colour_attachment_count);
+	kfree(colour_formats);
 
 	// Cleanup config.
 	for (u8 pi = 0; pi < out_shader->pipeline_count; ++pi) {
 		shader_pipeline_config *pc = &pipeline_configs[pi];
-		KFREE_TYPE_CARRAY(pc->attributes, shader_attribute, pc->attribute_count);
+		kfree(pc->attributes);
 
-		KFREE_TYPE_CARRAY(pc->stages, shader_stage, pc->stage_count);
-		KFREE_TYPE_CARRAY(pc->stage_names, kname, pc->stage_count);
+		kfree(pc->stages);
+		kfree(pc->stage_names);
 		// NOTE: was just a shallow copy of strings that need to be kept, so only get rid of the array.
-		KFREE_TYPE_CARRAY(pc->stage_sources, const char *, pc->stage_count);
+		kfree(pc->stage_sources);
 	}
-	KFREE_TYPE_CARRAY(pipeline_configs, shader_pipeline_config, out_shader->pipeline_count);
+	kfree(pipeline_configs);
 
 	if (!result) {
 		KERROR("Error creating shader.");
@@ -633,14 +633,14 @@ static b8 shader_reload (kshader_data *shader, kshader shader_handle) {
 	// Cleanup config.
 	for (u8 pi = 0; pi < shader->pipeline_count; ++pi) {
 		shader_pipeline_config *pc = &pipeline_configs[pi];
-		KFREE_TYPE_CARRAY(pc->attributes, shader_attribute, pc->attribute_count);
+		kfree(pc->attributes);
 
-		KFREE_TYPE_CARRAY(pc->stages, shader_stage, pc->stage_count);
-		KFREE_TYPE_CARRAY(pc->stage_names, kname, pc->stage_count);
+		kfree(pc->stages);
+		kfree(pc->stage_names);
 		// NOTE: was just a shallow copy of strings that need to be kept, so only get rid of the array.
-		KFREE_TYPE_CARRAY(pc->stage_sources, const char *, pc->stage_count);
+		kfree(pc->stage_sources);
 	}
-	KFREE_TYPE_CARRAY(pipeline_configs, shader_pipeline_config, shader->pipeline_count);
+	kfree(pipeline_configs);
 
 	return result;
 }

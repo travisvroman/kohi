@@ -140,7 +140,7 @@ b8 kasset_heightmap_terrain_deserialize (const char *file_text, kasset_heightmap
 		kson_tree_cleanup(&tree);
 		if (!success) {
 			if (typed_asset->material_count && typed_asset->material_names) {
-				kfree(typed_asset->material_names, sizeof(kname) * typed_asset->material_count, MEMORY_TAG_ARRAY);
+				kfree(typed_asset->material_names);
 				typed_asset->material_names = 0;
 				typed_asset->material_count = 0;
 			}

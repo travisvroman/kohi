@@ -67,7 +67,7 @@ void editor_gizmo_destroy (editor_gizmo *gizmo) {
 		for (u8 i = 0; i < mode_count; ++i) {
 			editor_gizmo_mode_data *data = &gizmo->mode_data[i];
 			geometry_destroy(&data->geo);
-			KFREE_TYPE_CARRAY(data->mode_extents, extents_3d, data->extents_count);
+			kfree(data->mode_extents);
 		}
 	}
 }

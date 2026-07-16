@@ -361,7 +361,7 @@ static void kasset_model_loaded (void *listener, kasset_model *asset) {
 	asset_system_release_model(engine_systems_get()->asset_state, asset);
 
 	// Cleanup the listener.
-	KFREE_TYPE(listener, animated_mesh_asset_request_listener, MEMORY_TAG_ASSET);
+	kfree(listener);
 }
 
 static void acquire_material_instances (struct kmodel_system_state *state, u16 base_id, u16 instance_id) {
@@ -512,7 +512,7 @@ void kmodel_instance_release (struct kmodel_system_state *state, kmodel_instance
 
 	inst->state = KMODEL_INSTANCE_STATE_UNINITIALIZED;
 	if (inst->materials) {
-		KFREE_TYPE_CARRAY(inst->materials, kmaterial_instance, submesh_count);
+		kfree(inst->materials);
 		inst->materials = KNULL;
 	}
 
@@ -521,7 +521,7 @@ void kmodel_instance_release (struct kmodel_system_state *state, kmodel_instance
 		KDEBUG("There are no longer any instances of model '%s' active, releasing entire model.", kname_string_get(state->models[instance->base_mesh].asset_name));
 
 		// Clear the instance array for the particular base mesh
-		KFREE_TYPE_CARRAY(base->instances, kmodel_instance_data, base->instance_count);
+		kfree(base->instances);
 		base->instances = KNULL;
 		base->instance_count = 0;
 
@@ -547,11 +547,11 @@ void kmodel_instance_release (struct kmodel_system_state *state, kmodel_instance
 					KWARN("Failed to release index data for animated mesh. See logs for details.");
 				}
 
-				kfree(m->geo.vertices, standard_vert_buf_size, MEMORY_TAG_ARRAY);
-				kfree(m->geo.indices, index_buf_size, MEMORY_TAG_ARRAY);
+				kfree(m->geo.vertices);
+				kfree(m->geo.indices);
 			}
 
-			KFREE_TYPE_CARRAY(base->meshes, kmodel_submesh, base->submesh_count);
+			kfree(base->meshes);
 			base->meshes = KNULL;
 			base->submesh_count = 0;
 		}
@@ -566,23 +566,23 @@ void kmodel_instance_release (struct kmodel_system_state *state, kmodel_instance
 						kmodel_channel *ch = &anim->channels[c];
 
 						if (ch->pos_count && ch->positions) {
-							KFREE_TYPE_CARRAY(ch->positions, anim_key_vec3, ch->pos_count);
+							kfree(ch->positions);
 						}
 
 						if (ch->scale_count && ch->scales) {
-							KFREE_TYPE_CARRAY(ch->scales, anim_key_vec3, ch->scale_count);
+							kfree(ch->scales);
 						}
 
 						if (ch->rot_count && ch->rotations) {
-							KFREE_TYPE_CARRAY(ch->rotations, anim_key_quat, ch->rot_count);
+							kfree(ch->rotations);
 						}
 					}
 
-					KFREE_TYPE_CARRAY(anim->channels, kmodel_channel, anim->channel_count);
+					kfree(anim->channels);
 				}
 			}
 
-			KFREE_TYPE_CARRAY(base->animations, kmodel_animation, base->animation_count);
+			kfree(base->animations);
 			base->animations = KNULL;
 			base->animation_count = 0;
 		}
@@ -592,17 +592,17 @@ void kmodel_instance_release (struct kmodel_system_state *state, kmodel_instance
 				kmodel_node *node = &base->nodes[i];
 
 				if (node->child_count && node->children) {
-					KFREE_TYPE_CARRAY(node->children, u16, node->child_count);
+					kfree(node->children);
 				}
 			}
 
-			KFREE_TYPE_CARRAY(base->nodes, kmodel_node, base->node_count);
+			kfree(base->nodes);
 			base->nodes = KNULL;
 			base->node_count = 0;
 		}
 
 		if (base->bone_count && base->bones) {
-			KFREE_TYPE_CARRAY(base->bones, kmodel_bone, base->bone_count);
+			kfree(base->bones);
 			base->bones = KNULL;
 			base->node_count = 0;
 		}

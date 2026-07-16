@@ -114,7 +114,7 @@ b8 kasset_audio_import (const char *source_path, const char *target_path) {
 kasset_importer_audio_cleanup:
 
 	if (serialized_block) {
-		kfree(serialized_block, serialized_block_size, MEMORY_TAG_SERIALIZER);
+		kfree(serialized_block);
 	}
 
 	return success;

@@ -227,7 +227,7 @@ static b8 create (renderer_backend_interface *backend, kwindow *window, renderer
 			string_free(image->name);
 			rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
 		}
-		KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+		kfree(texture_data->images);
 		texture_data->images = KNULL;
 	}
 
@@ -297,7 +297,7 @@ static void destroy (renderer_backend_interface *backend, vulkan_swapchain *swap
 		string_free(image->name);
 		rhi->kvkDestroyImageView(context->device.logical_device, image->view, context->allocator);
 	}
-	KFREE_TYPE_CARRAY(texture_data->images, vulkan_image, swapchain->image_count);
+	kfree(texture_data->images);
 	texture_data->images = KNULL;
 
 	rhi->kvkDestroySwapchainKHR(context->device.logical_device, swapchain->handle, context->allocator);

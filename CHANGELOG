@@ -1,4 +1,13 @@
 Changelog
+
+- 0.13.0
+  - Ran formatting pass across the entire codebase to fix various formatting issues (i.e. idiot stars)
+  - Cleaned up low-level "free" APIs to no longer require type or size information when freeing, instead deriving this from the already-stored data in the allocator.
+  - Fixed various issues around frustum culling and re-enabled in some parts. There are a few more places this still needs doing.
+  - Added vector hypot() functions.
+  - Fixed naming issue with darray pop function.
+  - Fixed key input modifier bug where modifiers (ctrl, shift, etc.) weren't being taken into account for key mappings.
+
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.
   - Added editor for Heightfield Terrains.

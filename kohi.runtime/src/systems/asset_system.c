@@ -139,7 +139,7 @@ void asset_system_shutdown (struct asset_system_state *state) {
 					platform_unwatch_file(lookup->file_watch_id);
 				}
 			}
-			kfree(state->watches, sizeof(asset_watch) * state->max_asset_count, MEMORY_TAG_ARRAY);
+			kfree(state->watches);
 		}
 
 		// Destroy the BST.
@@ -221,7 +221,7 @@ static void vfs_on_binary_asset_loaded_callback (struct vfs_state *vfs, vfs_asse
 	kcopy_memory(content, asset_data.bytes, out_asset->size);
 	out_asset->content = content;
 
-	KFREE_TYPE(context, kasset_binary_vfs_context, MEMORY_TAG_ASSET);
+	kfree(context);
 }
 
 kname *asset_system_names_by_type (struct asset_system_state *state, kasset_type type, kname package_name, u32 *out_count) {
@@ -290,9 +290,9 @@ kasset_binary *asset_system_request_binary_from_package_sync (struct asset_syste
 void asset_system_release_binary (struct asset_system_state *state, kasset_binary *asset) {
 	if (state && asset) {
 		if (asset->content && asset->size) {
-			kfree((void *)asset->content, asset->size, MEMORY_TAG_ASSET);
+			kfree((void *)asset->content);
 		}
-		KFREE_TYPE(asset, kasset_binary, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -337,7 +337,7 @@ void asset_system_release_text (struct asset_system_state *state, kasset_text *a
 		if (asset->content) {
 			string_free(asset->content);
 		}
-		KFREE_TYPE(asset, kasset_text, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -424,7 +424,7 @@ kasset_image *asset_system_request_image_from_package_sync (struct asset_system_
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize image asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_image, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 
@@ -437,9 +437,9 @@ void asset_system_release_image (struct asset_system_state *state, kasset_image 
 	if (state && asset) {
 		KTRACE("Releasing image asset '%s'.", kname_string_get(asset->name));
 		if (asset->pixel_array_size && asset->pixels) {
-			kfree((void *)asset->pixels, asset->pixel_array_size, MEMORY_TAG_ASSET);
+			kfree((void *)asset->pixels);
 		}
-		KFREE_TYPE(asset, kasset_image, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -471,7 +471,7 @@ kasset_bitmap_font *asset_system_request_bitmap_font_from_package_sync (struct a
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize bitmap font asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_bitmap_font, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 
@@ -480,11 +480,11 @@ kasset_bitmap_font *asset_system_request_bitmap_font_from_package_sync (struct a
 
 void asset_system_release_bitmap_font (struct asset_system_state *state, kasset_bitmap_font *asset) {
 	if (state && asset) {
-		KFREE_TYPE_CARRAY(asset->kernings, kasset_bitmap_font_kerning, asset->kerning_count);
-		KFREE_TYPE_CARRAY(asset->glyphs, kasset_bitmap_font_glyph, asset->glyph_count);
-		KFREE_TYPE_CARRAY(asset->pages, kasset_bitmap_font_page, asset->page_count);
+		kfree(asset->kernings);
+		kfree(asset->glyphs);
+		kfree(asset->pages);
 
-		KFREE_TYPE(asset, kasset_bitmap_font, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -516,7 +516,7 @@ kasset_system_font *asset_system_request_system_font_from_package_sync (struct a
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize system font asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_system_font, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 
@@ -540,14 +540,14 @@ kasset_system_font *asset_system_request_system_font_from_package_sync (struct a
 void asset_system_release_system_font (struct asset_system_state *state, kasset_system_font *asset) {
 	if (state && asset) {
 		if (asset->faces && asset->face_count) {
-			KFREE_TYPE_CARRAY(asset->faces, kasset_system_font_face, asset->face_count);
+			kfree(asset->faces);
 		}
 
 		if (asset->font_binary && asset->font_binary_size) {
-			kfree(asset->font_binary, asset->font_binary_size, MEMORY_TAG_ASSET);
+			kfree(asset->font_binary);
 		}
 
-		KFREE_TYPE(asset, kasset_system_font, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -625,7 +625,7 @@ kasset_model *asset_system_request_model_from_package_sync (struct asset_system_
 	b8 result = kasset_model_deserialize(data.size, data.bytes, out_asset);
 	if (!result) {
 		KERROR("Failed to deserialize model asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_model, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return KNULL;
 	}
 
@@ -638,15 +638,14 @@ void asset_system_release_model (struct asset_system_state *state, kasset_model 
 		if (asset->submeshes && asset->submesh_count) {
 			for (u32 i = 0; i < asset->submesh_count; ++i) {
 				kasset_model_submesh_data *submesh = &asset->submeshes[i];
-				u64 vs = submesh->type == KASSET_MODEL_MESH_TYPE_STATIC ? sizeof(vertex_3d) : sizeof(skinned_vertex_3d);
 				if (submesh->vertices && submesh->vertex_count) {
-					kfree(submesh->vertices, vs * submesh->vertex_count, MEMORY_TAG_BINARY_DATA);
+					kfree(submesh->vertices);
 				}
 				if (submesh->indices && submesh->index_count) {
-					kfree(submesh->indices, sizeof(u32) * submesh->index_count, MEMORY_TAG_BINARY_DATA);
+					kfree(submesh->indices);
 				}
 			}
-			kfree(asset->submeshes, sizeof(asset->submeshes[0]) * asset->submesh_count, MEMORY_TAG_ARRAY);
+			kfree(asset->submeshes);
 			asset->submeshes = KNULL;
 			asset->submesh_count = 0;
 		}
@@ -656,32 +655,32 @@ void asset_system_release_model (struct asset_system_state *state, kasset_model 
 					kasset_model_channel *ch = &asset->animations[i].channels[c];
 
 					if (ch->pos_count && ch->positions) {
-						KFREE_TYPE_CARRAY(ch->positions, kasset_model_key_vec3, ch->pos_count);
+						kfree(ch->positions);
 						ch->pos_count = 0;
 						ch->positions = KNULL;
 					}
 
 					if (ch->scale_count && ch->scales) {
-						KFREE_TYPE_CARRAY(ch->scales, kasset_model_key_vec3, ch->scale_count);
+						kfree(ch->scales);
 						ch->scale_count = 0;
 						ch->scales = KNULL;
 					}
 
 					if (ch->rot_count && ch->rotations) {
-						KFREE_TYPE_CARRAY(ch->rotations, kasset_model_key_quat, ch->rot_count);
+						kfree(ch->rotations);
 						ch->rot_count = 0;
 						ch->rotations = KNULL;
 					}
 				}
-				KFREE_TYPE_CARRAY(asset->animations[i].channels, kasset_model_channel, asset->animations[i].channel_count);
+				kfree(asset->animations[i].channels);
 				asset->animations[i].channels = KNULL;
 			}
-			KFREE_TYPE_CARRAY(asset->animations, kasset_model_animation, asset->animation_count);
+			kfree(asset->animations);
 			asset->animations = KNULL;
 		}
 
 		if (asset->bone_count && asset->bones) {
-			KFREE_TYPE_CARRAY(asset->bones, kasset_model_bone, asset->bone_count);
+			kfree(asset->bones);
 			asset->bones = KNULL;
 			asset->bone_count = 0;
 		}
@@ -690,15 +689,15 @@ void asset_system_release_model (struct asset_system_state *state, kasset_model 
 			for (u16 i = 0; i < asset->node_count; ++i) {
 				kasset_model_node *node = &asset->nodes[i];
 				if (node->child_count && node->children) {
-					KFREE_TYPE_CARRAY(node->children, u16, node->child_count);
+					kfree(node->children);
 				}
 			}
-			KFREE_TYPE_CARRAY(asset->nodes, kasset_model_node, asset->node_count);
+			kfree(asset->nodes);
 			asset->nodes = KNULL;
 			asset->node_count = 0;
 		}
 
-		KFREE_TYPE(asset, kasset_model, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -719,7 +718,7 @@ static void vfs_on_heightmap_terrain_asset_loaded_callback (struct vfs_state *vf
 		KERROR("Failed to deserialize heightmap_terrain asset. See logs for details.");
 	}
 
-	KFREE_TYPE(context, kasset_heightmap_terrain_vfs_context, MEMORY_TAG_ASSET);
+	kfree(context);
 }
 
 // async load from game package.
@@ -773,7 +772,7 @@ kasset_heightmap_terrain *asset_system_request_heightmap_terrain_from_package_sy
 	b8 result = kasset_heightmap_terrain_deserialize(data.text, out_asset);
 	if (!result) {
 		KERROR("Failed to deserialize heightmap_terrain asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 
@@ -784,11 +783,11 @@ void asset_system_release_heightmap_terrain (struct asset_system_state *state, k
 	if (state && asset) {
 		// Asset type-specific data cleanup
 		if (asset->material_count && asset->material_names) {
-			kfree(asset->material_names, sizeof(kname) * asset->material_count, MEMORY_TAG_ARRAY);
+			kfree(asset->material_names);
 			asset->material_names = 0;
 			asset->material_count = 0;
 		}
-		KFREE_TYPE(asset, kasset_heightmap_terrain, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -867,7 +866,7 @@ kasset_hf_terrain *asset_system_request_hf_terrain_from_package_sync (struct ass
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize hf_terrain asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_hf_terrain, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return KNULL;
 	}
 
@@ -876,18 +875,18 @@ kasset_hf_terrain *asset_system_request_hf_terrain_from_package_sync (struct ass
 
 void asset_system_release_hf_terrain (struct asset_system_state *state, kasset_hf_terrain *asset) {
 	if (state && asset) {
-		KFREE_TYPE_CARRAY(asset->blocks, kasset_hf_terrain_block, asset->block_count_x * asset->block_count_z);
-		KFREE_TYPE_CARRAY(asset->vertices, kasset_hf_terrain_vertex, asset->vertex_count);
-		KFREE_TYPE_CARRAY(asset->materials, kasset_hf_terrain_material, asset->material_count);
+		kfree(asset->blocks);
+		kfree(asset->vertices);
+		kfree(asset->materials);
 		for (u32 i = 0; i < asset->material_count; ++i) {
 			string_free(asset->material_map_names[i].albedo_str);
 			string_free(asset->material_map_names[i].normal_str);
 			string_free(asset->material_map_names[i].mra_str);
 		}
-		KFREE_TYPE_CARRAY(asset->material_map_names, kasset_hf_terrain_material_map_names, asset->material_count);
-		KFREE_TYPE_CARRAY(asset->material_names, const char *, asset->material_count);
+		kfree(asset->material_map_names);
+		kfree(asset->material_names);
 
-		KFREE_TYPE(asset, kasset_hf_terrain, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -967,7 +966,7 @@ kasset_material *asset_system_request_material_from_package_sync (struct asset_s
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize material asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_material, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 
@@ -980,10 +979,10 @@ void asset_system_release_material (struct asset_system_state *state, kasset_mat
 	if (state && asset) {
 		// Asset type-specific data cleanup
 		if (asset->custom_sampler_count && asset->custom_samplers) {
-			KFREE_TYPE_CARRAY(asset->custom_samplers, kmaterial_sampler_config, asset->custom_sampler_count);
+			kfree(asset->custom_samplers);
 		}
 
-		KFREE_TYPE(asset, kasset_material, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -1062,7 +1061,7 @@ kasset_audio *asset_system_request_audio_from_package_sync (struct asset_system_
 	b8 result = kasset_audio_deserialize(data.size, data.bytes, out_asset);
 	if (!result) {
 		KERROR("Failed to deserialize audio asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_audio, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 	vfs_asset_data_cleanup(&data);
@@ -1076,10 +1075,10 @@ void asset_system_release_audio (struct asset_system_state *state, kasset_audio 
 	if (state && asset) {
 		// Asset type-specific data cleanup
 		if (asset->pcm_data_size && asset->pcm_data) {
-			kfree(asset->pcm_data, asset->pcm_data_size, MEMORY_TAG_ASSET);
+			kfree(asset->pcm_data);
 		}
 
-		KFREE_TYPE(asset, kasset_audio, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -1111,7 +1110,7 @@ kasset_shader *asset_system_request_shader_from_package_sync (struct asset_syste
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
 		KERROR("Failed to deserialize shader asset. See logs for details.");
-		KFREE_TYPE(out_asset, kasset_shader, MEMORY_TAG_ASSET);
+		kfree(out_asset);
 		return 0;
 	}
 
@@ -1138,7 +1137,7 @@ void asset_system_release_shader (struct asset_system_state *state, kasset_shade
 						string_free(stage->package_name);
 					}
 				}
-				kfree(p->stages, sizeof(kasset_shader_stage) * p->stage_count, MEMORY_TAG_ARRAY);
+				kfree(p->stages);
 				p->stages = 0;
 				p->stage_count = 0;
 			}
@@ -1151,12 +1150,12 @@ void asset_system_release_shader (struct asset_system_state *state, kasset_shade
 						string_free(attrib->name);
 					}
 				}
-				kfree(p->attributes, sizeof(kasset_shader_attribute) * p->attribute_count, MEMORY_TAG_ARRAY);
+				kfree(p->attributes);
 				p->attributes = 0;
 				p->attribute_count = 0;
 			}
 		}
-		KFREE_TYPE_CARRAY(asset->pipelines, kasset_shader_pipeline, asset->pipeline_count);
+		kfree(asset->pipelines);
 		asset->pipelines = KNULL;
 
 		// binding sets
@@ -1164,9 +1163,9 @@ void asset_system_release_shader (struct asset_system_state *state, kasset_shade
 			for (u32 i = 0; i < asset->binding_set_count; ++i) {
 				shader_binding_set_config *binding_set = &asset->binding_sets[i];
 
-				KFREE_TYPE_CARRAY(binding_set->bindings, shader_binding_config, binding_set->binding_count);
+				kfree(binding_set->bindings);
 			}
-			KFREE_TYPE_CARRAY(asset->binding_sets, shader_binding_set_config, asset->binding_set_count);
+			kfree(asset->binding_sets);
 			asset->binding_sets = 0;
 			asset->binding_set_count = 0;
 		}
@@ -1178,7 +1177,7 @@ void asset_system_release_shader (struct asset_system_state *state, kasset_shade
 					string_free(asset->colour_attachments[c].name);
 				}
 			}
-			KFREE_TYPE_CARRAY(asset->colour_attachments, kasset_shader_attachment, asset->colour_attachment_count);
+			kfree(asset->colour_attachments);
 			asset->colour_attachments = KNULL;
 		}
 
@@ -1189,7 +1188,7 @@ void asset_system_release_shader (struct asset_system_state *state, kasset_shade
 			string_free(asset->stencil_attachment.name);
 		}
 
-		KFREE_TYPE(asset, kasset_shader, MEMORY_TAG_ASSET);
+		kfree(asset);
 	}
 }
 
@@ -1243,7 +1242,7 @@ static b8 vfs_file_written (u16 code, void *sender, void *listener_inst, event_c
 				b8 result = kasset_shader_deserialize(asset_data->text, typed_asset);
 				if (!result) {
 					KERROR("Failed to deserialize shader asset. See logs for details.");
-					KFREE_TYPE(typed_asset, kasset_shader, MEMORY_TAG_ASSET);
+					kfree(typed_asset, kasset_shader, MEMORY_TAG_ASSET);
 				} else {
 					typed_asset->name = watch->asset_name;
 				}

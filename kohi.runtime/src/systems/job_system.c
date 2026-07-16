@@ -140,10 +140,10 @@ static u32 job_thread_run (void *params) {
 
 			// Clear the param data and result data.
 			if (info.param_data) {
-				kfree(info.param_data, info.param_data_size, MEMORY_TAG_JOB);
+				kfree(info.param_data);
 			}
 			if (info.result_data) {
-				kfree(info.result_data, info.result_data_size, MEMORY_TAG_JOB);
+				kfree(info.result_data);
 			}
 
 			// Update the job status for this job.
@@ -160,7 +160,7 @@ static u32 job_thread_run (void *params) {
 				KERROR("Failed to obtain lock on job thread mutex!");
 			}
 			if (thread->info.dependency_ids) {
-				kfree(thread->info.dependency_ids, sizeof(u16) * thread->info.dependency_count, MEMORY_TAG_ARRAY);
+				kfree(thread->info.dependency_ids);
 			}
 			kzero_memory(&thread->info, sizeof(job_info));
 			if (!kmutex_unlock(&thread->info_mutex)) {
@@ -371,7 +371,7 @@ b8 job_system_update (void *state, struct frame_data *p_frame_data) {
 			entry.callback(entry.params);
 
 			if (entry.params) {
-				kfree(entry.params, entry.param_size, MEMORY_TAG_JOB);
+				kfree(entry.params);
 			}
 
 			// Lock actual entry, invalidate and clear it

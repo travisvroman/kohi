@@ -122,7 +122,7 @@ void kpackage_destroy (kpackage *package) {
 		}
 
 		if (package->internal_data) {
-			kfree(package->internal_data, sizeof(kpackage_internal), MEMORY_TAG_PACKAGE);
+			kfree(package->internal_data);
 		}
 
 		kzero_memory(package, sizeof(kpackage_internal));
@@ -244,7 +244,7 @@ static kpackage_result asset_get_data (const kpackage *package, b8 is_binary, kn
 			KTRACE("Package '%s': asset '%s', file at path: '%s' - Read size/file size mismatch (%llu, %llu).", package_name, name_str, asset_path, read_size, original_file_size);
 			void *temp = kallocate(read_size + (is_binary ? 0 : 1), MEMORY_TAG_ASSET);
 			kcopy_memory(temp, data, read_size);
-			kfree(data, actual_file_size, MEMORY_TAG_ASSET);
+			kfree(data);
 			data = temp;
 			actual_file_size = read_size;
 			// Account for the null terminator for text files.
@@ -266,7 +266,7 @@ static kpackage_result asset_get_data (const kpackage *package, b8 is_binary, kn
 
 		if (result != KPACKAGE_RESULT_SUCCESS) {
 			if (data) {
-				kfree(data, original_file_size, MEMORY_TAG_ASSET);
+				kfree(data);
 			}
 		} else {
 			// KERROR("Package '%s' does not contain asset '%s'.", package_name, name_str);

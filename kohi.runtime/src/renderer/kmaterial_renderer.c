@@ -286,19 +286,19 @@ b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_materia
 		// Destroy the temp asset.
 		for (u8 i = 0; i < mat_std_shader.pipeline_count; ++i) {
 			kasset_shader_pipeline *p = &mat_std_shader.pipelines[i];
-			KFREE_TYPE_CARRAY(p->stages, kasset_shader_stage, p->stage_count);
-			KFREE_TYPE_CARRAY(p->attributes, kasset_shader_attribute, p->attribute_count);
+			kfree(p->stages);
+			kfree(p->attributes);
 		}
-		KFREE_TYPE_CARRAY(mat_std_shader.pipelines, kasset_shader_pipeline, mat_std_shader.pipeline_count);
+		kfree(mat_std_shader.pipelines);
 
 		if (mat_std_shader.binding_sets && mat_std_shader.binding_set_count) {
 			for (u8 bs = 0; bs < mat_std_shader.binding_set_count; ++bs) {
 				shader_binding_set_config *set = &mat_std_shader.binding_sets[bs];
 				if (set->bindings && set->binding_count) {
-					KFREE_TYPE_CARRAY(set->bindings, shader_binding_config, set->binding_count);
+					kfree(set->bindings);
 				}
 			}
-			KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
+			kfree(mat_std_shader.binding_sets);
 		}
 		if (mat_std_shader.stencil_attachment.name) {
 			string_free(mat_std_shader.stencil_attachment.name);
@@ -312,7 +312,7 @@ b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_materia
 					string_free(mat_std_shader.colour_attachments[c].name);
 				}
 			}
-			KFREE_TYPE_CARRAY(mat_std_shader.colour_attachments, kasset_shader_attachment, mat_std_shader.colour_attachment_count);
+			kfree(mat_std_shader.colour_attachments);
 		}
 		kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 

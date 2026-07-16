@@ -45,7 +45,7 @@ void kquick_sort (u64 type_size, void *data, i32 low_index, i32 high_index, PFN_
 		i32 partition_index = kquick_sort_partition(scratch_mem, type_size, data, low_index, high_index, compare_pfn);
 		kquick_sort_internal(scratch_mem, type_size, data, low_index, partition_index - 1, compare_pfn);
 		kquick_sort_internal(scratch_mem, type_size, data, partition_index + 1, high_index, compare_pfn);
-		kfree(scratch_mem, type_size, MEMORY_TAG_ARRAY);
+		kfree(scratch_mem);
 	}
 }
 
@@ -80,7 +80,7 @@ void kquick_sort_with_context (u64 type_size, void *data, i32 low_index, i32 hig
 		i32 partition_index = kquick_sort_partition_with_context(scratch_mem, type_size, data, low_index, high_index, compare_pfn, context);
 		kquick_sort_internal_with_context(scratch_mem, type_size, data, low_index, partition_index - 1, compare_pfn, context);
 		kquick_sort_internal_with_context(scratch_mem, type_size, data, partition_index + 1, high_index, compare_pfn, context);
-		kfree(scratch_mem, type_size, MEMORY_TAG_ARRAY);
+		kfree(scratch_mem);
 	}
 }
 

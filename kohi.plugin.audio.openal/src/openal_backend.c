@@ -265,13 +265,13 @@ void openal_backend_shutdown (kaudio_backend_interface *backend) {
 			// Give the threads a bit to stop.
 			platform_sleep(100);
 
-			kfree(backend->internal_state->sources, sizeof(kaudio_plugin_source) * backend->internal_state->max_sources, MEMORY_TAG_AUDIO);
+			kfree(backend->internal_state->sources);
 			backend->internal_state->sources = KNULL;
 
-			kfree(backend->internal_state->buffers, sizeof(u32) * backend->internal_state->buffer_count, MEMORY_TAG_ARRAY);
+			kfree(backend->internal_state->buffers);
 			backend->internal_state->buffers = KNULL;
 
-			KFREE_TYPE_CARRAY(backend->internal_state->datas, kaudio_internal_data, backend->internal_state->max_count);
+			kfree(backend->internal_state->datas);
 			backend->internal_state->datas = KNULL;
 
 			darray_destroy(backend->internal_state->free_buffers);
@@ -283,7 +283,7 @@ void openal_backend_shutdown (kaudio_backend_interface *backend) {
 			alcCloseDevice(backend->internal_state->device);
 			backend->internal_state->device = KNULL;
 
-			kfree(backend->internal_state, sizeof(kaudio_backend_state), MEMORY_TAG_AUDIO);
+			kfree(backend->internal_state);
 			backend->internal_state = 0;
 		}
 
@@ -400,7 +400,7 @@ void openal_backend_unload (struct kaudio_backend_interface *backend, kaudio aud
 	kaudio_internal_data *data = &state->datas[audio];
 
 	if (data->pcm_data && data->pcm_data_size) {
-		kfree(data->pcm_data, data->pcm_data_size, MEMORY_TAG_AUDIO);
+		kfree(data->pcm_data);
 		data->pcm_data = KNULL;
 		data->pcm_data_size = 0;
 
@@ -411,7 +411,7 @@ void openal_backend_unload (struct kaudio_backend_interface *backend, kaudio aud
 	}
 
 	if (data->mono_pcm_data && data->downmixed_size) {
-		kfree(data->mono_pcm_data, data->downmixed_size, MEMORY_TAG_AUDIO);
+		kfree(data->mono_pcm_data);
 		data->mono_pcm_data = KNULL;
 		data->downmixed_size = 0;
 	}
@@ -847,7 +847,7 @@ static u32 source_work_thread (void *params) {
 	kaudio_plugin_source *source = typed_params->source;
 
 	// Release this right away since it's no longer needed.
-	kfree(params, sizeof(ksource_work_thread_params), MEMORY_TAG_AUDIO);
+	kfree(params);
 
 	KDEBUG("Audio source thread starting...");
 
@@ -1026,7 +1026,7 @@ static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend) {
 				alSourcePlay(source->id);
 				openal_backend_check_error();
 			}
-			kfree(playing_sources, sizeof(u32) * state->max_sources, MEMORY_TAG_ARRAY);
+			kfree(playing_sources);
 		}
 
 		// Check free count again, this time there must be at least one or there is an error condition.

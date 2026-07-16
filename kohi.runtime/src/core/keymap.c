@@ -48,7 +48,7 @@ void keymap_binding_remove (keymap *map, keys key, keymap_entry_bind_type type, 
 			if (node->code == code && node->modifiers == modifiers && node->type == type) {
 				// Remove it
 				previous->next = node->next;
-				kfree(node, sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
+				kfree(node);
 				return;
 			}
 			previous = node;
@@ -65,7 +65,7 @@ void keymap_clear (keymap *map) {
 			while (node) {
 				// Remove all nodes
 				keymap_binding *next = node->next;
-				kfree(node, sizeof(keymap_binding), MEMORY_TAG_KEYMAP);
+				kfree(node);
 				node = next;
 			}
 		}

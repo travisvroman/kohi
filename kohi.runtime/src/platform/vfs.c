@@ -134,7 +134,7 @@ kname *vfs_asset_names_by_type (vfs_state *state, kasset_type type, kname packag
 				for (u32 p = 0; p < pcount; ++p) {
 					darray_push(names_da, pnames[p]);
 				}
-				KFREE_TYPE_CARRAY(pnames, kname, pcount);
+				kfree(pnames);
 			}
 		}
 	}
@@ -279,7 +279,7 @@ void vfs_request_direct_from_disk (vfs_state *state, const char *path, b8 is_bin
 
 	// Cleanup the context.
 	if (data.context && data.context_size) {
-		kfree(data.context, data.context_size, MEMORY_TAG_PLATFORM);
+		kfree(data.context);
 		data.context = 0;
 		data.context_size = 0;
 	}
@@ -382,13 +382,13 @@ b8 vfs_asset_write_text (vfs_state *state, kname asset_name, kname package_name,
 void vfs_asset_data_cleanup (vfs_asset_data *data) {
 	if (data) {
 		if (data->context || data->context_size) {
-			kfree(data->context, data->context_size, MEMORY_TAG_ASSET);
+			kfree(data->context);
 			data->context = KNULL;
 			data->context_size = 0;
 		}
 		if (FLAG_GET(data->flags, VFS_ASSET_FLAG_BINARY_BIT)) {
 			if (data->size && data->bytes) {
-				kfree((void *)data->bytes, data->size, MEMORY_TAG_ASSET);
+				kfree((void *)data->bytes);
 			}
 		} else {
 			if (data->text) {

@@ -235,10 +235,10 @@ b8 kui_label_control_render (kui_state *state, kui_control self, struct frame_da
 
 	kui_label_frame_prepare_cleanup:
 		if (new_geometry.vertex_buffer_data) {
-			kfree(new_geometry.vertex_buffer_data, new_geometry.vertex_buffer_size, MEMORY_TAG_ARRAY);
+			kfree(new_geometry.vertex_buffer_data);
 		}
 		if (new_geometry.index_buffer_data) {
-			kfree(new_geometry.index_buffer_data, new_geometry.index_buffer_size, MEMORY_TAG_ARRAY);
+			kfree(new_geometry.index_buffer_data);
 		}
 	}
 

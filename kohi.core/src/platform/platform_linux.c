@@ -547,7 +547,7 @@ void platform_window_destroy (struct kwindow *window) {
 				string_free(window->name);
 				string_free(window->title);
 				xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
-				kfree(window->platform_state, sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
+				kfree(window->platform_state);
 				window->platform_state = KNULL;
 				state_ptr->windows[i] = KNULL;
 				return;
@@ -787,7 +787,7 @@ b8 platform_pump_messages (void) {
 						if (state_ptr->clipboard.owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 							string_free(state_ptr->clipboard.owned_data);
 						} else {
-							kfree(state_ptr->clipboard.owned_data, state_ptr->clipboard.owned_size, MEMORY_TAG_BINARY_DATA);
+							kfree(state_ptr->clipboard.owned_data);
 						}
 						state_ptr->clipboard.owned_data = KNULL;
 						state_ptr->clipboard.owned_size = 0;
@@ -852,7 +852,7 @@ b8 platform_pump_messages (void) {
 							}
 
 							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
-								kfree((void *)ctx.content, len + 1, MEMORY_TAG_STRING);
+								kfree((void *)ctx.content);
 							}
 
 							cb->paste_pending = false;
@@ -1212,8 +1212,7 @@ static b8 unregister_watch (u32 watch_id) {
 
 	linux_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
-	u32 len = string_length(w->file_path);
-	kfree((void *)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+	kfree((void *)w->file_path);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(long));
 
@@ -1717,7 +1716,7 @@ void platform_clipboard_content_set (kwindow *window, kclipboard_content_type ty
 		if (cb->owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 			string_free(cb->owned_data);
 		} else {
-			kfree(cb->owned_data, size, MEMORY_TAG_BINARY_DATA);
+			kfree(cb->owned_data);
 		}
 		cb->owned_data = KNULL;
 		cb->owned_size = 0;

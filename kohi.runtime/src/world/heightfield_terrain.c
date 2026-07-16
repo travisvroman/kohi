@@ -212,7 +212,7 @@ void generate_block (hf_terrain *t, kasset_hf_terrain_vertex *asset_vertices, ka
 	KDUPLICATE_TYPE_CARRAY(block->splatmap_pixels, pixels, u8, pixel_array_size);
 	block->splatmap = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, HF_TERRAIN_SPLATMAP_RESOLUTION, HF_TERRAIN_SPLATMAP_RESOLUTION, name);
 
-	KFREE_TYPE_CARRAY(pixels, u8, pixel_array_size);
+	kfree(pixels);
 
 	// Acquire shader resources.
 	block->shader_instance_id = kshader_acquire_binding_set_instance(t->hf_terrain_shader, 1);
@@ -465,8 +465,7 @@ void hf_terrain_destroy (hf_terrain *t) {
 			hf_block *block = &t->blocks[b];
 
 			texture_release(block->splatmap);
-			u64 pixel_array_size = HF_TERRAIN_SPLATMAP_RESOLUTION * HF_TERRAIN_SPLATMAP_RESOLUTION * 4;
-			KFREE_TYPE_CARRAY(block->splatmap_pixels, u8, pixel_array_size);
+			kfree(block->splatmap_pixels);
 
 			kshader_release_binding_set_instance(t->hf_terrain_shader, 1, block->shader_instance_id);
 
@@ -474,7 +473,7 @@ void hf_terrain_destroy (hf_terrain *t) {
 				hf_chunk* chunk = &block->chunks[c];
 			} */
 		}
-		KFREE_TYPE_CARRAY(t->blocks, hf_block, block_count);
+		kfree(t->blocks);
 
 		// Free material array textures.
 		texture_release(t->albedo_texture_array);
@@ -487,7 +486,7 @@ void hf_terrain_destroy (hf_terrain *t) {
 
 		// Free vertices
 		u64 vertex_buffer_size = sizeof(hf_vertex_3d) * t->vertex_count;
-		KFREE_TYPE_CARRAY(t->vertices, hf_vertex_3d, t->vertex_count);
+		kfree(t->vertices);
 		renderer_renderbuffer_free(renderer_system, vertex_buffer, vertex_buffer_size, t->base_vertex_buffer_offset);
 
 		// Free indices

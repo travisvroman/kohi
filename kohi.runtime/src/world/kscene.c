@@ -45,13 +45,13 @@
 #define kSCENE_CURRENT_VERSION 1
 
 #define ENTITY_VOLUME_DEBUG_COLOUR \
-	(colour4) { 1, 1, 0, 1 }
+	(colour4){1, 1, 0, 1}
 #define ENTITY_AUDIO_EMITTER_DEBUG_COLOUR \
-	(colour4) { 1, 0.5f, 0, 1 }
+	(colour4){1, 0.5f, 0, 1}
 #define ENTITY_MODEL_STATIC_DEBUG_COLOUR \
-	(colour4) { 0, 1, 0, 1 }
+	(colour4){0, 1, 0, 1}
 #define ENTITY_MODEL_ANIMATED_DEBUG_COLOUR \
-	(colour4) { 0, 1, 1, 1 }
+	(colour4){0, 1, 1, 1}
 
 /**
  * A base entity with no type. Used for grouping other entities together, for example
@@ -547,10 +547,10 @@ static void cleanup_map (kmaterial_to_geometry_map *map) {
 		for (u32 i = 0; i < map->capacity; ++i) {
 			kmaterial_geometry_list *list = &map->lists[i];
 			if (list->capacity && list->geometries) {
-				KFREE_TYPE_CARRAY(list->geometries, kgeometry_ref, list->capacity);
+				kfree(list->geometries);
 			}
 		}
-		KFREE_TYPE_CARRAY(map->lists, kmaterial_geometry_list, map->capacity);
+		kfree(map->lists);
 		map->lists = KNULL;
 		map->count = 0;
 		map->capacity = 0;
@@ -655,8 +655,8 @@ void kscene_destroy (struct kscene *scene) {
 
 	if (scene->bvh_debug_pool && scene->bvh_debug_pool_size) {
 		// Cleanup debug BVH data.
-		KFREE_TYPE_CARRAY(scene->bvh_debug_pool, scene_bvh_debug_data, scene->bvh_debug_pool_size);
-		KFREE_TYPE_CARRAY(scene->bvh_debug_vertex_pool, position_vertex_3d, 24 * scene->bvh_debug_pool_size);
+		kfree(scene->bvh_debug_pool);
+		kfree(scene->bvh_debug_vertex_pool);
 	}
 	scene->bvh_debug_pool = KNULL;
 	scene->bvh_debug_vertex_pool = KNULL;
@@ -669,7 +669,7 @@ void kscene_destroy (struct kscene *scene) {
 
 #endif
 
-	KFREE_TYPE(scene, kscene, MEMORY_TAG_SCENE);
+	kfree(scene);
 }
 
 static void recalculate_transforms (kscene *scene, base_entity *parent, kentity child_handle) {
@@ -2133,7 +2133,7 @@ static void base_entity_destroy (kscene *scene, base_entity *base, kentity entit
 	}
 
 	if (base->tag_count && base->tags) {
-		KFREE_TYPE_CARRAY(base->tags, kstring_id, base->tag_count);
+		kfree(base->tags);
 	}
 	base->tags = 0;
 	base->tag_count = 0;
@@ -2395,7 +2395,7 @@ static void volume_entity_destroy (kscene *scene, volume_entity *typed_entity, k
 	typed_entity->on_tick_command = KNULL;
 
 	if (typed_entity->hit_shape_tag_count && typed_entity->hit_shape_tags) {
-		KFREE_TYPE_CARRAY(typed_entity->hit_shape_tags, kstring_id, typed_entity->hit_shape_tag_count);
+		kfree(typed_entity->hit_shape_tags);
 	}
 
 	typed_entity->hit_shape_tag_count = 0;
@@ -3163,7 +3163,7 @@ static kentity init_base_entity (kscene *scene, base_entity *base, u16 entity_in
 static void kmaterial_list_ensure_allocated (kmaterial_geometry_list *list) {
 	if (list->count >= list->capacity) {
 		u16 new_capacity = (list->capacity == 0) ? 4 : list->capacity * 2;
-		list->geometries = KREALLOC_TYPE_CARRAY(list->geometries, kgeometry_ref, list->capacity, new_capacity);
+		list->geometries = KREALLOC_TYPE_CARRAY(list->geometries, kgeometry_ref, new_capacity);
 		list->capacity = new_capacity;
 	}
 }
@@ -3171,7 +3171,7 @@ static void kmaterial_list_ensure_allocated (kmaterial_geometry_list *list) {
 static void kmaterial_map_ensure_allocated (kmaterial_to_geometry_map *map) {
 	if (map->count >= map->capacity) {
 		u16 new_capacity = (map->capacity == 0) ? 4 : map->capacity * 2;
-		map->lists = KREALLOC_TYPE_CARRAY(map->lists, kmaterial_geometry_list, map->capacity, new_capacity);
+		map->lists = KREALLOC_TYPE_CARRAY(map->lists, kmaterial_geometry_list, new_capacity);
 		map->capacity = new_capacity;
 	}
 }
@@ -3210,7 +3210,7 @@ static void on_model_loaded (kmodel_instance instance, void *context) {
 	notify_initial_load_entity_complete(typed_context->scene, typed_context->entity);
 
 	// Clean up the context.
-	kfree(typed_context, sizeof(kscene_model_load_context), MEMORY_TAG_SCENE);
+	kfree(typed_context);
 }
 
 static void map_model_submesh_geometries (kscene *scene, kentity entity, u16 submesh_index, b8 winding_inverted, const kmaterial_instance *mat_inst) {
@@ -3565,7 +3565,7 @@ static b8 deserialize_entity (kson_object *obj, kentity parent, kscene *out_scen
 
 		new_entity = kscene_add_volume(out_scene, entity_name, t, parent, vol_type, shape, hit_shape_tag_count, hit_shape_tags, on_enter_command, on_leave_command, on_tick_command);
 		if (hit_shape_tags) {
-			KFREE_TYPE_CARRAY(hit_shape_tags, kstring_id, hit_shape_tag_count);
+			kfree(hit_shape_tags);
 		}
 
 		if (on_enter_command) {
@@ -4066,7 +4066,7 @@ static void cleanup_hierarchy_node_r (kscene_hierarchy_node *node) {
 		for (u32 i = 0; i < node->child_count; ++i) {
 			cleanup_hierarchy_node_r(&node->children[i]);
 		}
-		KFREE_TYPE_CARRAY(node->children, kscene_hierarchy_node, node->child_count);
+		kfree(node->children);
 	}
 }
 
@@ -4074,7 +4074,7 @@ void kscene_cleanup_hierarchy (kscene_hierarchy_node *nodes, u32 count) {
 	for (u32 i = 0; i < count; ++i) {
 		cleanup_hierarchy_node_r(&nodes[i]);
 	}
-	KFREE_TYPE_CARRAY(nodes, kscene_hierarchy_node, count);
+	kfree(nodes);
 }
 
 static void notify_initial_load_entity_started (kscene *scene, kentity entity) {

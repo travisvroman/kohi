@@ -204,15 +204,15 @@ void vulkan_image_destroy (vulkan_context *context, vulkan_image *image) {
 		for (u32 i = 0; i < image->layer_count; ++i) {
 			rhi->kvkDestroyImageView(context->device.logical_device, image->layer_views[i], context->allocator);
 		}
-		kfree(image->layer_views, sizeof(VkImageView) * image->layer_count, MEMORY_TAG_ARRAY);
+		kfree(image->layer_views);
 		image->layer_views = 0;
 	}
 	if (image->layer_view_subresource_ranges) {
-		kfree(image->layer_view_subresource_ranges, sizeof(VkImageSubresourceRange) * image->layer_count, MEMORY_TAG_ARRAY);
+		kfree(image->layer_view_subresource_ranges);
 		image->layer_view_subresource_ranges = 0;
 	}
 	if (image->layer_view_create_infos) {
-		kfree(image->layer_view_create_infos, sizeof(VkImageCreateInfo) * image->layer_count, MEMORY_TAG_ARRAY);
+		kfree(image->layer_view_create_infos);
 		image->layer_view_create_infos = 0;
 	}
 	image->layer_count = 0;
@@ -591,7 +591,7 @@ void vulkan_image_copy_from_buffer (
 		write_count == 1 ? &region : regions);
 
 	if (regions) {
-		KFREE_TYPE_CARRAY(regions, VkBufferImageCopy, write_count);
+		kfree(regions);
 	}
 }
 

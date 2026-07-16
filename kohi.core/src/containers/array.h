@@ -22,7 +22,7 @@
 #include "defines.h"
 
 KAPI void _karray_init (u32 length, u32 stride, u32 *out_length, u32 *out_stride, void **block);
-KAPI void _karray_free (u32 *length, u32 *stride, void **block);
+KAPI void _karray_free (void **block);
 
 typedef struct array_base {
 	u32 length;
@@ -69,7 +69,7 @@ KAPI void array_iterator_prev (array_iterator *it);
                                                                                                                           \
 	KINLINE void array_##name##_destroy(array_##name *arr) {                                                              \
 		if (arr) {                                                                                                        \
-			_karray_free(&arr->base.length, &arr->base.stride, (void **)&arr->data);                                      \
+			_karray_free((void **)&arr->data);                                                                            \
 			arr->begin = 0;                                                                                               \
 			arr->rbegin = 0;                                                                                              \
 		}                                                                                                                 \

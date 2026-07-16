@@ -220,7 +220,7 @@ void kui_textbox_control_destroy (kui_state *state, kui_control *self) {
 		geometry_destroy(&base->clipping_area.stencil_data.geometry);
 	}
 
-	kfree(typed_control->listener, sizeof(kui_textbox_event_listener), MEMORY_TAG_UI);
+	kfree(typed_control->listener);
 
 	kui_base_control_destroy(state, self);
 }
@@ -250,8 +250,8 @@ b8 kui_textbox_control_size_set (kui_state *state, kui_control self, i32 width, 
 		kgeometry *vg = &base->clipping_area.stencil_data.geometry;
 
 		kgeometry quad = geometry_generate_quad(typed_control->size.x - (corner_size.x * 2), typed_control->size.y, 0, 0, 0, 0, 0);
-		kfree(quad.indices, quad.index_element_size * quad.index_count, MEMORY_TAG_ARRAY);
-		kfree(vg->vertices, vg->vertex_element_size * vg->vertex_count, MEMORY_TAG_ARRAY);
+		kfree(quad.indices);
+		kfree(vg->vertices);
 		vg->vertices = quad.vertices;
 		vg->extents = quad.extents;
 
@@ -483,7 +483,7 @@ void kui_textbox_delete_at_cursor (kui_state *state, kui_control self) {
 
 	kui_label_text_set(state, typed_data->content_label, str);
 	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-	kfree((char *)str, len + 1, MEMORY_TAG_STRING);
+	kfree((char *)str);
 	kui_textbox_update_cursor_position(state, base);
 }
 
@@ -517,7 +517,6 @@ static f32 kui_textbox_calculate_cursor_offset (kui_state *state, u32 string_pos
 	}
 
 	char *copy = string_duplicate(full_string);
-	u32 len = string_length(copy);
 	char *mid_target = copy;
 	string_mid(mid_target, full_string, 0, string_pos);
 
@@ -536,7 +535,7 @@ static f32 kui_textbox_calculate_cursor_offset (kui_state *state, u32 string_pos
 
 	// Make sure to cleanup the string.
 	// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-	kfree((char *)copy, len + 1, MEMORY_TAG_STRING);
+	kfree((char *)copy);
 
 	// Use the x-axis of the mesurement to place the cursor.
 	return size.x;
@@ -667,7 +666,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 				}
 				kui_label_text_set(state, typed_data->content_label, str);
 				// NOTE: Cannot just do a string_free because it will be shorter than the actual memory allocated.
-				kfree((char *)str, len + 1, MEMORY_TAG_STRING);
+				kfree((char *)str);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
 		} else if (key_code == KEY_DELETE) {
@@ -922,7 +921,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 				/* string_format_unsafe(str, "%s%c", entry_control_text, char_code); */
 
 				kui_label_text_set(state, typed_data->content_label, str);
-				kfree(str, len + 2, MEMORY_TAG_STRING);
+				kfree(str);
 				if (typed_data->highlight_range.size > 0) {
 					// Clear the highlight range.
 					typed_data->highlight_range.offset = 0;
@@ -994,7 +993,7 @@ static b8 kui_textbox_on_paste (u16 code, void *sender, void *listener_inst, eve
 		string_insert_str_at(str, str, typed_data->cursor_position, clip->content);
 
 		kui_label_text_set(state, typed_data->content_label, str);
-		kfree(str, len + insert_length + 1, MEMORY_TAG_STRING);
+		kfree(str);
 		if (typed_data->highlight_range.size > 0) {
 			// Clear the highlight range.
 			typed_data->highlight_range.offset = 0;

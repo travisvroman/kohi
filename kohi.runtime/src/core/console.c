@@ -331,7 +331,7 @@ b8 console_command_execute (const char *command) {
 				cmd->func(context);
 
 				if (context.arguments) {
-					KFREE_TYPE_CARRAY(context.arguments, console_command_argument, arg_count);
+					kfree(context.arguments);
 				}
 				string_free(context.command);
 				string_free(context.command_name);

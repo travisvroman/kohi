@@ -55,13 +55,13 @@ b8 kasset_bitmap_font_fnt_import (const char *source_path, const char *target_pa
 
 	// Cleanup fnt asset.
 	if (fnt_asset.pages) {
-		KFREE_TYPE_CARRAY(fnt_asset.pages, kasset_bitmap_font_page, fnt_asset.page_count);
+		kfree(fnt_asset.pages);
 	}
 	if (fnt_asset.glyphs) {
-		KFREE_TYPE_CARRAY(fnt_asset.glyphs, kasset_bitmap_font_glyph, fnt_asset.glyph_count);
+		kfree(fnt_asset.glyphs);
 	}
 	if (fnt_asset.kernings) {
-		KFREE_TYPE_CARRAY(fnt_asset.kernings, kasset_bitmap_font_kerning, fnt_asset.kerning_count);
+		kfree(fnt_asset.kernings);
 	}
 	if (fnt_asset.face_name) {
 		string_free(fnt_asset.face_name);
@@ -83,7 +83,7 @@ b8 kasset_bitmap_font_fnt_import (const char *source_path, const char *target_pa
 	}
 
 	if (serialized_data) {
-		kfree(serialized_data, serialized_size, MEMORY_TAG_SERIALIZER);
+		kfree(serialized_data);
 	}
 
 	return success;

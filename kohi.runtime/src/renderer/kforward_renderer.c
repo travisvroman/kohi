@@ -232,7 +232,7 @@ b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buff
 
 void kforward_renderer_destroy (kforward_renderer *renderer) {
 	if (renderer) {
-		KFREE_TYPE_CARRAY(renderer->shadow_pass.sm_set1_instance_ids, u32, renderer->shadow_pass.sm_set1_max_instances);
+		kfree(renderer->shadow_pass.sm_set1_instance_ids);
 	}
 }
 

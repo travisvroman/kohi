@@ -127,7 +127,7 @@ b8 kasset_image_import (const char *source_path, const char *target_path, b8 fli
 	}
 
 	if (serialized_block) {
-		kfree(serialized_block, serialized_block_size, MEMORY_TAG_SERIALIZER);
+		kfree(serialized_block);
 	}
 
 	return success;
