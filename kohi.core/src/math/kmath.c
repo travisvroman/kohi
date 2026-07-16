@@ -183,7 +183,7 @@ kfrustum kfrustum_create (vec3 position, vec3 target, vec3 up, f32 aspect, f32 f
 	vec3 right = vec3_normalized(vec3_cross(forward, up));
 
 	// Recalculate the true up vector (Y-axis) to ensure orthogonality
-	vec3 adjusted_up = vec3_cross(right, forward);
+	vec3 adjusted_up = vec3_normalized(vec3_cross(right, forward));
 
 	// Half dimensions at the far plane
 	f32 half_v = far * tanf(fov * 0.5f); // Vertical half
@@ -194,37 +194,29 @@ kfrustum kfrustum_create (vec3 position, vec3 target, vec3 up, f32 aspect, f32 f
 	vec3 right_half_h = vec3_mul_scalar(right, half_h);
 	vec3 up_half_v = vec3_mul_scalar(adjusted_up, half_v);
 
-	// Top plane
-	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(right, vec3_sub(forward_far, up_half_v)));
+	vec3 pos_forward_far = vec3_add(position, forward_far);
 
-	// Bottom plane
-	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(vec3_add(forward_far, up_half_v), right));
+	vec3 top_dir = vec3_normalized(vec3_sub(forward_far, up_half_v));
+	vec3 bot_dir = vec3_normalized(vec3_add(forward_far, up_half_v));
+	vec3 left_dir = vec3_normalized(vec3_sub(forward_far, right_half_h));
+	vec3 right_dir = vec3_normalized(vec3_add(forward_far, right_half_h));
 
-	// Right plane
-	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(adjusted_up, vec3_sub(forward_far, right_half_h)));
+	vec3 top_norm = vec3_normalized(vec3_cross(right, top_dir));
+	vec3 bot_norm = vec3_normalized(vec3_cross(bot_dir, right));
+	vec3 left_norm = vec3_normalized(vec3_cross(left_dir, adjusted_up));
+	vec3 right_norm = vec3_normalized(vec3_cross(adjusted_up, right_dir));
 
-	// Left plane
-	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(vec3_add(forward_far, right_half_h), adjusted_up));
+	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(pos_forward_far, top_norm);
+	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(pos_forward_far, bot_norm);
+	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(pos_forward_far, right_norm);
+	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(pos_forward_far, left_norm);
 
-	// Far plane
-	f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_mul_scalar(forward, -1.0f) // Normal points back toward the camera
-	);
-
-	// Near plane
-	f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(
-		vec3_add(position, forward_near),
-		forward // Normal points away from the camera
-	);
+	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(position, top_norm);
+	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(position, bot_norm);
+	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(position, right_norm);
+	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(position, left_norm);
+	f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(vec3_add(position, forward_near), forward);
+	f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(vec3_add(position, forward_far), vec3_mul_scalar(forward, -1.0f));
 
 	return f;
 }

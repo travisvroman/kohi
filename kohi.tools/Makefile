@@ -110,7 +110,7 @@ clean-linux clean-macos:
 link: link-$(PLATFORM)
 
  
-link-win32: LDFLAGS += -lassimp-vc143-mt -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
+link-win32: LDFLAGS += -lassimp-vc143-mt -L"$(ASSIMP)\\lib\\x64\\" -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
 
