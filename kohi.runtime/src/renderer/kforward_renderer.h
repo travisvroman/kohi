@@ -1,5 +1,6 @@
 #pragma once
 
+#include "systems/kmatrix_system.h"
 #include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core_render_types.h>
@@ -81,6 +82,7 @@ typedef struct kforward_renderer {
 	struct kmaterial_system_state *material_system;
 	struct kmaterial_renderer *material_renderer;
 	struct texture_system_state *texture_system;
+	struct kmatrix_system_state *matrix_system;
 
 	kdepth_prepass_data depth_prepass;
 	kshadow_pass_data shadow_pass;
@@ -195,7 +197,7 @@ typedef struct kshadow_pass_render_data {
 
 // Water plane render data used once for reflection and once for refraction.
 typedef struct kscene_pass_render_data {
-	mat4 view_matrix;
+	kmatrix_id view_id;
 	vec3 view_position;
 
 	// Opaque static mesh geo data organized by material.
@@ -247,10 +249,10 @@ typedef struct kforward_pass_water_plane_render_data {
 
 typedef struct kforward_pass_render_data {
 	// View matrix/position used for the rendering of the water plane itself.
-	mat4 view_matrix;
+	kmatrix_id view_id;
 	vec4 view_position;
 
-	mat4 projection;
+	kmatrix_id projection_id;
 
 	u32 render_mode;
 

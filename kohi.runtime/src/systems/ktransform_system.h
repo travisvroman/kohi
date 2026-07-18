@@ -13,7 +13,7 @@ typedef struct ktransform_system_config {
 
 struct ktransform_system_state;
 
-#define KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL "Kohi.StorageBuffer.TransformsGlobal"
+#define KRENDERBUFFER_NAME_MATRIX_GLOBAL "Kohi.StorageBuffer.MatrixGlobal"
 
 b8 ktransform_system_initialize (u64 *memory_requirement, void *state, void *config);
 

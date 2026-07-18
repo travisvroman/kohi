@@ -1323,6 +1323,8 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
 		// Global UBO data
+		// FIXME: Need to fix the colour 3d shader to instead use view/projection indices in the SSBO
+		// instead of having global ubo data here.
 		colour_3d_global_ubo global_ubo_data = {
 			.view = kcamera_get_view(current_camera),
 			.projection = kcamera_get_projection(current_camera)};

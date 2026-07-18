@@ -39,6 +39,7 @@
 #include "assets/kasset_types.h"
 #include "serializers/kasset_hf_terrain_serializer.h"
 #include "systems/asset_system.h"
+#include "systems/kmatrix_system.h"
 #include "world/heightfield_terrain.h"
 #include "world/world_utils.h"
 
@@ -951,6 +952,8 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 		// "Global" items used by multiple passes.
 		mat4 view = kcamera_get_view(current_camera);
 		mat4 projection = kcamera_get_projection(current_camera);
+		kmatrix_id view_id = kcamera_get_view_id(current_camera);
+		kmatrix_id projection_id = kcamera_get_projection_id(current_camera);
 		vec3 view_position = kcamera_get_position(current_camera);
 		vec3 view_euler = kcamera_get_euler_rotation(current_camera);
 		rect_2di vp_rect = kcamera_get_vp_rect(current_camera);
@@ -1229,8 +1232,8 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 		{
 			render_data->forward_data.do_pass = true;
 
-			render_data->forward_data.projection = projection;
-			render_data->forward_data.view_matrix = view;
+			render_data->forward_data.projection_id = projection_id;
+			render_data->forward_data.view_id = view_id;
 			render_data->forward_data.view_position = vec4_from_vec3(view_position, 1.0);
 
 			render_data->forward_data.render_mode = render_mode;
@@ -1266,7 +1269,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			// Get a list of geometries from the "standard" camera perspective.
 			// These get reused for the water planes' refraction passes.
 			render_data->forward_data.standard_pass.view_position = view_position;
-			render_data->forward_data.standard_pass.view_matrix = render_data->forward_data.view_matrix;
+			render_data->forward_data.standard_pass.view_id = render_data->forward_data.view_id;
 
 			// Meshes with opaque materials first.
 			render_data->forward_data.standard_pass.opaque_meshes_by_material = kscene_get_static_model_render_data(
@@ -1359,7 +1362,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 					{
 						// NOTE: The refraction pass can literally just use the same data as the standard pass. No need to re-query for it.
 						wp_data->refraction_pass.view_position = render_data->forward_data.standard_pass.view_position;
-						wp_data->refraction_pass.view_matrix = render_data->forward_data.standard_pass.view_matrix;
+						wp_data->refraction_pass.view_id = render_data->forward_data.standard_pass.view_id;
 
 						wp_data->refraction_pass.transparent_meshes_by_material_count = render_data->forward_data.standard_pass.transparent_meshes_by_material_count;
 						wp_data->refraction_pass.transparent_meshes_by_material = render_data->forward_data.standard_pass.transparent_meshes_by_material;
@@ -1393,7 +1396,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 						kcamera_set_euler_rotation_radians(scene->world_inv_camera, inv_cam_rot);
 
 						wp_data->reflection_pass.view_position = inv_cam_pos;
-						wp_data->reflection_pass.view_matrix = kcamera_get_view(scene->world_inv_camera);
+						wp_data->reflection_pass.view_id = kcamera_get_view_id(scene->world_inv_camera);
 
 						kfrustum curr_reflect_frustum = kcamera_get_frustum(scene->world_inv_camera);
 

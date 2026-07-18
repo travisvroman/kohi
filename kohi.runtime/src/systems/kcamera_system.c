@@ -1,5 +1,6 @@
 #include "kcamera_system.h"
 
+#include "core/engine.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
@@ -7,6 +8,7 @@
 #include "math/kmath.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
+#include "systems/kmatrix_system.h"
 #include "utils/render_type_utils.h"
 
 typedef enum kcamera_flags {
@@ -20,8 +22,11 @@ typedef u32 kcamera_flag_bits;
 
 typedef struct kcamera_data {
 	mat4 view_matrix;
+	kmatrix_id view_matrix_id;
 	mat4 transform;
+	kmatrix_id transform_matrix_id;
 	mat4 projection;
+	kmatrix_id projection_matrix_id;
 	kfrustum frustum;
 	rect_2di vp_rect;
 	vec3 position;
@@ -117,6 +122,8 @@ kcamera kcamera_create (kcamera_type type, rect_2di vp_rect, vec3 position, vec3
 		return DEFAULT_KCAMERA;
 	}
 
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+
 	kcamera new_cam = get_new_camera(state_ptr);
 	if (kcamera_is_valid(new_cam) || new_cam == 0) {
 		kcamera_data *data = &state_ptr->cameras[new_cam];
@@ -134,6 +141,12 @@ kcamera kcamera_create (kcamera_type type, rect_2di vp_rect, vec3 position, vec3
 		// Also mark projection as dirty so it gets recalculated as well.
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 
+		// Register with the matrix system so they are obtainable in shaders.
+		data->projection_matrix_id = kmatrix_system_add(matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
+		data->view_matrix_id = kmatrix_system_add(matrix_system, KMATRIX_TYPE_VIEW, mat4_identity());
+		// NOTE: might be better to store this in KMATRIX_TYPE_GENERIC?
+		data->transform_matrix_id = kmatrix_system_add(matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
+
 		regenerate_matrices(data);
 
 		return new_cam;
@@ -148,6 +161,8 @@ kcamera kcamera_clone (kcamera camera) {
 	if (!kcamera_is_valid(camera)) {
 		return kcamera_clone(DEFAULT_KCAMERA);
 	}
+
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
 
 	kcamera new_cam = get_new_camera(state_ptr);
 	if (kcamera_is_valid(new_cam)) {
@@ -167,6 +182,12 @@ kcamera kcamera_clone (kcamera camera) {
 		// Also mark projection as dirty so it gets recalculated as well.
 		new_data->flags = FLAG_SET(new_data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
 
+		// Register with the matrix system so they are obtainable in shaders.
+		new_data->projection_matrix_id = kmatrix_system_add(matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
+		new_data->view_matrix_id = kmatrix_system_add(matrix_system, KMATRIX_TYPE_VIEW, mat4_identity());
+		// NOTE: might be better to store this in KMATRIX_TYPE_GENERIC?
+		new_data->transform_matrix_id = kmatrix_system_add(matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
+
 		regenerate_matrices(new_data);
 
 		return new_cam;
@@ -178,9 +199,20 @@ kcamera kcamera_clone (kcamera camera) {
 
 void kcamera_destroy (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
-		// Nothing to destroy or release, just zero it out.
 		kcamera_data *data = &state_ptr->cameras[camera];
+
+		// Unregister matrices
+		struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+		kmatrix_system_remove(matrix_system, &data->projection_matrix_id);
+		kmatrix_system_remove(matrix_system, &data->view_matrix_id);
+		kmatrix_system_remove(matrix_system, &data->transform_matrix_id);
+
 		kzero_memory(data, sizeof(kcamera_data));
+
+		// Invalidate the matrix ids.
+		data->projection_matrix_id = KMATRIX_INVALID;
+		data->view_matrix_id = KMATRIX_INVALID;
+		data->transform_matrix_id = KMATRIX_INVALID;
 
 		// Mark it as free.
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_IS_FREE_BIT, true);
@@ -291,6 +323,7 @@ void kcamera_set_vp_rect (kcamera camera, rect_2di vp_rect) {
 static void regenerate_matrices (kcamera_data *data) {
 
 	b8 needs_frustum = false;
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
 
 	// Regenerate transform and view, if needed.
 	if (FLAG_GET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT)) {
@@ -298,9 +331,11 @@ static void regenerate_matrices (kcamera_data *data) {
 		mat4 rotation = mat4_euler_xyz(data->euler_rotation.x, data->euler_rotation.y, data->euler_rotation.z);
 		mat4 translation = mat4_translation(data->position);
 		data->transform = mat4_mul(rotation, translation);
+		kmatrix_system_update_by_id(matrix_system, data->transform_matrix_id, data->transform);
 
 		// View is just inverse transform.
 		data->view_matrix = mat4_inverse(data->transform);
+		kmatrix_system_update_by_id(matrix_system, data->view_matrix_id, data->view_matrix);
 
 		// Make sure to unset the dirty flag.
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, false);
@@ -320,6 +355,7 @@ static void regenerate_matrices (kcamera_data *data) {
 			break;
 		}
 		data->projection = generate_projection_matrix(data->vp_rect, data->fov, data->near_clip, data->far_clip, matrix_type);
+		kmatrix_system_update_by_id(matrix_system, data->projection_matrix_id, data->projection);
 
 		// Make sure to unset the dirty flag.
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, false);
@@ -376,6 +412,34 @@ mat4 kcamera_get_projection (kcamera camera) {
 	}
 	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
 	return mat4_identity();
+}
+
+kmatrix_id kcamera_get_view_id (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data *data = &state_ptr->cameras[camera];
+		regenerate_matrices(data);
+		return data->view_matrix_id;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return KMATRIX_INVALID;
+}
+kmatrix_id kcamera_get_transform_id (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data *data = &state_ptr->cameras[camera];
+		regenerate_matrices(data);
+		return data->transform_matrix_id;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return KMATRIX_INVALID;
+}
+kmatrix_id kcamera_get_projection_id (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data *data = &state_ptr->cameras[camera];
+		regenerate_matrices(data);
+		return data->projection_matrix_id;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return KMATRIX_INVALID;
 }
 
 mat4 kcamera_get_projection_far_clipped (kcamera camera, f32 far) {

@@ -43,6 +43,7 @@ struct camera_system_state;
 struct plugin_system_state;
 struct rendergraph_system_state;
 struct asset_system_state;
+struct kmatrix_system_state;
 struct vfs_state;
 struct kwindow;
 
@@ -113,6 +114,9 @@ typedef struct engine_system_states {
 
 	u64 asset_system_memory_requirement;
 	struct asset_system_state *asset_state;
+
+	u64 kmatrix_system_memory_requirement;
+	struct kmatrix_system_state *matrix_system;
 } engine_system_states;
 
 /**
