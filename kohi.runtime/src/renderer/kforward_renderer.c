@@ -1,5 +1,6 @@
 #include "kforward_renderer.h"
 #include "systems/kmatrix_system.h"
+#include "systems/ktransform_system.h"
 #include "world/heightfield_terrain.h"
 
 #include <core/engine.h>
@@ -46,6 +47,7 @@ typedef struct shadow_staticmesh_global_ubo {
 
 // FIXME: This should be located elsewhere, since this isn't application specific. Perhaps in renderer types?
 typedef struct shadow_staticmesh_immediate_data {
+	u32 mat_ssbo_tran_offset;
 	u32 transform_index;
 	u32 cascade_index;
 	u32 animation_index;
@@ -265,14 +267,8 @@ static void draw_geo_list (kforward_renderer *renderer, frame_data *p_frame_data
 
 			b8 is_animated = geo->animation_id != INVALID_ID_U16;
 			kmaterial_renderer_set_animated(renderer->material_renderer, is_animated);
+			kmatrix_id m = ktransform_kmatrixid_get(geo->transform);
 
-			// LEFTOFF: After moving most projection/view matrices to the new "global matrix"
-			// SSBO (and thus hooking in those matrices to the new matrix system), we arrive
-			// at a place where the game's player grid and the HF terrain are the only things
-			// in the world that render. Suspect this is due to how things are stored in the
-			// SSBO, and will need to investigage if proper indices are indeed being passed
-			// throughout places like this. I _think_ UNPACK_U32_U16_AT, 1 is the way to go,
-			// but maybe it's 0? Debug some more and maybe confirm with RenderDoc.
 			kmaterial_render_immediate_data immediate_data = {
 				.view_index = UNPACK_U32_U16_AT(view_id, 1),
 				.projection_index = UNPACK_U32_U16_AT(projection_id, 1),
@@ -281,7 +277,7 @@ static void draw_geo_list (kforward_renderer *renderer, frame_data *p_frame_data
 				.dir_light_index = directional_light.light,
 				.irradiance_cubemap_index = 0, // TODO: pass in irradiance_cubemap_index from scene data
 				.num_p_lights = geo->bound_point_light_count,
-				.transform_index = geo->transform,
+				.transform_index = UNPACK_U32_U16_AT(m, 1),
 				.clipping_plane = clipping_plane,
 				.geo_type = (u32)is_animated,
 				.near_clip = near_clip,
@@ -441,10 +437,12 @@ static b8 scene_pass (
 
 				const kforward_pass_water_plane_render_data *plane = &water_planes[i];
 
+				kmatrix_id m = ktransform_kmatrixid_get(plane->plane_render_data.transform);
+
 				depth_prepass_immediate_data immediate_data = {
 					.projection_index = UNPACK_U32_U16_AT(projection_id, 1),
 					.view_index = UNPACK_U32_U16_AT(view_id, 1),
-					.transform_index = plane->plane_render_data.transform};
+					.transform_index = UNPACK_U32_U16_AT(m, 1)};
 
 				kshader_set_immediate_data(renderer->depth_prepass.depth_prepass_shader, &immediate_data, sizeof(immediate_data));
 
@@ -470,8 +468,12 @@ static b8 scene_pass (
 			for (u32 g = 0; g < material->geometry_count; ++g) {
 				kgeometry_render_data *geo = &material->geometries[g];
 
+				kmatrix_id m = ktransform_kmatrixid_get(geo->transform);
+
 				depth_prepass_immediate_data immediate_data = {
-					.transform_index = geo->transform};
+					.projection_index = UNPACK_U32_U16_AT(projection_id, 1),
+					.view_index = UNPACK_U32_U16_AT(view_id, 1),
+					.transform_index = UNPACK_U32_U16_AT(m, 1)};
 
 				kshader_set_immediate_data(renderer->depth_prepass.depth_prepass_shader, &immediate_data, sizeof(immediate_data));
 
@@ -519,7 +521,7 @@ static b8 scene_pass (
 
 		renderer_cull_mode_set(RENDERER_CULL_MODE_FRONT);
 
-		// Apply per-frame
+		// Apply globals
 		{
 			skybox_global_ubo_data global_ubo_data = {
 				.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_VIEW),
@@ -742,6 +744,8 @@ static b8 scene_pass (
 			const kmaterial_data *materials = kmaterial_system_get_all_base_materials(renderer->material_system);
 			const kmaterial_data *material = &materials[plane->plane_render_data.material.base_material];
 
+			kmatrix_id m = ktransform_kmatrixid_get(plane->plane_render_data.transform);
+
 			kmaterial_render_immediate_data immediate_data = {
 				.view_index = UNPACK_U32_U16_AT(view_id, 1),
 				.projection_index = UNPACK_U32_U16_AT(projection_id, 1),
@@ -750,7 +754,7 @@ static b8 scene_pass (
 				.dir_light_index = directional_light.light,
 				.irradiance_cubemap_index = 0, // TODO: pass in irradiance_cubemap_index from scene data
 				.num_p_lights = plane->plane_render_data.bound_point_light_count,
-				.transform_index = plane->plane_render_data.transform,
+				.transform_index = UNPACK_U32_U16_AT(m, 1),
 				.clipping_plane = clipping_plane,
 				.tiling = material->tiling,
 				.wave_speed = material->wave_speed,
@@ -816,6 +820,63 @@ static b8 scene_pass (
 	// Mesh end render
 	renderer_end_rendering(renderer->renderer_state, p_frame_data);
 	renderer_end_debug_label();
+
+	return true;
+}
+
+static b8 draw_shadow_material_geometries (kforward_renderer *renderer, u32 cascade_index, u32 instance_id, ktexture base_colour_texture, u16 count, kgeometry_render_data *geometries) {
+	// Apply the appropriate texture.
+	kshader_set_binding_texture(renderer->shadow_pass.staticmesh_shader, 1, instance_id, 0, 0, base_colour_texture);
+	// Ensure the binding set is applied.
+	kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 1, instance_id);
+
+	// Now draw each mesh geometry.
+	for (u32 g = 0; g < count; ++g) {
+
+		kgeometry_render_data *geo_data = &geometries[g];
+
+		b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
+
+		// Ensure the right vertex layout index is used.
+		kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC);
+		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
+
+		kmatrix_id m = ktransform_kmatrixid_get(geo_data->transform);
+		// Set immediate data.
+		shadow_staticmesh_immediate_data immediate_data = {
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.transform_index = UNPACK_U32_U16_AT(m, 1),
+			.cascade_index = cascade_index,
+			.geo_type = (u32)is_animated,
+			.animation_index = is_animated ? geo_data->animation_id : 0};
+
+		kshader_set_immediate_data(renderer->shadow_pass.staticmesh_shader, &immediate_data, sizeof(shadow_staticmesh_immediate_data));
+
+		// Invert if needed
+		b8 winding_inverted = FLAG_GET(geo_data->flags, KGEOMETRY_RENDER_DATA_FLAG_WINDING_INVERTED_BIT);
+		if (winding_inverted) {
+			renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
+		}
+
+		// Draw it.
+		b8 includes_index_data = geo_data->index_count > 0;
+
+		if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, geo_data->vertex_offset, geo_data->vertex_count, 0, includes_index_data)) {
+			KERROR("renderer_renderbuffer_draw failed to draw standard vertex buffer;");
+			return false;
+		}
+		if (includes_index_data) {
+			if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, geo_data->index_offset, geo_data->index_count, 0, !includes_index_data)) {
+				KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
+				return false;
+			}
+		}
+
+		// Change back if needed
+		if (winding_inverted) {
+			renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
+		}
+	}
 
 	return true;
 }
@@ -1024,7 +1085,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			// Apply the global binding set.
 			kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 0, renderer->shadow_pass.sm_set0_instance_id);
 
-			// Each material grouping.
+			// Transparent geometries - each material grouping.
 			for (u32 i = 0, group_arr_idx = 1; i < render_data->shadow_data.transparent_geometries_by_material_count; ++i) {
 				kmaterial_render_data *material = &render_data->shadow_data.transparent_geometries_by_material[i];
 
@@ -1042,55 +1103,8 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 				}
 				group_arr_idx++;
 
-				// Apply the appropriate texture.
-				kshader_set_binding_texture(renderer->shadow_pass.staticmesh_shader, 1, instance_id, 0, 0, base_colour_texture);
-				// Ensure the binding set is applied.
-				kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 1, instance_id);
-
-				// Now draw each mesh geometry.
-				for (u32 m = 0; m < material->geometry_count; ++m) {
-
-					kgeometry_render_data *geo_data = &material->geometries[m];
-
-					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
-
-					// Ensure the right vertex layout index is used.
-					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC);
-					renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
-
-					// Set immediate data.
-					shadow_staticmesh_immediate_data immediate_data = {
-						.transform_index = geo_data->transform,
-						.cascade_index = p,
-						.geo_type = (u32)is_animated,
-						.animation_index = is_animated ? geo_data->animation_id : 0};
-
-					kshader_set_immediate_data(renderer->shadow_pass.staticmesh_shader, &immediate_data, sizeof(shadow_staticmesh_immediate_data));
-
-					// Invert if needed
-					b8 winding_inverted = FLAG_GET(geo_data->flags, KGEOMETRY_RENDER_DATA_FLAG_WINDING_INVERTED_BIT);
-					if (winding_inverted) {
-						renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
-					}
-
-					// Draw it.
-					b8 includes_index_data = geo_data->index_count > 0;
-
-					if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, geo_data->vertex_offset, geo_data->vertex_count, 0, includes_index_data)) {
-						KERROR("renderer_renderbuffer_draw failed to draw standard vertex buffer;");
-						return false;
-					}
-					if (includes_index_data) {
-						if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, geo_data->index_offset, geo_data->index_count, 0, !includes_index_data)) {
-							KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
-							return false;
-						}
-					}
-
-					// Change back if needed
-					if (winding_inverted) {
-						renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
-					}
+				if (!draw_shadow_material_geometries(renderer, p, instance_id, base_colour_texture, material->geometry_count, material->geometries)) {
+					return false;
 				}
 			}
 
@@ -1100,54 +1114,9 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 				u32 instance_id = renderer->shadow_pass.sm_default_instance_id;
 				ktexture base_colour_texture = renderer->shadow_pass.default_base_colour;
 
-				// Apply the appropriate texture.
-				kshader_set_binding_texture(renderer->shadow_pass.staticmesh_shader, 1, instance_id, 0, 0, base_colour_texture);
-				// Ensure the binding set is applied.
-				kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 1, instance_id);
-
-				// Now draw each mesh geometry.
-				for (u32 m = 0; m < render_data->shadow_data.opaque_geometry_count; ++m) {
-
-					kgeometry_render_data *geo_data = &render_data->shadow_data.opaque_geometries[m];
-
-					b8 is_animated = geo_data->animation_id != INVALID_ID_U16;
-
-					// Ensure the right vertex layout index is used.
-					kshader_system_use(renderer->shadow_pass.staticmesh_shader, is_animated ? VERTEX_LAYOUT_INDEX_SKINNED : VERTEX_LAYOUT_INDEX_STATIC);
-
-					// Set immediate data.
-					shadow_staticmesh_immediate_data immediate_data = {
-						.transform_index = geo_data->transform,
-						.cascade_index = p,
-						.geo_type = (u32)is_animated,
-						.animation_index = is_animated ? geo_data->animation_id : 0};
-
-					kshader_set_immediate_data(renderer->shadow_pass.staticmesh_shader, &immediate_data, sizeof(shadow_staticmesh_immediate_data));
-
-					// Invert if needed
-					b8 winding_inverted = FLAG_GET(geo_data->flags, KGEOMETRY_RENDER_DATA_FLAG_WINDING_INVERTED_BIT);
-					if (winding_inverted) {
-						renderer_winding_set(RENDERER_WINDING_CLOCKWISE);
-					}
-
-					// Draw it.
-					b8 includes_index_data = geo_data->index_count > 0;
-
-					if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, geo_data->vertex_offset, geo_data->vertex_count, 0, includes_index_data)) {
-						KERROR("renderer_renderbuffer_draw failed to draw standard vertex buffer;");
-						return false;
-					}
-					if (includes_index_data) {
-						if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, geo_data->index_offset, geo_data->index_count, 0, !includes_index_data)) {
-							KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
-							return false;
-						}
-					}
-
-					// Change back if needed
-					if (winding_inverted) {
-						renderer_winding_set(RENDERER_WINDING_COUNTER_CLOCKWISE);
-					}
+				b8 result = draw_shadow_material_geometries(renderer, p, instance_id, base_colour_texture, render_data->shadow_data.opaque_geometry_count, render_data->shadow_data.opaque_geometries);
+				if (!result) {
+					return false;
 				}
 			}
 
@@ -1183,33 +1152,38 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			}
 
 			// Heightmap Terrain - use the terrain shadowmap shader.
-			kshader_system_use(renderer->shadow_pass.hmt_shader, VERTEX_LAYOUT_INDEX_STATIC);
-			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
+			{
+				kshader_system_use(renderer->shadow_pass.hmt_shader, VERTEX_LAYOUT_INDEX_STATIC);
+				renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-			// Apply the global binding set.
-			kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 0, renderer->shadow_pass.sm_set0_instance_id);
+				// Apply the global binding set.
+				kshader_apply_binding_set(renderer->shadow_pass.staticmesh_shader, 0, renderer->shadow_pass.sm_set0_instance_id);
 
-			for (u32 i = 0; i < render_data->shadow_data.terrain_count; ++i) {
-				hm_terrain_render_data *t = &render_data->shadow_data.terrains[i];
-				for (u32 c = 0; c < t->chunk_count; ++c) {
-					hm_terrain_chunk_render_data *chunk = &t->chunks[c];
+				for (u32 i = 0; i < render_data->shadow_data.terrain_count; ++i) {
+					hm_terrain_render_data *t = &render_data->shadow_data.terrains[i];
+					kmatrix_id m = ktransform_kmatrixid_get(t->transform);
 
-					// Set immediate data.
-					shadow_staticmesh_immediate_data immediate_data = {
-						.transform_index = t->transform,
-						.cascade_index = p};
+					for (u32 c = 0; c < t->chunk_count; ++c) {
+						hm_terrain_chunk_render_data *chunk = &t->chunks[c];
 
-					kshader_set_immediate_data(renderer->shadow_pass.staticmesh_shader, &immediate_data, sizeof(shadow_staticmesh_immediate_data));
+						// Set immediate data.
+						shadow_staticmesh_immediate_data immediate_data = {
+							.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_TRANSFORM),
+							.transform_index = UNPACK_U32_U16_AT(m, 1),
+							.cascade_index = p};
 
-					// Draw it.
-					// NOTE: heightmap terrain chunks always include index data.
-					if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, chunk->vertex_offset, chunk->vertex_count, 0, true)) {
-						KERROR("renderer_renderbuffer_draw failed to draw vertex buffer;");
-						return false;
-					}
-					if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, chunk->index_offset, chunk->index_count, 0, false)) {
-						KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
-						return false;
+						kshader_set_immediate_data(renderer->shadow_pass.staticmesh_shader, &immediate_data, sizeof(shadow_staticmesh_immediate_data));
+
+						// Draw it.
+						// NOTE: heightmap terrain chunks always include index data.
+						if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->standard_vertex_buffer, chunk->vertex_offset, chunk->vertex_count, 0, true)) {
+							KERROR("renderer_renderbuffer_draw failed to draw vertex buffer;");
+							return false;
+						}
+						if (!renderer_renderbuffer_draw(renderer->renderer_state, renderer->index_buffer, chunk->index_offset, chunk->index_count, 0, false)) {
+							KERROR("renderer_renderbuffer_draw failed to draw index buffer;");
+							return false;
+						}
 					}
 				}
 			}

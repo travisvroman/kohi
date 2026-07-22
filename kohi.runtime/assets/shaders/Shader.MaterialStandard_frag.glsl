@@ -599,7 +599,6 @@ void main() {
 	} else if(global_settings.render_mode == 2) {
 		out_colour = vec4(abs(normal), 1.0);
 	} else if(global_settings.render_mode == 4) {
-		// LEFTOFF: Why this no worky?
 		// wireframe, just render a solid colour.
 		if(immediate.geo_type == 0) {
 			out_colour = vec4(0.0, 1.0, 1.0, 1.0); // cyan

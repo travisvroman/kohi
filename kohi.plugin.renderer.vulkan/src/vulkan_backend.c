@@ -3964,8 +3964,6 @@ void vulkan_renderer_debug_pump_brakes (renderer_backend_interface *backend) {
 	vulkan_context *context = backend->internal_context;
 	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
 
-	// HACK: Brute force
-	// nocheckin
 	context->rhi.kvkCmdPipelineBarrier(
 		command_buffer->handle,
 		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,

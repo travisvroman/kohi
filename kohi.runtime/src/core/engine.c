@@ -998,12 +998,13 @@ b8 engine_run (application *app) {
 		font_system_shutdown(systems->font_system);
 		texture_system_shutdown(systems->texture_system);
 		ktimeline_system_shutdown(systems->timeline_system);
-		ktransform_system_shutdown(systems->ktransform_system);
-		kmatrix_system_shutdown(systems->matrix_system);
 		kaudio_system_shutdown(systems->audio_system);
 		// Shutdown plugins, but not the system yet in case plugins which do not
 		// "auto-unload" rely on the state still existing.
 		plugin_system_shutdown_all_plugins(systems->plugin_system);
+
+		ktransform_system_shutdown(systems->ktransform_system);
+		kmatrix_system_shutdown(systems->matrix_system);
 		kshader_system_shutdown(systems->shader_system);
 		renderer_system_shutdown(systems->renderer_system);
 		job_system_shutdown(systems->job_system);

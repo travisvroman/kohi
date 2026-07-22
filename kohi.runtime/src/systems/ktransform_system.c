@@ -202,25 +202,29 @@ static i32 transform_depth_kquicksort_compare_desc (void *a, void *b) {
 }
 
 b8 ktransform_system_update (ktransform_system_state *state, struct frame_data *p_frame_data) {
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+
 	// Sort the dirty list by depth.
 	kquick_sort(sizeof(ktransform), state->local_dirty_handles, 0, state->local_dirty_count - 1, transform_depth_kquicksort_compare);
 
 	// Update dirty transforms top-down according to depth.
 	for (u32 i = 0; i < state->local_dirty_count; ++i) {
-		recalculate_world_r(state->local_dirty_handles[i]);
+		ktransform t = state->local_dirty_handles[i];
+		recalculate_world_r(t);
+
+		// Ensure the matrix system knows about the update.
+		if (state->matrix_ids[t] != KMATRIX_INVALID) {
+			kmatrix_system_update_by_id(matrix_system, state->matrix_ids[t], state->world_matrices[t]);
+		}
 	}
 
 	// Clear the dirty list.
 	dirty_list_reset(state);
 
-	// Update the data in the SSBO.
-	/* void *mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
-	mat4 *mapped_transforms = (mat4 *)mapped_memory;
-
-	kcopy_memory(mapped_transforms, state->world_matrices, sizeof(mat4) * state->capacity); */
-
 	// Tell the matrix system about it.
-	kmatrix_system_bulk_update_transforms(engine_systems_get()->matrix_system, state->world_matrices);
+	// FIXME: Updating this way won't work because the world_matrices array is indexed by transform id,
+	// not matrix_id->index.
+	/* kmatrix_system_bulk_update_transforms(matrix_system, state->world_matrices); */
 
 	return true;
 }
@@ -372,6 +376,10 @@ ktransform ktransform_from_matrix (mat4 m, u64 user) {
 
 void ktransform_destroy (ktransform *t) {
 	handle_destroy(engine_systems_get()->ktransform_system, t);
+}
+
+kmatrix_id ktransform_kmatrixid_get (ktransform t) {
+	return engine_systems_get()->ktransform_system->matrix_ids[t];
 }
 
 b8 ktransform_is_identity (ktransform t) {
@@ -911,6 +919,7 @@ static ktransform handle_create (ktransform_system_state *state) {
 			// Ensure the parent is invalid.
 			state->parents[i] = KTRANSFORM_INVALID;
 			state->depths[i] = 0;
+			state->matrix_ids[i] = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, state->world_matrices[i]);
 			state->allocated++;
 			return i;
 		}
