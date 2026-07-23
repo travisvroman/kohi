@@ -233,7 +233,7 @@ typedef struct kscene_debug_data {
 	kscene_debug_data_type type;
 	kgeometry geometry;
 	kentity owner;
-	mat4 model;
+	kmatrix_id model_id;
 	colour4 colour;
 	b8 ignore_scale;
 } kscene_debug_data;
@@ -242,7 +242,7 @@ typedef struct kscene_debug_data {
 #if KOHI_DEBUG
 typedef struct scene_bvh_debug_data {
 	kgeometry geo;
-	mat4 model;
+	kmatrix_id model_id;
 } scene_bvh_debug_data;
 #endif
 
@@ -448,7 +448,7 @@ struct kscene *kscene_create (kname scene_asset_name, const char *config, PFN_sc
 		d->geo.indices = 0;
 		d->geo.index_buffer_offset = 0;
 
-		d->model = mat4_identity();
+		d->model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 	}
 
 	// Create/load debug grid.
@@ -703,15 +703,18 @@ static void recalculate_debug_transforms (kscene *scene) {
 				// must be composed containing only position and rotation updates.
 				quat world_rot = ktransform_world_rotation_get(owner_base->transform);
 				vec3 world_pos = ktransform_world_position_get(owner_base->transform);
-				data->model = mat4_from_translation_rotation_scale(world_pos, world_rot, vec3_one());
+				mat4 model = mat4_from_translation_rotation_scale(world_pos, world_rot, vec3_one());
+				kmatrix_system_update_by_id(engine_systems_get()->matrix_system, data->model_id, model);
 			} else {
 				// If no adjustments are needed, just use the parent transform's world matrix as this
 				// debug data's world matrix.
-				data->model = ktransform_world_get(owner_base->transform);
+				mat4 model = ktransform_world_get(owner_base->transform);
+				kmatrix_system_update_by_id(engine_systems_get()->matrix_system, data->model_id, model);
 			}
 		} else {
 			// If there's no parent, just use the local matrix as the world matrix.
-			data->model = mat4_identity();
+			mat4 model = mat4_identity();
+			kmatrix_system_update_by_id(engine_systems_get()->matrix_system, data->model_id, model);
 		}
 	}
 }
@@ -924,7 +927,9 @@ b8 kscene_update (struct kscene *scene, struct frame_data *p_frame_data) {
 				if (n->height >= 0) {
 					scene_bvh_debug_data *dd = &scene->bvh_debug_pool[i];
 					geometry_recalculate_line_box3d_by_extents(&dd->geo, n->aabb, dd->geo.center);
-					dd->model = mat4_identity();
+					// TODO: Should this be an update, not an add/create?
+					/* dd->model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity()); */
+					/* dd->model = mat4_identity(); */
 				}
 			}
 #endif
@@ -951,7 +956,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 
 		// "Global" items used by multiple passes.
 		mat4 view = kcamera_get_view(current_camera);
-		mat4 projection = kcamera_get_projection(current_camera);
+		/* mat4 projection = kcamera_get_projection(current_camera); */
 		kmatrix_id view_id = kcamera_get_view_id(current_camera);
 		kmatrix_id projection_id = kcamera_get_projection_id(current_camera);
 		vec3 view_position = kcamera_get_position(current_camera);
@@ -1457,8 +1462,8 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 		{
 			render_data->world_debug_data.do_pass = true;
 
-			render_data->world_debug_data.projection = projection;
-			render_data->world_debug_data.view = view;
+			render_data->world_debug_data.projection_id = projection_id;
+			render_data->world_debug_data.view_id = view_id;
 
 			// Get world debug geometries.
 			render_data->world_debug_data.geometries = kscene_get_debug_render_data(
@@ -1805,6 +1810,10 @@ hf_terrain *kscene_hf_terrain_get (struct kscene *scene) {
 
 b8 kscene_hf_terrain_get_height_at (struct kscene *scene, f32 world_x, f32 world_z, vec3 *out_pos, vec3 *out_normal) {
 	return hf_terrain_get_height_at(&scene->hf, world_x, world_z, out_pos, out_normal);
+}
+
+b8 kscene_hf_terrain_get_height_at_fast (struct kscene *scene, f32 world_x, f32 world_z, f32 *out_height) {
+	return hf_terrain_get_height_at_fast(&scene->hf, world_x, world_z, out_height);
 }
 
 kentity kscene_get_entity_by_name (struct kscene *scene, kname name) {
@@ -2968,7 +2977,7 @@ kdebug_geometry_render_data *kscene_get_debug_render_data (
 			rd->geo.index_offset = data->geometry.index_buffer_offset;
 			rd->geo.vertex_count = data->geometry.vertex_count;
 			rd->geo.vertex_offset = data->geometry.vertex_buffer_offset;
-			rd->model = data->model;
+			rd->model_id = data->model_id;
 			rd->colour = data->colour;
 			rd_idx++;
 		}
@@ -2987,7 +2996,7 @@ kdebug_geometry_render_data *kscene_get_debug_render_data (
 				rd->geo.vertex_offset = data->geo.vertex_buffer_offset;
 				rd->geo.transform = scene->bvh_transform;
 				rd->colour = n->height ? (colour4){1.0f - (n->height * 0.1f), 0, 0, 1} : (colour4)vec4_create(0, 1, 1, 1);
-				rd->model = data->model;
+				rd->model_id = data->model_id;
 				rd_idx++;
 			}
 		}
@@ -4150,7 +4159,7 @@ static void create_debug_data (kscene *scene, vec3 size, vec3 center, kentity en
 	}
 
 	data->owner = entity;
-	data->model = mat4_identity();
+	data->model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 	data->colour = colour;
 	data->type = type;
 	data->ignore_scale = ignore_scale;

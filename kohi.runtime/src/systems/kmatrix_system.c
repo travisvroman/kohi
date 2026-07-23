@@ -102,6 +102,9 @@ kmatrix_id kmatrix_system_add (struct kmatrix_system_state *state, kmatrix_type 
 			// found one.
 			FLAG_SET(table->flags[i], KMATRIX_TABLE_FLAG_OCCUPIED_BIT, true);
 			new_id = PACK_U32_U16S((u16)type, i);
+
+			table->matrices[i] = m;
+
 			table->count++;
 			break;
 		}

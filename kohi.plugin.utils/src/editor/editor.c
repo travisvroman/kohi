@@ -21,8 +21,6 @@
 #include "math/geometry_2d.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
-#include "platform/kpackage.h"
-#include "platform/vfs.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -33,6 +31,7 @@
 #include "systems/asset_system.h"
 #include "systems/font_system.h"
 #include "systems/kcamera_system.h"
+#include "systems/kmatrix_system.h"
 #include "systems/kshader_system.h"
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
@@ -158,6 +157,9 @@ b8 editor_initialize (u64 *memory_requirement, struct editor_state *state, kname
 	}
 
 	state->game_package_name = game_package_name;
+
+	state->matrix_system = engine_systems_get()->matrix_system;
+	state->default_identity_matrix_id = kmatrix_system_add(state->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 
 	// Setup gizmo.
 	if (!editor_gizmo_create(&state->gizmo)) {
@@ -1322,20 +1324,19 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 		kshader_system_use_with_topology(state->colour_shader, PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT, 0);
 		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-		// Global UBO data
-		// FIXME: Need to fix the colour 3d shader to instead use view/projection indices in the SSBO
-		// instead of having global ubo data here.
-		colour_3d_global_ubo global_ubo_data = {
-			.view = kcamera_get_view(current_camera),
-			.projection = kcamera_get_projection(current_camera)};
-		// NOTE: This shader only ever has one instance of set 0.
+		// Global Binding set
 		u32 colour_set0_instance_id = 0;
-		kshader_set_binding_data(state->colour_shader, 0, colour_set0_instance_id, 0, 0, &global_ubo_data, sizeof(colour_3d_global_ubo));
 		kshader_apply_binding_set(state->colour_shader, 0, colour_set0_instance_id);
 
-		mat4 model = mat4_identity();
-
-		colour_3d_immediate_data immediate_data = {.model = model};
+		colour_3d_immediate_data immediate_data = {
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+			.view_index = UNPACK_U32_U16_AT(kcamera_get_view_id(current_camera), 1),
+			.projection_index = UNPACK_U32_U16_AT(kcamera_get_projection_id(current_camera), 1),
+			// Just using the default debug identity matrix since transform doesn't matter here.
+			.model_index = UNPACK_U32_U16_AT(state->default_identity_matrix_id, 1)};
 		kshader_set_immediate_data(state->colour_shader, &immediate_data, sizeof(colour_3d_immediate_data));
 
 		// NOTE: May need to do this earlier, like in frame prepare
@@ -1366,20 +1367,23 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 	if (state->mode == EDITOR_MODE_HF_TERRAIN && state->hft_edit_mode == HF_TERRAIN_EDIT_MODE_CHUNK) {
 		KASSERT(kshader_system_use_with_topology(state->debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0));
 
-		// Global UBO data
-		debug_shader_global_ubo_data global_ubo_data = {
-			.view = kcamera_get_view(current_camera),
-			.projection = kcamera_get_projection(current_camera)};
+		// Global Binding set
 		// "Global" should always be instance 0
 		u32 instance_id = 0;
-		kshader_set_binding_data(state->debug_shader, 0, instance_id, 0, 0, &global_ubo_data, sizeof(global_ubo_data));
 		kshader_apply_binding_set(state->debug_shader, 0, instance_id);
 
 		// Render the debug data.
 		kgeometry *geo = &state->hft_selected_chunk_debug_box;
 
 		debug_shader_immediate_data immediate_data = {
-			.model = mat4_identity(),						// HACK: Should this use a transform?
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+			.view_index = UNPACK_U32_U16_AT(kcamera_get_view_id(current_camera), 1),
+			.projection_index = UNPACK_U32_U16_AT(kcamera_get_projection_id(current_camera), 1),
+			// Just using the default debug identity matrix since transform doesn't matter here.
+			.model_index = UNPACK_U32_U16_AT(state->default_identity_matrix_id, 1),
 			.colour = vec4_create(1.0f, 0.5f, 0.0f, 1.0f)}; // HACK: hardcoded colour.
 		kshader_set_immediate_data(state->debug_shader, &immediate_data, sizeof(immediate_data));
 

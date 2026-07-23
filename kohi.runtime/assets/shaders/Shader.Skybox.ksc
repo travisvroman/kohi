@@ -60,11 +60,6 @@ binding_sets = [
 		max_instance_count = 1
 		bindings = [
 			{
-				type = "ubo"
-				name = "skybox global ubo"
-				data_size = 24
-			}
-			{
 				name = "Kohi.StorageBuffer.MatrixGlobal"
 				type = "storage"
 			}

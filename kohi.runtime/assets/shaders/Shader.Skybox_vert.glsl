@@ -11,20 +11,17 @@ layout(location = 2) in vec2 in_texcoord;
 layout(location = 3) in vec4 in_colour;
 layout(location = 4) in vec4 in_tangent;
 
-layout(set = 0, binding = 0) uniform global_ubo_data {
-	vec4 fog_colour;
-	
-	// Offsets into the matrix SSBO per type.
-	uint mat_ssbo_view_offset;
-	uint mat_ssbo_proj_offset;
-} global_settings;
-
 // All matrices
-layout(std430, set = 0, binding = 1) readonly buffer global_matrix_ssbo {
+layout(std430, set = 0, binding = 0) readonly buffer global_matrix_ssbo {
 	mat4 matrices[]; // indexed by immediate.transform_index
 } global_matrices;
 
 layout(push_constant) uniform immediate_data {
+	vec4 fog_colour;
+	// Offsets into the matrix SSBO per type.
+	uint mat_ssbo_view_offset;
+	uint mat_ssbo_proj_offset;
+	// Indices into the matrix SSBO, offset by above types.
 	uint view_index;
 	uint projection_index;
 } immediate;
@@ -40,8 +37,9 @@ layout(location = 0) out dto {
 } out_dto;
 
 void main() {
-	mat4 view = global_matrices.matrices[global_settings.mat_ssbo_view_offset + immediate.view_index];
-	mat4 projection = global_matrices.matrices[global_settings.mat_ssbo_proj_offset + immediate.projection_index];
+	mat4 view = global_matrices.matrices[immediate.mat_ssbo_view_offset + immediate.view_index];
+	view[3] = vec4(0, 0, 0, 1.0); // Zero out the position so the skybox stays put.
+	mat4 projection = global_matrices.matrices[immediate.mat_ssbo_proj_offset + immediate.projection_index];
 
 	out_dto.tex_coord = -in_position;
 	out_dto.frag_pos = vec4(in_position, 1.0);

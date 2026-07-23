@@ -653,6 +653,42 @@ b8 hf_terrain_get_height_at (const hf_terrain *t, f32 world_x, f32 world_z, vec3
 	return false;
 }
 
+b8 hf_terrain_get_height_at_fast (const hf_terrain *t, f32 world_x, f32 world_z, f32 *out_height) {
+	if (!t || !aabb_contains_point((vec3){world_x, 0.0f, world_z}, t->aabb)) {
+		return false;
+	}
+
+	ray r = ray_create((vec3){world_x, 99999.0, world_z}, vec3_down(), 999999.0, RAY_FLAG_NONE);
+
+	// FIXME: Brute-forced like a dingus...
+	u32 block_count = t->block_count_z * t->block_count_x;
+	for (u32 b = 0; b < block_count; ++b) {
+		hf_block *block = &t->blocks[b];
+
+		if (aabb_contains_point((vec3){world_x, block->aabb.min.y + 0.01f, world_z}, block->aabb)) {
+
+			// Iterate the chunks and check for a aabb hit there.
+			for (u32 c = 0; c < HF_BLOCK_CHUNK_COUNT; ++c) {
+				if (aabb_contains_point((vec3){world_x, block->chunks[c].aabb.min.y + 0.01f, world_z}, block->chunks[c].aabb)) {
+					u64 vertex_offset = (block->chunks[c].vertex_buffer_offset - t->base_vertex_buffer_offset) / sizeof(hf_vertex_3d);
+					triangle tri;
+					vec3 hit_pos;
+					vec3 hit_normal;
+					b8 triangle_hit = ray_pick_triangle(&r, false, HF_CHUNK_VERTEX_COUNT, sizeof(hf_vertex_3d), t->vertices + vertex_offset, HF_INDEX_COUNT, t->indices, &tri, &hit_pos, &hit_normal);
+					if (triangle_hit) {
+						// Collision! Yay
+						/* KTRACE("Terrain hit: pos=%V3.3, normal=%V3.3", &hit_pos, &hit_normal); */
+						*out_height = hit_pos.y;
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 hf_vertex_3d *hf_terrain_chunk_get_closest_vertex (const hf_terrain *terrain, const hf_block *block, const hf_chunk *chunk, vec3 pos, u32 *out_x, u32 *out_z, i64 *out_index) {
 	// Get closest vertex.
 	// FIXME: optimize this.

@@ -229,5 +229,6 @@ KAPI void hf_terrain_material_texture_set (hf_terrain *t, u8 material_index, hf_
  *
  */
 KAPI b8 hf_terrain_get_height_at (const hf_terrain *t, f32 world_x, f32 world_z, vec3 *out_pos, vec3 *out_normal);
+KAPI b8 hf_terrain_get_height_at_fast (const hf_terrain *t, f32 world_x, f32 world_z, f32 *out_height);
 
 KAPI hf_vertex_3d *hf_terrain_chunk_get_closest_vertex (const hf_terrain *terrain, const hf_block *block, const hf_chunk *chunk, vec3 pos, u32 *out_x, u32 *out_z, i64 *out_index);

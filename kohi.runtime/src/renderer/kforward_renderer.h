@@ -89,6 +89,7 @@ typedef struct kforward_renderer {
 	kforward_pass_data forward_pass;
 #if KOHI_DEBUG
 	kworld_debug_pass_data world_debug_pass;
+	kmatrix_id debug_identity_matrix;
 #endif
 
 	krenderbuffer standard_vertex_buffer;
@@ -292,14 +293,14 @@ typedef struct kforward_pass_render_data {
 
 typedef struct kdebug_geometry_render_data {
 	kgeometry_render_data geo;
-	mat4 model;
+	kmatrix_id model_id;
 	colour4 colour;
 } kdebug_geometry_render_data;
 
 #if KOHI_DEBUG
 typedef struct kworld_debug_pass_render_data {
-	mat4 projection;
-	mat4 view;
+	kmatrix_id projection_id;
+	kmatrix_id view_id;
 
 	// The number of geometries.
 	u16 geometry_count;

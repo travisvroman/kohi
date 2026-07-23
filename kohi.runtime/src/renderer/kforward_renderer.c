@@ -25,17 +25,13 @@
 #define VERTEX_LAYOUT_INDEX_STATIC 0
 #define VERTEX_LAYOUT_INDEX_SKINNED 1
 
-// per frame UBO FIXME: This should probably be located with the skybox files, or shader, or somewhere other than here...
-typedef struct skybox_global_ubo_data {
+// Skybox immediate data. FIXME: This should probably be located with the skybox files, or shader, or somewhere other than here...
+typedef struct skybox_immediate_data {
 	vec4 fog_colour;
-
 	// Offsets into the matrix SSBO per type.
 	u32 mat_ssbo_view_offset;
 	u32 mat_ssbo_proj_offset;
-} skybox_global_ubo_data;
-
-// per frame UBO FIXME: This should probably be located with the skybox files, or shader, or somewhere other than here...
-typedef struct skybox_immediate_data {
+	// Indices into the matrix SSBO, offset by above types.
 	u32 view_index;
 	u32 projection_index;
 } skybox_immediate_data;
@@ -142,6 +138,8 @@ b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buff
 
 	out_renderer->standard_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	out_renderer->index_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
+
+	out_renderer->debug_identity_matrix = kmatrix_system_add(out_renderer->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 
 	// Shadow pass data
 	{
@@ -523,25 +521,22 @@ static b8 scene_pass (
 
 		// Apply globals
 		{
-			skybox_global_ubo_data global_ubo_data = {
-				.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_VIEW),
-				.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_PROJECTION),
-				.fog_colour = skybox_data->fog_colour};
-
-			kshader_set_binding_data(renderer->forward_pass.sb_shader, 0, renderer->forward_pass.sb_shader_set0_instance_id, 0, 0, &global_ubo_data, sizeof(skybox_global_ubo_data));
 
 			ktexture sbt = skybox_data->skybox_texture;
 			/* sbt = renderer->forward_pass.default_cube_texture; */
 			if (!texture_is_loaded(sbt)) {
 				sbt = renderer->forward_pass.default_cube_texture;
 			}
-			kshader_set_binding_texture(renderer->forward_pass.sb_shader, 0, renderer->forward_pass.sb_shader_set0_instance_id, 2, 0, sbt);
+			kshader_set_binding_texture(renderer->forward_pass.sb_shader, 0, renderer->forward_pass.sb_shader_set0_instance_id, 1, 0, sbt);
 
 			kshader_apply_binding_set(renderer->forward_pass.sb_shader, 0, renderer->forward_pass.sb_shader_set0_instance_id);
 		}
 
 		// Immediate data.
 		skybox_immediate_data immediate = {
+			.fog_colour = skybox_data->fog_colour,
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_PROJECTION),
 			.view_index = UNPACK_U32_U16_AT(view_id, 1),
 			.projection_index = UNPACK_U32_U16_AT(projection_id, 1)};
 		kshader_set_immediate_data(renderer->forward_pass.sb_shader, &immediate, sizeof(skybox_immediate_data));
@@ -1380,18 +1375,21 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 
 			kshader_system_use_with_topology(renderer->world_debug_pass.debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, VERTEX_LAYOUT_INDEX_STATIC);
 
-			// Global UBO data
-			debug_shader_global_ubo_data global_ubo_data = {
-				.view = render_data->world_debug_data.view,
-				.projection = render_data->world_debug_data.projection};
-			kshader_set_binding_data(renderer->world_debug_pass.debug_shader, 0, renderer->world_debug_pass.debug_set0_instance_id, 0, 0, &global_ubo_data, sizeof(global_ubo_data));
+			// Global Binding set
 			kshader_apply_binding_set(renderer->world_debug_pass.debug_shader, 0, renderer->world_debug_pass.debug_set0_instance_id);
 
 			for (u32 i = 0; i < render_data->world_debug_data.geometry_count; ++i) {
 				kdebug_geometry_render_data *geo = &render_data->world_debug_data.geometries[i];
 
 				debug_shader_immediate_data immediate_data = {
-					.model = geo->model,
+					.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_VIEW),
+					.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_PROJECTION),
+					.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_TRANSFORM),
+					.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_GENERAL),
+					.view_index = UNPACK_U32_U16_AT(render_data->world_debug_data.view_id, 1),
+					.projection_index = UNPACK_U32_U16_AT(render_data->world_debug_data.projection_id, 1),
+					// Just using the default debug identity matrix since transform doesn't matter here.
+					.model_index = UNPACK_U32_U16_AT(geo->model_id, 1),
 					.colour = geo->colour};
 				kshader_set_immediate_data(renderer->world_debug_pass.debug_shader, &immediate_data, sizeof(immediate_data));
 
@@ -1415,20 +1413,21 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 				kshader_system_use_with_topology(renderer->world_debug_pass.colour_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, VERTEX_LAYOUT_INDEX_STATIC);
 				renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-				// Global UBO data
-				colour_3d_global_ubo global_ubo_data = {
-					.view = render_data->world_debug_data.view,
-					.projection = render_data->world_debug_data.projection};
-				kshader_set_binding_data(renderer->world_debug_pass.colour_shader, 0, renderer->world_debug_pass.colour_set0_instance_id, 0, 0, &global_ubo_data, sizeof(colour_3d_global_ubo));
+				// Global Binding set
 				kshader_apply_binding_set(renderer->world_debug_pass.colour_shader, 0, renderer->world_debug_pass.colour_set0_instance_id);
 
 				kdebug_geometry_render_data *g = &render_data->world_debug_data.grid_geometry;
 
-				// FIXME: Hook up transform ssbo to editor shader
-				mat4 model = mat4_identity();
-
-				colour_3d_immediate_data immediate_data = {.model = model};
-				kshader_set_immediate_data(renderer->world_debug_pass.colour_shader, &immediate_data, sizeof(colour_3d_immediate_data));
+				colour_3d_immediate_data immediate_data = {
+					.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_VIEW),
+					.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_PROJECTION),
+					.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_TRANSFORM),
+					.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(renderer->matrix_system, KMATRIX_TYPE_GENERAL),
+					.view_index = UNPACK_U32_U16_AT(render_data->world_debug_data.view_id, 1),
+					.projection_index = UNPACK_U32_U16_AT(render_data->world_debug_data.projection_id, 1),
+					// Just using the default debug identity matrix since transform doesn't matter here.
+					.model_index = UNPACK_U32_U16_AT(renderer->debug_identity_matrix, 1)};
+				kshader_set_immediate_data(renderer->world_debug_pass.colour_shader, &immediate_data, sizeof(immediate_data));
 
 				// Draw it.
 				b8 includes_index_data = g->geo.index_count > 0;
