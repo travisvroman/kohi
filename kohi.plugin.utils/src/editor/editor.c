@@ -58,13 +58,17 @@
 
 #include <logger.h>
 
-typedef struct editor_gizmo_global_ubo {
-	mat4 projection;
-	mat4 view;
-} editor_gizmo_global_ubo;
-
 typedef struct editor_gizmo_immediate_data {
-	mat4 model;
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
+	// Indices into the matrix SSBO, offset by above types.
+	u32 view_index;
+	u32 projection_index;
+	u32 model_index;
+	u32 padding;
 } editor_gizmo_immediate_data;
 
 typedef struct hf_terrain_material_imagebox_context {
@@ -1218,10 +1222,10 @@ void editor_frame_prepare (struct editor_state *state, frame_data *p_frame_data,
 	gizmo_pass_render_data->do_pass = state->mode == EDITOR_MODE_ENTITY && has_selection && draw_gizmo;
 	if (gizmo_pass_render_data->do_pass) {
 
-		gizmo_pass_render_data->projection = state->gizmo.render_projection;
-		gizmo_pass_render_data->view = kcamera_get_view(state->editor_camera);
+		gizmo_pass_render_data->projection_id = state->gizmo.render_projection_id;
+		gizmo_pass_render_data->view_id = kcamera_get_view_id(state->editor_camera);
 		gizmo_pass_render_data->visible = has_selection;
-		gizmo_pass_render_data->gizmo_transform = state->gizmo.render_model;
+		gizmo_pass_render_data->gizmo_transform_id = state->gizmo.render_model_id;
 
 		kgeometry g = state->gizmo.mode_data[state->gizmo.mode].geo;
 		kdebug_geometry_render_data *geo_rd = &gizmo_pass_render_data->geometry;
@@ -1286,16 +1290,19 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 			kshader_system_use_with_topology(state->editor_gizmo_pass.gizmo_shader, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT, 0);
 			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-			// Global UBO data
-			editor_gizmo_global_ubo global_ubo_data = {
-				.view = render_data->view,
-				.projection = render_data->projection};
-			kshader_set_binding_data(state->editor_gizmo_pass.gizmo_shader, 0, state->editor_gizmo_pass.set0_instance_id, 0, 0, &global_ubo_data, sizeof(editor_gizmo_global_ubo));
+			// Global binding set
 			kshader_apply_binding_set(state->editor_gizmo_pass.gizmo_shader, 0, state->editor_gizmo_pass.set0_instance_id);
 
 			kdebug_geometry_render_data *g = &render_data->geometry;
 
-			editor_gizmo_immediate_data immediate_data = {.model = render_data->gizmo_transform};
+			editor_gizmo_immediate_data immediate_data = {
+				.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+				.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+				.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+				.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+				.view_index = UNPACK_U32_U16_AT(render_data->view_id, 1),
+				.projection_index = UNPACK_U32_U16_AT(render_data->projection_id, 1),
+				.model_index = UNPACK_U32_U16_AT(render_data->gizmo_transform_id, 1)};
 			kshader_set_immediate_data(state->editor_gizmo_pass.gizmo_shader, &immediate_data, sizeof(editor_gizmo_immediate_data));
 
 			// Draw it.
@@ -2027,6 +2034,7 @@ static b8 editor_on_mouse_move (u16 code, void *sender, void *listener_inst, eve
 		mat4 projection = kcamera_get_projection(state->editor_camera);
 
 		ray r = ray_from_screen((vec2i){x, y}, vp_rect, origin, view, projection);
+		KTRACE("r direction = %V3.3f", &r.direction);
 
 		hf_block block;
 		hf_chunk chunk;

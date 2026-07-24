@@ -3347,6 +3347,11 @@ static void map_model_entity_geometries (kscene *scene, kentity entity) {
 #if KOHI_DEBUG
 	vec3 center = extents_3d_center(base->extents);
 
+	// LEFTOFF: When the mesh loads, the BVH is not updated with the new extents of the model.
+	// Therefore the root is pretty small and is almost never detected by raycasts in the bvh traversal.
+	// Ideally this function should update the size of its bvh node, and that should propagate upward.
+	recalculate_transforms(scene, KNULL, entity);
+
 	// Debug data can be created at this point.
 	vec3 size = size_from_extents_3d(base->extents);
 	create_debug_data(

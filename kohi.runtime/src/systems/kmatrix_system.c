@@ -3,6 +3,7 @@
 #include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
+#include "math/kmath.h"
 #include "memory/kmemory.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -130,6 +131,24 @@ void kmatrix_system_remove (struct kmatrix_system_state *state, kmatrix_id *id) 
 
 		*id = KMATRIX_INVALID;
 	}
+}
+
+mat4 kmatrix_system_get_by_id (struct kmatrix_system_state *state, kmatrix_id id) {
+	if (id != KMATRIX_INVALID) {
+		kmatrix_type type;
+		u16 index;
+
+		UNPACK_U32_U16S(id, type, index);
+
+		typed_matrix_table *table = &state->tables[type];
+		if (FLAG_GET(table->flags[index], KMATRIX_TABLE_FLAG_OCCUPIED_BIT)) {
+			return table->matrices[index];
+		} else {
+			KWARN("%s() - Attempted to get a matrix in a slot not marked as occupied. This likely means the handle is stale. Nothing to do.", __FUNCTION__);
+		}
+	}
+
+	return mat4_identity();
 }
 
 b8 kmatrix_system_update_by_id (struct kmatrix_system_state *state, kmatrix_id id, mat4 m) {

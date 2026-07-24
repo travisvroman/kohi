@@ -46,6 +46,8 @@ KAPI kmatrix_id kmatrix_system_add (struct kmatrix_system_state *state, kmatrix_
 // Invalidates the provided id.
 KAPI void kmatrix_system_remove (struct kmatrix_system_state *state, kmatrix_id *id);
 
+KAPI mat4 kmatrix_system_get_by_id (struct kmatrix_system_state *state, kmatrix_id id);
+
 // Update the value of a single matrix.
 KAPI b8 kmatrix_system_update_by_id (struct kmatrix_system_state *state, kmatrix_id id, mat4 m);
 

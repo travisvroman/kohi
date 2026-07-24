@@ -26,14 +26,14 @@
 #include "editor/editor_gizmo.h"
 
 typedef struct keditor_gizmo_pass_render_data {
-	mat4 projection;
-	mat4 view;
+	kmatrix_id projection_id;
+	kmatrix_id view_id;
 
 	b8 visible;
 
 	kdebug_geometry_render_data geometry;
 
-	mat4 gizmo_transform;
+	kmatrix_id gizmo_transform_id;
 
 	b8 do_pass;
 } keditor_gizmo_pass_render_data;

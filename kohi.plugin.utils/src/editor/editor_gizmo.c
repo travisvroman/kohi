@@ -19,7 +19,9 @@
 #include <systems/ktransform_system.h>
 #include <utils/kcolour.h>
 
+#include "core/engine.h"
 #include "systems/kcamera_system.h"
+#include "systems/kmatrix_system.h"
 
 static void create_gizmo_mode_none (editor_gizmo *gizmo);
 static void create_gizmo_mode_move (editor_gizmo *gizmo);
@@ -55,6 +57,9 @@ b8 editor_gizmo_create (editor_gizmo *out_gizmo) {
 		out_gizmo->mode_data[i].index_count = 0;
 		out_gizmo->mode_data[i].indices = 0;
 	}
+
+	out_gizmo->render_projection_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
+	out_gizmo->render_model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
 
 	return true;
 }
@@ -264,7 +269,7 @@ void editor_gizmo_update (editor_gizmo *gizmo, kcamera camera) {
 		f32 dist = vec3_distance(cam_pos, gizmo_pos);
 		rect_2di vp_rect = kcamera_get_vp_rect(camera);
 
-		gizmo->render_projection =
+		mat4 proj =
 			(gizmo->mode == EDITOR_GIZMO_MODE_ROTATE)
 				// Setting the far clip to just beyond the gizmo distance from the camera "hides" the
 				// backward parts of the loops in the rotation mode, making it far less confusing to look at.
@@ -272,16 +277,19 @@ void editor_gizmo_update (editor_gizmo *gizmo, kcamera camera) {
 				// Otherwise just use the projection as normal.
 				: kcamera_get_projection(camera);
 
-		gizmo->render_projection = kcamera_get_projection(camera);
+		/* proj = kcamera_get_projection(camera); */
+
+		kmatrix_system_update_by_id(engine_systems_get()->matrix_system, gizmo->render_projection_id, proj);
 
 		// Calculate the gizmo's world/model matrix
-		f32 proj_scale = gizmo->render_projection.data[5];
+		f32 proj_scale = proj.data[5];
 		f32 desired_pixels = 200;
 		gizmo->world_scale = (dist * desired_pixels) / (proj_scale * vp_rect.height);
 
 		vec3 gizmo_scale = vec3_from_scalar(gizmo->world_scale);
 
-		gizmo->render_model = mat4_from_translation_rotation_scale(gizmo_pos, gizmo_rot, gizmo_scale);
+		mat4 model = mat4_from_translation_rotation_scale(gizmo_pos, gizmo_rot, gizmo_scale);
+		kmatrix_system_update_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id, model);
 	}
 }
 
@@ -854,7 +862,7 @@ void editor_gizmo_handle_interaction (editor_gizmo *gizmo, kcamera camera, struc
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo->render_model);
+			mat4 inv = mat4_inverse(kmatrix_system_get_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id));
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -980,7 +988,7 @@ void editor_gizmo_handle_interaction (editor_gizmo *gizmo, kcamera camera, struc
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo->render_model);
+			mat4 inv = mat4_inverse(kmatrix_system_get_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id));
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -1061,7 +1069,7 @@ void editor_gizmo_handle_interaction (editor_gizmo *gizmo, kcamera camera, struc
 			vec3 point;
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 transform = gizmo->render_model;
+			mat4 transform = kmatrix_system_get_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id);
 			vec3 center = mat4_position(transform);
 			quat q = ktransform_rotation_get(gizmo->selected_transform);
 			q = quat_normalize(q);
