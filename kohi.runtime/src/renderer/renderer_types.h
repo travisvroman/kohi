@@ -852,25 +852,32 @@ typedef struct renderer_backend_interface {
 #endif
 } renderer_backend_interface;
 
-/** @brief Structure representing the global UBO for the included colour3d shader. */
-typedef struct colour_3d_global_ubo {
-	mat4 projection;
-	mat4 view;
-} colour_3d_global_ubo;
-
 /** @brief Structure representing the immediate data for the included colour3d shader. */
 typedef struct colour_3d_immediate_data {
-	mat4 model;
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
+	// Indices into the matrix SSBO, offset by above types.
+	u32 view_index;
+	u32 projection_index;
+	u32 model_index;
+	u32 padding;
 } colour_3d_immediate_data;
-
-/** @brief Structure representing the global UBO data for the included debug shader. */
-typedef struct debug_shader_global_ubo_data {
-	mat4 projection;
-	mat4 view;
-} debug_shader_global_ubo_data;
 
 /** @brief Structure representing the immediate data for the included debug shader. */
 typedef struct debug_shader_immediate_data {
-	mat4 model;
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
+	// Indices into the matrix SSBO, offset by above types.
+	u32 view_index;
+	u32 projection_index;
+	u32 model_index;
+	u32 padding;
+	// The colour to draw everything.
 	vec4 colour;
 } debug_shader_immediate_data;

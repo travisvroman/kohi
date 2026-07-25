@@ -4,6 +4,7 @@
 #include "kui_types.h"
 #include "math/geometry.h"
 #include "math/math_types.h"
+#include "systems/kmatrix_system.h"
 #include "systems/texture_system.h"
 #include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
@@ -14,25 +15,25 @@
 #include <world/world_types.h>
 
 #define EDITOR_AXIS_COLOUR_R \
-	(colour4) { 1.0f, 0.5f, 0.5f, 1.0f }
+	(colour4){1.0f, 0.5f, 0.5f, 1.0f}
 #define EDITOR_AXIS_COLOUR_G \
-	(colour4) { 0.5f, 1.0f, 0.5f, 1.0f }
+	(colour4){0.5f, 1.0f, 0.5f, 1.0f}
 #define EDITOR_AXIS_COLOUR_B \
-	(colour4) { 0.5f, 0.5f, 1.0f, 1.0f }
+	(colour4){0.5f, 0.5f, 1.0f, 1.0f}
 
 #define EDITOR_HFT_PAINT_BRUSH_MAX_SIZE 64
 
 #include "editor/editor_gizmo.h"
 
 typedef struct keditor_gizmo_pass_render_data {
-	mat4 projection;
-	mat4 view;
+	kmatrix_id projection_id;
+	kmatrix_id view_id;
 
 	b8 visible;
 
 	kdebug_geometry_render_data geometry;
 
-	mat4 gizmo_transform;
+	kmatrix_id gizmo_transform_id;
 
 	b8 do_pass;
 } keditor_gizmo_pass_render_data;
@@ -114,6 +115,9 @@ typedef struct editor_state {
 	// Darray of selected entities.
 	kentity *selection_list;
 	keymap editor_keymap;
+
+	struct kmatrix_system_state *matrix_system;
+	kmatrix_id default_identity_matrix_id;
 
 	b8 is_running;
 

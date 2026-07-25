@@ -7,8 +7,6 @@
 #include "systems/kmaterial_system.h"
 #include "utils/kcolour.h"
 
-#define KMATERIAL_UBO_MAX_VIEWS 16
-#define KMATERIAL_UBO_MAX_PROJECTIONS 4
 #define KMATERIAL_UBO_MAX_SHADOW_CASCADES 4
 
 #define KRENDERBUFFER_NAME_MATERIALS_GLOBAL "Kohi.StorageBuffer.MaterialsGlobal"
@@ -55,17 +53,9 @@ typedef struct base_material_shader_data {
 	f32 emissive_texture_intensity;
 } base_material_shader_data;
 
-// LEFTOFF: Integrate the above into a "global material SSBO" and use with the
-// renderer. Then combine all material types into a single shader. Then use that
-// shader, with this SSBO, to render.
-// Note that the vertex shader for animated/skinned meshes will have to differ though.
-//
-
 typedef struct kmaterial_settings_ubo {
-	mat4 views[KMATERIAL_UBO_MAX_VIEWS];							  // indexed by immediate.view_index
-	mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS];				  // indexed by immediate.projection_index
 	mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-	vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS];					  // indexed by immediate.view_index
+
 	// Light space for shadow mapping. Per cascade
 	vec4 cascade_splits; // 16 bytes
 
@@ -85,6 +75,12 @@ typedef struct kmaterial_settings_ubo {
 	f32 fog_start;
 	f32 fog_end;
 	vec2 padding; // TODO: available
+
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
 } kmaterial_settings_ubo;
 
 typedef enum kmaterial_data_index {

@@ -22,11 +22,7 @@ struct light_data {
 
 // Global settings for the scene.
 layout(std140, set = 0, binding = 0) uniform terrain_settings_ubo {
-    mat4 views[KMATERIAL_UBO_MAX_VIEWS];
-    mat4 projection;
-
     mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by in_dto.view_index
     vec4 cascade_splits;                                         // 16 bytes
 
     float delta_time;
@@ -43,24 +39,35 @@ layout(std140, set = 0, binding = 0) uniform terrain_settings_ubo {
     vec4 fog_colour;
     float fog_start;
     float fog_end;
-    vec2 padding;
+    float near_clip;
+
+    float far_clip;
+	// Offsets into the matrix SSBO per type.
+	uint mat_ssbo_view_offset;
+	uint mat_ssbo_proj_offset;
+	uint padding;
 } global_settings;
 
+// All matrices
+layout(std430, set = 0, binding = 1) readonly buffer global_matrix_ssbo {
+	mat4 matrices[]; // indexed by immediate.transform_index
+} global_matrices;
+
 // All lighting
-layout(std430, set = 0, binding = 1) readonly buffer global_lighting_ssbo {
+layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
     light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
 } global_lighting;
 
-layout(set = 0, binding = 2) uniform texture2DArray shadow_texture;
-layout(set = 0, binding = 3) uniform sampler shadow_sampler;
-layout(set = 0, binding = 4) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
-layout(set = 0, binding = 5) uniform sampler irradiance_sampler;
-layout(set = 0, binding = 6) uniform texture2DArray albedo_textures;
-layout(set = 0, binding = 7) uniform sampler albedo_sampler;
-layout(set = 0, binding = 8) uniform texture2DArray normal_textures;
-layout(set = 0, binding = 9) uniform sampler normal_sampler;
-layout(set = 0, binding = 10) uniform texture2DArray mra_textures;
-layout(set = 0, binding = 11) uniform sampler mra_sampler;
+layout(set = 0, binding = 3) uniform texture2DArray shadow_texture;
+layout(set = 0, binding = 4) uniform sampler shadow_sampler;
+layout(set = 0, binding = 5) uniform textureCube irradiance_textures[MATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT];
+layout(set = 0, binding = 6) uniform sampler irradiance_sampler;
+layout(set = 0, binding = 7) uniform texture2DArray albedo_textures;
+layout(set = 0, binding = 8) uniform sampler albedo_sampler;
+layout(set = 0, binding = 9) uniform texture2DArray normal_textures;
+layout(set = 0, binding = 10) uniform sampler normal_sampler;
+layout(set = 0, binding = 11) uniform texture2DArray mra_textures;
+layout(set = 0, binding = 12) uniform sampler mra_sampler;
 
 // Set 1, per-block
 layout(set = 1, binding = 0) uniform texture2D splatmap_texture;
@@ -116,8 +123,10 @@ void unpack_u32_u8s(uint n, out uint x, out uint y, out uint z, out uint w);
 void unpack_u32_u16s(uint n, out uint x, out uint y);
 
 void main() {
-    mat4 view = global_settings.views[immediate.view_index];
-    vec3 view_position = global_settings.view_positions[immediate.view_index].xyz;
+	mat4 view = global_matrices.matrices[global_settings.mat_ssbo_view_offset + immediate.view_index];
+	mat4 inv_view = inverse(view);
+	vec3 view_position = vec3(inv_view[3]);
+
     vec3 normal= in_dto.normal;
     vec3 tangent = in_dto.tangent.xyz;
     vec2 tex_coord = in_dto.tex_coord;

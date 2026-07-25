@@ -7,6 +7,9 @@ Changelog
   - Added vector hypot() functions.
   - Fixed naming issue with darray pop function.
   - Fixed key input modifier bug where modifiers (ctrl, shift, etc.) weren't being taken into account for key mappings.
+  - Added kmatrix system, which manages matrices in a global SSBO on the GPU. The transform system registers its world matrices with this system.
+  - Updated various shaders to pull transforms, projection, and view matrices from the new global matrix SSBO.
+  - Fixed several issues around raycasting and the bounding volume hierarchy (BVH).
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.

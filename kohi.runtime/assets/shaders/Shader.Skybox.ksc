@@ -55,26 +55,25 @@ pipelines = [
 	}
 ]
 binding_sets = [
-    {
-        name = "skybox global set"
-        max_instance_count = 1
-        bindings = [
-            {
-                type = "ubo"
-                name = "skybox global ubo"
-                data_size = 1104
-            }
-            {
-                type = "texture"
-                name = "skybox_cubemap_texture"
-                texture_type = "cube"
-            }
-            {
-                type = "sampler"
-                name = "skybox_cubemap_sampler"
-                sampler_type = "cube"
-            }
-        ]
-    }
+	{
+		name = "skybox global set"
+		max_instance_count = 1
+		bindings = [
+			{
+				name = "Kohi.StorageBuffer.MatrixGlobal"
+				type = "storage"
+			}
+			{
+				type = "texture"
+				name = "skybox_cubemap_texture"
+				texture_type = "cube"
+			}
+			{
+				type = "sampler"
+				name = "skybox_cubemap_sampler"
+				sampler_type = "cube"
+			}
+		]
+	}
 ]
 

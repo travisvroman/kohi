@@ -16,6 +16,7 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/kmaterial_system.h"
+#include "systems/kmatrix_system.h"
 #include "systems/kmodel_system.h"
 #include "systems/kshader_system.h"
 #include "systems/ktransform_system.h"
@@ -198,14 +199,14 @@ b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_materia
 
 		u8 bidx = 0;
 		set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_UBO;
-		set_0->bindings[bidx].name = kname_create("material global_ubo_data");
+		set_0->bindings[bidx].name = kname_create("material_global_ubo_data");
 		set_0->bindings[bidx].data_size = sizeof(kmaterial_settings_ubo);
 		set_0->bindings[bidx].offset = 0;
 		set_0->ubo_index = 0;
 		bidx++;
 
 		set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
-		set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL);
+		set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_MATRIX_GLOBAL);
 		set_0->ssbo_count++;
 		bidx++;
 
@@ -439,6 +440,13 @@ void kmaterial_renderer_apply_globals (kmaterial_renderer *state) {
 		// NOTE: texture flags get set during binding phase below.
 		dest->tex_flags = 0;
 	}
+
+	// Ensure the matrix ssbo offsets are up to date.
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+	state->settings.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_VIEW);
+	state->settings.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_PROJECTION);
+	state->settings.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_TRANSFORM);
+	state->settings.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_GENERAL);
 
 	// Set standard shader UBO globals
 	{

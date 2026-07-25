@@ -2691,10 +2691,14 @@ b8 vulkan_renderer_shader_create (
 		} // end pipeline setup
 	}
 
-	// Uniform buffers, one per buffered image (i.e. triple-buffered = 3).
-	const char *buffer_name = string_format("renderbuffer_uniform_%s", kname_string_get(internal_shader->name));
-	internal_shader->uniform_buffer = renderer_renderbuffer_create(backend->frontend_state, kname_create(buffer_name), RENDERBUFFER_TYPE_UNIFORM, total_uniform_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
-	string_free(buffer_name);
+	// Uniform buffers, one per buffered image (i.e. triple-buffered = 3). Only create if needed, though.
+	if (total_uniform_buffer_size) {
+		const char *buffer_name = string_format("renderbuffer_uniform_%s", kname_string_get(internal_shader->name));
+		internal_shader->uniform_buffer = renderer_renderbuffer_create(backend->frontend_state, kname_create(buffer_name), RENDERBUFFER_TYPE_UNIFORM, total_uniform_buffer_size, RENDERBUFFER_TRACK_TYPE_FREELIST, RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
+		string_free(buffer_name);
+	} else {
+		internal_shader->uniform_buffer = KRENDERBUFFER_INVALID;
+	}
 
 	return true;
 }
@@ -2774,8 +2778,10 @@ void vulkan_renderer_shader_destroy (renderer_backend_interface *backend, kshade
 		}
 
 		// Uniform buffer.
-		renderer_renderbuffer_destroy(backend->frontend_state, internal_shader->uniform_buffer);
-		internal_shader->uniform_buffer = KRENDERBUFFER_INVALID;
+		if (internal_shader->uniform_buffer != KRENDERBUFFER_INVALID) {
+			renderer_renderbuffer_destroy(backend->frontend_state, internal_shader->uniform_buffer);
+			internal_shader->uniform_buffer = KRENDERBUFFER_INVALID;
+		}
 
 		// Vertex layout pipelines
 		for (u8 pi = 0; pi < internal_shader->vertex_layout_pipeline_count; ++pi) {
@@ -3964,8 +3970,6 @@ void vulkan_renderer_debug_pump_brakes (renderer_backend_interface *backend) {
 	vulkan_context *context = backend->internal_context;
 	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
 
-	// HACK: Brute force
-	// nocheckin
 	context->rhi.kvkCmdPipelineBarrier(
 		command_buffer->handle,
 		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,

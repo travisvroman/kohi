@@ -1,6 +1,7 @@
 #ifndef _ktransform_SYSTEM_H_
 #define _ktransform_SYSTEM_H_
 
+#include "systems/kmatrix_system.h"
 #include <core_resource_types.h>
 #include <math/math_types.h>
 
@@ -13,7 +14,7 @@ typedef struct ktransform_system_config {
 
 struct ktransform_system_state;
 
-#define KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL "Kohi.StorageBuffer.TransformsGlobal"
+#define KRENDERBUFFER_NAME_MATRIX_GLOBAL "Kohi.StorageBuffer.MatrixGlobal"
 
 b8 ktransform_system_initialize (u64 *memory_requirement, void *state, void *config);
 
@@ -105,6 +106,14 @@ KAPI ktransform ktransform_from_matrix (mat4 m, u64 user);
  * @param t A pointer to a handle to the transform to be destroyed. The handle itself is also invalidated.
  */
 KAPI void ktransform_destroy (ktransform *t);
+
+/**
+ * @brief Returns the kmatrix_id for the given transform.
+ * 
+ * @param t The transform to get the kmatrix_id for.
+ * @return The kmatrix_id of the transform, or KMATRIX_INVALID if it does not exist.
+ */
+KAPI kmatrix_id ktransform_kmatrixid_get (ktransform t);
 
 /**
  * @brief Indicates if the provided transform is an identity transform (i.e. zero position, identity rotation, one-scale).

@@ -39,6 +39,7 @@
 #include "systems/job_system.h"
 #include "systems/kcamera_system.h"
 #include "systems/kmaterial_system.h"
+#include "systems/kmatrix_system.h"
 #include "systems/kmodel_system.h"
 #include "systems/kshader_system.h"
 #include "systems/ktimeline_system.h"
@@ -545,6 +546,17 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		}
 	}
 
+	// matrix
+	{
+		kmatrix_system_config matrix_system_config = {.max_matrix_count = 16384};
+		kmatrix_system_initialize(&systems->kmatrix_system_memory_requirement, KNULL, &matrix_system_config);
+		systems->matrix_system = kallocate(systems->kmatrix_system_memory_requirement, MEMORY_TAG_ENGINE);
+		if (!kmatrix_system_initialize(&systems->kmatrix_system_memory_requirement, systems->matrix_system, &matrix_system_config)) {
+			KERROR("Failed to intialize kmatrix system.");
+			return false;
+		}
+	}
+
 	// ktransform
 	{
 		ktransform_system_config ktransform_sys_config = {0};
@@ -860,6 +872,7 @@ b8 engine_run (application *app) {
 			// Update the transform system _after_ the application so we are sure all transform updates that
 			// need to occur have happened.
 			ktransform_system_update(engine_state->systems.ktransform_system, &engine_state->p_frame_data);
+			kmatrix_system_update(engine_state->systems.matrix_system, &engine_state->p_frame_data);
 			light_system_frame_prepare(engine_state->systems.light_system, &engine_state->p_frame_data);
 			kmodel_system_frame_prepare(engine_state->systems.model_system, &engine_state->p_frame_data);
 
@@ -985,11 +998,13 @@ b8 engine_run (application *app) {
 		font_system_shutdown(systems->font_system);
 		texture_system_shutdown(systems->texture_system);
 		ktimeline_system_shutdown(systems->timeline_system);
-		ktransform_system_shutdown(systems->ktransform_system);
 		kaudio_system_shutdown(systems->audio_system);
 		// Shutdown plugins, but not the system yet in case plugins which do not
 		// "auto-unload" rely on the state still existing.
 		plugin_system_shutdown_all_plugins(systems->plugin_system);
+
+		ktransform_system_shutdown(systems->ktransform_system);
+		kmatrix_system_shutdown(systems->matrix_system);
 		kshader_system_shutdown(systems->shader_system);
 		renderer_system_shutdown(systems->renderer_system);
 		job_system_shutdown(systems->job_system);

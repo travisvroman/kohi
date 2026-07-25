@@ -6,6 +6,7 @@
 #include <systems/kcamera_system.h>
 
 #include "core_resource_types.h"
+#include "systems/kmatrix_system.h"
 
 #if KOHI_DEBUG
 #	include <resources/debug/debug_line3d.h>
@@ -98,10 +99,10 @@ typedef struct editor_gizmo {
 	b8 is_dirty;
 
 	// Gizmo world matrix (use for model matrix)
-	mat4 render_model;
+	kmatrix_id render_model_id;
 	f32 world_scale;
 
-	mat4 render_projection;
+	kmatrix_id render_projection_id;
 
 #if KOHI_DEBUG
 	debug_line3d plane_normal_line;

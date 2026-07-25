@@ -102,6 +102,7 @@ KAPI hf_terrain *kscene_hf_terrain_get (struct kscene *scene);
  *
  */
 KAPI b8 kscene_hf_terrain_get_height_at (struct kscene *scene, f32 world_x, f32 world_z, vec3 *out_pos, vec3 *out_normal);
+KAPI b8 kscene_hf_terrain_get_height_at_fast (struct kscene *scene, f32 world_x, f32 world_z, f32 *out_height);
 
 KAPI kentity kscene_get_entity_by_name (struct kscene *scene, kname name);
 

@@ -63,8 +63,12 @@ binding_sets = [
 			{
 				type = "ubo"
 				name = "terrain global_ubo_data"
-				data_size = 1680
+				data_size = 336
 				offset = 0
+			}
+			{
+				name = "Kohi.StorageBuffer.MatrixGlobal"
+				type = "storage"
 			}
 			{
 				type = "storage"

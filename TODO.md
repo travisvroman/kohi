@@ -4,16 +4,10 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.13.0 Release
 
-- [ ] Stability pass
-  - [ ] Ensure both debug AND release builds work as expected.
-  - [ ] Address sanitizer bug resolution, etc.
-- [ ] Nav meshes
-  - [ ] Nav mesh system - hold/manage nav meshes. Also responsible for the debug rendering of nav meshes.
-    - [ ] Creation of nav mesh based on node name within a model (i.e. a mesh named "navmesh-xx" would be used to create a navmesh, and not be rendered)
-  - [ ] Entity type
-  - [ ] Debug renderer to show nav meshes (instead of just rendering a mesh) - include ability to turn off depth
-  - [ ] Ability to retrieve nav meshes from scene.
-  - [ ] Ability to snap to nav mesh given a point in 3d space (i.e spawn points).
+- [ ] Collision meshes
+  - [ ] Collision meshes will be handled exclusively by the scene. They can be added explicitly via scene config or extracted from mesh data by name (i.e. something named "col-xyz" will cause it to be used as a collision mesh).
+  - [ ] Debug renderer to show collision meshes (instead of just rendering a mesh) - include ability to turn off depth
+  - [ ] Ability to retrieve collision meshes from scene (as a list and individually by name).
 - [ ] UI Controls:
   - [ ] Dropdown with variable content (text, text/image, image)
   - [ ] Windows with standard min/max/close controls, titlebar, resizing
@@ -34,6 +28,9 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Emissive
 - [ ] Asset manifest
   - [ ] Add property bag for "metadata". Property bag should have a few basic types like KSON has, but be accessible by kstring_ids.
+- [ ] Stability pass
+  - [ ] Ensure both debug AND release builds work as expected.
+  - [ ] Address sanitizer bug resolution, etc.
 
 ## 0.14.0 Release
 

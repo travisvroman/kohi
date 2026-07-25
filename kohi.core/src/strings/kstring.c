@@ -2197,5 +2197,8 @@ kstring kstring_substr (kstring string, u32 start, u32 length) {
 }
 
 kstring kstring_format (const char *fmt, ...) {
+	kstring out_str = kstring_create();
+	KFATAL("Not implemented.");
 	// LEFTOFF: kstring format function
+	return out_str;
 }

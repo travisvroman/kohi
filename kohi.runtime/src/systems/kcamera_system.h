@@ -15,6 +15,7 @@
 
 #include "defines.h"
 #include "math/math_types.h"
+#include "systems/kmatrix_system.h"
 
 /** @brief The camera system configuration. */
 typedef struct kcamera_system_config {
@@ -107,6 +108,10 @@ KAPI mat4 kcamera_get_view (kcamera camera);
 KAPI mat4 kcamera_get_transform (kcamera camera);
 KAPI mat4 kcamera_get_projection (kcamera camera);
 KAPI mat4 kcamera_get_projection_far_clipped (kcamera camera, f32 far);
+
+KAPI kmatrix_id kcamera_get_view_id (kcamera camera);
+KAPI kmatrix_id kcamera_get_transform_id (kcamera camera);
+KAPI kmatrix_id kcamera_get_projection_id (kcamera camera);
 
 /**
  * @brief Returns a copy of the camera's forward vector.

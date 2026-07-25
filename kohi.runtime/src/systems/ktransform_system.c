@@ -15,6 +15,7 @@
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "strings/kstring.h"
+#include "systems/kmatrix_system.h"
 #include "utils/ksort.h"
 
 typedef enum ktransform_flags {
@@ -53,6 +54,9 @@ typedef struct ktransform_system_state {
 	/** @brief The depth of the transform in the hierarchy. Used for efficient recalculation of transforms. */
 	u8 *depths;
 
+	/** @brief Matrix ids from the matrix system, which facilitates SSBO upload. */
+	kmatrix_id *matrix_ids;
+
 	/** @brief A list of handle ids that represent dirty local ktransforms. */
 	ktransform *local_dirty_handles;
 	u32 local_dirty_count;
@@ -62,9 +66,6 @@ typedef struct ktransform_system_state {
 
 	/** The number of currently-used slots (NOT the allocated space in bytes!) */
 	u32 allocated;
-
-	/** globally-accessible renderbuffer that holds transforms. */
-	krenderbuffer transform_global_ssbo;
 } ktransform_system_state;
 
 /**
@@ -114,11 +115,11 @@ b8 ktransform_system_initialize (u64 *memory_requirement, void *state, void *con
 
 	dirty_list_reset(state);
 
-	// Global transform storage buffer
+	/* // Global transform storage buffer
 	u64 buffer_size = sizeof(mat4) * 16384; // TODO: configurable?
 	typed_state->transform_global_ssbo = renderer_renderbuffer_create(engine_systems_get()->renderer_system, kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL), RENDERBUFFER_TYPE_STORAGE, buffer_size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_AUTO_MAP_MEMORY_BIT | RENDERBUFFER_FLAG_TRIPLE_BUFFERED_BIT);
 	KASSERT(typed_state->transform_global_ssbo != KRENDERBUFFER_INVALID);
-	KDEBUG("Created transforms global storage buffer.");
+	KDEBUG("Created transforms global storage buffer."); */
 
 	KASSERT(console_command_register("transform_system_dump", 0, 0, typed_state, on_transform_dump));
 
@@ -129,39 +130,51 @@ void ktransform_system_shutdown (void *state) {
 	if (state) {
 		ktransform_system_state *typed_state = state;
 
-		renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, typed_state->transform_global_ssbo);
+		/* renderer_renderbuffer_destroy(engine_systems_get()->renderer_system, typed_state->transform_global_ssbo); */
 
 		if (typed_state->local_matrices) {
 			kfree_aligned(typed_state->local_matrices);
-			typed_state->local_matrices = 0;
+			typed_state->local_matrices = KNULL;
 		}
 		if (typed_state->world_matrices) {
 			kfree_aligned(typed_state->world_matrices);
-			typed_state->world_matrices = 0;
+			typed_state->world_matrices = KNULL;
 		}
 		if (typed_state->positions) {
 			kfree_aligned(typed_state->positions);
-			typed_state->positions = 0;
+			typed_state->positions = KNULL;
 		}
 		if (typed_state->rotations) {
 			kfree_aligned(typed_state->rotations);
-			typed_state->rotations = 0;
+			typed_state->rotations = KNULL;
 		}
 		if (typed_state->scales) {
 			kfree_aligned(typed_state->scales);
-			typed_state->scales = 0;
+			typed_state->scales = KNULL;
 		}
 		if (typed_state->flags) {
 			kfree_aligned(typed_state->flags);
-			typed_state->flags = 0;
+			typed_state->flags = KNULL;
 		}
 		if (typed_state->user) {
 			kfree_aligned(typed_state->user);
-			typed_state->user = 0;
+			typed_state->user = KNULL;
+		}
+		if (typed_state->parents) {
+			kfree_aligned(typed_state->parents);
+			typed_state->parents = KNULL;
+		}
+		if (typed_state->depths) {
+			kfree_aligned(typed_state->depths);
+			typed_state->depths = KNULL;
+		}
+		if (typed_state->matrix_ids) {
+			kfree_aligned(typed_state->matrix_ids);
+			typed_state->matrix_ids = KNULL;
 		}
 		if (typed_state->local_dirty_handles) {
 			kfree_aligned(typed_state->local_dirty_handles);
-			typed_state->local_dirty_handles = 0;
+			typed_state->local_dirty_handles = KNULL;
 		}
 	}
 }
@@ -189,22 +202,29 @@ static i32 transform_depth_kquicksort_compare_desc (void *a, void *b) {
 }
 
 b8 ktransform_system_update (ktransform_system_state *state, struct frame_data *p_frame_data) {
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+
 	// Sort the dirty list by depth.
 	kquick_sort(sizeof(ktransform), state->local_dirty_handles, 0, state->local_dirty_count - 1, transform_depth_kquicksort_compare);
 
 	// Update dirty transforms top-down according to depth.
 	for (u32 i = 0; i < state->local_dirty_count; ++i) {
-		recalculate_world_r(state->local_dirty_handles[i]);
+		ktransform t = state->local_dirty_handles[i];
+		recalculate_world_r(t);
+
+		// Ensure the matrix system knows about the update.
+		if (state->matrix_ids[t] != KMATRIX_INVALID) {
+			kmatrix_system_update_by_id(matrix_system, state->matrix_ids[t], state->world_matrices[t]);
+		}
 	}
 
 	// Clear the dirty list.
 	dirty_list_reset(state);
 
-	// Update the data in the SSBO.
-	void *mapped_memory = renderer_renderbuffer_get_mapped_memory(engine_systems_get()->renderer_system, state->transform_global_ssbo);
-	mat4 *mapped_transforms = (mat4 *)mapped_memory;
-
-	kcopy_memory(mapped_transforms, state->world_matrices, sizeof(mat4) * state->capacity);
+	// Tell the matrix system about it.
+	// FIXME: Updating this way won't work because the world_matrices array is indexed by transform id,
+	// not matrix_id->index.
+	/* kmatrix_system_bulk_update_transforms(matrix_system, state->world_matrices); */
 
 	return true;
 }
@@ -356,6 +376,10 @@ ktransform ktransform_from_matrix (mat4 m, u64 user) {
 
 void ktransform_destroy (ktransform *t) {
 	handle_destroy(engine_systems_get()->ktransform_system, t);
+}
+
+kmatrix_id ktransform_kmatrixid_get (ktransform t) {
+	return engine_systems_get()->ktransform_system->matrix_ids[t];
 }
 
 b8 ktransform_is_identity (ktransform t) {
@@ -830,6 +854,14 @@ static void ensure_allocated (ktransform_system_state *state, u32 slot_count) {
 		}
 		state->depths = new_depth;
 
+		// Matrix ids
+		kmatrix_id *new_matrix_ids = kallocate_aligned(sizeof(kmatrix_id) * slot_count, 16, MEMORY_TAG_TRANSFORM);
+		if (state->matrix_ids) {
+			kcopy_memory(new_matrix_ids, state->matrix_ids, sizeof(kmatrix_id) * state->capacity);
+			kfree_aligned(state->matrix_ids);
+		}
+		state->matrix_ids = new_matrix_ids;
+
 		// Dirty handle list doesn't *need* to be aligned, but do it anyways since everything else is.
 		u32 *new_dirty_handles = kallocate_aligned(sizeof(ktransform) * slot_count, 16, MEMORY_TAG_TRANSFORM);
 		if (state->local_dirty_handles) {
@@ -887,6 +919,7 @@ static ktransform handle_create (ktransform_system_state *state) {
 			// Ensure the parent is invalid.
 			state->parents[i] = KTRANSFORM_INVALID;
 			state->depths[i] = 0;
+			state->matrix_ids[i] = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, state->world_matrices[i]);
 			state->allocated++;
 			return i;
 		}
@@ -899,6 +932,8 @@ static ktransform handle_create (ktransform_system_state *state) {
 	// Ensure the parent is invalid.
 	state->parents[handle] = KTRANSFORM_INVALID;
 	state->depths[handle] = 0;
+	// Tell the matrix system about it.
+	state->matrix_ids[handle] = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, state->world_matrices[handle]);
 	state->allocated++;
 	return handle;
 }
@@ -916,6 +951,8 @@ static void handle_destroy (ktransform_system_state *state, ktransform *t) {
 		if (state->parents) {
 			state->parents[*t] = KTRANSFORM_INVALID;
 		}
+		// Unregister from the matrix system.
+		kmatrix_system_remove(engine_systems_get()->matrix_system, &state->matrix_ids[*t]);
 		state->allocated--;
 		*t = KTRANSFORM_INVALID;
 	}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "systems/kmatrix_system.h"
 #include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core_render_types.h>
@@ -81,12 +82,14 @@ typedef struct kforward_renderer {
 	struct kmaterial_system_state *material_system;
 	struct kmaterial_renderer *material_renderer;
 	struct texture_system_state *texture_system;
+	struct kmatrix_system_state *matrix_system;
 
 	kdepth_prepass_data depth_prepass;
 	kshadow_pass_data shadow_pass;
 	kforward_pass_data forward_pass;
 #if KOHI_DEBUG
 	kworld_debug_pass_data world_debug_pass;
+	kmatrix_id debug_identity_matrix;
 #endif
 
 	krenderbuffer standard_vertex_buffer;
@@ -195,7 +198,7 @@ typedef struct kshadow_pass_render_data {
 
 // Water plane render data used once for reflection and once for refraction.
 typedef struct kscene_pass_render_data {
-	mat4 view_matrix;
+	kmatrix_id view_id;
 	vec3 view_position;
 
 	// Opaque static mesh geo data organized by material.
@@ -247,10 +250,10 @@ typedef struct kforward_pass_water_plane_render_data {
 
 typedef struct kforward_pass_render_data {
 	// View matrix/position used for the rendering of the water plane itself.
-	mat4 view_matrix;
+	kmatrix_id view_id;
 	vec4 view_position;
 
-	mat4 projection;
+	kmatrix_id projection_id;
 
 	u32 render_mode;
 
@@ -290,14 +293,14 @@ typedef struct kforward_pass_render_data {
 
 typedef struct kdebug_geometry_render_data {
 	kgeometry_render_data geo;
-	mat4 model;
+	kmatrix_id model_id;
 	colour4 colour;
 } kdebug_geometry_render_data;
 
 #if KOHI_DEBUG
 typedef struct kworld_debug_pass_render_data {
-	mat4 projection;
-	mat4 view;
+	kmatrix_id projection_id;
+	kmatrix_id view_id;
 
 	// The number of geometries.
 	u16 geometry_count;

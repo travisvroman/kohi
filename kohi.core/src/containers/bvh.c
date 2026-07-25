@@ -13,7 +13,7 @@
 #define BVH_PADDING 0.1f
 
 // Uncomment the below line if wanting to trace BVH selection, etc.
-/* #define BVH_TRACE 1 */
+#define BVH_TRACE 0
 
 static u32 bvh_alloc_node (bvh *t);
 static void bvh_free_node (bvh *t, u32 id);
@@ -30,7 +30,7 @@ b8 bvh_create (u32 inital_capacity, void *owner_context, bvh *out_bvh) {
 	out_bvh->nodes = KNULL;
 	out_bvh->capacity = 0;
 	out_bvh->count = 0;
-	out_bvh->free_list = KNULL;
+	out_bvh->free_list = BVH_INVALID_NODE;
 	out_bvh->owner_context = owner_context;
 	if (inital_capacity > 0) {
 		if (!bvh_reserve(out_bvh, inital_capacity)) {
@@ -47,7 +47,7 @@ void bvh_destroy (bvh *t) {
 		t->capacity = 0;
 		t->count = 0;
 		t->root = BVH_INVALID_NODE;
-		t->free_list = KNULL;
+		t->free_list = BVH_INVALID_NODE;
 	}
 }
 
@@ -65,9 +65,10 @@ b8 bvh_reserve (bvh *t, u32 leaf_capacity) {
 	t->nodes = new_nodes;
 	t->capacity = need;
 	// Link new nodes into free list.
+	u32 old_free = t->free_list;
 	for (u32 i = old_capacity; i < need; ++i) {
 		t->nodes[i].height = -1;
-		t->nodes[i].next = (i + 1 < need) ? i + 1 : BVH_INVALID_NODE;
+		t->nodes[i].next = (i + 1 < need) ? i + 1 : old_free;
 	}
 	t->free_list = old_capacity;
 	return true;
@@ -471,17 +472,20 @@ void bvh_debug_print (const bvh *t) {
 }
 
 static u32 bvh_alloc_node (bvh *t) {
-	if (t->free_list == 0) {
+	if (t->free_list == BVH_INVALID_NODE) {
 		// Grow the pool
 		u32 old_capacity = t->capacity;
 		u32 new_capacity = old_capacity ? old_capacity * 2 : 64;
 		bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, new_capacity);
+		if (!new_nodes) {
+			return BVH_INVALID_NODE;
+		}
 		t->nodes = new_nodes;
 		t->capacity = new_capacity;
 		// Link new nodes into free list.
 		for (u32 i = old_capacity; i < new_capacity; ++i) {
 			t->nodes[i].height = -1;
-			t->nodes[i].next = (i + 1 < new_capacity) ? i + 1 : 0;
+			t->nodes[i].next = (i + 1 < new_capacity) ? i + 1 : BVH_INVALID_NODE;
 		}
 		t->free_list = old_capacity;
 	}
@@ -492,7 +496,6 @@ static u32 bvh_alloc_node (bvh *t) {
 	n->left = BVH_INVALID_NODE;
 	n->right = BVH_INVALID_NODE;
 	n->height = 0;
-	n->moved = 0;
 	n->user = 0;
 	n->moved = false;
 	n->aabb = extents_3d_zero();

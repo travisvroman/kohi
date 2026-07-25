@@ -21,8 +21,6 @@
 #include "math/geometry_2d.h"
 #include "math/math_types.h"
 #include "memory/kmemory.h"
-#include "platform/kpackage.h"
-#include "platform/vfs.h"
 #include "plugins/plugin_types.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
@@ -33,6 +31,7 @@
 #include "systems/asset_system.h"
 #include "systems/font_system.h"
 #include "systems/kcamera_system.h"
+#include "systems/kmatrix_system.h"
 #include "systems/kshader_system.h"
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
@@ -59,13 +58,17 @@
 
 #include <logger.h>
 
-typedef struct editor_gizmo_global_ubo {
-	mat4 projection;
-	mat4 view;
-} editor_gizmo_global_ubo;
-
 typedef struct editor_gizmo_immediate_data {
-	mat4 model;
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
+	// Indices into the matrix SSBO, offset by above types.
+	u32 view_index;
+	u32 projection_index;
+	u32 model_index;
+	u32 padding;
 } editor_gizmo_immediate_data;
 
 typedef struct hf_terrain_material_imagebox_context {
@@ -158,6 +161,9 @@ b8 editor_initialize (u64 *memory_requirement, struct editor_state *state, kname
 	}
 
 	state->game_package_name = game_package_name;
+
+	state->matrix_system = engine_systems_get()->matrix_system;
+	state->default_identity_matrix_id = kmatrix_system_add(state->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 
 	// Setup gizmo.
 	if (!editor_gizmo_create(&state->gizmo)) {
@@ -1216,10 +1222,10 @@ void editor_frame_prepare (struct editor_state *state, frame_data *p_frame_data,
 	gizmo_pass_render_data->do_pass = state->mode == EDITOR_MODE_ENTITY && has_selection && draw_gizmo;
 	if (gizmo_pass_render_data->do_pass) {
 
-		gizmo_pass_render_data->projection = state->gizmo.render_projection;
-		gizmo_pass_render_data->view = kcamera_get_view(state->editor_camera);
+		gizmo_pass_render_data->projection_id = state->gizmo.render_projection_id;
+		gizmo_pass_render_data->view_id = kcamera_get_view_id(state->editor_camera);
 		gizmo_pass_render_data->visible = has_selection;
-		gizmo_pass_render_data->gizmo_transform = state->gizmo.render_model;
+		gizmo_pass_render_data->gizmo_transform_id = state->gizmo.render_model_id;
 
 		kgeometry g = state->gizmo.mode_data[state->gizmo.mode].geo;
 		kdebug_geometry_render_data *geo_rd = &gizmo_pass_render_data->geometry;
@@ -1284,16 +1290,19 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 			kshader_system_use_with_topology(state->editor_gizmo_pass.gizmo_shader, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT, 0);
 			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-			// Global UBO data
-			editor_gizmo_global_ubo global_ubo_data = {
-				.view = render_data->view,
-				.projection = render_data->projection};
-			kshader_set_binding_data(state->editor_gizmo_pass.gizmo_shader, 0, state->editor_gizmo_pass.set0_instance_id, 0, 0, &global_ubo_data, sizeof(editor_gizmo_global_ubo));
+			// Global binding set
 			kshader_apply_binding_set(state->editor_gizmo_pass.gizmo_shader, 0, state->editor_gizmo_pass.set0_instance_id);
 
 			kdebug_geometry_render_data *g = &render_data->geometry;
 
-			editor_gizmo_immediate_data immediate_data = {.model = render_data->gizmo_transform};
+			editor_gizmo_immediate_data immediate_data = {
+				.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+				.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+				.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+				.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+				.view_index = UNPACK_U32_U16_AT(render_data->view_id, 1),
+				.projection_index = UNPACK_U32_U16_AT(render_data->projection_id, 1),
+				.model_index = UNPACK_U32_U16_AT(render_data->gizmo_transform_id, 1)};
 			kshader_set_immediate_data(state->editor_gizmo_pass.gizmo_shader, &immediate_data, sizeof(editor_gizmo_immediate_data));
 
 			// Draw it.
@@ -1322,18 +1331,19 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 		kshader_system_use_with_topology(state->colour_shader, PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT, 0);
 		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-		// Global UBO data
-		colour_3d_global_ubo global_ubo_data = {
-			.view = kcamera_get_view(current_camera),
-			.projection = kcamera_get_projection(current_camera)};
-		// NOTE: This shader only ever has one instance of set 0.
+		// Global Binding set
 		u32 colour_set0_instance_id = 0;
-		kshader_set_binding_data(state->colour_shader, 0, colour_set0_instance_id, 0, 0, &global_ubo_data, sizeof(colour_3d_global_ubo));
 		kshader_apply_binding_set(state->colour_shader, 0, colour_set0_instance_id);
 
-		mat4 model = mat4_identity();
-
-		colour_3d_immediate_data immediate_data = {.model = model};
+		colour_3d_immediate_data immediate_data = {
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+			.view_index = UNPACK_U32_U16_AT(kcamera_get_view_id(current_camera), 1),
+			.projection_index = UNPACK_U32_U16_AT(kcamera_get_projection_id(current_camera), 1),
+			// Just using the default debug identity matrix since transform doesn't matter here.
+			.model_index = UNPACK_U32_U16_AT(state->default_identity_matrix_id, 1)};
 		kshader_set_immediate_data(state->colour_shader, &immediate_data, sizeof(colour_3d_immediate_data));
 
 		// NOTE: May need to do this earlier, like in frame prepare
@@ -1364,20 +1374,23 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 	if (state->mode == EDITOR_MODE_HF_TERRAIN && state->hft_edit_mode == HF_TERRAIN_EDIT_MODE_CHUNK) {
 		KASSERT(kshader_system_use_with_topology(state->debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0));
 
-		// Global UBO data
-		debug_shader_global_ubo_data global_ubo_data = {
-			.view = kcamera_get_view(current_camera),
-			.projection = kcamera_get_projection(current_camera)};
+		// Global Binding set
 		// "Global" should always be instance 0
 		u32 instance_id = 0;
-		kshader_set_binding_data(state->debug_shader, 0, instance_id, 0, 0, &global_ubo_data, sizeof(global_ubo_data));
 		kshader_apply_binding_set(state->debug_shader, 0, instance_id);
 
 		// Render the debug data.
 		kgeometry *geo = &state->hft_selected_chunk_debug_box;
 
 		debug_shader_immediate_data immediate_data = {
-			.model = mat4_identity(),						// HACK: Should this use a transform?
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+			.view_index = UNPACK_U32_U16_AT(kcamera_get_view_id(current_camera), 1),
+			.projection_index = UNPACK_U32_U16_AT(kcamera_get_projection_id(current_camera), 1),
+			// Just using the default debug identity matrix since transform doesn't matter here.
+			.model_index = UNPACK_U32_U16_AT(state->default_identity_matrix_id, 1),
 			.colour = vec4_create(1.0f, 0.5f, 0.0f, 1.0f)}; // HACK: hardcoded colour.
 		kshader_set_immediate_data(state->debug_shader, &immediate_data, sizeof(immediate_data));
 
@@ -2021,6 +2034,7 @@ static b8 editor_on_mouse_move (u16 code, void *sender, void *listener_inst, eve
 		mat4 projection = kcamera_get_projection(state->editor_camera);
 
 		ray r = ray_from_screen((vec2i){x, y}, vp_rect, origin, view, projection);
+		KTRACE("r direction = %V3.3f", &r.direction);
 
 		hf_block block;
 		hf_chunk chunk;
