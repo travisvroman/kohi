@@ -527,6 +527,7 @@ b8 ray_pick_triangle (const ray *r, b8 backface_cull, u32 vertex_count, u32 vert
 		vec3 hit_pos, hit_normal;
 		if (ray_intersects_triangle_internal(r, &t, backface_cull, &t_hit, &hit_pos, &hit_normal)) {
 			if (t_hit < closest_dist) {
+				closest_dist = t_hit;
 				hit_any = true;
 
 				if (out_triangle) {

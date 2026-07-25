@@ -625,34 +625,39 @@ b8 kmodel_ray_intersects (struct kmodel_system_state *state, kmodel_instance ins
 
 	mat4 world_inv = mat4_inverse(world);
 
+	b8 hit_any = false;
+	f32 closest = r->max_distance;
+	triangle picked;
+	vec3 pos;
+	vec3 normal;
 	for (u32 i = 0; i < count; ++i) {
 		kmodel_submesh *mesh = &state->models[instance.base_mesh].meshes[i];
-		triangle picked;
-		vec3 pos;
-		vec3 normal;
 
 		// Transform ray by inverted world transform
 		ray rt = ray_transformed(r, world_inv);
 
-		if (ray_pick_triangle(&rt, false, mesh->geo.vertex_count, mesh->geo.vertex_element_size, mesh->geo.vertices, mesh->geo.index_count, mesh->geo.indices, &picked, &pos, &normal)) {
-			if (out_hit) {
-				out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
+		// NOTE: Should backface cull be exposed here?
+		if (ray_pick_triangle(&rt, true, mesh->geo.vertex_count, mesh->geo.vertex_element_size, mesh->geo.vertices, mesh->geo.index_count, mesh->geo.indices, &picked, &pos, &normal)) {
+			f32 dist = vec3_distance(rt.origin, pos);
+			if (dist < closest) {
+				closest = dist;
+				hit_any = true;
 				// FIXME: Should this be the inverse world? To get the world position?
 				// Transform position.
 				pos = vec3_transform(pos, 1.0f, world);
 				// Transform normal too.
-				normal = vec3_transform(normal, 0.0f, world);
-
-				out_hit->distance = vec3_distance(r->origin, pos);
-				out_hit->position = pos;
-				out_hit->normal = normal;
+				normal = vec3_transform(normal, 0.0f, world_inv); // Should this be inverse-transpose?
 			}
-
-			return true;
 		}
 	}
+	if (hit_any && out_hit) {
+		out_hit->type = RAYCAST_HIT_TYPE_SURFACE;
+		out_hit->distance = vec3_distance(r->origin, pos);
+		out_hit->position = pos;
+		out_hit->normal = normal;
+	}
 
-	return false;
+	return hit_any;
 }
 
 b8 kmodel_submesh_count_get (struct kmodel_system_state *state, u16 base_mesh_id, u16 *out_count) {

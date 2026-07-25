@@ -59,7 +59,7 @@ b8 editor_gizmo_create (editor_gizmo *out_gizmo) {
 	}
 
 	out_gizmo->render_projection_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
-	out_gizmo->render_model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
+	out_gizmo->render_model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 
 	return true;
 }

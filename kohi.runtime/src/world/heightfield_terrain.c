@@ -658,7 +658,7 @@ b8 hf_terrain_get_height_at_fast (const hf_terrain *t, f32 world_x, f32 world_z,
 		return false;
 	}
 
-	ray r = ray_create((vec3){world_x, 99999.0, world_z}, vec3_down(), 999999.0, RAY_FLAG_NONE);
+	ray r = ray_create(vec3_create(world_x, t->aabb.max.y + 1.0f, world_z), vec3_down(), 1000.0f, RAY_FLAG_NONE);
 
 	// FIXME: Brute-forced like a dingus...
 	u32 block_count = t->block_count_z * t->block_count_x;
