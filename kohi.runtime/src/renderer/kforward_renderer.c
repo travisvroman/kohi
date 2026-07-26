@@ -123,9 +123,10 @@ typedef struct hf_terrain_immediate_data {
 	uvec4 material_indices;
 } hf_terrain_immediate_data;
 
-b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer) {
+b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer) {
 	KASSERT_DEBUG(out_renderer);
 
+	out_renderer->app = app;
 	out_renderer->colour_buffer = colour_buffer;
 	out_renderer->depth_stencil_buffer = depth_stencil_buffer;
 
@@ -135,6 +136,7 @@ b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buff
 	out_renderer->material_system = systems->material_system;
 	out_renderer->material_renderer = systems->material_renderer;
 	out_renderer->matrix_system = systems->matrix_system;
+	KZERO_TYPE_CARRAY(out_renderer->stage_callbacks, PFN_kforward_renderer_on_render_callback, KFORWARD_RENDERER_STAGE_COUNT);
 
 	out_renderer->standard_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	out_renderer->index_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
@@ -1263,6 +1265,13 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 					false,
 					render_data->forward_data.render_mode); // water_planes
 
+				// Call registered callback, if one exists.
+				if (renderer->stage_callbacks[KFORWARD_RENDERER_STAGE_REFRACT]) {
+					if (!renderer->stage_callbacks[KFORWARD_RENDERER_STAGE_REFRACT](renderer->app, p_frame_data, vp_rect, refraction_colour, refraction_depth, refract_clipping_plane)) {
+						KERROR("Application callback failed for refraction stage in forward renderer.");
+					}
+				}
+
 				renderer_end_debug_label();
 			} // end refract
 
@@ -1302,6 +1311,13 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 					0,
 					false,
 					render_data->forward_data.render_mode);
+
+				// Call registered callback, if one exists.
+				if (renderer->stage_callbacks[KFORWARD_RENDERER_STAGE_REFLECT]) {
+					if (!renderer->stage_callbacks[KFORWARD_RENDERER_STAGE_REFLECT](renderer->app, p_frame_data, vp_rect, reflection_colour, reflection_depth, reflect_clipping_plane)) {
+						KERROR("Application callback failed for reflection stage in forward renderer.");
+					}
+				}
 
 				renderer_end_debug_label();
 			} // end reflect
@@ -1345,6 +1361,13 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 				render_data->forward_data.water_planes,
 				true,
 				render_data->forward_data.render_mode);
+
+			// Call registered callback, if one exists.
+			if (renderer->stage_callbacks[KFORWARD_RENDERER_STAGE_FORWARD]) {
+				if (!renderer->stage_callbacks[KFORWARD_RENDERER_STAGE_FORWARD](renderer->app, p_frame_data, vp_rect, renderer->colour_buffer, renderer->depth_stencil_buffer, clipping_plane)) {
+					KERROR("Application callback failed for standard stage in forward renderer.");
+				}
+			}
 
 			renderer_end_debug_label();
 		} // end 'standard' pass
@@ -1459,4 +1482,8 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 	}
 
 	return true;
+}
+
+void kforward_renderer_register_stage_callback (kforward_renderer *renderer, kforward_renderer_stage stage, PFN_kforward_renderer_on_render_callback callback) {
+	renderer->stage_callbacks[stage] = callback;
 }

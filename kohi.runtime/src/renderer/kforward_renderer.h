@@ -19,6 +19,7 @@
 
 struct renderer_system_state;
 struct standard_ui_renderable;
+struct application;
 
 typedef struct kshadow_pass_data {
 	// Static meshes
@@ -71,12 +72,26 @@ typedef struct kworld_debug_pass_data {
 
 #endif
 
+typedef enum kforward_renderer_stage {
+	// Standard forward stage.
+	KFORWARD_RENDERER_STAGE_FORWARD,
+	// Any refraction stage.
+	KFORWARD_RENDERER_STAGE_REFRACT,
+	// Any reflection state.
+	KFORWARD_RENDERER_STAGE_REFLECT,
+	KFORWARD_RENDERER_STAGE_COUNT
+} kforward_renderer_stage;
+
+typedef b8 (*PFN_kforward_renderer_on_render_callback)(struct application *app, frame_data *p_frame_data, rect_2di vp_rect, ktexture colour_buffer, ktexture depth_buffer, vec4 clipping_plane);
+
 /**
  * @brief Represents the state of the Kohi Default Forward application renderer.
  */
 typedef struct kforward_renderer {
 	ktexture colour_buffer;
 	ktexture depth_stencil_buffer;
+
+	struct application *app;
 
 	struct renderer_system_state *renderer_state;
 	struct kmaterial_system_state *material_system;
@@ -94,6 +109,9 @@ typedef struct kforward_renderer {
 
 	krenderbuffer standard_vertex_buffer;
 	krenderbuffer index_buffer;
+
+	// Max of one callback per stage. The application should split up multiple calls here if need be.
+	PFN_kforward_renderer_on_render_callback stage_callbacks[KFORWARD_RENDERER_STAGE_COUNT];
 
 } kforward_renderer;
 
@@ -328,7 +346,10 @@ typedef struct kforward_renderer_render_data {
 #endif
 } kforward_renderer_render_data;
 
-KAPI b8 kforward_renderer_create (ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer);
+KAPI b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer);
 KAPI void kforward_renderer_destroy (kforward_renderer *renderer);
 
 KAPI b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_frame_data, kforward_renderer_render_data *render_data);
+
+// NOTE: overwrites stage callback if already set.
+KAPI void kforward_renderer_register_stage_callback (kforward_renderer *renderer, kforward_renderer_stage stage, PFN_kforward_renderer_on_render_callback callback);

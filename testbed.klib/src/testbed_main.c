@@ -162,7 +162,7 @@ b8 application_initialize (struct application *app) {
 	kwindow *current_window = engine_active_window_get();
 	ktexture global_colourbuffer = current_window->renderer_state->colourbuffer;
 	ktexture global_depthbuffer = current_window->renderer_state->depthbuffer;
-	if (!kforward_renderer_create(global_colourbuffer, global_depthbuffer, &app->state->game_renderer)) {
+	if (!kforward_renderer_create(app, global_colourbuffer, global_depthbuffer, &app->state->game_renderer)) {
 		KFATAL("Failed to create forward renderer! Application boot failed.");
 		return false;
 	}
