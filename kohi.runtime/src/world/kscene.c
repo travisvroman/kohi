@@ -46,13 +46,13 @@
 #define kSCENE_CURRENT_VERSION 1
 
 #define ENTITY_VOLUME_DEBUG_COLOUR \
-	(colour4) { 1, 1, 0, 1 }
+	(colour4){1, 1, 0, 1}
 #define ENTITY_AUDIO_EMITTER_DEBUG_COLOUR \
-	(colour4) { 1, 0.5f, 0, 1 }
+	(colour4){1, 0.5f, 0, 1}
 #define ENTITY_MODEL_STATIC_DEBUG_COLOUR \
-	(colour4) { 0, 1, 0, 1 }
+	(colour4){0, 1, 0, 1}
 #define ENTITY_MODEL_ANIMATED_DEBUG_COLOUR \
-	(colour4) { 0, 1, 1, 1 }
+	(colour4){0, 1, 1, 1}
 
 /**
  * A base entity with no type. Used for grouping other entities together, for example
@@ -261,11 +261,11 @@ typedef struct kscene {
 	kscene_state state;
 
 	i32 queued_initial_asset_loads;
+	i32 queued_external_asset_loads;
 
 	kscene_flags flags;
 
-	// Invoked when the initial load of the scene is complete.
-	PFN_scene_loaded loaded_callback;
+	kscene_callbacks callbacks;
 	void *load_context;
 
 	u8 version;
@@ -400,13 +400,15 @@ static kscene_debug_data_type debug_type_from_shape_type (kshape_type type);
 #	define debug_type_from_shape_type(type)
 #endif
 
-struct kscene *kscene_create (kname scene_asset_name, const char *config, PFN_scene_loaded loaded_callback, void *load_context, b8 is_editor) {
+struct kscene *kscene_create (kname scene_asset_name, const char *config, kscene_callbacks *callbacks, void *load_context, b8 is_editor) {
 
 	kscene *scene = KALLOC_TYPE(kscene, MEMORY_TAG_SCENE);
 	scene->state = KSCENE_STATE_UNINITIALIZED;
 
 	scene->directional_light = KLIGHT_INVALID;
-	scene->loaded_callback = loaded_callback;
+	if (callbacks) {
+		kcopy_memory(&scene->callbacks, callbacks, sizeof(kscene_callbacks));
+	}
 	scene->load_context = load_context;
 	scene->scene_asset_name = scene_asset_name;
 
@@ -635,7 +637,7 @@ void kscene_destroy (struct kscene *scene) {
 		scene->root_entities = KNULL;
 	}
 
-	scene->loaded_callback = KNULL;
+	kzero_memory(&scene->callbacks, sizeof(kscene_callbacks));
 	scene->load_context = KNULL;
 	scene->name = INVALID_KNAME;
 
@@ -826,21 +828,35 @@ void kscene_on_window_resize (struct kscene *scene, const struct kwindow *window
 
 b8 kscene_update (struct kscene *scene, struct frame_data *p_frame_data) {
 	if (scene) {
-		// If parsing is complete, then check if the state can be flipped to loaded.
+		// If inital assets are all loaded, then it can be said that pre-loading is complete.
 		if (scene->state == KSCENE_STATE_LOADING && scene->queued_initial_asset_loads < 1) {
 			scene->queued_initial_asset_loads = 0;
-			KINFO("All initial entity asset loads are complete. Scene is now loaded.");
+			KINFO("All initial entity asset loads are complete. Scene is now pre-loaded.");
+
+			// Make preloaded callback first.
+			if (scene->callbacks.on_preloaded) {
+				scene->callbacks.on_preloaded(scene, scene->load_context);
+			}
+
 			scene->state = KSCENE_STATE_PRE_LOADED;
-			return true;
 		}
 
+		// If in preloading state, make the loaded callback before flipping the flag to loaded.
 		if (scene->state == KSCENE_STATE_PRE_LOADED) {
-			if (scene->loaded_callback) {
-				scene->loaded_callback(scene, scene->load_context);
+			// Check if there is anything external that needs to be loaded that has been
+			// registered with the scene. If so, now is the time to load that before flipping the
+			// flag.
+			if (scene->queued_external_asset_loads > 0) {
+				return true;
+			}
+
+			if (scene->callbacks.on_loaded) {
+				scene->callbacks.on_loaded(scene, scene->load_context);
 			}
 			scene->state = KSCENE_STATE_LOADED;
 		}
 
+		// Actual update logic.
 		if (scene->state == KSCENE_STATE_LOADED) {
 
 			// Update all transforms from the top (roots) down.
@@ -1454,7 +1470,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 					}
 				}
 			} // end water planes
-		}	  // end forward pass
+		} // end forward pass
 
 #if KOHI_DEBUG
 
@@ -1591,6 +1607,25 @@ f32 kscene_get_fog_far (const struct kscene *scene) {
 }
 void kscene_set_fog_far (struct kscene *scene, f32 far) {
 	scene->fog_far = far;
+}
+
+void kscene_update_callbacks (struct kscene *scene, kscene_callbacks *callbacks) {
+	if (callbacks) {
+		kcopy_memory(&scene->callbacks, callbacks, sizeof(kscene_callbacks));
+	} else {
+		kzero_memory(&scene->callbacks, sizeof(kscene_callbacks));
+	}
+}
+
+void kscene_register_external_asset_load (struct kscene *scene) {
+	scene->queued_external_asset_loads++;
+}
+
+void kscene_unregister_external_asset_load (struct kscene *scene) {
+	scene->queued_external_asset_loads--;
+	if (scene->queued_external_asset_loads < 0) {
+		KWARN("%s:%s() - External asset load counter fell below 0 (%i) - check for register/unregister counts.", __FILE_NAME__, __FUNCTION__, scene->queued_external_asset_loads);
+	}
 }
 
 void kscene_get_shadow_properties (

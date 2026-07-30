@@ -23,8 +23,11 @@ struct avatar;
 typedef enum kscene_state {
 	KSCENE_STATE_UNINITIALIZED,
 	KSCENE_STATE_PARSING_CONFIG,
+	// Currently loading
 	KSCENE_STATE_LOADING,
+	// Loading of initial assets complete.
 	KSCENE_STATE_PRE_LOADED,
+	// Fully loaded and ready to be rendered.
 	KSCENE_STATE_LOADED,
 } kscene_state;
 
@@ -63,10 +66,16 @@ typedef struct hf_terrain_material_data {
 	kname mra_asset_package_name;
 } hf_terrain_material_data;
 
+typedef void (*PFN_scene_preloaded)(struct kscene *scene, void *context);
 typedef void (*PFN_scene_loaded)(struct kscene *scene, void *context);
 
+typedef struct kscene_callbacks {
+	PFN_scene_preloaded on_preloaded;
+	PFN_scene_loaded on_loaded;
+} kscene_callbacks;
+
 // Creates the scene and kicks off the loading process.
-KAPI struct kscene *kscene_create (kname kscene_asset_name, const char *config, PFN_scene_loaded loaded_callback, void *load_context, b8 is_editor);
+KAPI struct kscene *kscene_create (kname kscene_asset_name, const char *config, kscene_callbacks *callbacks, void *load_context, b8 is_editor);
 KAPI void kscene_destroy (struct kscene *scene);
 
 KAPI void kscene_on_window_resize (struct kscene *scene, const struct kwindow *window);
@@ -89,6 +98,14 @@ KAPI f32 kscene_get_fog_near (const struct kscene *scene);
 KAPI void kscene_set_fog_near (struct kscene *scene, f32 near);
 KAPI f32 kscene_get_fog_far (const struct kscene *scene);
 KAPI void kscene_set_fog_far (struct kscene *scene, f32 far);
+
+KAPI void kscene_update_callbacks (struct kscene *scene, kscene_callbacks *callbacks);
+
+// Increments an internal tracker for the number of external (non-Kohi-core type) assets need to load before loading is considered complete.
+// Ideally should be called before kicking off the scene load.
+KAPI void kscene_register_external_asset_load (struct kscene *scene);
+// Decrements the internal tracker for external assets load. Should be called by external asset/resource loader.
+KAPI void kscene_unregister_external_asset_load (struct kscene *scene);
 
 KAPI void kscene_get_shadow_properties (struct kscene *scene, kcamera current_camera, f32 *out_shadow_dist, f32 *out_shadow_fade_distance, f32 *out_shadow_split_mult, f32 *out_shadow_bias);
 
