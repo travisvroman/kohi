@@ -13,6 +13,8 @@ Changelog
   - Updated various shaders to pull transforms, projection, and view matrices from the new global matrix SSBO.
   - Fixed several issues around raycasting and the bounding volume hierarchy (BVH).
   - Added ability to register callbacks with the forward renderer for different stages of rendering (for now the "standard forward" pass, refraction, and reflection).
+  - Added ability to register various callbacks with kscene for various stages of loading.
+  - Added ability to register/unregister for external asset loads, or external, non-Kohi (game-specific) asset loads that must take place before a scene can be marked as loaded.
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.
