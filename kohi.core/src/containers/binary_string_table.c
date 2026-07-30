@@ -64,7 +64,7 @@ u32 binary_string_table_add (binary_string_table *table, const char *string) {
 	kcopy_memory(table->data + new_entry.offset, string, new_entry.length);
 
 	// Push the lookup entry.
-	darray_push(table->lookup, new_entry);
+	darray_push(table->lookup, &new_entry);
 	table->header.entry_count = darray_length(table->lookup);
 
 	// The index is also conveniently the last entry.

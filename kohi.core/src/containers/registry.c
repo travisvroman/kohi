@@ -106,7 +106,7 @@ khandle kregistry_add_entry (kregistry *registry, const void *block, u64 size, b
 		new_entry.callbacks = 0; // Will create this on the fly if listened to.
 
 		// Now push the new entry into the array.
-		darray_push(registry->entries, new_entry);
+		darray_push(registry->entries, &new_entry);
 
 		return new_handle;
 	}
@@ -251,7 +251,7 @@ void *kregistry_entry_acquire (kregistry *registry, khandle entry_handle, void *
 			// If no listener was passed, assume the listener to be the block itself.
 			listener_callback.listener = listener ? listener : entry->block;
 			listener_callback.callback = updated_callback;
-			darray_push(entry->callbacks, listener_callback);
+			darray_push(entry->callbacks, &listener_callback);
 		}
 	}
 

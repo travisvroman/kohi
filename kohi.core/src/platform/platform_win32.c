@@ -55,8 +55,8 @@ typedef LONG NTSTATUS;
 } RTL_OSVERSIONINFOW; */
 
 __declspec(dllimport)
-NTSTATUS NTAPI
-RtlGetVersion (RTL_OSVERSIONINFOW *lpVersionInformation);
+	NTSTATUS NTAPI
+	RtlGetVersion(RTL_OSVERSIONINFOW *lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
@@ -302,7 +302,7 @@ b8 platform_window_create (const kwindow_config *config, struct kwindow *window,
 	}
 
 	// Register the window internally.
-	darray_push(state_ptr->windows, window);
+	darray_push(state_ptr->windows, &window);
 
 	if (show_immediately) {
 		platform_window_show(window);
@@ -780,7 +780,7 @@ void *platform_dynamic_library_load_function (const char *name, dynamic_library 
 	dynamic_library_function f = {0};
 	f.pfn = f_addr;
 	f.name = string_duplicate(name);
-	darray_push(library->functions, f);
+	darray_push(library->functions, &f);
 
 	return (void *)f_addr;
 }
@@ -896,7 +896,7 @@ static b8 register_watch (
 	w.watcher_deleted_callback = watcher_deleted_callback;
 	w.watcher_deleted_context = watcher_deleted_context;
 	*out_watch_id = count;
-	darray_push(state_ptr->watches, w);
+	darray_push(state_ptr->watches, &w);
 
 	return true;
 }

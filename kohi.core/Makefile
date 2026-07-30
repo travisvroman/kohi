@@ -3,7 +3,7 @@
 ASSEMBLY_NAME=kohi.core
 
 # All compiler flags/rules used across the board.
-CFLAGS =-std=gnu11 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
+CFLAGS =-std=c99 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
 CFLAGS +=-Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -Wstrict-prototypes -Wno-unused-parameter 
 CFLAGS +=-Wno-missing-field-initializers -Wno-tautological-compare 
 # NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say otherwise are exported (i.e. via KAPI).
@@ -62,13 +62,13 @@ all-release: scaffold gen_compile_flags-release flags-release compile link genve
 all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
 
 flags-debug: DEFINES += -D_DEBUG
-flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
+flags-debug: CFLAGS += -pthread -g -MD -O0 -fno-omit-frame-pointer
 flags-debug: LDFLAGS += -g
 flags-debug: BUILD_TYPE=D
 flags-debug: link compile genversion
 
 flags-release: DEFINES += -DKOHI_RELEASE
-flags-release: CFLAGS += -MD -O2
+flags-release: CFLAGS += -pthread -MD -O2
 flags-release: LDFLAGS += 
 flags-release: BUILD_TYPE=R
 flags-release: link compile genversion

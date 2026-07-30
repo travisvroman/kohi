@@ -1297,7 +1297,7 @@ u32 string_split (const char *str, char delimiter, char ***str_darray, b8 trim_e
 					entry[trimmed_length] = 0;
 				}
 				char **a = *str_darray;
-				darray_push(a, entry);
+				darray_push(a, &entry);
 				*str_darray = a;
 				entry_count++;
 			}
@@ -1337,7 +1337,7 @@ u32 string_split (const char *str, char delimiter, char ***str_darray, b8 trim_e
 			entry[trimmed_length] = 0;
 		}
 		char **a = *str_darray;
-		darray_push(a, entry);
+		darray_push(a, &entry);
 		*str_darray = a;
 		entry_count++;
 	}

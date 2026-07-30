@@ -20,7 +20,7 @@ void test_manager_register_test (u8 (*PFN_test)(void), char *desc) {
 	test_entry e;
 	e.func = PFN_test;
 	e.desc = desc;
-	darray_push(tests, e);
+	darray_push(tests, &e);
 }
 
 void test_manager_run_tests (void) {

@@ -327,7 +327,7 @@ b8 kui_system_render (kui_state *state, kui_control root, struct frame_data *p_f
 				.type = KUI_RENDERABLE_TYPE_SCISSOR_CLIP_BEGIN,
 				.clipping_area = base->clipping_area.scissor_data.clipping_area};
 		}
-		darray_push(render_data->renderables, clip_begin_renderable);
+		darray_push(render_data->renderables, &clip_begin_renderable);
 	}
 
 	if (base->render) {
@@ -356,7 +356,7 @@ b8 kui_system_render (kui_state *state, kui_control root, struct frame_data *p_f
 	if (base->clipping_area.type != KUI_CLIP_TYPE_NONE) {
 		kui_renderable clip_end_renderable = {
 			.type = (base->clipping_area.type == KUI_CLIP_TYPE_STENCIL) ? KUI_RENDERABLE_TYPE_STENCIL_CLIP_END : KUI_RENDERABLE_TYPE_SCISSOR_CLIP_END};
-		darray_push(render_data->renderables, clip_end_renderable);
+		darray_push(render_data->renderables, &clip_end_renderable);
 	}
 
 	return true;
@@ -381,7 +381,7 @@ b8 toggle_active (kui_state *state, kui_control control) {
 	for (u32 i = 0; i < src_count; ++i) {
 		if ((*src_array)[i].val == control.val) {
 			darray_pop_at(*src_array, i, KNULL);
-			darray_push(*dst_array, control);
+			darray_push(*dst_array, &control);
 
 			FLAG_SET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT, !control_is_active);
 			if (base->active_changed) {
@@ -445,7 +445,7 @@ b8 kui_system_control_add_child (kui_state *state, kui_control parent, kui_contr
 		}
 	}
 
-	darray_push(parent_base->children, child);
+	darray_push(parent_base->children, &child);
 	child_base->parent = parent;
 	child_base->depth = parent_base->depth + 1;
 	ktransform_parent_set(child_base->ktransform, parent_base->ktransform);
@@ -958,7 +958,7 @@ static b8 kui_system_mouse_down (u16 code, void *sender, void *listener_inst, ev
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
 		if (control_event_intersects(typed_state, control, evt)) {
-			darray_push(intersecting_controls, control);
+			darray_push(intersecting_controls, &control);
 		}
 	}
 
@@ -1014,7 +1014,7 @@ static b8 kui_system_mouse_up (u16 code, void *sender, void *listener_inst, even
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
 		if (control_event_intersects(typed_state, control, evt)) {
-			darray_push(intersecting_controls, control);
+			darray_push(intersecting_controls, &control);
 		}
 	}
 
@@ -1070,7 +1070,7 @@ static b8 kui_system_click (u16 code, void *sender, void *listener_inst, event_c
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
 		if (control_event_intersects(typed_state, control, evt)) {
-			darray_push(intersecting_controls, control);
+			darray_push(intersecting_controls, &control);
 		}
 	}
 
@@ -1127,9 +1127,9 @@ static b8 kui_system_mouse_move (u16 code, void *sender, void *listener_inst, ev
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
 		if (control_event_intersects(typed_state, control, evt)) {
-			darray_push(intersecting_controls, control);
+			darray_push(intersecting_controls, &control);
 		} else {
-			darray_push(non_intersecting_controls, control);
+			darray_push(non_intersecting_controls, &control);
 		}
 	}
 
@@ -1207,7 +1207,7 @@ static b8 kui_system_mouse_wheel (u16 code, void *sender, void *listener_inst, e
 	for (u32 i = 0; i < active_control_count; ++i) {
 		kui_control control = typed_state->active_controls[i];
 		if (control_event_intersects(typed_state, control, evt)) {
-			darray_push(intersecting_controls, control);
+			darray_push(intersecting_controls, &control);
 		}
 	}
 
@@ -1254,9 +1254,9 @@ static b8 kui_system_drag (u16 code, void *sender, void *listener_inst, event_co
 			continue; // Skip controls that are turned off for mouse interactions.
 		}
 		if (control_event_intersects(typed_state, control, evt)) {
-			darray_push(intersecting_controls, control);
+			darray_push(intersecting_controls, &control);
 		} else {
-			darray_push(non_intersecting_controls, control);
+			darray_push(non_intersecting_controls, &control);
 		}
 	}
 
@@ -1370,9 +1370,9 @@ static void register_control (kui_state *state, kui_control control) {
 
 	kui_base_control *base = get_base(state, control);
 	if (FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT)) {
-		darray_push(state->active_controls, control);
+		darray_push(state->active_controls, &control);
 	} else {
-		darray_push(state->inactive_controls, control);
+		darray_push(state->inactive_controls, &control);
 	}
 }
 
@@ -1488,7 +1488,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->base_controls, (kui_base_control){0});
+			darray_push(state->base_controls, &(kui_base_control){0});
 		}
 		base = &state->base_controls[type_index];
 		break;
@@ -1502,7 +1502,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->panel_controls, (kui_panel_control){0});
+			darray_push(state->panel_controls, &(kui_panel_control){0});
 		}
 		base = &state->panel_controls[type_index].base;
 		break;
@@ -1516,7 +1516,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->label_controls, (kui_label_control){0});
+			darray_push(state->label_controls, &(kui_label_control){0});
 		}
 		base = &state->label_controls[type_index].base;
 		break;
@@ -1530,7 +1530,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->button_controls, (kui_button_control){0});
+			darray_push(state->button_controls, &(kui_button_control){0});
 		}
 		base = &state->button_controls[type_index].base;
 		break;
@@ -1544,7 +1544,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->textbox_controls, (kui_textbox_control){0});
+			darray_push(state->textbox_controls, &(kui_textbox_control){0});
 		}
 		base = &state->textbox_controls[type_index].base;
 		break;
@@ -1558,7 +1558,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->tree_item_controls, (kui_tree_item_control){0});
+			darray_push(state->tree_item_controls, &(kui_tree_item_control){0});
 		}
 		base = &state->tree_item_controls[type_index].base;
 		break;
@@ -1572,7 +1572,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->scrollable_controls, (kui_scrollable_control){0});
+			darray_push(state->scrollable_controls, &(kui_scrollable_control){0});
 		}
 		base = &state->scrollable_controls[type_index].base;
 		break;
@@ -1586,7 +1586,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->image_box_controls, (kui_image_box_control){0});
+			darray_push(state->image_box_controls, &(kui_image_box_control){0});
 		}
 		base = &state->image_box_controls[type_index].base;
 		break;
@@ -1600,7 +1600,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->checkbox_controls, (kui_checkbox_control){0});
+			darray_push(state->checkbox_controls, &(kui_checkbox_control){0});
 		}
 		base = &state->checkbox_controls[type_index].base;
 		break;
@@ -1614,7 +1614,7 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		if (type_index == INVALID_ID_U16) {
 			type_index = len;
-			darray_push(state->frame_controls, (kui_frame_control){0});
+			darray_push(state->frame_controls, &(kui_frame_control){0});
 		}
 		base = &state->frame_controls[type_index].base;
 		break;

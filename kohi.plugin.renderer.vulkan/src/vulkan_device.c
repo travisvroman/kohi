@@ -468,7 +468,8 @@ static b8 select_physical_device (vulkan_context *context, b8 require_discrete_g
 #endif
 	KINFO("Vulkan: Discrete GPU is%s required.", require_discrete_gpu ? "" : " NOT");
 	requirements.device_extension_names = darray_create(const char *);
-	darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+	const char *ext = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+	darray_push(requirements.device_extension_names, &ext);
 
 	// Iterate physical devices to find one that fits the bill.
 	VkPhysicalDevice physical_devices[32];

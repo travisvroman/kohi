@@ -168,9 +168,9 @@ b8 kui_frame_control_render (kui_state *state, kui_control self, struct frame_da
 		nineslice_renderable.atlas_override = INVALID_KTEXTURE;
 
 		u32 len = darray_length(render_data->renderables);
-		darray_insert_at(render_data->renderables, len - 1, nineslice_renderable);
+		darray_insert_at(render_data->renderables, len - 1, &nineslice_renderable);
 
-		// darray_push(render_data->renderables, nineslice_renderable);
+		// darray_push(render_data->renderables, &nineslice_renderable);
 	}
 
 	return true;

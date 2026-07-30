@@ -46,13 +46,13 @@
 #define kSCENE_CURRENT_VERSION 1
 
 #define ENTITY_VOLUME_DEBUG_COLOUR \
-	(colour4){1, 1, 0, 1}
+	(colour4) { 1, 1, 0, 1 }
 #define ENTITY_AUDIO_EMITTER_DEBUG_COLOUR \
-	(colour4){1, 0.5f, 0, 1}
+	(colour4) { 1, 0.5f, 0, 1 }
 #define ENTITY_MODEL_STATIC_DEBUG_COLOUR \
-	(colour4){0, 1, 0, 1}
+	(colour4) { 0, 1, 0, 1 }
 #define ENTITY_MODEL_ANIMATED_DEBUG_COLOUR \
-	(colour4){0, 1, 1, 1}
+	(colour4) { 0, 1, 1, 1 }
 
 /**
  * A base entity with no type. Used for grouping other entities together, for example
@@ -801,7 +801,7 @@ void shape_state_create (kscene *scene, kentity a, kentity b) {
 		}
 
 		collision_shape_state new_state = {.a = a, .b = b};
-		darray_push(scene->col_shape_states, new_state);
+		darray_push(scene->col_shape_states, &new_state);
 	}
 }
 
@@ -1137,7 +1137,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 
 			u32 animated_count = darray_length(animated_opaque_material_render_data);
 			for (u32 i = 0; i < animated_count; ++i) {
-				darray_push(opaque_material_render_data, animated_opaque_material_render_data[i]);
+				darray_push(opaque_material_render_data, &animated_opaque_material_render_data[i]);
 				opaque_material_count++;
 			}
 
@@ -1146,7 +1146,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			render_data->shadow_data.opaque_geometries = darray_create_with_allocator(kgeometry_render_data, frame_allocator);
 			for (u16 i = 0; i < opaque_material_count; ++i) {
 				for (u16 j = 0; j < opaque_material_render_data[i].geometry_count; ++j) {
-					darray_push(render_data->shadow_data.opaque_geometries, opaque_material_render_data[i].geometries[j]);
+					darray_push(render_data->shadow_data.opaque_geometries, &opaque_material_render_data[i].geometries[j]);
 				}
 			}
 			render_data->shadow_data.opaque_geometry_count = darray_length(render_data->shadow_data.opaque_geometries);
@@ -1179,7 +1179,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 			// Get a count of all the geometries
 			for (u16 i = 0; i < animated_transparent_count; ++i) {
 				p_frame_data->drawn_shadow_mesh_count += (u16)animated_transparent_geometries_by_material[i].geometry_count;
-				darray_push(render_data->shadow_data.transparent_geometries_by_material, animated_transparent_geometries_by_material[i]);
+				darray_push(render_data->shadow_data.transparent_geometries_by_material, &animated_transparent_geometries_by_material[i]);
 			}
 
 			// opaque and transparent animated geometries
@@ -1198,7 +1198,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 				render_data->shadow_data.animated_opaque_geometries = darray_create_with_allocator(kgeometry_render_data, frame_allocator);
 				for (u16 i = 0; i < animated_opaque_material_count; ++i) {
 					for (u16 j = 0; j < animated_opaque_material_render_data[i].geometry_count; ++j) {
-						darray_push(render_data->shadow_data.animated_opaque_geometries, animated_opaque_material_render_data[i].geometries[j]);
+						darray_push(render_data->shadow_data.animated_opaque_geometries, &animated_opaque_material_render_data[i].geometries[j]);
 					}
 				}
 				render_data->shadow_data.animated_opaque_geometry_count = darray_length(render_data->shadow_data.animated_opaque_geometries);
@@ -1454,7 +1454,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 					}
 				}
 			} // end water planes
-		} // end forward pass
+		}	  // end forward pass
 
 #if KOHI_DEBUG
 
@@ -1509,7 +1509,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 				rd.index_buffer_offset = g->index_buffer_offset;
 				rd.index_element_size = g->index_element_size;
 				rd.unique_id = INVALID_ID_U16;
-				darray_push(debug_geometries, rd);
+				darray_push(debug_geometries, &rd);
 				debug_geometry_count++;
 			}
 			u32 box_count = darray_length(state->test_boxes);
@@ -1526,7 +1526,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 				rd.index_buffer_offset = g->index_buffer_offset;
 				rd.index_element_size = g->index_element_size;
 				rd.unique_id = INVALID_ID_U16;
-				darray_push(debug_geometries, rd);
+				darray_push(debug_geometries, &rd);
 				debug_geometry_count++;
 			} */
 		}
@@ -2044,14 +2044,14 @@ static void entity_add_child (kscene *scene, kentity parent, kentity child) {
 		if (!parent_base->children) {
 			parent_base->children = darray_create(kentity);
 		}
-		darray_push(parent_base->children, child);
+		darray_push(parent_base->children, &child);
 
 		child_base->parent = parent;
 		// Also update the transform parent.
 		ktransform_parent_set(child_base->transform, parent_base->transform);
 	} else {
 		// Add to the scene's root list.
-		darray_push(scene->root_entities, child);
+		darray_push(scene->root_entities, &child);
 		// Also update the transform parent.
 		ktransform_parent_set(child_base->transform, KTRANSFORM_INVALID);
 	}
@@ -2071,7 +2071,7 @@ kentity kscene_add_entity (struct kscene *scene, kname name, ktransform transfor
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = spawn_point_count;
-		darray_push(scene->bases, (base_entity){0});
+		darray_push(scene->bases, &(base_entity){0});
 	}
 
 	base_entity *new_ent = &scene->bases[entity_index];
@@ -2126,11 +2126,11 @@ static void base_entity_destroy (kscene *scene, base_entity *base, kentity entit
 				if (!parent_base->children) {
 					parent_base->children = darray_reserve(kentity, child_count);
 				}
-				darray_push(parent_base->children, child_entity);
+				darray_push(parent_base->children, &child_entity);
 				ktransform_parent_set(child->transform, parent_base->transform);
 			} else {
 				// It's now a root.
-				darray_push(scene->root_entities, child_entity);
+				darray_push(scene->root_entities, &child_entity);
 				ktransform_parent_set(child->transform, KTRANSFORM_INVALID);
 			}
 		}
@@ -2196,7 +2196,7 @@ kentity kscene_add_model (struct kscene *scene, kname name, ktransform transform
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = model_count;
 		// Push an empty entry, to be filled out in a moment.
-		darray_push(scene->models, (model_entity){0});
+		darray_push(scene->models, &(model_entity){0});
 	}
 
 	model_entity *new_ent = &scene->models[entity_index];
@@ -2260,7 +2260,7 @@ kentity kscene_add_point_light (struct kscene *scene, kname name, ktransform tra
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = point_light_count;
-		darray_push(scene->point_lights, (point_light_entity){0});
+		darray_push(scene->point_lights, &(point_light_entity){0});
 	}
 
 	point_light_entity *new_ent = &scene->point_lights[entity_index];
@@ -2314,7 +2314,7 @@ kentity kscene_add_spawn_point (struct kscene *scene, kname name, ktransform tra
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = spawn_point_count;
-		darray_push(scene->spawn_points, (spawn_point_entity){0});
+		darray_push(scene->spawn_points, &(spawn_point_entity){0});
 	}
 
 	radius = radius ? radius : 1.0f;
@@ -2360,7 +2360,7 @@ kentity kscene_add_volume (
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = volume_count;
-		darray_push(scene->volumes, (volume_entity){0});
+		darray_push(scene->volumes, &(volume_entity){0});
 	}
 
 	volume_entity *new_ent = &scene->volumes[entity_index];
@@ -2436,7 +2436,7 @@ kentity kscene_add_hit_shape (
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = hit_shape_count;
-		darray_push(scene->hit_shapes, (hit_shape_entity){0});
+		darray_push(scene->hit_shapes, &(hit_shape_entity){0});
 	}
 
 	hit_shape_entity *new_ent = &scene->hit_shapes[entity_index];
@@ -2471,7 +2471,7 @@ kentity kscene_add_water_plane (struct kscene *scene, kname name, ktransform tra
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = water_plane_count;
-		darray_push(scene->water_planes, (water_plane_entity){0});
+		darray_push(scene->water_planes, &(water_plane_entity){0});
 	}
 
 	water_plane_entity *new_ent = &scene->water_planes[entity_index];
@@ -2537,8 +2537,8 @@ kentity kscene_add_water_plane (struct kscene *scene, kname name, ktransform tra
 		if (geometry_array_index == INVALID_ID_U16) {
 			// No free entry found. Push an empty one. The index will be the former length of the array before the push.
 			geometry_array_index = darray_length(scene->model_geometry_datas);
-			darray_push(scene->model_geometry_datas, (kgeometry_data){0});
-			darray_push(scene->model_geometry_extents, (extents_3d){0});
+			darray_push(scene->model_geometry_datas, &(kgeometry_data){0});
+			darray_push(scene->model_geometry_extents, &(extents_3d){0});
 		}
 	}
 	kgeometry_data *new_geo = &scene->model_geometry_datas[geometry_array_index];
@@ -2616,7 +2616,7 @@ kentity kscene_add_audio_emitter (
 	}
 	if (entity_index == INVALID_ID_U16) {
 		entity_index = audio_emitter_count;
-		darray_push(scene->audio_emitters, (audio_emitter_entity){0});
+		darray_push(scene->audio_emitters, &(audio_emitter_entity){0});
 	}
 
 	audio_emitter_entity *new_ent = &scene->audio_emitters[entity_index];
@@ -2776,13 +2776,13 @@ static kmaterial_render_data *kscene_get_model_render_data (
 			rd.flags = FLAG_SET(rd.flags, KGEOMETRY_RENDER_DATA_FLAG_WINDING_INVERTED_BIT, FLAG_GET(geo->flags, KGEOMETRY_DATA_FLAG_WINDING_INVERTED_BIT));
 
 			// This is building the render data array, so just pushing here is fine.
-			darray_push(mat_render_data.geometries, rd);
+			darray_push(mat_render_data.geometries, &rd);
 			mat_render_data.geometry_count++;
 		}
 
 		// If there are actually things to render, push the mat_render_data to the list.
 		if (mat_render_data.geometry_count) {
-			darray_push(mats, mat_render_data);
+			darray_push(mats, &mat_render_data);
 		}
 	}
 
@@ -3261,8 +3261,8 @@ static void map_model_submesh_geometries (kscene *scene, kentity entity, u16 sub
 		if (array_index == INVALID_ID_U16) {
 			// No free entry found. Push an empty one. The index will be the former length of the array before the push.
 			array_index = len;
-			darray_push(scene->model_geometry_datas, (kgeometry_data){0});
-			darray_push(scene->model_geometry_extents, (extents_3d){0});
+			darray_push(scene->model_geometry_datas, &(kgeometry_data){0});
+			darray_push(scene->model_geometry_extents, &(extents_3d){0});
 		}
 	}
 	kgeometry_data *new_geo = &scene->model_geometry_datas[array_index];
@@ -4159,7 +4159,7 @@ static void create_debug_data (kscene *scene, vec3 size, vec3 center, kentity en
 	}
 	if (index == INVALID_ID_U32) {
 		index = len;
-		darray_push(scene->debug_datas, (kscene_debug_data){0});
+		darray_push(scene->debug_datas, &(kscene_debug_data){0});
 		data = &scene->debug_datas[index];
 	}
 

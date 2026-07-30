@@ -67,7 +67,7 @@ b8 plugin_system_deserialize_config (const char *config_str, plugin_system_confi
 		}
 
 		// Push into the array.
-		darray_push(out_config->plugins, plugin);
+		darray_push(out_config->plugins, &plugin);
 	}
 
 	kson_tree_cleanup(&tree);
@@ -286,7 +286,7 @@ b8 plugin_system_load_plugin (struct plugin_system_state *state, const char *nam
 	}
 
 	// Register the plugin
-	darray_push(state->plugins, new_plugin);
+	darray_push(state->plugins, &new_plugin);
 
 	KINFO("Plugin '%s' successfully loaded.", name);
 	success = true;

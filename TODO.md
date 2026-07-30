@@ -31,6 +31,10 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Stability pass
   - [ ] Ensure both debug AND release builds work as expected.
   - [ ] Address sanitizer bug resolution, etc.
+- [ ] Vendor lib inclusion
+  - [ ] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
+    - [ ] Assimp
+    - [ ] OpenAL
 
 ## 0.14.0 Release
 

@@ -15,11 +15,11 @@
 #include <world/world_types.h>
 
 #define EDITOR_AXIS_COLOUR_R \
-	(colour4){1.0f, 0.5f, 0.5f, 1.0f}
+	(colour4) { 1.0f, 0.5f, 0.5f, 1.0f }
 #define EDITOR_AXIS_COLOUR_G \
-	(colour4){0.5f, 1.0f, 0.5f, 1.0f}
+	(colour4) { 0.5f, 1.0f, 0.5f, 1.0f }
 #define EDITOR_AXIS_COLOUR_B \
-	(colour4){0.5f, 0.5f, 1.0f, 1.0f}
+	(colour4) { 0.5f, 0.5f, 1.0f, 1.0f }
 
 #define EDITOR_HFT_PAINT_BRUSH_MAX_SIZE 64
 

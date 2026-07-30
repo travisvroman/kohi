@@ -349,9 +349,9 @@ b8 kui_textbox_control_render (kui_state *state, kui_control self, struct frame_
 		nineslice_renderable.atlas_override = INVALID_KTEXTURE;
 
 		u32 len = darray_length(render_data->renderables);
-		darray_insert_at(render_data->renderables, len - 1, nineslice_renderable);
+		darray_insert_at(render_data->renderables, len - 1, &nineslice_renderable);
 
-		// darray_push(render_data->renderables, nineslice_renderable);
+		// darray_push(render_data->renderables, &nineslice_renderable);
 	}
 
 	FLAG_SET(cursor_base->flags, KUI_CONTROL_FLAG_VISIBLE_BIT, is_focused);
@@ -393,7 +393,7 @@ b8 kui_textbox_control_render (kui_state *state, kui_control self, struct frame_
 
 	/* kui_renderable clip_end_renderable = {.type = KUI_RENDERABLE_TYPE_CLIP_END};
 
-	darray_push(render_data->renderables, clip_end_renderable); */
+	darray_push(render_data->renderables, &clip_end_renderable); */
 
 	return true;
 }

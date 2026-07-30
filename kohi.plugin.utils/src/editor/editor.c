@@ -311,602 +311,602 @@ b8 editor_initialize (u64 *memory_requirement, struct editor_state *state, kname
 			// Toggle visiblity of general debug data. If this is disabled, so are the other debug options.
 			{
 				state->view_debug_checkbox = kui_checkbox_control_create(kui_state, "view_debug_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Debug");
-				KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_debug_checkbox));
-				kui_control_position_set(kui_state, state->view_debug_checkbox, (vec3){5, 300, 0});
-				kui_control_set_user_data(kui_state, state->view_debug_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-				kui_checkbox_set_on_checked(kui_state, state->view_debug_checkbox, show_debug_checkbox_check_changed);
-			}
-
-			// Toggle visiblity of BVH debug data.
-			{
-				state->view_bvh_checkbox = kui_checkbox_control_create(kui_state, "view_bvh_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "BVH");
-				KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_bvh_checkbox));
-				kui_control_position_set(kui_state, state->view_bvh_checkbox, (vec3){35, 330, 0});
-				kui_control_set_user_data(kui_state, state->view_bvh_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-				kui_checkbox_set_on_checked(kui_state, state->view_bvh_checkbox, show_bvh_checkbox_check_changed);
-			}
-
-			// Toggle visiblity of debug grid.
-			{
-				state->view_grid_checkbox = kui_checkbox_control_create(kui_state, "view_grid_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Grid");
-				KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_grid_checkbox));
-				kui_control_position_set(kui_state, state->view_grid_checkbox, (vec3){35, 360, 0});
-				kui_control_set_user_data(kui_state, state->view_grid_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-				kui_checkbox_set_on_checked(kui_state, state->view_grid_checkbox, show_grid_checkbox_check_changed);
-			}
-		}
-
-		// General scene visiblity
-		{
-			// Toggle visiblity of the skybox.
-			{
-				state->view_skybox_checkbox = kui_checkbox_control_create(kui_state, "view_skybox_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Skybox");
-				KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_skybox_checkbox));
-				kui_control_position_set(kui_state, state->view_skybox_checkbox, (vec3){5, 390, 0});
-				kui_control_set_user_data(kui_state, state->view_skybox_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-				kui_checkbox_set_on_checked(kui_state, state->view_skybox_checkbox, scene_visibility_checkbox_check_changed);
-			}
-
-			// Toggle visiblity of fog.
-			{
-				state->view_fog_checkbox = kui_checkbox_control_create(kui_state, "view_fog_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Fog");
-				KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_fog_checkbox));
-				kui_control_position_set(kui_state, state->view_fog_checkbox, (vec3){5, 420, 0});
-				kui_control_set_user_data(kui_state, state->view_fog_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-				kui_checkbox_set_on_checked(kui_state, state->view_fog_checkbox, scene_visibility_checkbox_check_changed);
-			}
-		}
+		KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_debug_checkbox));
+		kui_control_position_set(kui_state, state->view_debug_checkbox, (vec3){5, 300, 0});
+		kui_control_set_user_data(kui_state, state->view_debug_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->view_debug_checkbox, show_debug_checkbox_check_changed);
 	}
 
-	// Scene inspector window panel.
+	// Toggle visiblity of BVH debug data.
 	{
-		state->scene_inspector_width = 650.0f;
-		state->scene_inspector_right_col_x = 130.0f;
-		state->scene_inspector_bg_panel = kui_panel_control_create(kui_state, "scene_inspector_bg_panel", (vec2){state->scene_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
-		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->scene_inspector_bg_panel));
-		kui_control_position_set(kui_state, state->scene_inspector_bg_panel, (vec3){1280 - (state->scene_inspector_width + 10)});
-		kui_control_set_is_active(kui_state, state->scene_inspector_bg_panel, false);
-		kui_control_set_is_visible(kui_state, state->scene_inspector_bg_panel, false);
-
-		// Window Label
-		state->scene_inspector_title = kui_label_control_create(kui_state, "scene_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene");
-		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_inspector_title));
-		kui_control_position_set(kui_state, state->scene_inspector_title, (vec3){10, -5.0f, 0});
-
-		// scene name
-		{
-			// Name label.
-			state->scene_name_label = kui_label_control_create(kui_state, "scene_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name");
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_label));
-			kui_control_position_set(kui_state, state->scene_name_label, (vec3){10, 50 + -5.0f, 0});
-
-			// Name textbox.
-			state->scene_name_textbox = kui_textbox_control_create(kui_state, "scene_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_textbox));
-			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_name_textbox, 380));
-			kui_control_position_set(kui_state, state->scene_name_textbox, (vec3){state->scene_inspector_right_col_x, 50, 0});
-			kui_control_set_user_data(kui_state, state->scene_name_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->scene_name_textbox, scene_name_textbox_on_key);
-		}
-
-		// Fog colour
-		{
-			// Fog colour label
-			state->scene_fog_colour_label = kui_label_control_create(kui_state, "scene_fog_colour_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Fog colour");
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_label));
-			kui_control_position_set(kui_state, state->scene_fog_colour_label, (vec3){10, 100 + -5.0f, 0});
-
-			// Fog colour R textbox.
-			state->scene_fog_colour_r_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_r_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_r_textbox));
-			kui_control_position_set(kui_state, state->scene_fog_colour_r_textbox, (vec3){state->scene_inspector_right_col_x, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_r_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_r_textbox, EDITOR_AXIS_COLOUR_R);
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_r_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->scene_fog_colour_r_textbox, scene_fog_colour_textbox_on_key);
-
-			// Fog colour g textbox.
-			state->scene_fog_colour_g_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_g_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_g_textbox));
-			kui_control_position_set(kui_state, state->scene_fog_colour_g_textbox, (vec3){state->scene_inspector_right_col_x + 130, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_g_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_g_textbox, EDITOR_AXIS_COLOUR_G);
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_g_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->scene_fog_colour_g_textbox, scene_fog_colour_textbox_on_key);
-
-			// Fog colour b textbox.
-			state->scene_fog_colour_b_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_b_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_b_textbox));
-			kui_control_position_set(kui_state, state->scene_fog_colour_b_textbox, (vec3){state->scene_inspector_right_col_x + 260, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_b_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_b_textbox, EDITOR_AXIS_COLOUR_B);
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_b_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->scene_fog_colour_b_textbox, scene_fog_colour_textbox_on_key);
-
-			// Fog colour a textbox.
-			state->scene_fog_colour_a_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_a_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_a_textbox));
-			kui_control_position_set(kui_state, state->scene_fog_colour_a_textbox, (vec3){state->scene_inspector_right_col_x + 390, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_a_textbox, 120));
-			/* kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_a_textbox, EDITOR_AXIS_COLOUR_A); */
-			kui_control_set_user_data(kui_state, state->scene_fog_colour_a_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->scene_fog_colour_a_textbox, scene_fog_colour_textbox_on_key);
-		}
-
-		// TODO: more controls
+		state->view_bvh_checkbox = kui_checkbox_control_create(kui_state, "view_bvh_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "BVH");
+		KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_bvh_checkbox));
+		kui_control_position_set(kui_state, state->view_bvh_checkbox, (vec3){35, 330, 0});
+		kui_control_set_user_data(kui_state, state->view_bvh_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->view_bvh_checkbox, show_bvh_checkbox_check_changed);
 	}
 
-	// Entity inspector window panel.
+	// Toggle visiblity of debug grid.
 	{
-		state->entity_inspector_width = 650.0f;
-		state->entity_inspector_right_col_x = 130.0f;
-		state->entity_inspector_bg_panel = kui_panel_control_create(kui_state, "entity_inspector_bg_panel", (vec2){state->entity_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
-		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->entity_inspector_bg_panel));
-		kui_control_position_set(kui_state, state->entity_inspector_bg_panel, (vec3){1280 - (state->entity_inspector_width + 10)});
-		kui_control_set_is_active(kui_state, state->entity_inspector_bg_panel, false);
-		kui_control_set_is_visible(kui_state, state->entity_inspector_bg_panel, false);
+		state->view_grid_checkbox = kui_checkbox_control_create(kui_state, "view_grid_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Grid");
+		KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_grid_checkbox));
+		kui_control_position_set(kui_state, state->view_grid_checkbox, (vec3){35, 360, 0});
+		kui_control_set_user_data(kui_state, state->view_grid_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->view_grid_checkbox, show_grid_checkbox_check_changed);
+	}
+}
 
-		// Window Label
-		state->entity_inspector_title = kui_label_control_create(kui_state, "entity_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity (no selection)");
-		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_inspector_title));
-		kui_control_position_set(kui_state, state->entity_inspector_title, (vec3){10, -5.0f, 0});
-
-		// Entity name
-		{
-			// Name label.
-			state->entity_name_label = kui_label_control_create(kui_state, "entity_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name:");
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_label));
-			kui_control_position_set(kui_state, state->entity_name_label, (vec3){10, 50 + -5.0f, 0});
-
-			// Name textbox.
-			state->entity_name_textbox = kui_textbox_control_create(kui_state, "entity_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_textbox));
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_name_textbox, 380));
-			kui_control_position_set(kui_state, state->entity_name_textbox, (vec3){state->entity_inspector_right_col_x, 50, 0});
-			kui_control_set_user_data(kui_state, state->entity_name_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_name_textbox, entity_name_textbox_on_key);
-		}
-
-		// Entity position
-		{
-			// Position label
-			state->entity_position_label = kui_label_control_create(kui_state, "entity_position_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Position");
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_label));
-			kui_control_position_set(kui_state, state->entity_position_label, (vec3){10, 100 + -5.0f, 0});
-
-			// Position x textbox.
-			state->entity_position_x_textbox = kui_textbox_control_create(kui_state, "entity_position_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_x_textbox));
-			kui_control_position_set(kui_state, state->entity_position_x_textbox, (vec3){state->entity_inspector_right_col_x, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_x_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->entity_position_x_textbox, EDITOR_AXIS_COLOUR_R);
-			kui_control_set_user_data(kui_state, state->entity_position_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_position_x_textbox, entity_position_x_textbox_on_key);
-
-			// Position y textbox.
-			state->entity_position_y_textbox = kui_textbox_control_create(kui_state, "entity_position_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_y_textbox));
-			kui_control_position_set(kui_state, state->entity_position_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_y_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->entity_position_y_textbox, EDITOR_AXIS_COLOUR_G);
-			kui_control_set_user_data(kui_state, state->entity_position_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_position_y_textbox, entity_position_y_textbox_on_key);
-
-			// Position z textbox.
-			state->entity_position_z_textbox = kui_textbox_control_create(kui_state, "entity_position_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_z_textbox));
-			kui_control_position_set(kui_state, state->entity_position_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 100, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_z_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->entity_position_z_textbox, EDITOR_AXIS_COLOUR_B);
-			kui_control_set_user_data(kui_state, state->entity_position_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_position_z_textbox, entity_position_z_textbox_on_key);
-		}
-
-		// Entity rotation
-		{
-			// Position label
-			state->entity_orientation_label = kui_label_control_create(kui_state, "entity_orientation_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Orientation");
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_label));
-			kui_control_position_set(kui_state, state->entity_orientation_label, (vec3){10, 150 + -5.0f, 0});
-
-			// Orientatiohttps://music.youtube.com/playlist?list=OLAK5uy_lW21dMR_nuKQOOxBTKzKpvzJCjP3hqtzw&si=pgXjcRP9HzglQh4Cn x textbox.
-			state->entity_orientation_x_textbox = kui_textbox_control_create(kui_state, "entity_orientation_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_x_textbox));
-			kui_control_position_set(kui_state, state->entity_orientation_x_textbox, (vec3){state->entity_inspector_right_col_x, 150, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_x_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_orientation_x_textbox, entity_orientation_x_textbox_on_key);
-
-			// Orientation y textbox.
-			state->entity_orientation_y_textbox = kui_textbox_control_create(kui_state, "entity_orientation_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_y_textbox));
-			kui_control_position_set(kui_state, state->entity_orientation_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 150, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_y_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_orientation_y_textbox, entity_orientation_y_textbox_on_key);
-
-			// Orientation z textbox.
-			state->entity_orientation_z_textbox = kui_textbox_control_create(kui_state, "entity_orientation_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_z_textbox));
-			kui_control_position_set(kui_state, state->entity_orientation_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 150, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_z_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_orientation_z_textbox, entity_orientation_z_textbox_on_key);
-
-			// Orientation z textbox.
-			state->entity_orientation_w_textbox = kui_textbox_control_create(kui_state, "entity_orientation_w_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_w_textbox));
-			kui_control_position_set(kui_state, state->entity_orientation_w_textbox, (vec3){state->entity_inspector_right_col_x + 390, 150, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_w_textbox, 120));
-			kui_control_set_user_data(kui_state, state->entity_orientation_w_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_orientation_w_textbox, entity_orientation_w_textbox_on_key);
-		}
-
-		// Entity scale
-		{
-			// Scale label
-			state->entity_scale_label = kui_label_control_create(kui_state, "entity_scale_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scale");
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_label));
-			kui_control_position_set(kui_state, state->entity_scale_label, (vec3){10, 200 + -5.0f, 0});
-
-			// Scale x textbox.
-			state->entity_scale_x_textbox = kui_textbox_control_create(kui_state, "entity_scale_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_x_textbox));
-			kui_control_position_set(kui_state, state->entity_scale_x_textbox, (vec3){state->entity_inspector_right_col_x, 200, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_x_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->entity_scale_x_textbox, EDITOR_AXIS_COLOUR_R);
-			kui_control_set_user_data(kui_state, state->entity_scale_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_scale_x_textbox, entity_scale_x_textbox_on_key);
-
-			// Scale y textbox.
-			state->entity_scale_y_textbox = kui_textbox_control_create(kui_state, "entity_scale_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_y_textbox));
-			kui_control_position_set(kui_state, state->entity_scale_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 200, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_y_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->entity_scale_y_textbox, EDITOR_AXIS_COLOUR_G);
-			kui_control_set_user_data(kui_state, state->entity_scale_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_scale_y_textbox, entity_scale_y_textbox_on_key);
-
-			// Scale z textbox.
-			state->entity_scale_z_textbox = kui_textbox_control_create(kui_state, "entity_scale_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_z_textbox));
-			kui_control_position_set(kui_state, state->entity_scale_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 200, 0});
-			KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_z_textbox, 120));
-			kui_textbox_control_colour_set(kui_state, state->entity_scale_z_textbox, EDITOR_AXIS_COLOUR_B);
-			kui_control_set_user_data(kui_state, state->entity_scale_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->entity_scale_z_textbox, entity_scale_z_textbox_on_key);
-		}
+// General scene visiblity
+{
+	// Toggle visiblity of the skybox.
+	{
+		state->view_skybox_checkbox = kui_checkbox_control_create(kui_state, "view_skybox_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Skybox");
+		KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_skybox_checkbox));
+		kui_control_position_set(kui_state, state->view_skybox_checkbox, (vec3){5, 390, 0});
+		kui_control_set_user_data(kui_state, state->view_skybox_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->view_skybox_checkbox, scene_visibility_checkbox_check_changed);
 	}
 
-	// Tree window panel.
+	// Toggle visiblity of fog.
 	{
-		state->tree_inspector_width = 500.0f;
-		state->tree_inspector_right_col_x = 150.0f;
-		state->tree_inspector_bg_panel = kui_panel_control_create(kui_state, "tree_inspector_bg_panel", (vec2){state->tree_inspector_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
-		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->tree_inspector_bg_panel));
-		kui_control_position_set(kui_state, state->tree_inspector_bg_panel, (vec3){1280 - (state->tree_inspector_width + 10)});
-		kui_control_set_is_active(kui_state, state->tree_inspector_bg_panel, false);
-		kui_control_set_is_visible(kui_state, state->tree_inspector_bg_panel, false);
+		state->view_fog_checkbox = kui_checkbox_control_create(kui_state, "view_fog_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Fog");
+		KASSERT(kui_system_control_add_child(kui_state, state->main_bg_panel, state->view_fog_checkbox));
+		kui_control_position_set(kui_state, state->view_fog_checkbox, (vec3){5, 420, 0});
+		kui_control_set_user_data(kui_state, state->view_fog_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->view_fog_checkbox, scene_visibility_checkbox_check_changed);
+	}
+}
+}
 
-		// Window Label
-		state->tree_inspector_title = kui_label_control_create(kui_state, "tree_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree");
-		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_inspector_title));
-		kui_control_position_set(kui_state, state->tree_inspector_title, (vec3){10, -5.0f, 0});
+// Scene inspector window panel.
+{
+	state->scene_inspector_width = 650.0f;
+	state->scene_inspector_right_col_x = 130.0f;
+	state->scene_inspector_bg_panel = kui_panel_control_create(kui_state, "scene_inspector_bg_panel", (vec2){state->scene_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+	KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->scene_inspector_bg_panel));
+	kui_control_position_set(kui_state, state->scene_inspector_bg_panel, (vec3){1280 - (state->scene_inspector_width + 10)});
+	kui_control_set_is_active(kui_state, state->scene_inspector_bg_panel, false);
+	kui_control_set_is_visible(kui_state, state->scene_inspector_bg_panel, false);
 
-		// Base tree control.
-		state->tree_scrollable_control = kui_scrollable_control_create(kui_state, "tree_base_control", (vec2){state->tree_inspector_width, 200}, true, true);
-		KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_scrollable_control));
-		kui_control_position_set(kui_state, state->tree_scrollable_control, (vec3){0, 50, 0});
+	// Window Label
+	state->scene_inspector_title = kui_label_control_create(kui_state, "scene_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scene");
+	KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_inspector_title));
+	kui_control_position_set(kui_state, state->scene_inspector_title, (vec3){10, -5.0f, 0});
 
-		state->tree_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->tree_scrollable_control);
+	// scene name
+	{
+		// Name label.
+		state->scene_name_label = kui_label_control_create(kui_state, "scene_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name");
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_label));
+		kui_control_position_set(kui_state, state->scene_name_label, (vec3){10, 50 + -5.0f, 0});
 
-		// TODO: more controls
+		// Name textbox.
+		state->scene_name_textbox = kui_textbox_control_create(kui_state, "scene_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_name_textbox));
+		KASSERT(kui_textbox_control_width_set(kui_state, state->scene_name_textbox, 380));
+		kui_control_position_set(kui_state, state->scene_name_textbox, (vec3){state->scene_inspector_right_col_x, 50, 0});
+		kui_control_set_user_data(kui_state, state->scene_name_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->scene_name_textbox, scene_name_textbox_on_key);
 	}
 
-	// HF Terrain window panel.
+	// Fog colour
 	{
-		state->hf_terrain_window_width = 540.0f;
-		state->hf_terrain_right_col_x = 130.0f;
-		state->hf_terrain_bg_panel = kui_panel_control_create(kui_state, "hf_terrain_bg_panel", (vec2){state->hf_terrain_window_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
-		KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->hf_terrain_bg_panel));
-		kui_control_position_set(kui_state, state->hf_terrain_bg_panel, (vec3){1280 - (state->hf_terrain_window_width + 10)});
-		kui_control_set_is_active(kui_state, state->hf_terrain_bg_panel, false);
-		kui_control_set_is_visible(kui_state, state->hf_terrain_bg_panel, false);
+		// Fog colour label
+		state->scene_fog_colour_label = kui_label_control_create(kui_state, "scene_fog_colour_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Fog colour");
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_label));
+		kui_control_position_set(kui_state, state->scene_fog_colour_label, (vec3){10, 100 + -5.0f, 0});
 
-		// Window Label
-		state->hf_terrain_title = kui_label_control_create(kui_state, "hf_terrain_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Heightfield Terrain Editor");
-		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hf_terrain_title));
-		kui_control_position_set(kui_state, state->hf_terrain_title, (vec3){10, -5.0f, 0});
+		// Fog colour R textbox.
+		state->scene_fog_colour_r_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_r_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_r_textbox));
+		kui_control_position_set(kui_state, state->scene_fog_colour_r_textbox, (vec3){state->scene_inspector_right_col_x, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_r_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_r_textbox, EDITOR_AXIS_COLOUR_R);
+		kui_control_set_user_data(kui_state, state->scene_fog_colour_r_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->scene_fog_colour_r_textbox, scene_fog_colour_textbox_on_key);
 
-		// Terrain save button HACK: This should have its own space alongside creation tools (create button, x/z dimensions, etc.)
-		{
-			state->hf_terrain_save_button = kui_button_control_create_with_text(kui_state, "hf_terrain_save_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save HF Terr.");
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hf_terrain_save_button));
-			kui_button_control_width_set(kui_state, state->hf_terrain_save_button, 150);
-			kui_control_position_set(kui_state, state->hf_terrain_save_button, (vec3){300, 0, 0});
-			kui_control_set_user_data(kui_state, state->hf_terrain_save_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_click(kui_state, state->hf_terrain_save_button, hft_save_button_clicked);
-		}
+		// Fog colour g textbox.
+		state->scene_fog_colour_g_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_g_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_g_textbox));
+		kui_control_position_set(kui_state, state->scene_fog_colour_g_textbox, (vec3){state->scene_inspector_right_col_x + 130, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_g_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_g_textbox, EDITOR_AXIS_COLOUR_G);
+		kui_control_set_user_data(kui_state, state->scene_fog_colour_g_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->scene_fog_colour_g_textbox, scene_fog_colour_textbox_on_key);
 
-		// General sub-mode - active by default.
-		{
-			state->hft_mode_general_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_general_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Gen.");
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_general_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_general_checkbox, (vec3){5, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_mode_general_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_mode_general_checkbox, hf_terrain_checkbox_check_changed);
-			kui_checkbox_set_checked(kui_state, state->hft_mode_general_checkbox, true);
+		// Fog colour b textbox.
+		state->scene_fog_colour_b_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_b_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_b_textbox));
+		kui_control_position_set(kui_state, state->scene_fog_colour_b_textbox, (vec3){state->scene_inspector_right_col_x + 260, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_b_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_b_textbox, EDITOR_AXIS_COLOUR_B);
+		kui_control_set_user_data(kui_state, state->scene_fog_colour_b_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->scene_fog_colour_b_textbox, scene_fog_colour_textbox_on_key);
 
-			// Content pane
-			state->hft_mode_general_content = kui_base_control_create(kui_state, "hft_mode_general_content", KUI_CONTROL_TYPE_BASE);
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_general_content));
-			kui_control_position_set(kui_state, state->hft_mode_general_content, (vec3){5, 90, 0});
+		// Fog colour a textbox.
+		state->scene_fog_colour_a_textbox = kui_textbox_control_create(kui_state, "scene_fog_colour_a_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->scene_inspector_bg_panel, state->scene_fog_colour_a_textbox));
+		kui_control_position_set(kui_state, state->scene_fog_colour_a_textbox, (vec3){state->scene_inspector_right_col_x + 390, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->scene_fog_colour_a_textbox, 120));
+		/* kui_textbox_control_colour_set(kui_state, state->scene_fog_colour_a_textbox, EDITOR_AXIS_COLOUR_A); */
+		kui_control_set_user_data(kui_state, state->scene_fog_colour_a_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->scene_fog_colour_a_textbox, scene_fog_colour_textbox_on_key);
+	}
 
-			// Scrollable content control
-			state->hft_general_scrollable_control = kui_scrollable_control_create(kui_state, "hft_general_scrollable_control", (vec2){state->hf_terrain_window_width, 200}, true, true);
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_general_content, state->hft_general_scrollable_control));
-			kui_control_position_set(kui_state, state->hft_general_scrollable_control, (vec3){0, 50, 0});
+	// TODO: more controls
+}
 
-			state->hft_general_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->hft_general_scrollable_control);
+// Entity inspector window panel.
+{
+	state->entity_inspector_width = 650.0f;
+	state->entity_inspector_right_col_x = 130.0f;
+	state->entity_inspector_bg_panel = kui_panel_control_create(kui_state, "entity_inspector_bg_panel", (vec2){state->entity_inspector_width, 400.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+	KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->entity_inspector_bg_panel));
+	kui_control_position_set(kui_state, state->entity_inspector_bg_panel, (vec3){1280 - (state->entity_inspector_width + 10)});
+	kui_control_set_is_active(kui_state, state->entity_inspector_bg_panel, false);
+	kui_control_set_is_visible(kui_state, state->entity_inspector_bg_panel, false);
 
-			// Terrain material listing
-			f32 imagebox_size = 64;
-			f32 imagebox_padding = 5.0f;
+	// Window Label
+	state->entity_inspector_title = kui_label_control_create(kui_state, "entity_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Entity (no selection)");
+	KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_inspector_title));
+	kui_control_position_set(kui_state, state->entity_inspector_title, (vec3){10, -5.0f, 0});
 
-			for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
-				// Label
-				{
-					char *name = string_format("hft_general_material_name_%u", i);
-					char *text = string_format("Material %u", i);
-					state->hft_general_material_names[i] = kui_label_control_create(state->kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
-					string_free(name);
-					string_free(text);
-					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_names[i]));
-					kui_control_position_set(kui_state, state->hft_general_material_names[i], (vec3){5, i * (imagebox_size + imagebox_padding), 0});
-				}
-				// Albedo
-				{
-					char *name = string_format("hft_general_material_albedo_image_box_%u", i);
-					state->hft_general_material_albedo_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
-					string_free(name);
-					hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
-					context->editor = state;
-					context->material_index = i;
-					context->map = HF_TERRAIN_MATERIAL_MAP_ALBEDO;
-					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_albedo_image_boxes[i]));
-					kui_control_position_set(kui_state, state->hft_general_material_albedo_image_boxes[i], (vec3){200, i * (imagebox_size + imagebox_padding), 0});
-					kui_control_set_user_data(kui_state, state->hft_general_material_albedo_image_boxes[i], sizeof(hf_terrain_material_imagebox_context), context, true, MEMORY_TAG_EDITOR);
-					kui_control_set_on_click(kui_state, state->hft_general_material_albedo_image_boxes[i], hft_material_imagebox_clicked);
-				}
-				// Normal
-				{
-					char *name = string_format("hft_general_material_normal_image_box_%u", i);
-					state->hft_general_material_normal_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
-					string_free(name);
-					hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
-					context->editor = state;
-					context->material_index = i;
-					context->map = HF_TERRAIN_MATERIAL_MAP_NORMAL;
-					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_normal_image_boxes[i]));
-					kui_control_position_set(kui_state, state->hft_general_material_normal_image_boxes[i], (vec3){269, i * (imagebox_size + imagebox_padding), 0});
-					kui_control_set_user_data(kui_state, state->hft_general_material_normal_image_boxes[i], sizeof(hf_terrain_material_imagebox_context), context, true, MEMORY_TAG_EDITOR);
-					kui_control_set_on_click(kui_state, state->hft_general_material_normal_image_boxes[i], hft_material_imagebox_clicked);
-				}
-				// MRA
-				{
-					char *name = string_format("hft_general_material_mra_image_box_%u", i);
-					state->hft_general_material_mra_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
-					string_free(name);
-					hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
-					context->editor = state;
-					context->material_index = i;
-					context->map = HF_TERRAIN_MATERIAL_MAP_MRA;
-					KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_mra_image_boxes[i]));
-					kui_control_position_set(kui_state, state->hft_general_material_mra_image_boxes[i], (vec3){338, i * (imagebox_size + imagebox_padding), 0});
-					kui_control_set_user_data(kui_state, state->hft_general_material_mra_image_boxes[i], sizeof(hf_terrain_material_imagebox_context), context, true, MEMORY_TAG_EDITOR);
-					kui_control_set_on_click(kui_state, state->hft_general_material_mra_image_boxes[i], hft_material_imagebox_clicked);
-				}
-			}
+	// Entity name
+	{
+		// Name label.
+		state->entity_name_label = kui_label_control_create(kui_state, "entity_name_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Name:");
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_label));
+		kui_control_position_set(kui_state, state->entity_name_label, (vec3){10, 50 + -5.0f, 0});
 
-			kui_scrollable_set_content_size(state->kui_state, state->hft_general_scrollable_control, state->hf_terrain_window_width, (imagebox_size + imagebox_padding) * HF_TERRAIN_MAX_MATERIALS);
-		}
+		// Name textbox.
+		state->entity_name_textbox = kui_textbox_control_create(kui_state, "entity_name_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_STRING);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_name_textbox));
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_name_textbox, 380));
+		kui_control_position_set(kui_state, state->entity_name_textbox, (vec3){state->entity_inspector_right_col_x, 50, 0});
+		kui_control_set_user_data(kui_state, state->entity_name_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_name_textbox, entity_name_textbox_on_key);
+	}
 
-		// Paint sub-mode
-		{
+	// Entity position
+	{
+		// Position label
+		state->entity_position_label = kui_label_control_create(kui_state, "entity_position_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Position");
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_label));
+		kui_control_position_set(kui_state, state->entity_position_label, (vec3){10, 100 + -5.0f, 0});
 
-			// Some reasonable defaults.
-			state->hft_paint_brush_diameter = 19;
-			state->hft_paint_brush_strength = 5;
-			state->hft_paint_material_index = 1;
+		// Position x textbox.
+		state->entity_position_x_textbox = kui_textbox_control_create(kui_state, "entity_position_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_x_textbox));
+		kui_control_position_set(kui_state, state->entity_position_x_textbox, (vec3){state->entity_inspector_right_col_x, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_x_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->entity_position_x_textbox, EDITOR_AXIS_COLOUR_R);
+		kui_control_set_user_data(kui_state, state->entity_position_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_position_x_textbox, entity_position_x_textbox_on_key);
 
-			state->hft_mode_paint_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_paint_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Paint");
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_paint_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_paint_checkbox, (vec3){90, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_mode_paint_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_mode_paint_checkbox, hf_terrain_checkbox_check_changed);
+		// Position y textbox.
+		state->entity_position_y_textbox = kui_textbox_control_create(kui_state, "entity_position_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_y_textbox));
+		kui_control_position_set(kui_state, state->entity_position_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_y_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->entity_position_y_textbox, EDITOR_AXIS_COLOUR_G);
+		kui_control_set_user_data(kui_state, state->entity_position_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_position_y_textbox, entity_position_y_textbox_on_key);
 
-			// Content pane
-			state->hft_mode_paint_content = kui_base_control_create(kui_state, "hft_mode_paint_content", KUI_CONTROL_TYPE_BASE);
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_paint_content));
-			kui_control_position_set(kui_state, state->hft_mode_paint_content, (vec3){5, 90, 0});
-			kui_control_set_is_active(kui_state, state->hft_mode_paint_content, false);
-			kui_control_set_is_visible(kui_state, state->hft_mode_paint_content, false);
+		// Position z textbox.
+		state->entity_position_z_textbox = kui_textbox_control_create(kui_state, "entity_position_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_position_z_textbox));
+		kui_control_position_set(kui_state, state->entity_position_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 100, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_position_z_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->entity_position_z_textbox, EDITOR_AXIS_COLOUR_B);
+		kui_control_set_user_data(kui_state, state->entity_position_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_position_z_textbox, entity_position_z_textbox_on_key);
+	}
 
-			state->hft_paint_brush_diameter_label = kui_label_control_create(kui_state, "hft_paint_brush_diameter_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Diameter");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_diameter_label));
-			kui_control_position_set(kui_state, state->hft_paint_brush_diameter_label, (vec3){5, 0, 0});
+	// Entity rotation
+	{
+		// Position label
+		state->entity_orientation_label = kui_label_control_create(kui_state, "entity_orientation_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Orientation");
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_label));
+		kui_control_position_set(kui_state, state->entity_orientation_label, (vec3){10, 150 + -5.0f, 0});
 
-			state->hft_paint_brush_strength_label = kui_label_control_create(kui_state, "hft_paint_brush_strength_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Strength");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_strength_label));
-			kui_control_position_set(kui_state, state->hft_paint_brush_strength_label, (vec3){5, 50, 0});
+		// Orientatiohttps://music.youtube.com/playlist?list=OLAK5uy_lW21dMR_nuKQOOxBTKzKpvzJCjP3hqtzw&si=pgXjcRP9HzglQh4Cn x textbox.
+		state->entity_orientation_x_textbox = kui_textbox_control_create(kui_state, "entity_orientation_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_x_textbox));
+		kui_control_position_set(kui_state, state->entity_orientation_x_textbox, (vec3){state->entity_inspector_right_col_x, 150, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_x_textbox, 120));
+		kui_control_set_user_data(kui_state, state->entity_orientation_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_orientation_x_textbox, entity_orientation_x_textbox_on_key);
 
-			state->hft_paint_material_index_label = kui_label_control_create(kui_state, "hft_paint_brush_material_index_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Mat. Index");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_material_index_label));
-			kui_control_position_set(kui_state, state->hft_paint_material_index_label, (vec3){5, 100, 0});
+		// Orientation y textbox.
+		state->entity_orientation_y_textbox = kui_textbox_control_create(kui_state, "entity_orientation_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_y_textbox));
+		kui_control_position_set(kui_state, state->entity_orientation_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 150, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_y_textbox, 120));
+		kui_control_set_user_data(kui_state, state->entity_orientation_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_orientation_y_textbox, entity_orientation_y_textbox_on_key);
 
-			// Paint brush diameter textbox.
-			state->hft_paint_brush_diameter_textbox = kui_textbox_control_create(kui_state, "hft_paint_brush_diameter_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_diameter_textbox));
-			kui_control_position_set(kui_state, state->hft_paint_brush_diameter_textbox, (vec3){state->hf_terrain_right_col_x, 0, 0});
-			kui_textbox_i64_set(kui_state, state->hft_paint_brush_diameter_textbox, state->hft_paint_brush_diameter);
-			KASSERT(kui_textbox_control_width_set(kui_state, state->hft_paint_brush_diameter_textbox, 120));
-			kui_control_set_user_data(kui_state, state->hft_paint_brush_diameter_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->hft_paint_brush_diameter_textbox, hft_paint_brush_diameter_textbox_on_key);
+		// Orientation z textbox.
+		state->entity_orientation_z_textbox = kui_textbox_control_create(kui_state, "entity_orientation_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_z_textbox));
+		kui_control_position_set(kui_state, state->entity_orientation_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 150, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_z_textbox, 120));
+		kui_control_set_user_data(kui_state, state->entity_orientation_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_orientation_z_textbox, entity_orientation_z_textbox_on_key);
 
-			// Strength
-			state->hft_paint_brush_strength_textbox = kui_textbox_control_create(kui_state, "hft_paint_brush_strength_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_strength_textbox));
-			kui_control_position_set(kui_state, state->hft_paint_brush_strength_textbox, (vec3){state->hf_terrain_right_col_x, 50, 0});
-			kui_textbox_i64_set(kui_state, state->hft_paint_brush_strength_textbox, state->hft_paint_brush_strength);
-			KASSERT(kui_textbox_control_width_set(kui_state, state->hft_paint_brush_strength_textbox, 120));
-			kui_control_set_user_data(kui_state, state->hft_paint_brush_strength_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->hft_paint_brush_strength_textbox, hft_paint_brush_strength_textbox_on_key);
+		// Orientation z textbox.
+		state->entity_orientation_w_textbox = kui_textbox_control_create(kui_state, "entity_orientation_w_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_orientation_w_textbox));
+		kui_control_position_set(kui_state, state->entity_orientation_w_textbox, (vec3){state->entity_inspector_right_col_x + 390, 150, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_orientation_w_textbox, 120));
+		kui_control_set_user_data(kui_state, state->entity_orientation_w_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_orientation_w_textbox, entity_orientation_w_textbox_on_key);
+	}
 
-			// Erase checkbox.
-			state->hft_paint_brush_erase_checkbox = kui_checkbox_control_create(kui_state, "hft_paint_brush_erase_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Erase");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_erase_checkbox));
-			kui_control_position_set(kui_state, state->hft_paint_brush_erase_checkbox, (vec3){state->hf_terrain_right_col_x + 130, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_paint_brush_erase_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_paint_brush_erase_checkbox, hf_terrain_erase_checkbox_check_changed);
+	// Entity scale
+	{
+		// Scale label
+		state->entity_scale_label = kui_label_control_create(kui_state, "entity_scale_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Scale");
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_label));
+		kui_control_position_set(kui_state, state->entity_scale_label, (vec3){10, 200 + -5.0f, 0});
 
-			// Material index.
-			state->hft_paint_brush_material_index_textbox = kui_textbox_control_create(kui_state, "hft_paint_brush_material_index_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_material_index_textbox));
-			kui_control_position_set(kui_state, state->hft_paint_brush_material_index_textbox, (vec3){state->hf_terrain_right_col_x, 100, 0});
-			kui_textbox_i64_set(kui_state, state->hft_paint_brush_material_index_textbox, state->hft_paint_material_index);
-			KASSERT(kui_textbox_control_width_set(kui_state, state->hft_paint_brush_material_index_textbox, 120));
-			kui_control_set_user_data(kui_state, state->hft_paint_brush_material_index_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->hft_paint_brush_material_index_textbox, hft_paint_material_index_textbox_on_key);
-		}
+		// Scale x textbox.
+		state->entity_scale_x_textbox = kui_textbox_control_create(kui_state, "entity_scale_x_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_x_textbox));
+		kui_control_position_set(kui_state, state->entity_scale_x_textbox, (vec3){state->entity_inspector_right_col_x, 200, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_x_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->entity_scale_x_textbox, EDITOR_AXIS_COLOUR_R);
+		kui_control_set_user_data(kui_state, state->entity_scale_x_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_scale_x_textbox, entity_scale_x_textbox_on_key);
 
-		// Elevation sub-mode
-		{
-			// Reasonable tool defaults
-			state->hft_elevation_amount = 0.01f;
-			state->hft_elevation_diameter = 5.0f;
-			state->hft_elevation_set_height = false;
+		// Scale y textbox.
+		state->entity_scale_y_textbox = kui_textbox_control_create(kui_state, "entity_scale_y_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_y_textbox));
+		kui_control_position_set(kui_state, state->entity_scale_y_textbox, (vec3){state->entity_inspector_right_col_x + 130, 200, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_y_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->entity_scale_y_textbox, EDITOR_AXIS_COLOUR_G);
+		kui_control_set_user_data(kui_state, state->entity_scale_y_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_scale_y_textbox, entity_scale_y_textbox_on_key);
 
-			state->hft_mode_elevation_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_elevation_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Elev.");
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_elevation_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_elevation_checkbox, (vec3){190, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_mode_elevation_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_mode_elevation_checkbox, hf_terrain_checkbox_check_changed);
+		// Scale z textbox.
+		state->entity_scale_z_textbox = kui_textbox_control_create(kui_state, "entity_scale_z_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->entity_inspector_bg_panel, state->entity_scale_z_textbox));
+		kui_control_position_set(kui_state, state->entity_scale_z_textbox, (vec3){state->entity_inspector_right_col_x + 260, 200, 0});
+		KASSERT(kui_textbox_control_width_set(kui_state, state->entity_scale_z_textbox, 120));
+		kui_textbox_control_colour_set(kui_state, state->entity_scale_z_textbox, EDITOR_AXIS_COLOUR_B);
+		kui_control_set_user_data(kui_state, state->entity_scale_z_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->entity_scale_z_textbox, entity_scale_z_textbox_on_key);
+	}
+}
 
-			// Content pane
-			state->hft_mode_elevation_content = kui_base_control_create(kui_state, "hft_mode_elevation_content", KUI_CONTROL_TYPE_BASE);
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_elevation_content));
-			kui_control_position_set(kui_state, state->hft_mode_elevation_content, (vec3){5, 90, 0});
-			kui_control_set_is_active(kui_state, state->hft_mode_elevation_content, false);
-			kui_control_set_is_visible(kui_state, state->hft_mode_elevation_content, false);
+// Tree window panel.
+{
+	state->tree_inspector_width = 500.0f;
+	state->tree_inspector_right_col_x = 150.0f;
+	state->tree_inspector_bg_panel = kui_panel_control_create(kui_state, "tree_inspector_bg_panel", (vec2){state->tree_inspector_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+	KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->tree_inspector_bg_panel));
+	kui_control_position_set(kui_state, state->tree_inspector_bg_panel, (vec3){1280 - (state->tree_inspector_width + 10)});
+	kui_control_set_is_active(kui_state, state->tree_inspector_bg_panel, false);
+	kui_control_set_is_visible(kui_state, state->tree_inspector_bg_panel, false);
 
-			state->hft_elevation_diameter_label = kui_label_control_create(kui_state, "hft_elevation_diameter_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Diameter");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_diameter_label));
-			kui_control_position_set(kui_state, state->hft_elevation_diameter_label, (vec3){5, 0, 0});
+	// Window Label
+	state->tree_inspector_title = kui_label_control_create(kui_state, "tree_inspector_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Tree");
+	KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_inspector_title));
+	kui_control_position_set(kui_state, state->tree_inspector_title, (vec3){10, -5.0f, 0});
 
-			state->hft_elevation_amount_label = kui_label_control_create(kui_state, "hft_elevation_strength_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Amount");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_amount_label));
-			kui_control_position_set(kui_state, state->hft_elevation_amount_label, (vec3){5, 50, 0});
+	// Base tree control.
+	state->tree_scrollable_control = kui_scrollable_control_create(kui_state, "tree_base_control", (vec2){state->tree_inspector_width, 200}, true, true);
+	KASSERT(kui_system_control_add_child(kui_state, state->tree_inspector_bg_panel, state->tree_scrollable_control));
+	kui_control_position_set(kui_state, state->tree_scrollable_control, (vec3){0, 50, 0});
 
-			// elevation brush diameter textbox.
-			state->hft_elevation_diameter_textbox = kui_textbox_control_create(kui_state, "hft_elevation_diameter_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_diameter_textbox));
-			kui_control_position_set(kui_state, state->hft_elevation_diameter_textbox, (vec3){state->hf_terrain_right_col_x, 0, 0});
-			kui_textbox_i64_set(kui_state, state->hft_elevation_diameter_textbox, state->hft_elevation_diameter);
-			KASSERT(kui_textbox_control_width_set(kui_state, state->hft_elevation_diameter_textbox, 120));
-			kui_control_set_user_data(kui_state, state->hft_elevation_diameter_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->hft_elevation_diameter_textbox, hft_elevation_diameter_textbox_on_key);
+	state->tree_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->tree_scrollable_control);
 
-			// Amount
-			state->hft_elevation_amount_textbox = kui_textbox_control_create(kui_state, "hft_elevation_strength_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_amount_textbox));
-			kui_control_position_set(kui_state, state->hft_elevation_amount_textbox, (vec3){state->hf_terrain_right_col_x, 50, 0});
-			kui_textbox_f32_set(kui_state, state->hft_elevation_amount_textbox, state->hft_elevation_amount);
-			KASSERT(kui_textbox_control_width_set(kui_state, state->hft_elevation_amount_textbox, 120));
-			kui_control_set_user_data(kui_state, state->hft_elevation_amount_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_control_set_on_key(kui_state, state->hft_elevation_amount_textbox, hft_elevation_amount_textbox_on_key);
+	// TODO: more controls
+}
 
-			// Set height checkbox.
-			state->hft_elevation_set_height_checkbox = kui_checkbox_control_create(kui_state, "hft_elevation_erase_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Set Height");
-			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_set_height_checkbox));
-			kui_control_position_set(kui_state, state->hft_elevation_set_height_checkbox, (vec3){state->hf_terrain_right_col_x + 130, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_elevation_set_height_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_elevation_set_height_checkbox, hf_terrain_set_height_checkbox_check_changed);
-		}
+// HF Terrain window panel.
+{
+	state->hf_terrain_window_width = 540.0f;
+	state->hf_terrain_right_col_x = 130.0f;
+	state->hf_terrain_bg_panel = kui_panel_control_create(kui_state, "hf_terrain_bg_panel", (vec2){state->hf_terrain_window_width, 600.0f}, (vec4){0.0f, 0.0f, 0.0f, 0.75f});
+	KASSERT(kui_system_control_add_child(kui_state, state->editor_root, state->hf_terrain_bg_panel));
+	kui_control_position_set(kui_state, state->hf_terrain_bg_panel, (vec3){1280 - (state->hf_terrain_window_width + 10)});
+	kui_control_set_is_active(kui_state, state->hf_terrain_bg_panel, false);
+	kui_control_set_is_visible(kui_state, state->hf_terrain_bg_panel, false);
 
-		// Chunk sub-mode
-		{
-			state->hft_mode_chunk_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_chunk_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Chunk");
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_chunk_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_chunk_checkbox, (vec3){280, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_mode_chunk_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_mode_chunk_checkbox, hf_terrain_checkbox_check_changed);
+	// Window Label
+	state->hf_terrain_title = kui_label_control_create(kui_state, "hf_terrain_title", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Heightfield Terrain Editor");
+	KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hf_terrain_title));
+	kui_control_position_set(kui_state, state->hf_terrain_title, (vec3){10, -5.0f, 0});
 
-			state->hft_mode_chunk_content = kui_base_control_create(kui_state, "hft_mode_chunk_content", KUI_CONTROL_TYPE_BASE);
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_chunk_content));
-			kui_control_position_set(kui_state, state->hft_mode_chunk_content, (vec3){5, 90, 0});
-			kui_control_set_is_active(kui_state, state->hft_mode_chunk_content, false);
-			kui_control_set_is_visible(kui_state, state->hft_mode_chunk_content, false);
+	// Terrain save button HACK: This should have its own space alongside creation tools (create button, x/z dimensions, etc.)
+	{
+		state->hf_terrain_save_button = kui_button_control_create_with_text(kui_state, "hf_terrain_save_button", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Save HF Terr.");
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hf_terrain_save_button));
+		kui_button_control_width_set(kui_state, state->hf_terrain_save_button, 150);
+		kui_control_position_set(kui_state, state->hf_terrain_save_button, (vec3){300, 0, 0});
+		kui_control_set_user_data(kui_state, state->hf_terrain_save_button, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_click(kui_state, state->hf_terrain_save_button, hft_save_button_clicked);
+	}
 
-			// TODO: Add controls for material mapping
-			for (u8 i = 0; i < 5; ++i) {
-				f32 ypos = i * 50.0f;
+	// General sub-mode - active by default.
+	{
+		state->hft_mode_general_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_general_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Gen.");
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_general_checkbox));
+		kui_control_position_set(kui_state, state->hft_mode_general_checkbox, (vec3){5, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_mode_general_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_mode_general_checkbox, hf_terrain_checkbox_check_changed);
+		kui_checkbox_set_checked(kui_state, state->hft_mode_general_checkbox, true);
 
-				// Material label
-				char *name = string_format("hft_chunk_material_labels[%u]", i);
-				char *text = string_format("Slot %u", i);
-				state->hft_chunk_material_labels[i] = kui_label_control_create(kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
+		// Content pane
+		state->hft_mode_general_content = kui_base_control_create(kui_state, "hft_mode_general_content", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_general_content));
+		kui_control_position_set(kui_state, state->hft_mode_general_content, (vec3){5, 90, 0});
+
+		// Scrollable content control
+		state->hft_general_scrollable_control = kui_scrollable_control_create(kui_state, "hft_general_scrollable_control", (vec2){state->hf_terrain_window_width, 200}, true, true);
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_general_content, state->hft_general_scrollable_control));
+		kui_control_position_set(kui_state, state->hft_general_scrollable_control, (vec3){0, 50, 0});
+
+		state->hft_general_content_container = kui_scrollable_control_get_content_container(state->kui_state, state->hft_general_scrollable_control);
+
+		// Terrain material listing
+		f32 imagebox_size = 64;
+		f32 imagebox_padding = 5.0f;
+
+		for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
+			// Label
+			{
+				char *name = string_format("hft_general_material_name_%u", i);
+				char *text = string_format("Material %u", i);
+				state->hft_general_material_names[i] = kui_label_control_create(state->kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
 				string_free(name);
 				string_free(text);
-				KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_chunk_content, state->hft_chunk_material_labels[i]));
-				kui_control_position_set(kui_state, state->hft_chunk_material_labels[i], (vec3){5, ypos, 0});
-
-				// Material index
-				name = string_format("hft_chunk_material_textboxes[%u]", i);
-				state->hft_chunk_material_textboxes[i] = kui_textbox_control_create(kui_state, name, FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
+				KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_names[i]));
+				kui_control_position_set(kui_state, state->hft_general_material_names[i], (vec3){5, i * (imagebox_size + imagebox_padding), 0});
+			}
+			// Albedo
+			{
+				char *name = string_format("hft_general_material_albedo_image_box_%u", i);
+				state->hft_general_material_albedo_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
 				string_free(name);
-				KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_chunk_content, state->hft_chunk_material_textboxes[i]));
-				kui_control_position_set(kui_state, state->hft_chunk_material_textboxes[i], (vec3){state->hf_terrain_right_col_x, ypos, 0});
-				KASSERT(kui_textbox_control_width_set(kui_state, state->hft_chunk_material_textboxes[i], 40));
-
-				hf_terrain_chunk_material_context *ctrl_context = KALLOC_TYPE(hf_terrain_chunk_material_context, MEMORY_TAG_EDITOR);
-				ctrl_context->editor = state;
-				ctrl_context->material_slot = i;
-				kui_control_set_user_data(kui_state, state->hft_chunk_material_textboxes[i], sizeof(*ctrl_context), ctrl_context, true, MEMORY_TAG_EDITOR);
-				kui_control_set_on_key(kui_state, state->hft_chunk_material_textboxes[i], hft_chunk_material_textbox_on_key);
+				hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
+				context->editor = state;
+				context->material_index = i;
+				context->map = HF_TERRAIN_MATERIAL_MAP_ALBEDO;
+				KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_albedo_image_boxes[i]));
+				kui_control_position_set(kui_state, state->hft_general_material_albedo_image_boxes[i], (vec3){200, i * (imagebox_size + imagebox_padding), 0});
+				kui_control_set_user_data(kui_state, state->hft_general_material_albedo_image_boxes[i], sizeof(hf_terrain_material_imagebox_context), context, true, MEMORY_TAG_EDITOR);
+				kui_control_set_on_click(kui_state, state->hft_general_material_albedo_image_boxes[i], hft_material_imagebox_clicked);
+			}
+			// Normal
+			{
+				char *name = string_format("hft_general_material_normal_image_box_%u", i);
+				state->hft_general_material_normal_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
+				string_free(name);
+				hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
+				context->editor = state;
+				context->material_index = i;
+				context->map = HF_TERRAIN_MATERIAL_MAP_NORMAL;
+				KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_normal_image_boxes[i]));
+				kui_control_position_set(kui_state, state->hft_general_material_normal_image_boxes[i], (vec3){269, i * (imagebox_size + imagebox_padding), 0});
+				kui_control_set_user_data(kui_state, state->hft_general_material_normal_image_boxes[i], sizeof(hf_terrain_material_imagebox_context), context, true, MEMORY_TAG_EDITOR);
+				kui_control_set_on_click(kui_state, state->hft_general_material_normal_image_boxes[i], hft_material_imagebox_clicked);
+			}
+			// MRA
+			{
+				char *name = string_format("hft_general_material_mra_image_box_%u", i);
+				state->hft_general_material_mra_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
+				string_free(name);
+				hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
+				context->editor = state;
+				context->material_index = i;
+				context->map = HF_TERRAIN_MATERIAL_MAP_MRA;
+				KASSERT(kui_system_control_add_child(kui_state, state->hft_general_content_container, state->hft_general_material_mra_image_boxes[i]));
+				kui_control_position_set(kui_state, state->hft_general_material_mra_image_boxes[i], (vec3){338, i * (imagebox_size + imagebox_padding), 0});
+				kui_control_set_user_data(kui_state, state->hft_general_material_mra_image_boxes[i], sizeof(hf_terrain_material_imagebox_context), context, true, MEMORY_TAG_EDITOR);
+				kui_control_set_on_click(kui_state, state->hft_general_material_mra_image_boxes[i], hft_material_imagebox_clicked);
 			}
 		}
 
-		// Remove sub-mode
-		{
-			state->hft_mode_remove_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_remove_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Remove");
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_remove_checkbox));
-			kui_control_position_set(kui_state, state->hft_mode_remove_checkbox, (vec3){400, 50, 0});
-			kui_control_set_user_data(kui_state, state->hft_mode_remove_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
-			kui_checkbox_set_on_checked(kui_state, state->hft_mode_remove_checkbox, hf_terrain_checkbox_check_changed);
+		kui_scrollable_set_content_size(state->kui_state, state->hft_general_scrollable_control, state->hf_terrain_window_width, (imagebox_size + imagebox_padding) * HF_TERRAIN_MAX_MATERIALS);
+	}
 
-			state->hft_mode_remove_content = kui_base_control_create(kui_state, "hft_mode_remove_content", KUI_CONTROL_TYPE_BASE);
-			KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_remove_content));
-			kui_control_position_set(kui_state, state->hft_mode_remove_content, (vec3){5, 90, 0});
-			kui_control_set_is_active(kui_state, state->hft_mode_remove_content, false);
-			kui_control_set_is_visible(kui_state, state->hft_mode_remove_content, false);
+	// Paint sub-mode
+	{
+
+		// Some reasonable defaults.
+		state->hft_paint_brush_diameter = 19;
+		state->hft_paint_brush_strength = 5;
+		state->hft_paint_material_index = 1;
+
+		state->hft_mode_paint_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_paint_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Paint");
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_paint_checkbox));
+		kui_control_position_set(kui_state, state->hft_mode_paint_checkbox, (vec3){90, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_mode_paint_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_mode_paint_checkbox, hf_terrain_checkbox_check_changed);
+
+		// Content pane
+		state->hft_mode_paint_content = kui_base_control_create(kui_state, "hft_mode_paint_content", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_paint_content));
+		kui_control_position_set(kui_state, state->hft_mode_paint_content, (vec3){5, 90, 0});
+		kui_control_set_is_active(kui_state, state->hft_mode_paint_content, false);
+		kui_control_set_is_visible(kui_state, state->hft_mode_paint_content, false);
+
+		state->hft_paint_brush_diameter_label = kui_label_control_create(kui_state, "hft_paint_brush_diameter_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Diameter");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_diameter_label));
+		kui_control_position_set(kui_state, state->hft_paint_brush_diameter_label, (vec3){5, 0, 0});
+
+		state->hft_paint_brush_strength_label = kui_label_control_create(kui_state, "hft_paint_brush_strength_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Strength");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_strength_label));
+		kui_control_position_set(kui_state, state->hft_paint_brush_strength_label, (vec3){5, 50, 0});
+
+		state->hft_paint_material_index_label = kui_label_control_create(kui_state, "hft_paint_brush_material_index_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Mat. Index");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_material_index_label));
+		kui_control_position_set(kui_state, state->hft_paint_material_index_label, (vec3){5, 100, 0});
+
+		// Paint brush diameter textbox.
+		state->hft_paint_brush_diameter_textbox = kui_textbox_control_create(kui_state, "hft_paint_brush_diameter_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_diameter_textbox));
+		kui_control_position_set(kui_state, state->hft_paint_brush_diameter_textbox, (vec3){state->hf_terrain_right_col_x, 0, 0});
+		kui_textbox_i64_set(kui_state, state->hft_paint_brush_diameter_textbox, state->hft_paint_brush_diameter);
+		KASSERT(kui_textbox_control_width_set(kui_state, state->hft_paint_brush_diameter_textbox, 120));
+		kui_control_set_user_data(kui_state, state->hft_paint_brush_diameter_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->hft_paint_brush_diameter_textbox, hft_paint_brush_diameter_textbox_on_key);
+
+		// Strength
+		state->hft_paint_brush_strength_textbox = kui_textbox_control_create(kui_state, "hft_paint_brush_strength_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_strength_textbox));
+		kui_control_position_set(kui_state, state->hft_paint_brush_strength_textbox, (vec3){state->hf_terrain_right_col_x, 50, 0});
+		kui_textbox_i64_set(kui_state, state->hft_paint_brush_strength_textbox, state->hft_paint_brush_strength);
+		KASSERT(kui_textbox_control_width_set(kui_state, state->hft_paint_brush_strength_textbox, 120));
+		kui_control_set_user_data(kui_state, state->hft_paint_brush_strength_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->hft_paint_brush_strength_textbox, hft_paint_brush_strength_textbox_on_key);
+
+		// Erase checkbox.
+		state->hft_paint_brush_erase_checkbox = kui_checkbox_control_create(kui_state, "hft_paint_brush_erase_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Erase");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_erase_checkbox));
+		kui_control_position_set(kui_state, state->hft_paint_brush_erase_checkbox, (vec3){state->hf_terrain_right_col_x + 130, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_paint_brush_erase_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_paint_brush_erase_checkbox, hf_terrain_erase_checkbox_check_changed);
+
+		// Material index.
+		state->hft_paint_brush_material_index_textbox = kui_textbox_control_create(kui_state, "hft_paint_brush_material_index_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_paint_content, state->hft_paint_brush_material_index_textbox));
+		kui_control_position_set(kui_state, state->hft_paint_brush_material_index_textbox, (vec3){state->hf_terrain_right_col_x, 100, 0});
+		kui_textbox_i64_set(kui_state, state->hft_paint_brush_material_index_textbox, state->hft_paint_material_index);
+		KASSERT(kui_textbox_control_width_set(kui_state, state->hft_paint_brush_material_index_textbox, 120));
+		kui_control_set_user_data(kui_state, state->hft_paint_brush_material_index_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->hft_paint_brush_material_index_textbox, hft_paint_material_index_textbox_on_key);
+	}
+
+	// Elevation sub-mode
+	{
+		// Reasonable tool defaults
+		state->hft_elevation_amount = 0.01f;
+		state->hft_elevation_diameter = 5.0f;
+		state->hft_elevation_set_height = false;
+
+		state->hft_mode_elevation_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_elevation_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Elev.");
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_elevation_checkbox));
+		kui_control_position_set(kui_state, state->hft_mode_elevation_checkbox, (vec3){190, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_mode_elevation_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_mode_elevation_checkbox, hf_terrain_checkbox_check_changed);
+
+		// Content pane
+		state->hft_mode_elevation_content = kui_base_control_create(kui_state, "hft_mode_elevation_content", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_elevation_content));
+		kui_control_position_set(kui_state, state->hft_mode_elevation_content, (vec3){5, 90, 0});
+		kui_control_set_is_active(kui_state, state->hft_mode_elevation_content, false);
+		kui_control_set_is_visible(kui_state, state->hft_mode_elevation_content, false);
+
+		state->hft_elevation_diameter_label = kui_label_control_create(kui_state, "hft_elevation_diameter_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Diameter");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_diameter_label));
+		kui_control_position_set(kui_state, state->hft_elevation_diameter_label, (vec3){5, 0, 0});
+
+		state->hft_elevation_amount_label = kui_label_control_create(kui_state, "hft_elevation_strength_label", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Amount");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_amount_label));
+		kui_control_position_set(kui_state, state->hft_elevation_amount_label, (vec3){5, 50, 0});
+
+		// elevation brush diameter textbox.
+		state->hft_elevation_diameter_textbox = kui_textbox_control_create(kui_state, "hft_elevation_diameter_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_diameter_textbox));
+		kui_control_position_set(kui_state, state->hft_elevation_diameter_textbox, (vec3){state->hf_terrain_right_col_x, 0, 0});
+		kui_textbox_i64_set(kui_state, state->hft_elevation_diameter_textbox, state->hft_elevation_diameter);
+		KASSERT(kui_textbox_control_width_set(kui_state, state->hft_elevation_diameter_textbox, 120));
+		kui_control_set_user_data(kui_state, state->hft_elevation_diameter_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->hft_elevation_diameter_textbox, hft_elevation_diameter_textbox_on_key);
+
+		// Amount
+		state->hft_elevation_amount_textbox = kui_textbox_control_create(kui_state, "hft_elevation_strength_textbox", FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_FLOAT);
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_amount_textbox));
+		kui_control_position_set(kui_state, state->hft_elevation_amount_textbox, (vec3){state->hf_terrain_right_col_x, 50, 0});
+		kui_textbox_f32_set(kui_state, state->hft_elevation_amount_textbox, state->hft_elevation_amount);
+		KASSERT(kui_textbox_control_width_set(kui_state, state->hft_elevation_amount_textbox, 120));
+		kui_control_set_user_data(kui_state, state->hft_elevation_amount_textbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_control_set_on_key(kui_state, state->hft_elevation_amount_textbox, hft_elevation_amount_textbox_on_key);
+
+		// Set height checkbox.
+		state->hft_elevation_set_height_checkbox = kui_checkbox_control_create(kui_state, "hft_elevation_erase_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Set Height");
+		KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_elevation_content, state->hft_elevation_set_height_checkbox));
+		kui_control_position_set(kui_state, state->hft_elevation_set_height_checkbox, (vec3){state->hf_terrain_right_col_x + 130, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_elevation_set_height_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_elevation_set_height_checkbox, hf_terrain_set_height_checkbox_check_changed);
+	}
+
+	// Chunk sub-mode
+	{
+		state->hft_mode_chunk_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_chunk_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Chunk");
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_chunk_checkbox));
+		kui_control_position_set(kui_state, state->hft_mode_chunk_checkbox, (vec3){280, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_mode_chunk_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_mode_chunk_checkbox, hf_terrain_checkbox_check_changed);
+
+		state->hft_mode_chunk_content = kui_base_control_create(kui_state, "hft_mode_chunk_content", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_chunk_content));
+		kui_control_position_set(kui_state, state->hft_mode_chunk_content, (vec3){5, 90, 0});
+		kui_control_set_is_active(kui_state, state->hft_mode_chunk_content, false);
+		kui_control_set_is_visible(kui_state, state->hft_mode_chunk_content, false);
+
+		// TODO: Add controls for material mapping
+		for (u8 i = 0; i < 5; ++i) {
+			f32 ypos = i * 50.0f;
+
+			// Material label
+			char *name = string_format("hft_chunk_material_labels[%u]", i);
+			char *text = string_format("Slot %u", i);
+			state->hft_chunk_material_labels[i] = kui_label_control_create(kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
+			string_free(name);
+			string_free(text);
+			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_chunk_content, state->hft_chunk_material_labels[i]));
+			kui_control_position_set(kui_state, state->hft_chunk_material_labels[i], (vec3){5, ypos, 0});
+
+			// Material index
+			name = string_format("hft_chunk_material_textboxes[%u]", i);
+			state->hft_chunk_material_textboxes[i] = kui_textbox_control_create(kui_state, name, FONT_TYPE_SYSTEM, state->textbox_font_name, state->textbox_font_size, "", KUI_TEXTBOX_TYPE_INT);
+			string_free(name);
+			KASSERT(kui_system_control_add_child(kui_state, state->hft_mode_chunk_content, state->hft_chunk_material_textboxes[i]));
+			kui_control_position_set(kui_state, state->hft_chunk_material_textboxes[i], (vec3){state->hf_terrain_right_col_x, ypos, 0});
+			KASSERT(kui_textbox_control_width_set(kui_state, state->hft_chunk_material_textboxes[i], 40));
+
+			hf_terrain_chunk_material_context *ctrl_context = KALLOC_TYPE(hf_terrain_chunk_material_context, MEMORY_TAG_EDITOR);
+			ctrl_context->editor = state;
+			ctrl_context->material_slot = i;
+			kui_control_set_user_data(kui_state, state->hft_chunk_material_textboxes[i], sizeof(*ctrl_context), ctrl_context, true, MEMORY_TAG_EDITOR);
+			kui_control_set_on_key(kui_state, state->hft_chunk_material_textboxes[i], hft_chunk_material_textbox_on_key);
 		}
 	}
 
-	// Texture browser
+	// Remove sub-mode
 	{
-		texture_browser_create_info create_info = {
-			.ui = kui_state,
-			.editor_root = state->editor_root,
-			.game_package_name = game_package_name,
-			.font_size = state->font_size,
-			.font_name = state->font_name,
-			.textbox_font_size = state->textbox_font_size,
-			.textbox_font_name = state->textbox_font_name};
-		texture_browser_create(&state->tex_browser, create_info);
-	}
-	state->is_running = true;
+		state->hft_mode_remove_checkbox = kui_checkbox_control_create(kui_state, "hft_mode_remove_checkbox", FONT_TYPE_SYSTEM, state->font_name, state->font_size, "Remove");
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_remove_checkbox));
+		kui_control_position_set(kui_state, state->hft_mode_remove_checkbox, (vec3){400, 50, 0});
+		kui_control_set_user_data(kui_state, state->hft_mode_remove_checkbox, sizeof(*state), state, false, MEMORY_TAG_EDITOR);
+		kui_checkbox_set_on_checked(kui_state, state->hft_mode_remove_checkbox, hf_terrain_checkbox_check_changed);
 
-	return true;
+		state->hft_mode_remove_content = kui_base_control_create(kui_state, "hft_mode_remove_content", KUI_CONTROL_TYPE_BASE);
+		KASSERT(kui_system_control_add_child(kui_state, state->hf_terrain_bg_panel, state->hft_mode_remove_content));
+		kui_control_position_set(kui_state, state->hft_mode_remove_content, (vec3){5, 90, 0});
+		kui_control_set_is_active(kui_state, state->hft_mode_remove_content, false);
+		kui_control_set_is_visible(kui_state, state->hft_mode_remove_content, false);
+	}
+}
+
+// Texture browser
+{
+	texture_browser_create_info create_info = {
+		.ui = kui_state,
+		.editor_root = state->editor_root,
+		.game_package_name = game_package_name,
+		.font_size = state->font_size,
+		.font_name = state->font_name,
+		.textbox_font_size = state->textbox_font_size,
+		.textbox_font_name = state->textbox_font_name};
+	texture_browser_create(&state->tex_browser, create_info);
+}
+state->is_running = true;
+
+return true;
 }
 void editor_shutdown (struct editor_state *state) {
 
@@ -1117,7 +1117,7 @@ void editor_add_to_selected_entities (struct editor_state *state, u32 count, ken
 		kname name = kscene_get_entity_name(state->edit_scene, entity);
 		KINFO("Selection [%u]: '%s'", s, kname_string_get(name));
 		if (!editor_selection_contains(state, entity)) {
-			darray_push(state->selection_list, entity);
+			darray_push(state->selection_list, &entity);
 		}
 	}
 

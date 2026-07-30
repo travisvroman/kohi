@@ -621,7 +621,7 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		kwindow new_window = {0};
 		new_window.name = string_duplicate(window_config->name);
 		// Add to tracked window list
-		darray_push(engine_state->windows, new_window);
+		darray_push(engine_state->windows, &new_window);
 
 		kwindow *window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
 		if (!platform_window_create(window_config, window, true)) {

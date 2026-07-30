@@ -37,9 +37,11 @@ typedef struct kwindow_platform_state {
 } kwindow_platform_state;
 
 void vulkan_platform_get_required_extension_names (const char ***names_darray) {
-	darray_push(*names_darray, &"VK_EXT_metal_surface");
+	const char *ext = "VK_EXT_metal_surface";
+	darray_push(*names_darray, &ext);
 	// Required for macos
-	darray_push(*names_darray, &VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+	ext = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+		darray_push(*names_darray, &ext);
 }
 
 b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindow *window) {

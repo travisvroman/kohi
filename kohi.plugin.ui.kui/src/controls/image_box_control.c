@@ -192,7 +192,7 @@ b8 kui_image_box_control_render (kui_state *state, kui_control self, struct fram
 		renderable.binding_instance_id = typed_data->binding_instance_id;
 		renderable.atlas_override = typed_data->texture;
 
-		darray_push(render_data->renderables, renderable);
+		darray_push(render_data->renderables, &renderable);
 	}
 
 	return true;

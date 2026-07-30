@@ -412,7 +412,7 @@ kmodel_instance kmodel_instance_acquire_from_package (struct kmodel_system_state
 			.instance_id = instance_id,
 			.callback = callback,
 			.context = context};
-		darray_push(state->instance_queue, new_entry);
+		darray_push(state->instance_queue, &new_entry);
 
 		// Kick off async asset load via the asset system.
 		kasset_model *asset = asset_system_request_model_from_package(
@@ -461,7 +461,7 @@ kmodel_instance kmodel_instance_acquire_from_package (struct kmodel_system_state
 				.instance_id = instance_id,
 				.callback = callback,
 				.context = context};
-			darray_push(state->instance_queue, new_entry);
+			darray_push(state->instance_queue, &new_entry);
 		}
 	}
 

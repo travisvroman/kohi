@@ -45,7 +45,7 @@ b8 vfs_initialize (u64 *memory_requirement, vfs_state *state, const vfs_config *
 		return false;
 	}
 
-	darray_push(state->packages, primary_package);
+	darray_push(state->packages, &primary_package);
 
 	// Examine primary package references and load them as needed.
 	if (!process_manifest_refs(state, &manifest)) {
@@ -132,7 +132,7 @@ kname *vfs_asset_names_by_type (vfs_state *state, kasset_type type, kname packag
 			if (pcount) {
 				// push range; for now just loop...
 				for (u32 p = 0; p < pcount; ++p) {
-					darray_push(names_da, pnames[p]);
+					darray_push(names_da, &pnames[p]);
 				}
 				kfree(pnames);
 			}
@@ -520,7 +520,7 @@ static b8 process_manifest_refs (vfs_state *state, const asset_manifest *manifes
 				return false;
 			}
 
-			darray_push(state->packages, package);
+			darray_push(state->packages, &package);
 
 			// Process references.
 			if (!process_manifest_refs(state, &new_manifest)) {

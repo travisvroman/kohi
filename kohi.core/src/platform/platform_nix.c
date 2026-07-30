@@ -13,6 +13,12 @@
 
 #if defined(KPLATFORM_LINUX) || defined(KPLATFORM_APPLE)
 
+// #ifdef _POSIX_C_SOURCE
+// #undef _POSIX_C_SOURCE
+// #endif
+// #	define _POSIX_C_SOURCE 200809L
+#	define _XOPEN_SOURCE 700 // Enables POSIX/XSI extensions for C99
+
 #	include "threads/ksemaphore.h"
 #	include <dlfcn.h>
 #	include <fcntl.h> // For O_* constants
@@ -198,7 +204,11 @@ b8 kmutex_create (kmutex *out_mutex) {
 	// Initialize
 	pthread_mutexattr_t mutex_attr;
 	pthread_mutexattr_init(&mutex_attr);
+#	ifdef PTHREAD_MUTEX_RECURSIVE
 	pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+#	else
+	pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE_NP);
+#	endif
 	pthread_mutex_t mutex;
 	i32 result = pthread_mutex_init(&mutex, &mutex_attr);
 	if (result != 0) {
@@ -476,7 +486,7 @@ void *platform_dynamic_library_load_function (const char *name, dynamic_library 
 	dynamic_library_function f = {0};
 	f.pfn = f_addr;
 	f.name = string_duplicate(name);
-	darray_push(library->functions, f);
+	darray_push(library->functions, &f);
 
 	return f_addr;
 }

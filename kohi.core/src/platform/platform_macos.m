@@ -562,7 +562,7 @@ b8 platform_window_create (const kwindow_config *config, struct kwindow *window,
 	window->height = (u16)ps->layer.drawableSize.height;
 
 	// Register the window internally.
-	darray_push(state_ptr->windows, window);
+	darray_push(state_ptr->windows, &window);
 
 	/*if (show_immediately) {
 		platform_window_show(window);
@@ -868,7 +868,7 @@ static b8 register_watch (
 	w.watcher_deleted_callback = watcher_deleted_callback;
 	w.watcher_deleted_context = watcher_deleted_context;
 	*out_watch_id = count;
-	darray_push(state_ptr->watches, w);
+	darray_push(state_ptr->watches, &w);
 
 	return true;
 }

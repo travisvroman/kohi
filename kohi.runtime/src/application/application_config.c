@@ -129,7 +129,7 @@ b8 application_config_parse_file_content (const char *file_content, application_
 				new_window.position_y = 10;
 			}
 
-			darray_push(out_config->windows, new_window);
+			darray_push(out_config->windows, &new_window);
 		}
 	}
 
@@ -144,7 +144,7 @@ b8 application_config_parse_file_content (const char *file_content, application_
 		win.position_y = 100;
 		win.width = 1280;
 		win.height = 720;
-		darray_push(out_config->windows, win);
+		darray_push(out_config->windows, &win);
 	}
 
 	// System configs
@@ -188,7 +188,7 @@ b8 application_config_parse_file_content (const char *file_content, application_
 		// main tree. This can/will be cleaned up at the end of processing.
 
 		// Push it into the collection of configs.
-		darray_push(out_config->systems, new_system);
+		darray_push(out_config->systems, &new_system);
 	}
 
 	kson_tree_cleanup(&app_config_tree);

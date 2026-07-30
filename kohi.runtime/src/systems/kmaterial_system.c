@@ -660,10 +660,10 @@ static kmaterial material_handle_create (kmaterial_system_state *state, kname na
 	}
 	if (resource_index == INVALID_ID) {
 		resource_index = material_count;
-		darray_push(state->materials, (kmaterial_data){0});
+		darray_push(state->materials, &(kmaterial_data){0});
 		// This also means a new entry needs to be created at this index for instances.
 		kmaterial_instance_data *new_inst_array = darray_create(kmaterial_instance_data);
-		darray_push(state->instances, new_inst_array);
+		darray_push(state->instances, &new_inst_array);
 	}
 
 	/* KTRACE("Material system - new handle created at index: '%d'.", resource_index); */
@@ -685,7 +685,7 @@ static u16 kmaterial_instance_handle_create (kmaterial_system_state *state, kmat
 	}
 	if (instance_index == KMATERIAL_INSTANCE_INVALID) {
 		instance_index = instance_count;
-		darray_push(state->instances[material_handle], (kmaterial_instance_data){0});
+		darray_push(state->instances[material_handle], &(kmaterial_instance_data){0});
 	}
 
 	return instance_index;

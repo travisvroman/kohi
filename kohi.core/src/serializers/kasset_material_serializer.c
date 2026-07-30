@@ -459,7 +459,7 @@ b8 kasset_material_deserialize (const char *file_text, kasset_material *out_asse
 							string_free(value_str);
 						}
 						// Push to array.
-						darray_push(out_material->custom_samplers, custom_sampler);
+						darray_push(out_material->custom_samplers, &custom_sampler);
 					}
 				}
 			}

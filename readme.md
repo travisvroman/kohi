@@ -4,6 +4,8 @@
 
 This engine is made as part of the Kohi Game Engine series on YouTube (now live-streamed on Twitch), where we make a game engine from the ground up using C and Vulkan.
 
+As of v0.13.0, it is written exclusively in C99 (POSIX.1-2008 on GNU/Linux and MacOS).
+
 The name **Kohi** (コーヒー, pronounced "koh-hee") is a simplification of the Japanese word for "coffee", which makes sense given how much I love the stuff.
 
 The original YouTube series is located here: https://www.youtube.com/watch?v=dHPuU-DJoBM&list=PLv8Ddw9K0JPg1BEO-RS-0MYs423cvLVtj.
@@ -49,7 +51,7 @@ series on my Twitch/YouTube channels as well.
 
 ## Platform support
 
-Windows, Linux and macOS are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
+Windows, GNU/Linux and macOS are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
 
 ## Prerequisites
 
@@ -67,7 +69,7 @@ NOTE: This project _does not_ work under WSL, nor will it in the forseeable futu
   - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
   - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
 
-### Prerequisites for Linux
+### Prerequisites for GNU/Linux
 
 Install these via package manager:
 
@@ -123,7 +125,7 @@ For shaderc:
 
 The audio plugin requires an installatiion of OpenAL.
 
-- Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
+- GNU/Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
 - macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
 - Windows: `winget install OpenAL.OpenAL` OR Install the SDK from here: https://www.openal.org/downloads/
 
@@ -135,7 +137,7 @@ After this, clone the repository recursively: `git clone --recurse-submodules ht
 
 Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
 
-See the setup videos in the series for Windows or Linux for details. macOS setup happens significantly later in the series at video 76, when support is officially added for that platform.
+See the setup videos in the series for Windows or GNU/Linux for details. macOS setup happens significantly later in the series at video 76, when support is officially added for that platform.
 
 # Building
 
@@ -152,7 +154,7 @@ be done again).
 There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
 
 On all platforms, you can simply browse to the root directory of the project in a terminal/command prompt and run either `make all-debug`, `make all-release`, or `make clean`.
-There are alternative shell script (macOS/Linux) and batch files (Windows) available for convenience here as well.
+There are alternative shell script (macOS and GNU/Linux) and batch files (Windows) available for convenience here as well.
 
 ## Asset Imports
 
@@ -164,18 +166,18 @@ So, to re-import only assets which have been updated or not-yet imported, you co
 
 `./bin/kohi.tools importmanifest testbed.kapp/asset_manifest.kson --updated-only`
 
-You can also run all module/plugin asset imports at once by running the `import-updated-assets.sh` (MacOS/Linux) or `import-updated-assets.bat` (Windows).
+You can also run all module/plugin asset imports at once by running the `import-updated-assets.sh` (MacOS and GNU/Linux) or `import-updated-assets.bat` (Windows).
 There is also a task available in the VSCode config for this called "Import ALL updated assets for all modules".
 
 # Running
 
-At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in Linux/macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for Linux/macOS.
+At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in and GNU/Linux and macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for GNU/Linux and macOS.
 
 # Project Structure
 
 This structure breakdown is based on the root folder of the repository. Some files/folders are omitted from this description as they aren't important to the overall picture.
 
-- `kohi.core` - Shared library/.dll. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, Linux, macOS).
+- `kohi.core` - Shared library/.dll. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, GNU/Linux, macOS).
 - `kohi.core.tests` - A small collection of unit tests for the core library. Needs to be expanded.
 - `kohi.runtime` - Shared library/.dll. Contains the core engine logic as well as many of the core engine systems.
 - `kohi.runtime.tests` - A small collection of unit tests for the runtime library. Needs to be expanded.

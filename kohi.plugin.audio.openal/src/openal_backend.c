@@ -241,7 +241,7 @@ b8 openal_backend_initialize (kaudio_backend_interface *backend, const kaudio_ba
 		// directly, as there is no guarantee as to what the buffer ids will be. On one Windows installation, this
 		// started at id 9. Yep. 9. Makes no sense, I'll tell ya hwhat. But there it is.
 		for (u32 i = 0; i < state->buffer_count; ++i) {
-			darray_push(state->free_buffers, state->buffers[i]);
+			darray_push(state->free_buffers, &state->buffers[i]);
 		}
 
 		// NOTE: source generation, which is basically a sound emitter.
@@ -973,7 +973,7 @@ static void clear_buffer (kaudio_backend_interface *backend, u32 *buf_ptr, u32 a
 		for (u32 a = 0; a < amount; ++a) {
 			for (u32 i = 0; i < state->buffer_count; ++i) {
 				if (buf_ptr[a] == state->buffers[i]) {
-					darray_push(state->free_buffers, i);
+					darray_push(state->free_buffers, &i);
 					return;
 				}
 			}

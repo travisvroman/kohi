@@ -567,7 +567,7 @@ b8 font_system_system_font_load (font_system_state *state, kname asset_name, kna
 					lookup->size_variants = darray_create(system_font_variant_data);
 
 					// Add to the lookup's size variants.
-					darray_push(lookup->size_variants, default_variant);
+					darray_push(lookup->size_variants, &default_variant);
 				}
 
 				// Create a handle for the lookup and sync ids.
@@ -761,7 +761,7 @@ static system_font_variant_data *get_system_font_variant_by_size (font_system_st
 
 		*out_resource_index = darray_length(base_font->size_variants);
 		// Add to the lookup's size variants.
-		darray_push(base_font->size_variants, variant);
+		darray_push(base_font->size_variants, &variant);
 
 		return &base_font->size_variants[(*out_resource_index)];
 	}
@@ -870,7 +870,7 @@ static vec2 measure_string (font_data *font, const char *text, f32 max_width) {
 
 				if (max_width > 0 && x > max_width) {
 					// Wrap to the next line, track the wrap index, and resume the next line at word_width.
-					darray_push(wrap_indices, potential_wrap_index);
+					darray_push(wrap_indices, &potential_wrap_index);
 					x = word_width;
 					// NOTE: This won't account for really long word that need to be cut.
 				}
@@ -1046,7 +1046,8 @@ static b8 create_system_font_variant (system_font_lookup *lookup, u16 size, knam
 
 	// Push default codepoints (ascii 32-127) always, plus a -1 for unknown.
 	out_variant->codepoints = darray_reserve(i32, 96);
-	darray_push(out_variant->codepoints, -1); // push invalid char
+	i32 icp = -1;
+	darray_push(out_variant->codepoints, &icp); // push invalid char
 	for (i32 i = 0; i < 95; ++i) {
 		out_variant->codepoints[i + 1] = i + 32;
 	}
@@ -1216,7 +1217,7 @@ static b8 verify_system_font_size_variant (system_font_lookup *lookup, system_fo
 				}
 			}
 			if (!found) {
-				darray_push(internal_data->codepoints, codepoint);
+				darray_push(internal_data->codepoints, &codepoint);
 				added_codepoint_count++;
 			}
 		}
@@ -1442,7 +1443,7 @@ static b8 generate_font_geometry (const font_data *data, font_type type, const c
 
 				if (max_width > 0 && x > max_width) {
 					// Wrap to the next line, track the wrap index, and resume the next line at word_width.
-					darray_push(wrap_indices, potential_wrap_index);
+					darray_push(wrap_indices, &potential_wrap_index);
 					x = word_width;
 					// NOTE: This won't account for really long word that need to be cut.
 				}

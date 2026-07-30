@@ -450,13 +450,13 @@ static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_nam
 			.child_count = 0,
 			.local_transform = mat4_from_ai(&current->mTransformation)};
 		u16 node_index = darray_length(nodes);
-		darray_push(nodes, new_node);
+		darray_push(nodes, &new_node);
 
 		// Add it to the map
 		node_map_entry new_map_entry = {
 			.node = current,
 			.index = node_index};
-		darray_push(node_map, new_map_entry);
+		darray_push(node_map, &new_map_entry);
 
 		// Push children onto the stack.
 		for (u16 i = 0; i < current->mNumChildren; ++i) {

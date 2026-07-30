@@ -259,7 +259,7 @@ raycast_result bvh_raycast (const bvh *t, const ray *r, bvh_raycast_callback cal
 					result.hits = darray_create(raycast_hit);
 				}
 
-				darray_push(result.hits, hit);
+				darray_push(result.hits, &hit);
 			} else {
 #if BVH_TRACE
 				KINFO("    -> Rejected by callback");

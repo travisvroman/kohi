@@ -1,6 +1,8 @@
 Changelog
 
 - 0.13.0
+  - Project now uses C99 (with POSIX.1-2008 for time, threads, etc. on GNU/Linux and MacOS). As a result, a full clean/rebuild should be done when updating to this version.
+  - Due to the above, darray_push and darray_insert_at both now require pointers to data being inserted, and no longer accept rvalues. The entire codebase has been updated to reflect this.
   - Ran formatting pass across the entire codebase to fix various formatting issues (i.e. idiot stars)
   - Cleaned up low-level "free" APIs to no longer require type or size information when freeing, instead deriving this from the already-stored data in the allocator.
   - Fixed various issues around frustum culling and re-enabled in some parts. There are a few more places this still needs doing.

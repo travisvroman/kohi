@@ -109,7 +109,7 @@ KAPI void ktransform_destroy (ktransform *t);
 
 /**
  * @brief Returns the kmatrix_id for the given transform.
- * 
+ *
  * @param t The transform to get the kmatrix_id for.
  * @return The kmatrix_id of the transform, or KMATRIX_INVALID if it does not exist.
  */

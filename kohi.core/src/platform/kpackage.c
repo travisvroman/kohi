@@ -60,7 +60,7 @@ b8 kpackage_create_from_manifest (const char *manifest_file_path, const asset_ma
 	out_package->internal_data->references = darray_create(asset_manifest_reference);
 	u32 ref_count = darray_length(manifest->references);
 	for (u32 i = 0; i < ref_count; ++i) {
-		darray_push(out_package->internal_data->references, manifest->references[i]);
+		darray_push(out_package->internal_data->references, &manifest->references[i]);
 		out_package->internal_data->references[i].path = string_duplicate(manifest->references[i].path);
 	}
 
@@ -89,7 +89,7 @@ b8 kpackage_create_from_manifest (const char *manifest_file_path, const asset_ma
 			out_package->internal_data->entries = darray_create(asset_entry);
 		}
 		// Push the asset to it.
-		darray_push(out_package->internal_data->entries, new_entry);
+		darray_push(out_package->internal_data->entries, &new_entry);
 	}
 
 	return true;
@@ -474,7 +474,7 @@ b8 kpackage_parse_manifest_file_content (const char *path, asset_manifest *out_m
 				}
 
 				// Add to references
-				darray_push(out_manifest->references, ref);
+				darray_push(out_manifest->references, &ref);
 			}
 		}
 	}
@@ -540,7 +540,7 @@ b8 kpackage_parse_manifest_file_content (const char *path, asset_manifest *out_m
 				}
 
 				// Add to assets
-				darray_push(out_manifest->assets, asset);
+				darray_push(out_manifest->assets, &asset);
 			}
 		}
 	}
@@ -606,7 +606,7 @@ b8 kpackage_add_asset (kpackage *package, const asset_manifest_asset *asset) {
 	};
 
 	// Push the asset to it.
-	darray_push(package->internal_data->entries, new_entry);
+	darray_push(package->internal_data->entries, &new_entry);
 
 	return true;
 }

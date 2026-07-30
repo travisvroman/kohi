@@ -30,7 +30,8 @@ b8 debug_console_consumer_write (void *inst, log_level level, const char *messag
 		// split from happening.
 		if (level <= LOG_LEVEL_ERROR) {
 			// NOTE: Trim the string to get rid of the newline appended at the console level.
-			darray_push(state->lines, string_trim(string_duplicate(message)));
+			char *trimmed = string_trim(string_duplicate(message));
+			darray_push(state->lines, &trimmed);
 			state->dirty = true;
 			return true;
 		}
@@ -44,7 +45,7 @@ b8 debug_console_consumer_write (void *inst, log_level level, const char *messag
 		u32 count = string_split(message, '\n', &split_message, true, false, false);
 		// Push each to the array as a new line.
 		for (u32 i = 0; i < count; ++i) {
-			darray_push(state->lines, split_message[i]);
+			darray_push(state->lines, &split_message[i]);
 		}
 
 		// DO clean up the temporary array itself though (just
@@ -217,7 +218,7 @@ static void debug_console_entry_box_on_key (kui_state *state, kui_control self, 
 				entry.command = string_duplicate(entry_control_text);
 				if (entry.command) {
 					debug_console_state *user_data = kui_control_get_user_data(state, self);
-					darray_push(user_data->history, entry);
+					darray_push(user_data->history, &entry);
 
 					// Execute the command and clear the text.
 					if (!console_command_execute(entry_control_text)) {

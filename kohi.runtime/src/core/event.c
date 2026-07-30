@@ -83,7 +83,7 @@ static b8 internal_register (u16 code, void *listener, PFN_on_event on_event, b8
 	event.listener = listener;
 	event.callback = on_event;
 	event.is_single = is_single;
-	darray_push(state_ptr->registered[code].events, event);
+	darray_push(state_ptr->registered[code].events, &event);
 
 	return true;
 }
@@ -143,7 +143,7 @@ b8 event_fire (u16 code, void *sender, event_context context) {
 			if (!singles) {
 				singles = darray_create(registered_event);
 			}
-			darray_push(singles, e);
+			darray_push(singles, &e);
 		}
 
 		if (handled) {

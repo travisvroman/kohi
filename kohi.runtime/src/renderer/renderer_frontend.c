@@ -1019,7 +1019,7 @@ krenderbuffer renderer_renderbuffer_create (struct renderer_system_state *state,
 		}
 	}
 	if (out_handle == KRENDERBUFFER_INVALID) {
-		darray_push(state->renderbuffers, (krenderbuffer_data){0});
+		darray_push(state->renderbuffers, &(krenderbuffer_data){0});
 		out_handle = len;
 	}
 	out_buffer = &state->renderbuffers[out_handle];
@@ -1208,7 +1208,7 @@ b8 renderer_renderbuffer_free (struct renderer_system_state *state, krenderbuffe
 	new_deletion.frames_until_delete = RENDERER_MAX_FRAME_COUNT;
 	new_deletion.range.offset = offset;
 	new_deletion.range.size = size;
-	darray_push(buffer->delete_queue, new_deletion);
+	darray_push(buffer->delete_queue, &new_deletion);
 
 	return true;
 }

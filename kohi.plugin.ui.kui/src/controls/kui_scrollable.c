@@ -221,7 +221,7 @@ b8 kui_scrollable_control_render (kui_state *state, kui_control self, struct fra
 			nineslice_renderable.binding_instance_id = typed_control->scrollbar_y.bg_binding_instance_id;
 			nineslice_renderable.atlas_override = INVALID_KTEXTURE;
 
-			darray_push(render_data->renderables, nineslice_renderable);
+			darray_push(render_data->renderables, &nineslice_renderable);
 		}
 	}
 

@@ -104,7 +104,7 @@ static void _populate_token_content (kson_token *t, const char *source) {
 static void push_token (kson_token *t, kson_parser *parser) {
 	if (t->type != KSON_TOKEN_TYPE_UNKNOWN && (t->end - t->start > 0)) {
 		POPULATE_TOKEN_CONTENT(t, parser->file_content);
-		darray_push(parser->tokens, *t);
+		darray_push(parser->tokens, t);
 	}
 }
 
@@ -577,7 +577,7 @@ b8 kson_parser_parse (kson_parser *parser, kson_tree *out_tree) {
 				unnamed_array_prop.value.o = new_obj;
 				unnamed_array_prop.name = INVALID_KSTRING_ID;
 				// Add the array property to the current object.
-				darray_push(current_object->properties, unnamed_array_prop);
+				darray_push(current_object->properties, &unnamed_array_prop);
 				// The current object is now new_obj.
 				u32 prop_length = darray_length(current_object->properties);
 				current_object = &current_object->properties[prop_length - 1].value.o;
@@ -632,7 +632,7 @@ b8 kson_parser_parse (kson_parser *parser, kson_tree *out_tree) {
 				unnamed_array_prop.value.o = new_arr;
 				unnamed_array_prop.name = INVALID_KSTRING_ID;
 				// Add the property to the current object.
-				darray_push(current_object->properties, unnamed_array_prop);
+				darray_push(current_object->properties, &unnamed_array_prop);
 				// The current object is now new_arr. This will always be the first entry in that array.
 				u32 prop_length = darray_length(current_object->properties);
 				current_object = &current_object->properties[prop_length - 1].value.o;
@@ -691,7 +691,7 @@ b8 kson_parser_parse (kson_parser *parser, kson_tree *out_tree) {
 			if (!current_object->properties) {
 				current_object->properties = darray_create(kson_property);
 			}
-			darray_push(current_object->properties, prop);
+			darray_push(current_object->properties, &prop);
 			u32 prop_count = darray_length(current_object->properties);
 			current_property = &current_object->properties[prop_count - 1];
 
@@ -810,7 +810,7 @@ b8 kson_parser_parse (kson_parser *parser, kson_tree *out_tree) {
 				p.type = KSON_PROPERTY_TYPE_STRING;
 				p.value.s = string_from_kson_token(parser->file_content, current_token);
 				p.name = INVALID_KSTRING_ID;
-				darray_push(current_object->properties, p);
+				darray_push(current_object->properties, &p);
 			} else {
 				current_property->type = KSON_PROPERTY_TYPE_STRING;
 				current_property->value.s = string_from_kson_token(parser->file_content, current_token);
@@ -837,7 +837,7 @@ b8 kson_parser_parse (kson_parser *parser, kson_tree *out_tree) {
 				p.type = KSON_PROPERTY_TYPE_BOOLEAN;
 				p.value.b = bool_value;
 				p.name = INVALID_KSTRING_ID;
-				darray_push(current_object->properties, p);
+				darray_push(current_object->properties, &p);
 			} else {
 				current_property->type = KSON_PROPERTY_TYPE_BOOLEAN;
 				current_property->value.b = bool_value;
@@ -871,7 +871,7 @@ b8 kson_parser_parse (kson_parser *parser, kson_tree *out_tree) {
 
 				if (current_object->type == KSON_OBJECT_TYPE_ARRAY) {
 					// Apply the value directly to a newly-created, non-named property that gets added to current_object.
-					darray_push(current_object->properties, p);
+					darray_push(current_object->properties, &p);
 				} else {
 					current_property->type = p.type;
 					current_property->value = p.value;
@@ -1206,7 +1206,7 @@ static b8 kson_object_property_add (kson_object *obj, kson_property_type type, c
 #endif
 	new_prop.value = value;
 
-	darray_push(obj->properties, new_prop);
+	darray_push(obj->properties, &new_prop);
 
 	return true;
 }
@@ -1235,7 +1235,7 @@ static b8 kson_array_value_add_unnamed_property (kson_array *array, kson_propert
 	new_prop.name = INVALID_KSTRING_ID;
 	new_prop.value = value;
 
-	darray_push(array->properties, new_prop);
+	darray_push(array->properties, &new_prop);
 
 	return true;
 }

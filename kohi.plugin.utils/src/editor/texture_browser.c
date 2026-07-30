@@ -219,7 +219,7 @@ void texture_browser_refresh (texture_browser *tb) {
 		kname *search_names = darray_create(kname);
 		for (u32 i = 0; i < tb->tex_count; ++i) {
 			if (string_index_of_stri(kname_string_get(texture_names[i]), tb->search_text) != -1) {
-				darray_push(search_names, texture_names[i]);
+				darray_push(search_names, &texture_names[i]);
 			}
 		}
 		kfree(texture_names);

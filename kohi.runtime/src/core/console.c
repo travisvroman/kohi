@@ -103,7 +103,7 @@ void console_consumer_register (void *inst, PFN_console_consumer_write callback,
 			}
 		}
 		if (*out_consumer_id == INVALID_ID_U8) {
-			darray_push(state_ptr->consumers, (console_consumer){0});
+			darray_push(state_ptr->consumers, &(console_consumer){0});
 			*out_consumer_id = len;
 		}
 
@@ -170,7 +170,7 @@ b8 console_command_register (const char *command, u8 min_arg_count, u8 max_arg_c
 		.listener = listener,
 	};
 
-	darray_push(state_ptr->registered_commands, new_command);
+	darray_push(state_ptr->registered_commands, &new_command);
 
 	return true;
 }
@@ -373,7 +373,7 @@ b8 console_object_register (const char *object_name, void *object, console_objec
 	new_object.type = type;
 	new_object.block = object;
 	new_object.properties = 0;
-	darray_push(state_ptr->registered_objects, new_object);
+	darray_push(state_ptr->registered_objects, &new_object);
 
 	return true;
 }
@@ -428,7 +428,7 @@ b8 console_object_add_property (const char *object_name, const char *property_na
 			new_object.type = type;
 			new_object.block = property;
 			new_object.properties = 0;
-			darray_push(obj->properties, new_object);
+			darray_push(obj->properties, &new_object);
 
 			return true;
 		}
@@ -617,7 +617,7 @@ static void _populate_token_content (ctoken *t, const char *source) {
 static void push_token (ctoken *t, console_parser *parser) {
 	if (t->type != CTOKEN_TYPE_UNKNOWN && (t->end - t->start > 0)) {
 		POPULATE_TOKEN_CONTENT(t, parser->content);
-		darray_push(parser->tokens, *t);
+		darray_push(parser->tokens, t);
 	}
 }
 

@@ -4,6 +4,7 @@
 #if KPLATFORM_LINUX
 // #include <X11/extensions/Xrender.h>
 // #include <xcb/xproto.h>
+#	define _POSIX_C_SOURCE 200809L
 
 #	ifndef XRANDR_ROTATION_LEFT
 #		define XRANDR_ROTATION_LEFT (1 << 1)
@@ -534,7 +535,7 @@ b8 platform_window_create (const kwindow_config *config, struct kwindow *window,
 	}
 
 	// Register the window internally.
-	darray_push(state_ptr->windows, window);
+	darray_push(state_ptr->windows, &window);
 
 	return true;
 }
@@ -1102,6 +1103,7 @@ platform_error_code platform_copy_file (const char *source, const char *dest, b8
 		ret_code = PLATFORM_ERROR_FILE_NOT_FOUND;
 		goto close_handles;
 	} else {
+#	if 0
 		struct timeval dest_times[2];
 		// Update last access time.
 		dest_times[0].tv_sec = source_stat.st_atime;
@@ -1110,6 +1112,14 @@ platform_error_code platform_copy_file (const char *source, const char *dest, b8
 		dest_times[1].tv_sec = source_stat.st_mtime;
 		dest_times[1].tv_usec = source_stat.st_mtim.tv_nsec / 1000;
 		result = futimes(dest_fd, dest_times);
+#	else
+		struct timespec dest_times[2];
+
+		dest_times[0] = source_stat.st_atim;
+		dest_times[1] = source_stat.st_mtim;
+
+		result = futimens(dest_fd, dest_times);
+#	endif
 		// If an error is returned, treat as the destination file being locked.
 		if (result != 0) {
 			ret_code = PLATFORM_ERROR_FILE_LOCKED;
@@ -1195,7 +1205,7 @@ static b8 register_watch (
 	w.watcher_deleted_callback = watcher_deleted_callback;
 	w.watcher_deleted_context = watcher_deleted_context;
 	*out_watch_id = count;
-	darray_push(state_ptr->watches, w);
+	darray_push(state_ptr->watches, &w);
 
 	return true;
 }
@@ -1772,7 +1782,8 @@ static i32 openfiledialog_on_response (sd_bus_message *m, void *user_data, sd_bu
 			while (state_ptr->ksd_bus_message_read(m, "s", &uri)) {
 				// Add to selection list, sanitizing "file://" from the front.
 				// TODO: May need to decode this path too, to handle spaces, etc.
-				darray_push(state_ptr->ofd_files_temp, string_duplicate(uri + 7));
+				char *turi = string_duplicate(uri + 7);
+				darray_push(state_ptr->ofd_files_temp, &turi);
 				/* KTRACE("Selected: '%s'", uri); */
 			}
 

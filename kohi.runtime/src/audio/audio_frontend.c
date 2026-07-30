@@ -922,7 +922,7 @@ b8 kaudio_emitter_create (struct kaudio_system_state *state, f32 inner_radius, f
 
 	if (!emitter_data) {
 		kaudio_emitter_handle_data new_emitter = {0};
-		darray_push(state->emitters, new_emitter);
+		darray_push(state->emitters, &new_emitter);
 		emitter_data = &state->emitters[length];
 		*out_emitter = length;
 	}
@@ -1206,7 +1206,7 @@ static u16 issue_new_instance (kaudio_system_state *state, kaudio base) {
 
 	if (instance_id == INVALID_ID_U16) {
 		// If this point is reached, no slots are available. Push a new one.
-		darray_push(state->data.instances[base], (kaudio_instance_data){0});
+		darray_push(state->data.instances[base], &(kaudio_instance_data){0});
 		instance_id = count;
 	}
 

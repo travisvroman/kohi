@@ -149,11 +149,13 @@ b8 vulkan_renderer_backend_initialize (renderer_backend_interface *backend, cons
 
 	// Obtain a list of required extensions
 	const char **required_extensions = darray_create(const char *);
-	darray_push(required_extensions, &VK_KHR_SURFACE_EXTENSION_NAME);	// Generic surface extension
+	const char *ext = VK_KHR_SURFACE_EXTENSION_NAME;
+	darray_push(required_extensions, &ext);								// Generic surface extension
 	vulkan_platform_get_required_extension_names(&required_extensions); // Platform-specific extension(s)
 	u32 required_extension_count = 0;
 
-	darray_push(required_extensions, &VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // debug utilities
+	ext = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+	darray_push(required_extensions, &ext); // debug utilities
 
 	KDEBUG("Required extensions:");
 	required_extension_count = darray_length(required_extensions);
@@ -198,9 +200,11 @@ b8 vulkan_renderer_backend_initialize (renderer_backend_interface *backend, cons
 
 		// The list of validation layers required.
 		required_validation_layer_names = darray_create(const char *);
-		darray_push(required_validation_layer_names, &"VK_LAYER_KHRONOS_validation");
+		const char *lname = "VK_LAYER_KHRONOS_validation";
+		darray_push(required_validation_layer_names, &lname);
+		lname = "VK_LAYER_LUNARG_api_dump";
 		// NOTE: enable this when needed for debugging.
-		// darray_push(required_validation_layer_names, &"VK_LAYER_LUNARG_api_dump");
+		// darray_push(required_validation_layer_names, &lname);
 		required_validation_layer_count = darray_length(required_validation_layer_names);
 
 		// Obtain a list of available validation layers
@@ -1337,7 +1341,7 @@ void vulkan_renderer_begin_rendering (struct renderer_backend_interface *backend
 		barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
-		darray_push(attachment_image_barriers, barrier);
+		darray_push(attachment_image_barriers, &barrier);
 
 	} else {
 		render_info.pDepthAttachment = 0;
@@ -1383,7 +1387,7 @@ void vulkan_renderer_begin_rendering (struct renderer_backend_interface *backend
 			barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-			darray_push(attachment_image_barriers, barrier);
+			darray_push(attachment_image_barriers, &barrier);
 		}
 		render_info.pColorAttachments = colour_attachments;
 	} else {
@@ -2097,7 +2101,7 @@ b8 vulkan_renderer_texture_write_data (renderer_backend_interface *backend, ktex
 	} else {
 		// Add handle to post-frame-queue-completion list. These will be updated at the end of the frame.
 		u32 current_frame = get_current_frame_index(context);
-		darray_push(context->current_window->renderer_state->backend_state->frame_texture_updated_list[current_frame], t);
+		darray_push(context->current_window->renderer_state->backend_state->frame_texture_updated_list[current_frame], &t);
 	}
 
 	return true;
@@ -2439,7 +2443,7 @@ b8 vulkan_renderer_shader_create (
 				}
 			}
 		} // end instances setup
-	} // end binding sets setup
+	}	  // end binding sets setup
 
 	// Setup descriptor pools
 	{
@@ -3207,7 +3211,7 @@ ksampler_backend vulkan_renderer_sampler_acquire (renderer_backend_interface *ba
 	if (selected_id == KSAMPLER_BACKEND_INVALID) {
 		// Push an empty entry into the array.
 		vulkan_sampler_handle_data empty = (vulkan_sampler_handle_data){INVALID_KNAME, 0};
-		darray_push(context->samplers, empty);
+		darray_push(context->samplers, &empty);
 		selected_id = length;
 	}
 
@@ -3423,7 +3427,7 @@ b8 vulkan_renderbuffer_create (renderer_backend_interface *backend, kname name, 
 
 	u16 len = darray_length(context->renderbuffers);
 	if (handle > (len - 1)) {
-		darray_push(context->renderbuffers, (vulkan_buffer){0});
+		darray_push(context->renderbuffers, &(vulkan_buffer){0});
 	}
 
 	vulkan_buffer *internal_buffer = &context->renderbuffers[handle];
@@ -4125,29 +4129,30 @@ static b8 vulkan_graphics_pipeline_create (vulkan_context *context, const vulkan
 	}
 
 	// Dynamic state
-	VkDynamicState *dynamic_states = darray_create(VkDynamicState);
-	darray_push(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
-	darray_push(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+	u8 d_state_count = 0;
+	VkDynamicState dynamic_states[32];
+	dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_VIEWPORT;
+	dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_SCISSOR;
 	// Dynamic state, if supported.
 	if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) || (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT)) {
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_FRONT_FACE);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_OP);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_CULL_MODE);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_BIAS);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE);
-		/* darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
-		darray_push(dynamic_states, VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT); */
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_FRONT_FACE;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_STENCIL_OP;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE_EXT;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_CULL_MODE;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE;
+		/* dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT;
+		dynamic_states[d_state_count++] = VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT; */
 	}
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
-	dynamic_state_create_info.dynamicStateCount = darray_length(dynamic_states);
+	dynamic_state_create_info.dynamicStateCount = d_state_count;
 	dynamic_state_create_info.pDynamicStates = dynamic_states;
 
 	// Vertex input
@@ -4301,7 +4306,6 @@ static b8 vulkan_graphics_pipeline_create (vulkan_context *context, const vulkan
 
 	// Cleanup
 	kfree(out_attribs);
-	darray_destroy(dynamic_states);
 
 #if KOHI_DEBUG
 	char *pipeline_name_buf = string_format("pipeline_shader_%s", config->name);

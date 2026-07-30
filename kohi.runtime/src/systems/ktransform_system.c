@@ -488,7 +488,7 @@ quat ktransform_world_rotation_get (ktransform t) {
 	quat *rotations = darray_reserve(quat, 16);
 	ktransform parent = state->parents[t];
 	while (parent != KTRANSFORM_INVALID) {
-		darray_push(rotations, state->rotations[parent]);
+		darray_push(rotations, &state->rotations[parent]);
 		parent = state->parents[parent];
 	}
 
@@ -548,7 +548,7 @@ vec3 ktransform_world_scale_get (ktransform t) {
 	vec3 *scales = darray_reserve(vec3, 16);
 	ktransform parent = state->parents[t];
 	while (parent != KTRANSFORM_INVALID) {
-		darray_push(scales, state->scales[parent]);
+		darray_push(scales, &state->scales[parent]);
 		parent = state->parents[parent];
 	}
 

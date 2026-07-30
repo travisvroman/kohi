@@ -109,7 +109,7 @@ b8 kui_panel_control_render (kui_state *state, kui_control self, struct frame_da
 		renderable.binding_instance_id = typed_control->binding_instance_id;
 		renderable.atlas_override = INVALID_KTEXTURE;
 
-		darray_push(render_data->renderables, renderable);
+		darray_push(render_data->renderables, &renderable);
 	}
 
 	return true;

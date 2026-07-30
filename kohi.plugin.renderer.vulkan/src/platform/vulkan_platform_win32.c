@@ -24,7 +24,8 @@ typedef struct kwindow_platform_state {
 } kwindow_platform_state;
 
 void vulkan_platform_get_required_extension_names (const char ***names_darray) {
-	darray_push(*names_darray, &"VK_KHR_win32_surface");
+	const char *ext = "VK_KHR_win32_surface";
+	darray_push(*names_darray, &ext);
 }
 
 // Surface creation for Vulkan
