@@ -1567,6 +1567,11 @@ kscene_state kscene_state_get (const struct kscene *scene) {
 	return scene->state;
 }
 
+kname kscene_asset_name_get (const struct kscene *scene) {
+	KASSERT_DEBUG(scene);
+	return scene->scene_asset_name;
+}
+
 kscene_flags kscene_get_flags (const struct kscene *scene) {
 	return scene->flags;
 }

@@ -84,6 +84,7 @@ KAPI b8 kscene_update (struct kscene *scene, struct frame_data *p_frame_data);
 KAPI b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, u32 render_mode, kcamera current_camera);
 
 KAPI kscene_state kscene_state_get (const struct kscene *scene);
+KAPI kname kscene_asset_name_get (const struct kscene *scene);
 
 KAPI kscene_flags kscene_get_flags (const struct kscene *scene);
 KAPI b8 kscene_get_flag (const struct kscene *scene, kscene_flag_bits flag);
