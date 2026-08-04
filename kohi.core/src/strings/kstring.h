@@ -1,11 +1,17 @@
 /**
  * @file kstring.h
  * @author Travis Vroman (travis@kohiengine.com)
- * @brief This file contains a basic C string handling library.
- * @version 1.0
- * @date 2022-01-10
+ * @brief This file contains a basic C-string and length-based string handling library.
+ * @version 2.0
+ * @date 2026-07-26
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2022
+ * Updates:
+ * Version	| Date       | Author			| Description
+ * ========================================================================
+ * 1.0		| 2022-01-10 | Travis Vroman	| Original implementation of c-string based library.
+ * 2.0		| 2026-07-26 | Travis Vroman	| Added initial implementation (length-based strings)
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  */
 
@@ -151,6 +157,7 @@ KAPI b8 strings_nequali (const char *str0, const char *str1, u32 max_len);
  *     to degrees before printing, and .N is the number of places after the decimal point, clamped to 8.
  *     Ex: %V3D.4 displays a vec3, converts to degrees and uses 4 decimal places.
  *   KNames - %k, pass a kname argument and kname_string_get is called automatically.
+ *   KStrings - %K, pass a kstring argument and kstring_cstr is called automatically.
  * NOTE: that this performs a dynamic allocation and should be freed by the caller.
  *
  * @param format The format string to use for the operation
@@ -853,54 +860,192 @@ KAPI kstring kstring_from_cstring (const char *source);
 KAPI kstring kstring_duplicate (kstring source);
 KAPI void kstring_destroy (kstring *string);
 
-// Allocates and returns new c-string. Returns allocated "" on empty, which still must be freed.
+/**
+ * @brief Allocates and returns new c-string with the contents of the given kstring.
+ *
+ * NOTE: Returns allocated "" on empty, which still must be freed.
+ *
+ * @returns Newly-allocated c-string with the contents of the given kstring.
+ */
 KAPI char *kstring_cstr (kstring source);
 
+/**
+ * @brief Indicates if kstrings a and b are the same. Case-sensitive.
+ */
 KAPI b8 kstrings_equal (kstring a, kstring b);
+/**
+ * @brief Indicates if kstrings a and b are the same. Case-insensitive.
+ */
 KAPI b8 kstrings_equali (kstring a, kstring b);
 
+/**
+ * @brief Indicates if the content of kstring a and c-string b are the same. Case-sensitive.
+ */
 KAPI b8 kstring_cstr_equal (kstring a, const char *b);
+/**
+ * @brief Indicates if the content of kstring a and c-string b are the same. Case-sensitive.
+ */
 KAPI b8 kstring_cstr_equali (kstring a, const char *b);
 
+/**
+ * @brief Returns the length of the provided kstring's content in bytes.
+ * NOTE: For strings containing multibyte characters, use kstring_utf8_length() instead.
+ */
 KAPI u32 kstring_length (kstring string);
+/**
+ * @brief Returns the length of the provided kstring's content in characters (not bytes!), including multibyte characters.
+ */
 KAPI u32 kstring_utf8_length (kstring string);
 
+/**
+ * @brief Gets the index of the first occurance of char c within the given kstring. -1 if not found.
+ */
 KAPI i32 kstring_index_of_char (kstring string, char c);
+/**
+ * @brief Gets the index of the first occurance of kstring text within the given kstring. -1 if not found.
+ */
 KAPI i32 kstring_index_of_kstring (kstring string, kstring text);
+/**
+ * @brief Gets the index of the first occurance of c-string text within the given kstring. -1 if not found.
+ */
 KAPI i32 kstring_index_of_cstr (kstring string, const char *text);
 
+/**
+ * @brief Appends raw data to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_data (kstring string, const void *data, u32 length);
 
+/**
+ * @brief Appends the content of the provided c-string to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_cstr (kstring string, const char *s);
+/**
+ * @brief Appends the content of the provided kstring "other" to and returns a copy of the given kstring "string".
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_kstring (kstring string, kstring other);
 
+/**
+ * @brief Appends the provided char to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_char (kstring string, char c);
-// Appends "true" or "false" to the end of the given string.
+/**
+ * @brief Appends "true" or "false" to and returns a copy of the given kstring.
+ */
 KAPI kstring kstring_append_bool (kstring string, b8 b);
 
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_i8 (kstring string, i8 i);
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_i16 (kstring string, i16 i);
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_i32 (kstring string, i32 i);
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_i64 (kstring string, i64 i);
 
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_u8 (kstring string, u8 u);
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_u16 (kstring string, u16 u);
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_u32 (kstring string, u32 u);
+/**
+ * @brief Appends the string representation of the provided number to and returns a copy of the given kstring.
+ * Original string not modified.
+ */
 KAPI kstring kstring_append_u64 (kstring string, u64 u);
 
-// These are simple functions that truncate instead of round.
+/**
+ * @brief Appends the string representation of the provided floating-point number to and returns a copy of the given kstring.
+ * Original string not modified. NOTE: this function truncates the float value instead of rounding it.
+ */
 KAPI kstring kstring_append_f32 (kstring string, f32 f, u8 decimal_places);
+/**
+ * @brief Appends the string representation of the provided floating-point number to and returns a copy of the given kstring.
+ * Original string not modified. NOTE: this function truncates the float value instead of rounding it.
+ */
 KAPI kstring kstring_append_f64 (kstring string, f64 f, u8 decimal_places);
 
+/**
+ * @brief Appends the string representation of the provided vector to and returns a copy of the given kstring.
+ * Original string not modified. NOTE: this function truncates the float values instead of rounding them.
+ */
 KAPI kstring kstring_append_vec2 (kstring string, vec2 v, u8 decimal_places);
+/**
+ * @brief Appends the string representation of the provided vector to and returns a copy of the given kstring.
+ * Original string not modified. NOTE: this function truncates the float values instead of rounding them.
+ */
 KAPI kstring kstring_append_vec3 (kstring string, vec3 v, u8 decimal_places);
+/**
+ * @brief Appends the string representation of the provided vector to and returns a copy of the given kstring.
+ * Original string not modified. NOTE: this function truncates the float values instead of rounding them.
+ */
 KAPI kstring kstring_append_vec4 (kstring string, vec4 v, u8 decimal_places);
 
+/**
+ * @brief Appends the string representation of the provided matrix to and returns a copy of the given kstring.
+ * Original string not modified. NOTE: this function truncates the float values instead of rounding them.
+ */
 KAPI kstring kstring_append_mat4 (kstring string, mat4 m, u8 decimal_places);
 
+/**
+ * @brief Performs a left trim on and returns a copy of the given string.
+ * Original string not modified.
+ */
 KAPI kstring kstring_ltrim (kstring string);
+/**
+ * @brief Performs a right trim on and returns a copy of the given string.
+ * Original string not modified.
+ */
 KAPI kstring kstring_rtrim (kstring string);
+/**
+ * @brief Performs both a left and a right trim on and returns a copy of the given string.
+ * Original string not modified.
+ */
 KAPI kstring kstring_trim (kstring string);
+/**
+ * @brief Returns a substring of the orignal string provided as a copy. Start and length are
+ * automatically bounds checked and clamped to a valid range.
+ * Original string not modified.
+ */
 KAPI kstring kstring_substr (kstring string, u32 start, u32 length);
 
+/**
+ * @brief Performs string formatting against the given format string and parameters.
+ *
+ * Accepts custom format options:
+ *   Vector types - %V#[D][.N], where # is number of elements, D optionally converts radians
+ *     to degrees before printing, and .N is the number of places after the decimal point, clamped to 8.
+ *     Ex: %V3D.4 displays a vec3, converts to degrees and uses 4 decimal places.
+ *   KNames - %k, pass a kname argument and kname_string_get is called automatically.
+ *   KStrings - %K, pass a kstring argument and kstring_cstr is called automatically.
+ *
+ * @param fmt The format string to use for the operation
+ * @param ... The format arguments.
+ * @returns The newly-formatted kstring.
+ */
 KAPI kstring kstring_format (const char *fmt, ...);

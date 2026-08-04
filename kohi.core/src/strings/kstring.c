@@ -612,6 +612,19 @@ i32 vsnprintf_extended (char *buf, u32 size, const char *fmt, va_list ap_input) 
 			continue;
 		}
 
+		// 'K' for kstring.
+		if (p[1] == 'K') {
+			// kstrings are length-based, so need to get the cstring.
+			kstring ksraw = va_arg(ap, kstring);
+			const char *str = kstring_cstr(ksraw);
+			if (!str) {
+				str = "(null_kstring)";
+			}
+			append(buf, size, &pos, str);
+			p += 2;
+			continue;
+		}
+
 		// Standard printf formats
 		char spec[64];
 		const char *next = parse_standard_printf_format(p, spec, sizeof(spec));
@@ -1826,7 +1839,7 @@ char *kstring_cstr (kstring source) {
 
 	out_str = kallocate(source.length + 1, MEMORY_TAG_KSTRING);
 	if (source.length) {
-		kcopy_memory(out_str, source.data, source.length);
+		kcopy_memory(out_str, source.data ? source.data : source.base_buffer, source.length);
 	}
 	out_str[source.length] = 0;
 
@@ -2197,8 +2210,12 @@ kstring kstring_substr (kstring string, u32 start, u32 length) {
 }
 
 kstring kstring_format (const char *fmt, ...) {
-	kstring out_str = kstring_create();
-	KFATAL("Not implemented.");
-	// LEFTOFF: kstring format function
+	__builtin_va_list arg_ptr;
+	va_start(arg_ptr, fmt);
+	char *result = string_format_v(fmt, arg_ptr);
+	va_end(arg_ptr);
+
+	kstring out_str = kstring_from_cstring(result);
+	kfree(result);
 	return out_str;
 }
