@@ -46,13 +46,13 @@
 #define kSCENE_CURRENT_VERSION 1
 
 #define ENTITY_VOLUME_DEBUG_COLOUR \
-	(colour4){1, 1, 0, 1}
+	(colour4) { 1, 1, 0, 1 }
 #define ENTITY_AUDIO_EMITTER_DEBUG_COLOUR \
-	(colour4){1, 0.5f, 0, 1}
+	(colour4) { 1, 0.5f, 0, 1 }
 #define ENTITY_MODEL_STATIC_DEBUG_COLOUR \
-	(colour4){0, 1, 0, 1}
+	(colour4) { 0, 1, 0, 1 }
 #define ENTITY_MODEL_ANIMATED_DEBUG_COLOUR \
-	(colour4){0, 1, 1, 1}
+	(colour4) { 0, 1, 1, 1 }
 
 /**
  * A base entity with no type. Used for grouping other entities together, for example
@@ -1470,7 +1470,7 @@ b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_data, 
 					}
 				}
 			} // end water planes
-		} // end forward pass
+		}	  // end forward pass
 
 #if KOHI_DEBUG
 

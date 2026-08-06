@@ -746,7 +746,7 @@ KINLINE vec4 vec3_to_vec4 (vec3 vector, f32 w) {
  * 0.0f.
  */
 #define vec3_zero() \
-	(vec3){0.0f, 0.0f, 0.0f}
+	(vec3) { 0.0f, 0.0f, 0.0f }
 
 /**
  * @brief Creates and returns a 3-component vector with all components set
@@ -2418,7 +2418,7 @@ KINLINE void rgbu_to_u32 (u32 r, u32 g, u32 b, u32 *out_u32) {
 KINLINE void u32_to_rgb (u32 rgbu, u32 *out_r, u32 *out_g, u32 *out_b) {
 	*out_r = (rgbu >> 16) & 0x0FF;
 	*out_g = (rgbu >> 8) & 0x0FF;
-	*out_b = (rgbu) & 0x0FF;
+	*out_b = (rgbu)&0x0FF;
 }
 
 /**

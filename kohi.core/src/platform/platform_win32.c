@@ -55,8 +55,8 @@ typedef LONG NTSTATUS;
 } RTL_OSVERSIONINFOW; */
 
 __declspec(dllimport)
-NTSTATUS NTAPI
-RtlGetVersion (RTL_OSVERSIONINFOW *lpVersionInformation);
+	NTSTATUS NTAPI
+	RtlGetVersion(RTL_OSVERSIONINFOW *lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
