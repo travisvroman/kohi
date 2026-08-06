@@ -270,7 +270,6 @@ kasset_binary *asset_system_request_binary_from_package_sync (struct asset_syste
 		return 0;
 	}
 
-	kasset_binary *out_asset = KALLOC_TYPE(kasset_binary, MEMORY_TAG_ASSET);
 	vfs_request_info info = {
 		.asset_name = kname_create(name),
 		.package_name = kname_create(package_name),
@@ -278,13 +277,17 @@ kasset_binary *asset_system_request_binary_from_package_sync (struct asset_syste
 	};
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
-	out_asset->size = data.size;
-	void *content = kallocate(out_asset->size, MEMORY_TAG_ASSET);
-	kcopy_memory(content, data.bytes, out_asset->size);
-	vfs_asset_data_cleanup(&data);
-	out_asset->content = content;
+	if (data.result == VFS_REQUEST_RESULT_SUCCESS) {
+		kasset_binary *out_asset = KALLOC_TYPE(kasset_binary, MEMORY_TAG_ASSET);
+		out_asset->size = data.size;
+		void *content = kallocate(out_asset->size, MEMORY_TAG_ASSET);
+		kcopy_memory(content, data.bytes, out_asset->size);
+		vfs_asset_data_cleanup(&data);
+		out_asset->content = content;
+		return out_asset;
+	}
 
-	return out_asset;
+	return KNULL;
 }
 
 void asset_system_release_binary (struct asset_system_state *state, kasset_binary *asset) {
