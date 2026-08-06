@@ -1,16 +1,21 @@
 #include "kmath.h"
 
-#include <math.h>
-#include <stdlib.h>
+#include <math.h> // for sinf, cosf, etc.
 
 #include "debug/kassert.h"
 #include "defines.h"
-#include "logger.h"
 #include "math/math_types.h"
 #include "math/mtwister.h" // for 64-bit RNG
 
-#if !KOHI_DEBUG
-#	include "platform/platform.h"
+#define KMATH_USE_CUSTOM_RAND 1
+#if KMATH_USE_CUSTOM_RAND
+#	define krand _krand
+#	define ksrand _ksrand
+static u32 rand_state = 2463534242u;
+#else
+#	include <stdlib.h> // (s)rand
+#	define krand rand
+#	define ksrand srand
 #endif
 
 static b8 rand_seeded = false;
@@ -19,7 +24,7 @@ static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
 static void seed_randoms (void);
 
 #define VEC3_CHECK_NAN(v) \
-	KASSERT(isfinite(v.x) && isfinite(v.y) && isfinite(v.z))
+	KASSERT(kis_finite(v.x) && kis_finite(v.y) && kis_finite(v.z))
 
 b8 quat_is_identity (quat q) {
 	for (u8 i = 0; i < 3; ++i) {
@@ -50,32 +55,43 @@ f32 kacos (f32 x) { return acosf(x); }
 
 f32 ksqrt (f32 x) { return sqrtf(x); }
 
-f32 kabs (f32 x) { return fabsf(x); }
-
-f32 kfloor (f32 x) { return floorf(x); }
-
-f32 kceil (f32 x) { return ceilf(x); }
-
 f32 klog (f32 x) { return logf(x); }
 
 f32 klog2 (f32 x) { return log2f(x); }
 
 f32 kpow (f32 x, f32 y) { return powf(x, y); }
 
-f32 kmod (f32 x, f32 y) { return fmodf(x, y); }
+void _ksrand (u32 seed) {
+	if (seed != 0) {
+		rand_state = seed;
+	}
+}
+
+int _krand (void) {
+	u32 x = rand_state;
+
+	// xorshift32
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+
+	rand_state = x;
+
+	return (int)(x & 0x7fffffff);
+}
 
 i32 krandom (void) {
 	if (!rand_seeded) {
 		seed_randoms();
 	}
-	return rand();
+	return krand();
 }
 
 i32 krandom_in_range (i32 min, i32 max) {
 	if (!rand_seeded) {
 		seed_randoms();
 	}
-	return (rand() % (max - min + 1)) + min;
+	return (krand() % (max - min + 1)) + min;
 }
 
 u64 krandom_u64 (void) {
@@ -85,10 +101,10 @@ u64 krandom_u64 (void) {
 	return mtrand_generate(&rng_u64);
 }
 
-f32 kfrandom (void) { return (float)krandom() / (f32)RAND_MAX; }
+f32 kfrandom (void) { return (float)krandom() / (f32)KRAND_MAX; }
 
 f32 kfrandom_in_range (f32 min, f32 max) {
-	return min + ((float)krandom() / ((f32)RAND_MAX / (max - min)));
+	return min + ((float)krandom() / ((f32)KRAND_MAX / (max - min)));
 }
 
 f32 kattenuation_min_max (f32 min, f32 max, f32 x) {
@@ -325,7 +341,7 @@ static void seed_randoms (void) {
 #endif
 
 	// Seed standard random number generator.
-	srand(ptime_u32);
+	ksrand(ptime_u32);
 	// 64-bit RNG
 	rng_u64 = mtrand_create(ptime_u64);
 

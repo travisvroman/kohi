@@ -42,7 +42,18 @@ endif
 
 
 # Setup: This really just needs to be done once to setup the environment, etc. Unless repo updates demand it.
-setup: scaffold utils-debug copy-utils
+setup: getdeps scaffold utils-debug copy-utils
+
+getdeps: getdeps-$(PLATFORM)
+
+getdeps-linux:
+	./get_deps_linux.sh
+
+getdeps-macos:
+	./get_deps_macos.sh
+
+getdeps-win32:
+	get_deps_win32.bat
 
 # Scaffold folder structure needed for top-level operations.
 scaffold: scaffold-$(PLATFORM)

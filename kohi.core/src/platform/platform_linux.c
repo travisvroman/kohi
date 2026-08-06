@@ -31,19 +31,13 @@
 #	include <sys/statvfs.h>
 // For CPU queries
 #	include <dirent.h>
-#	include <ctype.h>
 
 #	if _POSIX_C_SOURCE >= 199309L
 #		include <time.h> // nanosleep
 #	endif
 
-#	include <errno.h> // For error reporting
-#	include <fcntl.h>
-#	include <limits.h> // Used for SSIZE_MAX
-#	include <pthread.h>
-#	include <stdio.h>
-#	include <stdlib.h>
-#	include <string.h>
+#	include <errno.h>	// For error reporting
+#	include <stdlib.h> // Annoyingly still needed for free, since X uses malloc internally.
 #	include <sys/sendfile.h>
 #	include <sys/stat.h>
 #	include <sys/sysinfo.h> // Processor info
@@ -60,6 +54,7 @@
 #	include "logger.h"
 #	include "memory/kmemory.h"
 #	include "strings/kstring.h"
+#	include "platform/syscall_nix.h"
 
 #	include "kfeatures_runtime.h"
 
@@ -222,6 +217,7 @@ static b8 enable_detectable_autorepeat (xcb_connection_t *conn) {
 	}
 
 	b8 ok = (ur->supported);
+
 	free(ur);
 	if (!ok) {
 		return false;
@@ -943,27 +939,37 @@ b8 platform_pump_messages (void) {
 }
 
 void *platform_allocate (u64 size, b8 aligned) {
-	return malloc(size);
+	void *p = (void *)syscall6(
+		SYS_mmap,
+		0, /* let kernel choose address */
+		(i64)size,
+		PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS,
+		-1,
+		0);
+
+	/* Linux syscalls return -errno on failure. */
+	if ((i64)p < 0) {
+		return 0;
+	}
+
+	// TODO: track all allocations made this way so the size can be gotten later.
+
+	return p;
 }
-void platform_free (void *block, b8 aligned) {
-	free(block);
-}
-void *platform_zero_memory (void *block, u64 size) {
-	return memset(block, 0, size);
-}
-void *platform_copy_memory (void *dest, const void *source, u64 size) {
-	return memcpy(dest, source, size);
-}
-void *platform_set_memory (void *dest, i32 value, u64 size) {
-	return memset(dest, value, size);
+void platform_free (void *block, b8 aligned, u64 size) {
+	if (block) {
+		syscall2(SYS_munmap, (i64)block, (i64)size);
+	}
 }
 
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
 	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
-	FILE *console_handle = is_error ? stderr : stdout;
-	// FATAL,ERROR,WARN,INFO,DEBUG,TRACE
 	const char *colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
-	fprintf(console_handle, "\033[%sm%s\033[0m", colour_strings[level], message);
+	const char *output = string_format("\033[%sm%s\033[0m", colour_strings[level], message);
+	i32 fd = is_error ? FD_STDERR : FD_STDOUT;
+	syscall3(SYS_write, fd, (i64)output, string_length(output));
+	string_free(output);
 }
 
 f64 platform_get_absolute_time (void) {
@@ -1083,7 +1089,8 @@ platform_error_code platform_copy_file (const char *source, const char *dest, b8
 	// Copy the data. Iterate to handle large files, since Linux has a limit
 	// on the amount that can be copied at once.
 	while (size > 0) {
-		ssize_t sent = sendfile(dest_fd, source_fd, NULL, (size >= SSIZE_MAX ? SSIZE_MAX : (size_t)size));
+		// NOTE: SSIZE_MAX = 0x7FFFFFFFFFFFFFFF
+		ssize_t sent = sendfile(dest_fd, source_fd, NULL, (size >= 0x7FFFFFFFFFFFFFFF ? 0x7FFFFFFFFFFFFFFF : (size_t)size));
 		if (sent < 0) {
 			if (errno != EINVAL && errno != ENOSYS) {
 				ret_code = PLATFORM_ERROR_UNKNOWN;
@@ -1383,15 +1390,16 @@ static u32 linux_ram_speed_mhz (void) {
 
 	/* Try memory device entries */
 	for (int i = 0; i < 32; ++i) {
-		snprintf(path, sizeof(path),
-				 "/sys/devices/system/memory/memory%d/dimm_speed", i);
+		ksnprintf(path, sizeof(path),
+				  "/sys/devices/system/memory/memory%d/dimm_speed", i);
 
 		f = fopen(path, "r");
 		if (!f)
 			continue;
 
 		if (fgets(buf, sizeof(buf), f)) {
-			u32 mhz = (u32)strtoul(buf, NULL, 10);
+			u32 mhz = 0;
+			string_to_u32(buf, &mhz);
 			if (mhz > 0) {
 				speed += mhz;
 				count++;
@@ -1414,9 +1422,9 @@ static void linux_cpu (ksystem_info *s) {
 
 	char line[256];
 	while (fgets(line, sizeof(line), f)) {
-		if (strncmp(line, "model name", 10) == 0) {
+		if (strings_nequal(line, "model name", 10)) {
 			sscanf(line, "model name : %[^\n]", s->cpu_name);
-		} else if (strncmp(line, "cpu MHz", 7) == 0) {
+		} else if (strings_nequal(line, "cpu MHz", 7)) {
 			// Grab this first in case /sys/.../cpuinfo_max_freq isn't available.
 			f64 mhz = 0;
 			sscanf(line, "cpu MHz : %lf", &mhz);
@@ -1441,11 +1449,11 @@ static void linux_cpu (ksystem_info *s) {
 			struct dirent *entry;
 			u32 freq_khz = 0;
 			while ((entry = readdir(dir)) != NULL) {
-				if (strncmp(entry->d_name, "cpu", 3) == 0 && isdigit(entry->d_name[3])) {
+				if (strncmp(entry->d_name, "cpu", 3) == 0 && kisdigit(entry->d_name[3])) {
 					char path[256];
-					snprintf(path, sizeof(path),
-							 "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
-							 entry->d_name);
+					ksnprintf(path, sizeof(path),
+							  "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
+							  entry->d_name);
 
 					FILE *f = fopen(path, "r");
 					if (!f)
@@ -1552,30 +1560,30 @@ static kdrive_type linux_classify_drive (
 
 	// Extract parent disk: sda1 → sda, nvme0n1p2 → nvme0n1
 	char disk[128];
-	snprintf(disk, sizeof(disk), "%s", device + 5);
+	ksnprintf(disk, sizeof(disk), "%s", device + 5);
 
-	size_t len = strlen(disk);
-	while (len && isdigit(disk[len - 1]))
+	size_t len = string_length(disk);
+	while (len && kisdigit(disk[len - 1]))
 		disk[--len] = 0;
 	if (len && disk[len - 1] == 'p')
 		disk[--len] = 0;
 
 	// 4. Optical drive
 	char path[256], media[64];
-	snprintf(path, sizeof(path), "/sys/block/%s/device/media", disk);
+	ksnprintf(path, sizeof(path), "/sys/block/%s/device/media", disk);
 	if (file_read_string(path, media, sizeof(media))) {
-		if (!strcmp(media, "cdrom"))
+		if (strings_equal(media, "cdrom"))
 			return KDRIVE_TYPE_CDROM;
 	}
 
 	// 5. Removable
 	int removable = 0;
-	snprintf(path, sizeof(path), "/sys/block/%s/removable", disk);
+	ksnprintf(path, sizeof(path), "/sys/block/%s/removable", disk);
 	if (file_read_int(path, &removable) && removable == 1)
 		return KDRIVE_TYPE_REMOVABLE;
 
 	// 6. Fixed disk
-	snprintf(path, sizeof(path), "/sys/block/%s", disk);
+	ksnprintf(path, sizeof(path), "/sys/block/%s", disk);
 	if (access(path, F_OK) == 0)
 		return KDRIVE_TYPE_FIXED;
 
@@ -1639,9 +1647,9 @@ static u32 linux_get_ram_speed_mhz (void) {
 			continue;
 
 		char path[512];
-		snprintf(path, sizeof(path),
-				 "/sys/firmware/dmi/entries/%s/raw",
-				 ent->d_name);
+		ksnprintf(path, sizeof(path),
+				  "/sys/firmware/dmi/entries/%s/raw",
+				  ent->d_name);
 
 		FILE *f = fopen(path, "rb");
 		if (!f)

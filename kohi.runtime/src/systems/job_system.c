@@ -476,7 +476,6 @@ job_info job_create_with_dependencies (
 		KERROR("Failed to lock job status mutex!");
 	}
 
-	// TODO: Pack booleans.
 	KASSERT_MSG(state_ptr->current_job_id < INVALID_ID_U16, "Job system identifier overflow - need to pack booleans.");
 	job.id = state_ptr->current_job_id;
 	state_ptr->current_job_id++;

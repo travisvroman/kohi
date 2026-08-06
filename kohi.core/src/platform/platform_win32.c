@@ -55,8 +55,8 @@ typedef LONG NTSTATUS;
 } RTL_OSVERSIONINFOW; */
 
 __declspec(dllimport)
-	NTSTATUS NTAPI
-	RtlGetVersion(RTL_OSVERSIONINFOW *lpVersionInformation);
+NTSTATUS NTAPI
+RtlGetVersion (RTL_OSVERSIONINFOW *lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
@@ -388,25 +388,11 @@ b8 platform_pump_messages (void) {
 }
 
 void *platform_allocate (u64 size, b8 aligned) {
-	// return malloc(size);
 	return (void *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
-void platform_free (void *block, b8 aligned) {
-	// free(block);
+void platform_free (void *block, b8 aligned, u64 size) {
 	HeapFree(GetProcessHeap(), 0, block);
-}
-
-void *platform_zero_memory (void *block, u64 size) {
-	return memset(block, 0, size);
-}
-
-void *platform_copy_memory (void *dest, const void *source, u64 size) {
-	return memcpy(dest, source, size);
-}
-
-void *platform_set_memory (void *dest, i32 value, u64 size) {
-	return memset(dest, value, size);
 }
 
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {

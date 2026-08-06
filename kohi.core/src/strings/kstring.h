@@ -17,12 +17,39 @@
 
 #pragma once
 
+#include <stdarg.h>
+
 #include "defines.h"
 #include "math/math_types.h"
-#include "strings/kname.h"
-#include "strings/kstring_id.h"
 
-#include <stdarg.h>
+KAPI char *_kstrchr (const char *str, i32 c);
+KAPI char *_kstrstr (const char *haystack, const char *needle);
+KAPI i32 _kisdigit (int c);
+KAPI i32 _kisalpha (i32 c);
+
+#define USE_STB_SPRINTF 1
+#ifdef USE_STB_SPRINTF
+#	include "vendor/stb_printf.h"
+#	define ksnprintf stbsp_snprintf
+#	define ksprintf stbsp_sprintf
+#	define kvsnprintf stbsp_vsnprintf
+#	define kvsprintf stbsp_vsprintf
+// Not STB-provided, but still required to get rid of some std lib things.
+#	define kstrchr _kstrchr
+#	define kstrstr _kstrstr
+#	define kisdigit _kisdigit
+#	define kisalpha _kisalpha
+#else
+#	include <stdio.h>
+#	define ksnprintf snprintf
+#	define ksprintf sprintf
+#	define kvsnprintf vsnprintf
+#	define kvsprintf vsprintf
+#	define kstrchr strchr
+#	define kstrstr strstr
+#	define kisdigit isdigit
+#	define kisalpha isalpha
+#endif
 
 typedef unsigned short kwchar;
 
@@ -753,10 +780,6 @@ KAPI void string_append_char (char *dest, const char *source, char c);
  * @returns The joined string. Should be freed by the caller.
  */
 KAPI char *string_join (const char **strings, u32 count, char delimiter);
-
-KAPI char *kstring_id_join (const kstring_id *strings, u32 count, char delimiter);
-
-KAPI char *kname_join (const kname *strings, u32 count, char delimiter);
 
 /**
  * @brief Extracts the directory from a full file path.

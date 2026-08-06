@@ -56,4 +56,6 @@ KAPI kstring_id kstring_id_create (const char *str);
  */
 KAPI const char *kstring_id_string_get (kstring_id stringid);
 
+KAPI char *kstring_id_join (const kstring_id *strings, u32 count, char delimiter);
+
 KAPI void kstring_id_shutdown (void);

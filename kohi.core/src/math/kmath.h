@@ -17,6 +17,8 @@
 #include "math_types.h"
 #include "memory/kmemory.h"
 
+#define KMATH_USE_CUSTOM_RAND 1
+
 /** @brief An approximate representation of PI. */
 #define K_PI 3.14159265358979323846f
 
@@ -77,6 +79,12 @@
 // Used to test if a float is close to zero, specifically for sweep tests.
 #define SWEEP_EPSILON 1e-5f
 
+#if KMATH_USE_CUSTOM_RAND
+#	define KRAND_MAX 0x7FFFFFFF
+#else
+#	define KRAND_MAX RAND_MAX
+#endif
+
 // ------------------------------------------
 // General math functions
 // ------------------------------------------
@@ -94,8 +102,10 @@ KINLINE void kswapf (f32 *a, f32 *b) {
 
 /** @brief Returns 0.0f if x == 0.0f, -1.0f if negative, otherwise 1.0f. */
 KINLINE f32 ksign (f32 x) {
-	return x == 0.0f ? 0.0f : x < 0.0f ? -1.0f
-									   : 1.0f;
+	if (x >= 0.0f) {
+		return 1.0f;
+	}
+	return -1.0f;
 }
 
 /** @brief Compares x to edge, returning 0 if x < edge; otherwise 1.0f; */
@@ -201,7 +211,9 @@ KAPI f32 ksqrt (f32 x);
  * @param x The number to get the absolute value of.
  * @return The absolute value of x.
  */
-KAPI f32 kabs (f32 x);
+KINLINE f32 kabs (f32 x) {
+	return x < 0.0f ? -x : x;
+}
 
 /**
  * @brief Returns the largest integer value less than or equal to x.
@@ -209,7 +221,13 @@ KAPI f32 kabs (f32 x);
  * @param x The value to be examined.
  * @return the largest integer value less than or equal to x.
  */
-KAPI f32 kfloor (f32 x);
+KINLINE f32 kfloor (f32 x) {
+	i32 i = (i32)x;
+	if ((f32)i > x) {
+		--i;
+	}
+	return (f32)i;
+}
 
 /**
  * @brief Returns the smallest integer value greater than or equal to x.
@@ -217,7 +235,13 @@ KAPI f32 kfloor (f32 x);
  * @param x The value to be examined.
  * @return the smallest integer value greater than or equal to x.
  */
-KAPI f32 kceil (f32 x);
+KINLINE f32 kceil (f32 x) {
+	i32 i = (i32)x;
+	if ((f32)i < x) {
+		++i;
+	}
+	return (f32)i;
+}
 
 /**
  * @brief Computes the logarithm of x.
@@ -237,10 +261,29 @@ KAPI f32 klog2 (f32 x);
 
 KAPI f32 kpow (f32 x, f32 y);
 
-KAPI f32 kmod (f32 x, f32 y);
+KINLINE f32 kmod (f32 x, f32 y) {
+	if (y == 0.0f) {
+		return 0.0f;
+	}
+	return x - (f32)((i32)(x / y)) * y;
+}
 
-KINLINE f32 klerp (f32 a, f32 b, f32 t) {
-	return a + t * (b - a);
+KINLINE f32 kwrap_pi (f32 x) {
+	while (x > K_PI) {
+		x -= K_2PI;
+	}
+	while (x < -K_PI) {
+		x += K_2PI;
+	}
+	return x;
+}
+
+KINLINE f32 klerp (f32 from, f32 to, f32 t) {
+	return from + t * (to - from);
+}
+
+KINLINE f32 klerp_inv (f32 from, f32 to, f32 t) {
+	return (t - from) / (to - from);
 }
 
 KINLINE f32 kfalloff_smooth (f32 t) {
@@ -262,6 +305,19 @@ KINLINE f32 kfalloff_smooth (f32 t) {
  */
 KINLINE b8 is_power_of_2 (u64 value) {
 	return (value != 0) && ((value & (value - 1)) == 0);
+}
+
+KINLINE b8 kis_finite (f32 x) {
+	union {
+		f32 f;
+		u32 i;
+	} u;
+
+	u.f = x;
+
+	/* Exponent bits are bits 23-30.
+	   All ones means infinity or NaN. */
+	return ((u.i & 0x7F800000u) != 0x7F800000u);
 }
 
 /**
@@ -690,7 +746,7 @@ KINLINE vec4 vec3_to_vec4 (vec3 vector, f32 w) {
  * 0.0f.
  */
 #define vec3_zero() \
-	(vec3) { 0.0f, 0.0f, 0.0f }
+	(vec3){0.0f, 0.0f, 0.0f}
 
 /**
  * @brief Creates and returns a 3-component vector with all components set
@@ -2362,7 +2418,7 @@ KINLINE void rgbu_to_u32 (u32 r, u32 g, u32 b, u32 *out_u32) {
 KINLINE void u32_to_rgb (u32 rgbu, u32 *out_r, u32 *out_g, u32 *out_b) {
 	*out_r = (rgbu >> 16) & 0x0FF;
 	*out_g = (rgbu >> 8) & 0x0FF;
-	*out_b = (rgbu)&0x0FF;
+	*out_b = (rgbu) & 0x0FF;
 }
 
 /**

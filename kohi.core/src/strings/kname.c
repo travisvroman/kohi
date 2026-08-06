@@ -1,11 +1,13 @@
 #include "kname.h"
 
+#include <stdarg.h>
+
 #include "containers/u64_bst.h"
 #include "debug/kassert.h"
 #include "logger.h"
+#include "memory/kmemory.h"
 #include "strings/kstring.h"
 #include "utils/crc64.h"
-#include <stdarg.h>
 
 // Global lookup table for saved names.
 static bt_node *string_lookup = 0;
@@ -75,6 +77,41 @@ const char *kname_string_get (kname name) {
 	}
 
 	return 0;
+}
+
+char *kname_join (const kname *strings, u32 count, char delimiter) {
+	if (!strings || !count) {
+		return 0;
+	}
+	if (delimiter == 0) {
+		KERROR("string_join cannot be used with a null terminator character as the delimiter.");
+		return 0;
+	}
+
+	u32 total_length = 0;
+	u32 *lengths = KALLOC_TYPE_CARRAY(u32, count);
+	for (u32 i = 0; i < count; ++i) {
+		const char *str = kname_string_get(strings[i]);
+		lengths[i] = string_length(str);
+		total_length += lengths[i];
+	}
+
+	// Space for delimiters
+	total_length += (count - 1);
+
+	char *out_str = KALLOC_TYPE_CARRAY(char, total_length);
+	u32 offset = 0;
+	for (u32 i = 0; i < count; ++i) {
+		ksprintf(out_str + offset, "%s%c", kname_string_get(strings[i]), delimiter);
+		offset += lengths[i] + 1;
+	}
+
+	// Overwrite the final delimiter character with null terminator.
+	out_str[total_length - 1] = 0;
+
+	kfree(lengths);
+
+	return out_str;
 }
 
 void kname_shutdown (void) {

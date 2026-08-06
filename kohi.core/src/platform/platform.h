@@ -303,37 +303,9 @@ KAPI void *platform_allocate (u64 size, b8 aligned);
  *
  * @param block The block to be freed.
  * @param aligned Indicates if the block of memory is aligned.
+ * @param size of the block to be freed.
  */
-KAPI void platform_free (void *block, b8 aligned);
-
-/**
- * @brief Performs platform-specific zeroing out of the given block of memory.
- *
- * @param block The block to be zeroed out.
- * @param size The size of data to zero out.
- * @return A pointer to the zeroed out block of memory.
- */
-KAPI void *platform_zero_memory (void *block, u64 size);
-
-/**
- * @brief Copies the bytes of memory in source to dest, of the given size.
- *
- * @param dest The destination memory block.
- * @param source The source memory block.
- * @param size The size of data to be copied.
- * @return A pointer to the destination block of memory.
- */
-KAPI void *platform_copy_memory (void *dest, const void *source, u64 size);
-
-/**
- * @brief Sets the bytes of memory to the given value.
- *
- * @param dest The destination block of memory.
- * @param value The value to be set.
- * @param size The size of data to set.
- * @return A pointer to the set block of memory.
- */
-KAPI void *platform_set_memory (void *dest, i32 value, u64 size);
+KAPI void platform_free (void *block, b8 aligned, u64 size);
 
 /**
  * @brief Performs platform-specific printing to the console of the given

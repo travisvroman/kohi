@@ -39,7 +39,7 @@ The goal here is simple, to provide a resource that I wish I had when learning g
 including not only design decisions, but _why_ those decisions were made. It should also be noted that, while this is _a_ way of building a game engine,
 it is not _the only_ way to build one and sometimes not even the _correct_ way to build one. There is a lot of trial-and-error along the way, complete with
 deep dives. Sometimes we do things the wrong way to illustrate _why_ it's the wrong way before then fixing it. Sometimes things work, sometimes they don't.
-The idea is to try things and explore along the way.
+The idea is to try things and explore along the way. It is not, and never will be, a competitor to the Big Three (Unity, Unreal, Godot). It's an engine for programmers, by a programmer.
 
 Kohi has been a 3D engine from the start, with most of it built from scratch.
 
@@ -57,51 +57,35 @@ Windows, GNU/Linux and macOS are all officially supported. Other platforms such 
 
 While the highest effort is made to reduce dependencies, each platform has things that _must_ be installed for this to work.
 
+Immediately after cloning, run `make setup`. If you don't have make, run the `get_deps_<platform>.sh|bat` first, then try again.
+
 ### Prerequisites for Windows
 
 NOTE: This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
 
-- Make for Windows: `winget install exwinports.make` OR https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
-- Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
-- Git for Windows: `winget install git.git` OR https://gitforwindows.org/
-- Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
+Running `make setup` now gathers the required dependencies automatically for Windows via the `get_deps_win32.bat` script.
+
+NOTE: Assimp must still be installed this way for now on Windows. More work will be done to automate this in the future.
+
 - Assimp: Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
   - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
   - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
 
 ### Prerequisites for GNU/Linux
 
-Install these via package manager:
+Update!
 
-#### Debian/Ubuntu:
-
-- `sudo apt install llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev`
-
-#### Arch:
-
-- `sudo pacman -S llvm`
-- `sudo pacman -S git`
-
-#### Fedora:
-
-- `sudo dnf install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel vulkan-headers libshaderc-devel sudo dnf vulkan-validation-layers`
-
-- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp` `sudo dnf install assimp-devel`
+Running `make setup` now gathers the required dependencies automatically for Debian/Ubuntu, Arch, and Fedora via the `get_deps_linux.sh` script. Other distros to come in the future.
 
 NOTE: Wayland not natively supported (yet)
 
 ### Prerequisites for macOS
 
-- XCode command line tools: `xcode-select --install`. This should install the latest XCode and
-  command-line tools (most importantly clang). At the time of install, this installs Apple Clang 15.0.0.
-
-Install these via homebrew (brew) or other package manager:
-
-- Git: `brew install git`
-- Make: `brew install make`
-- Assimp (for tooling/model imports): `brew install assimp`
+Running `make setup` now gathers the required dependencies automatically for MacOS via the `get_deps_macos.sh` script.
 
 The Vulkan SDK
+
+NOTE: for the time being, this still needs manual installation.
 
 - Vulkan SDK: download from https://vulkan.lunarg.com/
   - NOTE: Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
@@ -125,9 +109,9 @@ For shaderc:
 
 The audio plugin requires an installatiion of OpenAL.
 
-- GNU/Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
-- macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
-- Windows: `winget install OpenAL.OpenAL` OR Install the SDK from here: https://www.openal.org/downloads/
+- GNU/Linux: use a package manager to install OpenAL, if not already installed via `make setup`.
+- macOS: use a homebrew to install OpenAL-Soft, if not already installed via `make setup`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
+- Windows: If not already installed via `make setup`, Install the SDK from here: https://www.openal.org/downloads/
 
 # Start
 
@@ -177,16 +161,16 @@ At the moment, "Testbed" is the executable that uses Kohi. It should be run with
 
 This structure breakdown is based on the root folder of the repository. Some files/folders are omitted from this description as they aren't important to the overall picture.
 
-- `kohi.core` - Shared library/.dll. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, GNU/Linux, macOS).
+- `kohi.core` - Shared library/.dll/.so/.dylib. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, GNU/Linux, macOS).
 - `kohi.core.tests` - A small collection of unit tests for the core library. Needs to be expanded.
-- `kohi.runtime` - Shared library/.dll. Contains the core engine logic as well as many of the core engine systems.
+- `kohi.runtime` - Shared library/.dll/.so/.dylib. Contains the core engine logic as well as many of the core engine systems.
 - `kohi.runtime.tests` - A small collection of unit tests for the runtime library. Needs to be expanded.
-- `kohi.plugin.audio.openal` - Shared library/.dll. Contains the audio plugin which uses OpenAL as the audio backend.
-- `kohi.plugin.renderer.vulkan` - Shared library/.dll. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
-- `kohi.plugin.ui.kui` - Shared library/.dll. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
+- `kohi.plugin.audio.openal` - Shared library/.dll/.so/.dylib. Contains the audio plugin which uses OpenAL as the audio backend.
+- `kohi.plugin.renderer.vulkan` - Shared library/.dll/.so/.dylib. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
+- `kohi.plugin.ui.kui` - Shared library/.dll/.so/.dylib. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
-- `testbed.klib` = Shared library/.dll. Contains the application code (or "game code") specific to the application. Hot-reloadable.
-- `kohi.tools` - A collection of command-line tools. Mostly empty at the moment, but will be expended when editor development begins.
+- `testbed.klib` = Shared library/.dll/.so/.dylib. Contains the application code (or "game code") specific to the application. Hot-reloadable.
+- `kohi.tools` - A collection of command-line tools. Contains utilities such as "importmanifest".
 - `utils` - A collection of build utilities required to build Kohi. These only require the C compiler, so no additional dependencies are needed.
 - `.vscode` A folder containing VS Code-specific project setup.
 

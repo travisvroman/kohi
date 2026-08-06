@@ -1,37 +1,77 @@
 #include "strings/kstring.h"
-#include "debug/kassert.h"
-#include "math/kmath.h"
-#include "strings/kname.h"
-#include "strings/kstring_id.h"
 
-#include <ctype.h>
-#include <stdarg.h> // For variadic functions
-#include <stdint.h>
-#include <stdio.h> // vsnprintf, sscanf, sprintf
-
-#define USE_STD_STR 1
-#if USE_STD_STR
-#	include <string.h>
-#endif
+#define STB_SPRINTF_IMPLEMENTATION
+#include "vendor/stb_printf.h"
 
 #include "containers/darray.h"
+#include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"
+#include "math/kmath.h"
 #include "memory/kmemory.h"
+#include "strings/kname.h"
+
+char *_kstrchr (const char *str, i32 c) {
+	char ch = (char)c;
+
+	while (*str) {
+		if (*str == ch) {
+			return (char *)str;
+		}
+
+		++str;
+	}
+
+	if (ch == '\0') {
+		return (char *)str;
+	}
+
+	return KNULL;
+}
+char *_kstrstr (const char *haystack, const char *needle) {
+	const char *h;
+	const char *n;
+
+	/* An empty needle matches at the beginning of the haystack. */
+	if (*needle == '\0') {
+		return (char *)haystack;
+	}
+
+	while (*haystack) {
+		h = haystack;
+		n = needle;
+
+		while (*h && *n && *h == *n) {
+			++h;
+			++n;
+		}
+
+		if (*n == '\0') {
+			return (char *)haystack;
+		}
+
+		++haystack;
+	}
+
+	return KNULL;
+}
+i32 _kisdigit (i32 c) {
+	return (unsigned)(c - '0') < 10;
+}
+i32 _kisalpha (i32 c) {
+	c |= 0x20; /* Convert uppercase ASCII to lowercase. */
+	return (unsigned)(c - 'a') < 26;
+}
 
 u64 string_length (const char *str) {
 	if (!str) {
 		return 0;
 	}
-#if USE_STD_STR
-	return strlen(str);
-#else
 	u32 length = string_nlength(str, U32_MAX);
 	if (length == U32_MAX) {
 		KWARN("string_length is returning U32_MAX. Is it possible the string has no null terminator?")
 	}
 	return length;
-#endif
 }
 
 u32 string_utf8_length (const char *str) {
@@ -215,9 +255,6 @@ i64 kstr_ncmp (const char *str0, const char *str1, u32 max_len) {
 		// first char of the first string as str[0] - 0 would just be str[0] anyway.
 		return str0[0];
 	}
-#if USE_STD_STR
-	return strncmp(str0, str1, max_len);
-#else
 	if (!str0 && !str1) {
 		return 0; // Technically equal since both are null.
 	} else if (!str0 && str1) {
@@ -255,7 +292,6 @@ i64 kstr_ncmp (const char *str0, const char *str1, u32 max_len) {
 
 	// If at the end and no differences were found, should be safe to say they are the same.
 	return 0;
-#endif
 }
 
 i64 kstr_ncmpi (const char *str0, const char *str1, u32 max_len) {
@@ -328,7 +364,7 @@ static i32 appendf (char *buf, u32 size, u32 *pos, const char *fmt, ...) {
 	char tmp[16384];
 	va_list ap;
 	va_start(ap, fmt);
-	i32 len = vsnprintf(tmp, sizeof(tmp), fmt, ap);
+	i32 len = kvsnprintf(tmp, sizeof(tmp), fmt, ap);
 	va_end(ap);
 
 	append(buf, size, pos, tmp);
@@ -346,7 +382,7 @@ static const char *parse_standard_printf_format (const char *p, char *out, u32 o
 	*s++ = *p++;
 
 	// Flags
-	while (strchr("#0-+ ", *p)) {
+	while (kstrchr("#0-+ ", *p)) {
 		if (s < end) {
 			*s++ = *p;
 			p++;
@@ -359,7 +395,7 @@ static const char *parse_standard_printf_format (const char *p, char *out, u32 o
 			*s++ = *p++;
 		}
 	} else {
-		while (isdigit((u8)*p)) {
+		while (kisdigit((u8)*p)) {
 			if (s < end) {
 				*s++ = *p;
 				p++;
@@ -377,7 +413,7 @@ static const char *parse_standard_printf_format (const char *p, char *out, u32 o
 				*s++ = *p++;
 			}
 		} else {
-			while (isdigit((u8)*p)) {
+			while (kisdigit((u8)*p)) {
 				if (s < end) {
 					*s++ = *p;
 					p++;
@@ -387,7 +423,7 @@ static const char *parse_standard_printf_format (const char *p, char *out, u32 o
 	}
 
 	// Length modifiers
-	if (strchr("hljztL", *p)) {
+	if (kstrchr("hljztL", *p)) {
 		if (s < end) {
 			*s++ = *p++;
 		}
@@ -399,7 +435,7 @@ static const char *parse_standard_printf_format (const char *p, char *out, u32 o
 	}
 
 	// Conversion specifier
-	if (isalpha((u8)*p) || *p == '%') {
+	if (kisalpha((u8)*p) || *p == '%') {
 		if (s < end) {
 			*s++ = *p++;
 		}
@@ -420,14 +456,14 @@ static void va_advance_one (va_list *ap, const char *spec) {
 	char conv = spec[len - 1];
 
 	// Does it have a length modifier?
-	b8 h = strstr(spec, "h") != KNULL;
-	b8 hh = strstr(spec, "hh") != KNULL;
-	b8 l = strstr(spec, "l") != KNULL;
-	b8 ll = strstr(spec, "ll") != KNULL;
-	b8 L = strstr(spec, "L") != KNULL;
-	b8 z = strstr(spec, "z") != KNULL;
-	b8 t = strstr(spec, "t") != KNULL;
-	b8 j = strstr(spec, "j") != KNULL;
+	b8 h = kstrstr(spec, "h") != KNULL;
+	b8 hh = kstrstr(spec, "hh") != KNULL;
+	b8 l = kstrstr(spec, "l") != KNULL;
+	b8 ll = kstrstr(spec, "ll") != KNULL;
+	b8 L = kstrstr(spec, "L") != KNULL;
+	b8 z = kstrstr(spec, "z") != KNULL;
+	b8 t = kstrstr(spec, "t") != KNULL;
+	b8 j = kstrstr(spec, "j") != KNULL;
 
 	switch (conv) {
 	case 'd':
@@ -441,7 +477,7 @@ static void va_advance_one (va_list *ap, const char *spec) {
 		} else if (ll) {
 			(void)va_arg(*ap, i64);
 		} else if (j) {
-			(void)va_arg(*ap, intmax_t);
+			(void)va_arg(*ap, unsigned long long /*intmax_t*/); // NOTE: using this as the max-width instead of intmax_t to avoid including stdint.h
 		} else if (z) {
 			(void)va_arg(*ap, u64);
 		} else if (t) {
@@ -464,7 +500,7 @@ static void va_advance_one (va_list *ap, const char *spec) {
 		} else if (ll) {
 			(void)va_arg(*ap, i64);
 		} else if (j) {
-			(void)va_arg(*ap, intmax_t);
+			(void)va_arg(*ap, unsigned long long /*intmax_t*/); // NOTE: using this as the max-width instead of intmax_t to avoid including stdint.h
 		} else if (z) {
 			(void)va_arg(*ap, u64);
 		} else {
@@ -577,11 +613,11 @@ i32 vsnprintf_extended (char *buf, u32 size, const char *fmt, va_list ap_input) 
 				// Build a format string.
 				char fbuf[64];
 				if (dims == 2) {
-					snprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df]", precision, precision);
+					ksnprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df]", precision, precision);
 				} else if (dims == 3) {
-					snprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df, %%.%df]", precision, precision, precision);
+					ksnprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df, %%.%df]", precision, precision, precision);
 				} else if (dims == 4) {
-					snprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df, %%.%df, %%.%df]", precision, precision, precision, precision);
+					ksnprintf(fbuf, sizeof(fbuf), "[%%.%df, %%.%df, %%.%df, %%.%df]", precision, precision, precision, precision);
 				}
 
 				// Append
@@ -640,7 +676,7 @@ i32 vsnprintf_extended (char *buf, u32 size, const char *fmt, va_list ap_input) 
 		va_copy(tmp, ap);
 
 		char sm[16384];
-		vsnprintf(sm, sizeof(sm), spec, tmp);
+		kvsnprintf(sm, sizeof(sm), spec, tmp);
 		va_end(tmp);
 
 		append(buf, size, &pos, sm);
@@ -706,7 +742,7 @@ i32 string_format_v_unsafe (char *dest, const char *format, void *va_listp) {
 	if (dest) {
 		// Big, but can fit on the stack.
 		char buffer[32000] = {0};
-		i32 written = vsnprintf(buffer, 32000, format, va_listp);
+		i32 written = kvsnprintf(buffer, 32000, format, va_listp);
 		buffer[written] = 0;
 		kcopy_memory(dest, buffer, written + 1);
 
@@ -725,7 +761,7 @@ i32 string_nformat (char *dest, u32 max_len, const char *format, ...) {
 
 i32 string_nformat_v (char *dest, u32 max_len, const char *format, void *va_listp) {
 	if (dest) {
-		return vsnprintf(dest, max_len, format, va_listp);
+		return kvsnprintf(dest, max_len, format, va_listp);
 	}
 	return -1;
 }
@@ -1017,29 +1053,296 @@ u32 string_replace_char_all (char *str, char find, char replace) {
 	return count;
 }
 
+i32 u64_from_string (const char *str, u64 *out_value) {
+	const char *p = str;
+	u64 value = 0;
+	i32 found_digit = 0;
+
+	if (!str || !out_value) {
+		return -1;
+	}
+
+	while (*p >= '0' && *p <= '9') {
+		found_digit = 1;
+		value = value * 10 + (u64)(*p - '0');
+		++p;
+	}
+
+	if (!found_digit) {
+		return -1;
+	}
+
+	*out_value = value;
+
+	if (*p == '\0') {
+		return -2;
+	}
+
+	return (i32)(p - str);
+}
+i32 i64_from_string (const char *str, i64 *out_value) {
+	const char *p = str;
+	i32 sign = 1;
+	u64 value;
+	i32 result;
+
+	if (!str || !out_value) {
+		return -1;
+	}
+
+	if (*p == '-') {
+		sign = -1;
+		++p;
+	} else if (*p == '+') {
+		++p;
+	}
+
+	result = u64_from_string(p, &value);
+
+	if (result == -1) {
+		return -1;
+	}
+
+	if (sign < 0) {
+		*out_value = -(i64)value;
+	} else {
+		*out_value = (i64)value;
+	}
+
+	if (result == -2) {
+		return -2;
+	}
+
+	return result + (i32)(p - str);
+}
+
+i32 string_extract_u64s (const char *str, u8 count, u64 *u64s) {
+	i32 offset = 0;
+	u8 i = 0;
+	for (i = 0; i < count; ++i) {
+		u64 val = 0;
+		i32 result = u64_from_string(str + offset, &val);
+		if (result == -1) {
+			// not found, stop.
+			return -1;
+		} else if (result == -2) {
+			// Found, but at the end of the line.
+			u64s[i] = val;
+			break;
+		}
+		// Found, advance offset.
+		offset += result;
+		u64s[i] = val;
+
+		char c = str[offset];
+		while (c && char_is_whitespace(c)) {
+			++offset;
+			c = str[offset];
+		}
+	}
+
+	return count;
+}
+
+i32 string_extract_i64s (const char *str, u8 count, i64 *i64s) {
+	i32 offset = 0;
+	u8 i = 0;
+	for (i = 0; i < count; ++i) {
+		i64 val = 0;
+		i32 result = i64_from_string(str + offset, &val);
+		if (result == -1) {
+			// not found, stop.
+			return -1;
+		} else if (result == -2) {
+			// Found, but at the end of the line.
+			i64s[i] = val;
+			break;
+		}
+		// Found, advance offset.
+		offset += result;
+		i64s[i] = val;
+
+		char c = str[offset];
+		while (c && char_is_whitespace(c)) {
+			++offset;
+			c = str[offset];
+		}
+	}
+
+	return count;
+}
+
+i32 f32_from_string (const char *str, f32 *out_value) {
+	const char *p = str;
+	f32 value = 0.0f;
+	f32 frac = 0.0f;
+	f32 scale = 1.0f;
+	i32 sign = 1;
+	i32 found_digit = 0;
+
+	if (!str || !out_value) {
+		return -1;
+	}
+
+	/* Optional sign. */
+	if (*p == '-') {
+		sign = -1;
+		++p;
+	} else if (*p == '+') {
+		++p;
+	}
+
+	/* Integer portion. */
+	while (*p >= '0' && *p <= '9') {
+		found_digit = 1;
+		value = value * 10.0f + (f32)(*p - '0');
+		++p;
+	}
+
+	/* Fractional portion. */
+	if (*p == '.') {
+		++p;
+
+		while (*p >= '0' && *p <= '9') {
+			found_digit = 1;
+			frac = frac * 10.0f + (f32)(*p - '0');
+			scale *= 10.0f;
+			++p;
+		}
+
+		value += frac / scale;
+	}
+
+	if (!found_digit) {
+		return -1;
+	}
+
+	*out_value = value * (f32)sign;
+
+	if (*p == '\0') {
+		return -2;
+	}
+
+	return (i32)(p - str);
+}
+
+i32 f64_from_string (const char *str, f64 *out_value) {
+	const char *p = str;
+	f64 value = 0.0;
+	f64 frac = 0.0;
+	f64 scale = 1.0;
+	i32 sign = 1;
+	i32 found_digit = 0;
+
+	if (!str || !out_value) {
+		return -1;
+	}
+
+	/* Optional sign. */
+	if (*p == '-') {
+		sign = -1;
+		++p;
+	} else if (*p == '+') {
+		++p;
+	}
+
+	/* Integer portion. */
+	while (*p >= '0' && *p <= '9') {
+		found_digit = 1;
+		value = value * 10.0 + (f64)(*p - '0');
+		++p;
+	}
+
+	/* Fractional portion. */
+	if (*p == '.') {
+		++p;
+
+		while (*p >= '0' && *p <= '9') {
+			found_digit = 1;
+			frac = frac * 10.0 + (f64)(*p - '0');
+			scale *= 10.0;
+			++p;
+		}
+
+		value += frac / scale;
+	}
+
+	if (!found_digit) {
+		return -1;
+	}
+
+	*out_value = value * (f64)sign;
+
+	if (*p == '\0') {
+		return -2;
+	}
+
+	return (i32)(p - str);
+}
+
+i32 string_extract_floats (const char *str, u8 count, f32 *floats) {
+	i32 offset = 0;
+	u8 i = 0;
+	for (i = 0; i < count; ++i) {
+		f32 val = 0;
+		i32 result = f32_from_string(str + offset, &val);
+		if (result == -1) {
+			// not found, stop.
+			return -1;
+		} else if (result == -2) {
+			// Found, but at the end of the line.
+			floats[i] = val;
+			break;
+		}
+		// Found, advance offset.
+		offset += result;
+		floats[i] = val;
+
+		char c = str[offset];
+		while (c && char_is_whitespace(c)) {
+			++offset;
+			c = str[offset];
+		}
+	}
+
+	return count;
+}
+
+i32 string_extract_doubles (const char *str, u8 count, f64 *doubles) {
+	i32 offset = 0;
+	u8 i = 0;
+	for (i = 0; i < count; ++i) {
+		f64 val = 0;
+		i32 result = f64_from_string(str + offset, &val);
+		if (result == -1) {
+			// not found, stop.
+			return -1;
+		} else if (result == -2) {
+			// Found, but at the end of the line.
+			doubles[i] = val;
+			break;
+		}
+		// Found, advance offset.
+		offset += result;
+		doubles[i] = val;
+
+		char c = str[offset];
+		while (c && char_is_whitespace(c)) {
+			++offset;
+			c = str[offset];
+		}
+	}
+
+	return count;
+}
+
 b8 string_to_mat4 (const char *str, mat4 *out_mat) {
 	if (!str || !out_mat) {
 		return false;
 	}
 
 	kzero_memory(out_mat, sizeof(mat4));
-	i32 result = sscanf(str, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
-						&out_mat->data[0],
-						&out_mat->data[1],
-						&out_mat->data[2],
-						&out_mat->data[3],
-						&out_mat->data[4],
-						&out_mat->data[5],
-						&out_mat->data[6],
-						&out_mat->data[7],
-						&out_mat->data[8],
-						&out_mat->data[9],
-						&out_mat->data[10],
-						&out_mat->data[11],
-						&out_mat->data[12],
-						&out_mat->data[13],
-						&out_mat->data[14],
-						&out_mat->data[15]);
+	i32 result = string_extract_floats(str, 16, out_mat->data);
 	return result != -1;
 }
 
@@ -1070,7 +1373,11 @@ b8 string_to_rect_2di (const char *str, rect_2di *rect) {
 	}
 
 	kzero_memory(rect, sizeof(rect_2di));
-	i32 result = sscanf(str, "%d %d %d %d", &rect->x, &rect->y, &rect->z, &rect->w);
+	i64 i64s[4];
+	i32 result = string_extract_i64s(str, 4, i64s);
+	for (u8 i = 0; i < 4; ++i) {
+		rect->elements[i] = (i32)i64s[i];
+	}
 	return result != -1;
 }
 
@@ -1084,7 +1391,7 @@ b8 string_to_vec4 (const char *str, vec4 *out_vector) {
 	}
 
 	kzero_memory(out_vector, sizeof(vec4));
-	i32 result = sscanf(str, "%f %f %f %f", &out_vector->x, &out_vector->y, &out_vector->z, &out_vector->w);
+	i32 result = string_extract_floats(str, 4, out_vector->elements);
 	return result != -1;
 }
 
@@ -1098,7 +1405,7 @@ b8 string_to_vec3 (const char *str, vec3 *out_vector) {
 	}
 
 	kzero_memory(out_vector, sizeof(vec3));
-	i32 result = sscanf(str, "%f %f %f", &out_vector->x, &out_vector->y, &out_vector->z);
+	i32 result = string_extract_floats(str, 3, out_vector->elements);
 	return result != -1;
 }
 
@@ -1112,7 +1419,7 @@ b8 string_to_vec2 (const char *str, vec2 *out_vector) {
 	}
 
 	kzero_memory(out_vector, sizeof(vec2));
-	i32 result = sscanf(str, "%f %f", &out_vector->x, &out_vector->y);
+	i32 result = string_extract_floats(str, 2, out_vector->elements);
 	return result != -1;
 }
 
@@ -1126,7 +1433,7 @@ b8 string_to_f32 (const char *str, f32 *f) {
 	}
 
 	*f = 0;
-	i32 result = sscanf(str, "%f", f);
+	i32 result = string_extract_floats(str, 1, f);
 	return result != -1;
 }
 
@@ -1140,7 +1447,7 @@ b8 string_to_f64 (const char *str, f64 *f) {
 	}
 
 	*f = 0;
-	i32 result = sscanf(str, "%lf", f);
+	i32 result = string_extract_doubles(str, 1, f);
 	return result != -1;
 }
 
@@ -1154,7 +1461,9 @@ b8 string_to_i8 (const char *str, i8 *i) {
 	}
 
 	*i = 0;
-	i32 result = sscanf(str, "%hhi", i);
+	i64 ii = 0;
+	i32 result = string_extract_i64s(str, 1, &ii);
+	*i = (i8)ii;
 	return result != -1;
 }
 
@@ -1168,7 +1477,9 @@ b8 string_to_i16 (const char *str, i16 *i) {
 	}
 
 	*i = 0;
-	i32 result = sscanf(str, "%hi", i);
+	i64 ii = 0;
+	i32 result = string_extract_i64s(str, 1, &ii);
+	*i = (i16)ii;
 	return result != -1;
 }
 
@@ -1182,7 +1493,9 @@ b8 string_to_i32 (const char *str, i32 *i) {
 	}
 
 	*i = 0;
-	i32 result = sscanf(str, "%i", i);
+	i64 ii = 0;
+	i32 result = string_extract_i64s(str, 1, &ii);
+	*i = (i32)ii;
 	return result != -1;
 }
 
@@ -1196,7 +1509,7 @@ b8 string_to_i64 (const char *str, i64 *i) {
 	}
 
 	*i = 0;
-	i32 result = sscanf(str, "%lli", i);
+	i32 result = string_extract_i64s(str, 1, i);
 	return result != -1;
 }
 
@@ -1210,7 +1523,9 @@ b8 string_to_u8 (const char *str, u8 *u) {
 	}
 
 	*u = 0;
-	i32 result = sscanf(str, "%hhu", u);
+	u64 uu = 0;
+	i32 result = string_extract_u64s(str, 1, &uu);
+	*u = (u8)uu;
 	return result != -1;
 }
 
@@ -1224,7 +1539,9 @@ b8 string_to_u16 (const char *str, u16 *u) {
 	}
 
 	*u = 0;
-	i32 result = sscanf(str, "%hu", u);
+	u64 uu = 0;
+	i32 result = string_extract_u64s(str, 1, &uu);
+	*u = (u16)uu;
 	return result != -1;
 }
 
@@ -1238,7 +1555,9 @@ b8 string_to_u32 (const char *str, u32 *u) {
 	}
 
 	*u = 0;
-	i32 result = sscanf(str, "%u", u);
+	u64 uu = 0;
+	i32 result = string_extract_u64s(str, 1, &uu);
+	*u = (u32)uu;
 	return result != -1;
 }
 
@@ -1252,7 +1571,7 @@ b8 string_to_u64 (const char *str, u64 *u) {
 	}
 
 	*u = 0;
-	i32 result = sscanf(str, "%llu", u);
+	i32 result = string_extract_u64s(str, 1, u);
 	return result != -1;
 }
 
@@ -1458,23 +1777,23 @@ void string_cleanup_split_array (char **str_array, u32 max_count) {
 }
 
 void string_append_string (char *dest, const char *src, const char *append) {
-	sprintf(dest, "%s%s", src, append);
+	ksprintf(dest, "%s%s", src, append);
 }
 
 void string_append_int (char *dest, const char *source, i64 i) {
-	sprintf(dest, "%s%lli", source, i);
+	ksprintf(dest, "%s%lli", source, i);
 }
 
 void string_append_float (char *dest, const char *source, f32 f) {
-	sprintf(dest, "%s%f", source, f);
+	ksprintf(dest, "%s%f", source, f);
 }
 
 void string_append_bool (char *dest, const char *source, b8 b) {
-	sprintf(dest, "%s%s", source, b ? "true" : "false");
+	ksprintf(dest, "%s%s", source, b ? "true" : "false");
 }
 
 void string_append_char (char *dest, const char *source, char c) {
-	sprintf(dest, "%s%c", source, c);
+	ksprintf(dest, "%s%c", source, c);
 }
 
 char *string_join (const char **strings, u32 count, char delimiter) {
@@ -1499,77 +1818,7 @@ char *string_join (const char **strings, u32 count, char delimiter) {
 	char *out_str = KALLOC_TYPE_CARRAY(char, total_length);
 	u32 offset = 0;
 	for (u32 i = 0; i < count; ++i) {
-		sprintf(out_str + offset, "%s%c", strings[i], delimiter);
-		offset += lengths[i] + 1;
-	}
-
-	// Overwrite the final delimiter character with null terminator.
-	out_str[total_length - 1] = 0;
-
-	kfree(lengths);
-
-	return out_str;
-}
-
-char *kstring_id_join (const kstring_id *strings, u32 count, char delimiter) {
-	if (!strings || !count) {
-		return 0;
-	}
-	if (delimiter == 0) {
-		KERROR("string_join cannot be used with a null terminator character as the delimiter.");
-		return 0;
-	}
-
-	u32 total_length = 0;
-	u32 *lengths = KALLOC_TYPE_CARRAY(u32, count);
-	for (u32 i = 0; i < count; ++i) {
-		const char *str = kstring_id_string_get(strings[i]);
-		lengths[i] = string_length(str);
-		total_length += lengths[i];
-	}
-
-	// Space for delimiters
-	total_length += count;
-
-	char *out_str = kallocate(sizeof(char) * total_length, MEMORY_TAG_STRING);
-	u32 offset = 0;
-	for (u32 i = 0; i < count; ++i) {
-		sprintf(out_str + offset, "%s%c", kstring_id_string_get(strings[i]), delimiter);
-		offset += lengths[i] + 1;
-	}
-
-	// Null-terminate the string
-	out_str[total_length - 1] = 0;
-
-	kfree(lengths);
-
-	return out_str;
-}
-
-char *kname_join (const kname *strings, u32 count, char delimiter) {
-	if (!strings || !count) {
-		return 0;
-	}
-	if (delimiter == 0) {
-		KERROR("string_join cannot be used with a null terminator character as the delimiter.");
-		return 0;
-	}
-
-	u32 total_length = 0;
-	u32 *lengths = KALLOC_TYPE_CARRAY(u32, count);
-	for (u32 i = 0; i < count; ++i) {
-		const char *str = kname_string_get(strings[i]);
-		lengths[i] = string_length(str);
-		total_length += lengths[i];
-	}
-
-	// Space for delimiters
-	total_length += (count - 1);
-
-	char *out_str = KALLOC_TYPE_CARRAY(char, total_length);
-	u32 offset = 0;
-	for (u32 i = 0; i < count; ++i) {
-		sprintf(out_str + offset, "%s%c", kname_string_get(strings[i]), delimiter);
+		ksprintf(out_str + offset, "%s%c", strings[i], delimiter);
 		offset += lengths[i] + 1;
 	}
 

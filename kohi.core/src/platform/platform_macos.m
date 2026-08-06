@@ -22,6 +22,7 @@
 #	include <IOKit/IOKitLib.h>
 #	include <AppKit/AppKit.h>
 #	include <sys/mount.h>
+#	include <sys/mman.h> // mmap/munmap
 
 #	import <Cocoa/Cocoa.h>
 #	import <Foundation/Foundation.h>
@@ -688,23 +689,25 @@ b8 platform_pump_messages (void) {
 }
 
 void *platform_allocate (u64 size, b8 aligned) {
-	return malloc(size);
+	void *p = mmap(
+		0,
+		size,
+		PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANON,
+		-1,
+		0);
+
+	if (p == MAP_FAILED) {
+		return 0;
+	}
+
+	return p;
 }
 
-void platform_free (void *block, b8 aligned) {
-	free(block);
-}
-
-void *platform_zero_memory (void *block, u64 size) {
-	return memset(block, 0, size);
-}
-
-void *platform_copy_memory (void *dest, const void *source, u64 size) {
-	return memcpy(dest, source, size);
-}
-
-void *platform_set_memory (void *dest, i32 value, u64 size) {
-	return memset(dest, value, size);
+void platform_free (void *block, b8 aligned, u64 size) {
+	if (block) {
+		munmap(block, size);
+	}
 }
 
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {

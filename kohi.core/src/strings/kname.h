@@ -70,4 +70,6 @@ KAPI kname kname_format (const char *format, ...);
  */
 KAPI const char *kname_string_get (kname name);
 
+KAPI char *kname_join (const kname *strings, u32 count, char delimiter);
+
 KAPI void kname_shutdown (void);

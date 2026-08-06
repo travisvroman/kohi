@@ -8,9 +8,6 @@
 #include "strings/kstring.h"
 #include "threads/kmutex.h"
 
-// TODO: Custom string lib
-#include <stdio.h>
-#include <string.h>
 // NOTE: If this is disabled, C11 must be used to enable aligned_alloc.
 #define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
 
@@ -108,7 +105,7 @@ b8 memory_system_initialize (memory_system_configuration config) {
 	state_ptr->config = config;
 	state_ptr->alloc_count = 0;
 	state_ptr->allocator_memory_requirement = alloc_requirement;
-	platform_zero_memory(&state_ptr->stats, sizeof(state_ptr->stats));
+	kzero_memory(&state_ptr->stats, sizeof(state_ptr->stats));
 	// The allocator block is in the same block of memory, but after the state.
 	state_ptr->allocator_block = ((void *)block + state_memory_requirement);
 
@@ -150,7 +147,7 @@ void memory_system_shutdown (void) {
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
 		dynamic_allocator_destroy(&state_ptr->allocator);
 		// Free the entire block.
-		platform_free(state_ptr, state_ptr->allocator_memory_requirement + sizeof(memory_system_state));
+		platform_free(state_ptr, false, state_ptr->allocator_memory_requirement + sizeof(memory_system_state));
 #else
 		kaligned_free(state_ptr);
 #endif
@@ -201,7 +198,7 @@ void *_kallocate_aligned (u64 size, u16 alignment, memory_tag tag, const char *f
 	}
 
 	if (block) {
-		platform_zero_memory(block, size);
+		kzero_memory(block, size);
 		return block;
 	}
 
@@ -305,11 +302,11 @@ void kfree_aligned (void *block) {
 		// brand of skulduggery is afoot, and we have bigger problems on our hands.
 		if (!result) {
 			// TODO: Memory alignment
-			platform_free(block, false);
+			platform_free(block, false, osize);
 		}
 	} else {
 		// TODO: Memory alignment
-		platform_free(block, false);
+		platform_free(block, false, 0);
 	}
 }
 
@@ -343,15 +340,74 @@ b8 kmemory_get_size_alignment (void *block, u64 *out_size, u16 *out_alignment, m
 }
 
 void *kzero_memory (void *block, u64 size) {
-	return platform_zero_memory(block, size);
+	return kset_memory(block, 0, size);
 }
 
 void *kcopy_memory (void *dest, const void *source, u64 size) {
-	return platform_copy_memory(dest, source, size);
+	u8 *d = (u8 *)dest;
+	const u8 *s = (const u8 *)source;
+
+	/* If the pointers have the same alignment, align them first. */
+	if ((((u64)d ^ (u64)s) & (sizeof(u64) - 1)) == 0) {
+		while (((u64)d & (sizeof(u64) - 1)) && size) {
+			*d++ = *s++;
+			--size;
+		}
+
+		u64 *dw = (u64 *)d;
+		const u64 *sw = (const u64 *)s;
+
+		while (size >= sizeof(u64)) {
+			*dw++ = *sw++;
+			size -= sizeof(u64);
+		}
+
+		d = (unsigned char *)dw;
+		s = (const unsigned char *)sw;
+	}
+
+	while (size--) {
+		*d++ = *s++;
+	}
+
+	return dest;
 }
 
 void *kset_memory (void *dest, i32 value, u64 size) {
-	return platform_set_memory(dest, value, size);
+	u8 *d = (u8 *)dest;
+	u8 v = (u8)value;
+
+	/* Align to machine word. */
+	while (((u64)d & (sizeof(u64) - 1)) && size) {
+		*d++ = v;
+		--size;
+	}
+
+	if (size >= sizeof(u64)) {
+		u64 pattern = v;
+
+		pattern |= pattern << 8;
+		pattern |= pattern << 16;
+
+#if UINTPTR_MAX > 0xFFFFFFFFu
+		pattern |= pattern << 32;
+#endif
+
+		u64 *dw = (u64 *)d;
+
+		while (size >= sizeof(u64)) {
+			*dw++ = pattern;
+			size -= sizeof(u64);
+		}
+
+		d = (u8 *)dw;
+	}
+
+	while (size--) {
+		*d++ = v;
+	}
+
+	return dest;
 }
 
 const char *get_unit_for_size (u64 size_bytes, f32 *out_amount) {
@@ -372,7 +428,15 @@ const char *get_unit_for_size (u64 size_bytes, f32 *out_amount) {
 
 char *get_memory_usage_str (void) {
 	char buffer[8000] = "System memory use (tagged):\n";
-	u64 offset = strlen(buffer);
+	/* u64 offset = strlen(buffer); */
+	// Avoid strlen
+	u64 offset = 0;
+	for (u32 i = 0; i < 8000; ++i) {
+		if (!buffer[i]) {
+			break;
+		}
+		offset++;
+	}
 	for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
 		f32 amounts[3] = {1.0f, 1.0f, 1.0f};
 		const char *units[3] = {
@@ -380,9 +444,9 @@ char *get_memory_usage_str (void) {
 			get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
 			get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])};
 
-		i32 length = snprintf(buffer + offset, 8000 - offset, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
-							  memory_tag_strings[i],
-							  amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
+		i32 length = ksnprintf(buffer + offset, 8000 - offset, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
+							   memory_tag_strings[i],
+							   amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
 		offset += length;
 	}
 	kzero_memory(&state_ptr->stats.new_tagged_allocations, sizeof(state_ptr->stats.new_tagged_allocations));
@@ -407,7 +471,7 @@ char *get_memory_usage_str (void) {
 
 		f64 percent_used = (f64)(used_space) / total_space;
 
-		i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f%s of %.2f%s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
+		i32 length = ksnprintf(buffer + offset, 8000, "Total memory usage: %.2f%s of %.2f%s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
 		offset += length;
 	}
 
