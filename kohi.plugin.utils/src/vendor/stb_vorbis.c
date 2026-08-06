@@ -971,7 +971,7 @@ static int set_file_offset(stb_vorbis *f, unsigned int loc) {
 #endif
     f->eof = 0;
     if (USE_MEMORY(f)) {
-        if (f->stream_start + loc >= f->stream_end || f->stream_start + loc < f->stream_start) {
+        if (f->stream_start + loc >= f->stream_end || (void*)(f->stream_start + loc) < (void*)(f->stream_start)) {
             f->stream = f->stream_end;
             f->eof = 1;
             return 0;
