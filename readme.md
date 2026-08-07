@@ -59,7 +59,7 @@ While the highest effort is made to reduce dependencies, each platform has thing
 
 NOTE: This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
 
-- Make for Windows: `winget install exwinports.make` OR https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
+- Make for Windows: `winget install ezwinports.make` OR https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
 - Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
 - Git for Windows: `winget install git.git` OR https://gitforwindows.org/
 - Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
@@ -125,7 +125,7 @@ The audio plugin requires an installatiion of OpenAL.
 
 - Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
 - macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
-- Windows: `winget install OpenAL.OpenAL` OR Install the SDK from here: https://www.openal.org/downloads/
+- Windows: `winget install CreativeTechnology.OpenAL` OR Install the SDK from here: https://www.openal.org/downloads/
 
 # Start
 
