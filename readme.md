@@ -74,17 +74,17 @@ Install these via package manager:
 #### Debian/Ubuntu:
 
 - `sudo apt install llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev`
+- Assimp (for tooling/model imports): `sudo apt install assimp`
 
 #### Arch:
 
-- `sudo pacman -S llvm`
-- `sudo pacman -S git`
+- `sudo pacman -S --needed llvm git`
+- Assimp (for tooling/model imports): `sudo pacman -S --needed assimp`
 
 #### Fedora:
 
 - `sudo dnf install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel vulkan-headers libshaderc-devel sudo dnf vulkan-validation-layers`
-
-- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp` `sudo dnf install assimp-devel`
+- Assimp (for tooling/model imports): `sudo dnf install assimp-devel`
 
 NOTE: Wayland not natively supported (yet)
 
