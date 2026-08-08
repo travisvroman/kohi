@@ -20,7 +20,7 @@ DEFINES =-DKEXPORT
 
 OUTPUT_NAME =
 
-BUILD_TYPE = U
+BUILD_TYPE =U
 
 
 UNAME_S := 
@@ -30,22 +30,40 @@ endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
 
+	OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
+
 # 	Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
 	rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 	DIR := $(subst /,\,${CURDIR})
 	SRC_FILES := $(call rwildcard,src,*.c)
 	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE 
+	LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
+
+	OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
+
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	LDFLAGS += -L/usr/lib/ -L/usr/lib/x86_64-linux-gnu/ -lm -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
+
+# 		NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
+# 		These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
+# 		here that would not on other platforms from not being exported (i.e. Windows)
+# 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
+	CFLAGS += -Wno-cast-function-type-mismatch -fPIC
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
+
+	OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
+
 	SRC_FILES := $(shell find src -type f \( -name "*.c" \))
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+    LDFLAGS += -Wl,-rpath,. 
 else
     $(error Unsupported platform)
 endif
@@ -56,10 +74,10 @@ endif
 .PHONY: all-release all-debug flags-debug flags-release 
 .PHONY: genversion genversion-win32 genversion-linux genversion-macos 
 .PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
-.PHONY: link link-win32 link-linux link-macos
+.PHONY: link
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
@@ -107,27 +125,7 @@ clean-linux clean-macos:
 	@rm -rf obj/*
 
 
-link: link-$(PLATFORM)
-
- 
-link-win32: LDFLAGS += -lassimp-vc143-mt -L"$(ASSIMP)\\lib\\x64\\" -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
-link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
-link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).exe
-
-# 		NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
-# 		These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
-# 		here that would not on other platforms from not being exported (i.e. Windows)
-# 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
-link-linux: CFLAGS += -Wno-cast-function-type-mismatch -fPIC
-link-linux: LDFLAGS += -lm -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
-link-linux: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
-
-link-macos: LDFLAGS +=  -Wl,-rpath,. 
-link-macos: OUTPUT_NAME = bin/$(ASSEMBLY_NAME)
-
-link-win32 link-linux link-macos: link-common
-
-link-common: $(OBJ_FILES)
+link: $(OBJ_FILES)
 	clang $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS)
 
 .PHONY: compile

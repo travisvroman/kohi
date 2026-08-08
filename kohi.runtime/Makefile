@@ -19,7 +19,7 @@ DEFINES =-DKEXPORT
 
 OUTPUT_NAME =
 
-BUILD_TYPE = U
+BUILD_TYPE =U
 
 
 UNAME_S := 
@@ -56,9 +56,10 @@ endif
 .PHONY: genversion genversion-win32 genversion-linux genversion-macos 
 .PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
 .PHONY: link link-win32 link-linux link-macos
+.PHONY: clean clean-win32 clean-linux clean-macos
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
@@ -91,13 +92,13 @@ genversion-win32:
 	@..\misc\versiongen.exe version.txt -outfile=src\$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
 genversion-linux genversion-macos:
-	@../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
-
+	../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
 .PHONY: clean
 clean:    clean-$(PLATFORM)
 
 clean-win32:
+	@echo -- Cleaning --
 	if exist bin del /s /q bin\*.*
 	if exist obj del /s /q obj\*.*
 
@@ -108,7 +109,8 @@ clean-linux clean-macos:
 
 link: link-$(PLATFORM)
 
- 
+# link-linux: CFLAGS += -fsanitize=address
+# link-win32: LDFLAGS += -fsanitize=address 
 link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL 
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: OUTPUT_NAME = bin\$(ASSEMBLY_NAME).dll
@@ -137,7 +139,7 @@ compile:
 # compile .c to .o object for windows, linux and mac
 obj/%.c.o: %.c 
 	@echo   $<...
-	clang $< $(CFLAGS) -c -o $@ $(DEFINES) $(INCLUDE_FLAGS)
+	@clang $< $(CFLAGS) -c -o $@ $(DEFINES) $(INCLUDE_FLAGS)
 
 -include $(OBJ_FILES:.o=.d)
 

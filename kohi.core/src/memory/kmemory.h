@@ -165,11 +165,12 @@ KAPI void kallocate_report (u64 size, memory_tag tag);
  * block of memory given. The reallocation is tracked for the provided tag.
  * @param block The block of memory to reallocate.
  * @param new_size The size of the new allocation (that get allocated).
+ * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void *_kreallocate (void *block, u64 new_size, const char *filename, u32 line);
+KAPI void *_kreallocate (void *block, u64 new_size, memory_tag tag, const char *filename, u32 line);
 
-#define kreallocate(block, new_size) _kreallocate(block, new_size, __FILE__, __LINE__)
+#define kreallocate(block, new_size, tag) _kreallocate(block, new_size, tag, __FILE__, __LINE__)
 
 /**
  * @brief Dynamically reallocates memory for a standard C array of the given type.
@@ -179,7 +180,7 @@ KAPI void *_kreallocate (void *block, u64 new_size, const char *filename, u32 li
  * @param type The type to be used when determining allocation size.
  * @param new_count The number of elements in the resized array.
  */
-#define KREALLOC_TYPE_CARRAY(block, type, new_count) (type *)kreallocate(block, sizeof(type) * (new_count))
+#define KREALLOC_TYPE_CARRAY(block, type, new_count) (type *)kreallocate(block, sizeof(type) * (new_count), MEMORY_TAG_ARRAY)
 
 /**
  * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the
@@ -188,12 +189,13 @@ KAPI void *_kreallocate (void *block, u64 new_size, const char *filename, u32 li
 
  * @param block The block of memory to reallocate.
  * @param new_size The size of the new allocation (that get allocated).
- * * @param alignment The byte alignment to be used for the reallocation.
+ * @param alignment The byte alignment to be used for the reallocation.
+ * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, const char *filename, u32 line);
+KAPI void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, memory_tag tag, const char *filename, u32 line);
 
-#define kreallocate_aligned(block, alignment, new_size) _kreallocate_aligned(block, new_size, alignment, __FILE__, __LINE__)
+#define kreallocate_aligned(block, alignment, new_size, tag) _kreallocate_aligned(block, new_size, alignment, tag, __FILE__, __LINE__)
 
 /**
  * @brief Reports an allocation associated with the application, but made externally.

@@ -219,30 +219,32 @@ void kallocate_report (u64 size, memory_tag tag) {
 	kmutex_unlock(&state_ptr->allocation_mutex);
 }
 
-void *_kreallocate (void *block, u64 new_size, const char *filename, u32 line) {
+void *_kreallocate (void *block, u64 new_size, memory_tag tag, const char *filename, u32 line) {
 	/* if (block) {
 		validate_block(block);
 	} */
-	return _kreallocate_aligned(block, new_size, 1, filename, line);
+	return _kreallocate_aligned(block, new_size, 1, tag, filename, line);
 }
 
-void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, const char *filename, u32 line) {
+void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, memory_tag tag, const char *filename, u32 line) {
 	// TODO: keep the original allocation file/line too?
 
 #if K_USE_CUSTOM_MEMORY_ALLOCATOR
 	u64 osize = 0;
 	u16 oalignment = 0;
 	u8 otag = MEMORY_TAG_UNKNOWN;
-	dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment, &otag);
-	// Ensure alignment is the same. Original alignment of 0 means there was no previous allocation
-	// and this check can be skipped.
-	if (oalignment != 0 && oalignment != alignment) {
-		KFATAL("Alignment mismatch on reallocate - likely means memory corruption. Alignment of new allocation must match the original allocation.");
-		return KNULL;
+	if (block) {
+		dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment, &otag);
+		// Ensure alignment is the same. Original alignment of 0 means there was no previous allocation
+		// and this check can be skipped.
+		if (oalignment != 0 && oalignment != alignment) {
+			KFATAL("Alignment mismatch on reallocate - likely means memory corruption. Alignment of new allocation must match the original allocation.");
+			return KNULL;
+		}
 	}
 #endif
 
-	void *new_block = _kallocate_aligned(new_size, alignment, otag, filename, line);
+	void *new_block = _kallocate_aligned(new_size, alignment, tag, filename, line);
 	if (block && new_block) {
 		kcopy_memory(new_block, block, osize);
 		kfree_aligned(block);

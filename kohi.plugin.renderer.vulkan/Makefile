@@ -1,4 +1,5 @@
 # Kohi.Plugin.Renderer.Vulkan makefile
+SHELL := /bin/bash
 
 ASSEMBLY_NAME=kohi.plugin.renderer.vulkan
 
@@ -11,7 +12,7 @@ CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
 LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L../kohi.runtime/bin -lkohi.core -lkohi.runtime
-LDFLAGS += -lshaderc_shared
+LDFLAGS += -lshaderc_shared -L$(VULKAN_SDK)/lib
 
 # Base include flags
 INCLUDE_FLAGS = -Isrc -I../kohi.core/src -I../kohi.runtime/src
@@ -42,6 +43,8 @@ else ifeq ($(UNAME_S),Linux)
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	LDFLAGS += -Wl,-rpath='$$ORIGIN'
+#'$$ORIGIN'
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
 	SRC_FILES := $(shell find src -type f \( -name "*.c" \))
@@ -59,8 +62,8 @@ endif
 .PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
 .PHONY: link link-win32 link-linux link-macos
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
@@ -82,7 +85,12 @@ scaffold-win32:
 	-@mkdir $(addprefix obj\\, $(DIRECTORIES)) 2>nul
 	@if not exist bin mkdir bin
 
-scaffold-linux scaffold-macos:
+scaffold-macos:
+	@mkdir -p bin
+	@mkdir -p $(addprefix obj/,$(DIRECTORIES))
+
+scaffold-linux:
+	@echo "Vulkan SDK: $(VULKAN_SDK)"
 	@mkdir -p bin
 	@mkdir -p $(addprefix obj/,$(DIRECTORIES))
 	

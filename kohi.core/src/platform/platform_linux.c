@@ -46,6 +46,7 @@
 #	include <systemd/sd-bus.h>
 #	include <systemd/sd-bus-protocol.h>
 #	include <dlfcn.h> // dlopen
+#	include <fcntl.h> // open, O_CREAT, etc.
 
 #	include "defines.h"
 #	include "containers/darray.h"

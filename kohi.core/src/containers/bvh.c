@@ -58,7 +58,7 @@ b8 bvh_reserve (bvh *t, u32 leaf_capacity) {
 		return true;
 	}
 	u32 old_capacity = t->capacity;
-	bvh_node *new_nodes = kreallocate(t->nodes, need);
+	bvh_node *new_nodes = KREALLOC_TYPE_CARRAY(t->nodes, bvh_node, need);
 	if (!new_nodes) {
 		return false;
 	}

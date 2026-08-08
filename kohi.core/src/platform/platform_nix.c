@@ -496,14 +496,23 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 			if (!library) {
 				KTRACE("Trying third fallback path '%s' because of error: '%s'", filename, dlerror());
 
-				// try a fallback to /usr/local/lib
+				// try a fallback to /usr/lib64
 				string_free(filename);
 				filename = string_format("/usr/lib64/%s%s%s", prefix, name, extension);
 
 				library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
 				if (!library) {
-					KERROR("Error opening library: %s", dlerror());
-					return false;
+					KTRACE("Trying third fallback path '%s' because of error: '%s'", filename, dlerror());
+
+					// try a fallback to /lib/x86_64-linux-gnu/ - Ubuntu puts the Vulkan driver here.
+					string_free(filename);
+					filename = string_format("/lib/x86_64-linux-gnu/%s%s%s", prefix, name, extension);
+
+					library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
+					if (!library) {
+						KERROR("Error opening library: %s", dlerror());
+						return false;
+					}
 				}
 			}
 		}

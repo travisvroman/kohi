@@ -235,7 +235,7 @@ void _kdarray_ensure_size (u32 required_length, u32 stride, u32 *out_capacity, s
 			allocator->free(*block, (*out_capacity) * stride);
 			*block = new_block;
 		} else {
-			*block = kreallocate(*block, new_capacity * stride);
+			*block = kreallocate(*block, new_capacity * stride, MEMORY_TAG_DARRAY);
 		}
 		*base_block = *block;
 		*out_capacity = new_capacity;

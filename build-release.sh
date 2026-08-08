@@ -1,3 +1,3 @@
 #!/bin/bash
 
-time make all-release
+time make build-release

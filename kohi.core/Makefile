@@ -58,8 +58,8 @@ endif
 .PHONY: link link-win32 link-linux link-macos
 .PHONY: clean clean-win32 clean-linux clean-macos
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -pthread -g -MD -O0 -fno-omit-frame-pointer
@@ -78,8 +78,8 @@ scaffold: scaffold-$(PLATFORM)
 .NOTPARALLEL: scaffold
 
 scaffold-win32:
-	@if not exist bin mkdir bin
 	-@mkdir $(addprefix obj\\, $(DIRECTORIES)) 2>nul
+	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
@@ -94,7 +94,7 @@ genversion-win32:
 genversion-linux genversion-macos:
 	../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
-
+.PHONY: clean
 clean:    clean-$(PLATFORM)
 
 clean-win32:

@@ -38,8 +38,9 @@ endif
 .PHONY: utils-clean core-clean core-tests-clean runtime-clean runtime-tests-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean tools-clean testbed-klib-clean testbed-kapp-clean
 .PHONY: kohi-clean kohi-tests-clean kohi-plugins-clean testbed-clean
 
-.PHONY: setup build-debug build-release
+.PHONY: setup getdeps getdeps-linux getdeps-win32 getdeps-macos build-debug build-release
 
+# LEFTOFF: For some reason getdeps always runs... should only run during 'setup'
 
 # Setup: This really just needs to be done once to setup the environment, etc. Unless repo updates demand it.
 setup: getdeps scaffold utils-debug copy-utils
@@ -104,6 +105,8 @@ copy-top-level-linux copy-top-level-macos: copy-utils
 	cp kohi.tools/bin/* bin
 	cp testbed.klib/bin/* bin
 	cp testbed.kapp/bin/* bin
+	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so bin
+	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so.1 bin
 
 copy-top-level-lib: copy-top-level-lib-$(PLATFORM)
 .NOTPARALLEL: copy-top-level-lib
@@ -115,7 +118,7 @@ copy-top-level-lib-linux copy-top-level-lib-macos:
 	cp testbed.klib/bin/* bin
 
 # Debug builds
-all-debug: setup kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
+all-debug: setup build-debug
 build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
 kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
@@ -160,7 +163,7 @@ testbed-kapp-debug:
 	$(MAKE) -C testbed.kapp all-debug
 
 # Release builds 
-all-release: setup kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
+all-release: setup build-release
 build-release: kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
 kohi-release: core-release runtime-release 
 kohi-tests-release: kohi-release core-tests-release runtime-tests-release
