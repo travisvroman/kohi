@@ -1,18 +1,12 @@
 #pragma once
 
-#include "editor/texture_browser.h"
-#include "kui_types.h"
-#include "math/geometry.h"
-#include "math/math_types.h"
-#include "systems/kmatrix_system.h"
-#include "systems/texture_system.h"
-#include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core/keymap.h>
 #include <kui_system.h>
-#include <platform/platform.h>
 #include <renderer/kforward_renderer.h>
 #include <world/world_types.h>
+
+#include "editor/texture_browser.h"
 
 #define EDITOR_AXIS_COLOUR_R \
 	(colour4) { 1.0f, 0.5f, 0.5f, 1.0f }

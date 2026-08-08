@@ -1,62 +1,66 @@
 #include "editor.h"
 
-#include "assets/kasset_types.h"
-#include "audio/audio_frontend.h"
-#include "controls/checkbox_control.h"
-#include "controls/image_box_control.h"
-#include "controls/kui_scrollable.h"
-#include "controls/kui_tree_item.h"
-#include "core/event.h"
-#include "core/keymap.h"
-#include "core_render_types.h"
-#include "core_resource_types.h"
-#include "debug/kassert.h"
-#include "defines.h"
-#include "editor/editor_gizmo.h"
-#include "editor/texture_browser.h"
-#include "input_types.h"
-#include "kui_system.h"
-#include "kui_types.h"
-#include "math/geometry.h"
-#include "math/geometry_2d.h"
-#include "math/math_types.h"
-#include "memory/kmemory.h"
-#include "plugins/plugin_types.h"
-#include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.h"
-#include "runtime_defines.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
-#include "strings/kstring_id.h"
-#include "systems/asset_system.h"
-#include "systems/font_system.h"
-#include "systems/kcamera_system.h"
-#include "systems/kmatrix_system.h"
-#include "systems/kshader_system.h"
-#include "systems/plugin_system.h"
-#include "systems/texture_system.h"
-#include "utils/kcolour.h"
-#include "utils_plugin_defines.h"
-#include "world/heightfield_terrain.h"
-#include "world/kscene.h"
-#include "world/world_types.h"
-#include "world/world_utils.h"
-
+// Core
+#include <assets/kasset_types.h>
 #include <containers/darray.h>
+#include <core_render_types.h>
+#include <core_resource_types.h>
+#include <debug/kassert.h>
+#include <defines.h>
+#include <input_types.h>
+#include <logger.h>
+#include <math/geometry.h>
+#include <math/geometry_2d.h>
+#include <math/kmath.h>
+#include <math/math_types.h>
+#include <memory/kmemory.h>
+#include <platform/platform.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <strings/kstring_id.h>
+#include <utils/kcolour.h>
+#include <utils/ksort.h>
+
+// Runtime
+#include <audio/audio_frontend.h>
+#include <core/console.h>
+#include <core/engine.h>
+#include <core/event.h>
+#include <core/keymap.h>
+#include <plugins/plugin_types.h>
+#include <renderer/renderer_frontend.h>
+#include <renderer/renderer_types.h>
+#include <runtime_defines.h>
+#include <systems/asset_system.h>
+#include <systems/font_system.h>
+#include <systems/kcamera_system.h>
+#include <systems/kmatrix_system.h>
+#include <systems/kshader_system.h>
+#include <systems/ktimeline_system.h>
+#include <systems/plugin_system.h>
+#include <systems/texture_system.h>
+#include <world/heightfield_terrain.h>
+#include <world/kscene.h>
+#include <world/world_types.h>
+#include <world/world_utils.h>
+
+// KUI plugin
+#include <controls/checkbox_control.h>
+#include <controls/image_box_control.h>
 #include <controls/kui_button.h>
 #include <controls/kui_label.h>
 #include <controls/kui_panel.h>
+#include <controls/kui_scrollable.h>
 #include <controls/kui_textbox.h>
-#include <core/console.h>
-#include <core/engine.h>
+#include <controls/kui_tree_item.h>
 #include <kui_plugin_main.h>
-#include <math/kmath.h>
-#include <platform/platform.h>
-#include <renderer/renderer_frontend.h>
-#include <systems/ktimeline_system.h>
-#include <utils/ksort.h>
+#include <kui_system.h>
+#include <kui_types.h>
 
-#include <logger.h>
+// Utils plugin
+#include "editor/editor_gizmo.h"
+#include "editor/texture_browser.h"
+#include "utils_plugin_defines.h"
 
 typedef struct editor_gizmo_immediate_data {
 	// Offsets into the matrix SSBO per type.
