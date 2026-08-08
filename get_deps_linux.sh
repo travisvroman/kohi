@@ -1,5 +1,7 @@
 #!/bin/bash
 
+vulkan_sdk_version=1.4.357.1
+
 if [ "$(id -u)" == "0" ]; then
 	echo -e "\nget_deps_linux should not be run as root."
 	echo -e "Please run this as a user with admin privileges.\n"
@@ -65,10 +67,40 @@ install_debian_deps() {
 	# Update package cache
 	sudo apt-get update >/dev/null 2>&1 || true
 
-	if ! sudo apt-get install -y llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev assimp openal; then
+	if ! sudo apt-get install -y llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libsystemd-dev libassimp-dev libopenal1 libopenal-dev libstdc++-14-dev; then
 		echo "Error: Failed to install dependencies for Debian/Ubuntu."
 		return 1
 	fi
+
+	# Get the latest clang if not already installed
+	if [ ! -f "/usr/bin/clang-22" ]; then
+		echo "Getting and installing Clang 22..."
+		wget https://apt.llvm.org/llvm.sh
+		chmod +x llvm.sh
+		sudo ./llvm.sh 22
+		sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-22 100
+		rm ./llvm.sh
+	else
+		echo "Clang 22 already installed."
+	fi
+
+	# Vulkan SDK.
+	mkdir -p ./vendor/
+	pushd ./vendor/
+	mkdir -p ./vulkan/
+	pushd ./vulkan/
+	if [ ! -f "vulkansdk-linux-x86_64-$vulkan_sdk_version.tar.xz" ]; then
+		wget "https://sdk.lunarg.com/sdk/download/$vulkan_sdk_version/linux/vulkansdk-linux-x86_64-$vulkan_sdk_version.tar.xz"
+		tar -xf vulkansdk-linux-x86_64-$vulkan_sdk_version.tar.xz
+	fi
+	pushd "./$vulkan_sdk_version/"
+	source setup-env.sh
+	if ! vulkaninfo; then
+		echo "Vulkan SDK not acquired properly. You may need to install it manually."
+	fi
+	popd
+	popd
+	popd
 
 	return 0
 }

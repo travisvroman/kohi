@@ -57,7 +57,7 @@ u32 binary_string_table_add (binary_string_table *table, const char *string) {
 		.length = string_length(string),
 		.offset = table->header.data_block_size};
 
-	table->data = kreallocate(table->data, table->header.data_block_size + new_entry.length);
+	table->data = kreallocate(table->data, table->header.data_block_size + new_entry.length, MEMORY_TAG_BINARY_STRING_TABLE);
 	table->header.data_block_size += new_entry.length;
 
 	// Copy the string's content.

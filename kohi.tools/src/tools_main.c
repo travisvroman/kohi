@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <strings/kstring.h>
 #include <utils/crc64.h>
+#include <memory/kmemory.h>
 
 // For executing shell commands.
 #include <stdlib.h>
@@ -30,6 +31,15 @@ i32 main (i32 argc, char **argv) {
 
 		printf("%llu", crc);
 		return 0;
+	}
+
+	// Stand up memory system.
+	// Memory system must be the first thing to be stood up.
+	memory_system_configuration memory_system_config = {};
+	memory_system_config.total_alloc_size = GIBIBYTES(2);
+	if (!memory_system_initialize(memory_system_config)) {
+		KERROR("Failed to initialize memory system; shutting down.");
+		return false;
 	}
 
 	// The second argument tells us what mode to go into.

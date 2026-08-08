@@ -175,7 +175,7 @@ static b8 materials_from_assimp (const struct aiScene *scene, kname package_name
 		new_material.name = kname_create(ai_name.data);
 
 		i32 double_sided = 0;
-		aiGetMaterialInteger(material, AI_MATKEY_TWOSIDED, &double_sided);
+		aiGetMaterialIntegerArray(material, AI_MATKEY_TWOSIDED, &double_sided, KNULL);
 		new_material.double_sided = (b8)double_sided;
 
 		// NOTE: These properties are just assumed, and can be adjusted post-import.
@@ -191,7 +191,7 @@ static b8 materials_from_assimp (const struct aiScene *scene, kname package_name
 		i32 shading_model_int = 0;
 		new_material.model = KMATERIAL_MODEL_PBR;
 		if (!force_pbr) {
-			result = aiGetMaterialInteger(material, AI_MATKEY_SHADING_MODEL, &shading_model_int);
+			result = aiGetMaterialIntegerArray(material, AI_MATKEY_SHADING_MODEL, &shading_model_int, KNULL);
 			if (result == aiReturn_SUCCESS) {
 				switch (((enum aiShadingMode)shading_model_int)) {
 				case aiShadingMode_PBR_BRDF:

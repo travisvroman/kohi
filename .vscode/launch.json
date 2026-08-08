@@ -38,6 +38,23 @@
             "cwd": "${workspaceFolder}/bin/",
             "environment": [],
             "program": "${workspaceFolder}/bin/kohi.tools",
+            "setupCommands": [
+                {
+                    "description": "Disable automatic debug symbol downloads",
+                    "text": "-gdb-set auto-load safe-path /",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Disable debuginfod",
+                    "text": "-gdb-set debuginfod enabled off",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
             "args": [
                 "importmanifest",
                 "${workspaceFolder}/testbed.kapp/asset_manifest.kson",
@@ -49,10 +66,11 @@
                 "externalConsole": false
             },
             "linux": {
-                "externalConsole": false
-                // "environment": [
-                //     { "name": "VK_LOADER_DEBUG", "value": "all"}
-                // ]
+                "externalConsole": false,
+                "environment": [
+                    // { "name": "VK_LOADER_DEBUG", "value": "all"}
+                    { "name": "VULKAN_SDK", "value": "{cwd}/../vendor/vulkan/1.4.357.1/"}
+                ]
             },
             "windows": {
                 "type": "cppvsdbg",

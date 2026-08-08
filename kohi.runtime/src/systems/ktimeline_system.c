@@ -36,12 +36,10 @@ typedef struct ktimeline_system_state {
 static void ensure_allocated (ktimeline_system_state *state, u32 entry_count) {
 	if (state->entry_count < entry_count) {
 		{
-			u64 new_size = sizeof(ktimeline_data) * entry_count;
-			state->timelines = kreallocate(state->timelines, new_size);
+			state->timelines = KREALLOC_TYPE_CARRAY(state->timelines, ktimeline_data, entry_count);
 		}
 		{
-			u64 new_size = sizeof(ktimeline_flag_bits) * entry_count;
-			state->flags = kreallocate(state->flags, new_size);
+			state->flags = KREALLOC_TYPE_CARRAY(state->flags, ktimeline_flag_bits, entry_count);
 		}
 		// Set all new "slots" to "free".
 		for (u32 i = state->entry_count; i < entry_count; ++i) {
