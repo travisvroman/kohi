@@ -54,10 +54,28 @@ install_fedora_deps() {
 	# Update package cache
 	sudo dnf check-update >/dev/null 2>&1 || true
 
-	if ! sudo $pkg_mgr_cmd install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel vulkan-headers libshaderc-devel vulkan-validation-layers assimp-devel; then
+	if ! sudo $pkg_mgr_cmd install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel assimp-devel; then
 		echo "Error: Failed to install dependencies for Fedora."
 		return 1
 	fi
+
+	# Vulkan SDK.
+	mkdir -p ./vendor/
+	pushd ./vendor/
+	mkdir -p ./vulkan/
+	pushd ./vulkan/
+	if [ ! -f "vulkansdk-linux-x86_64-$vulkan_sdk_version.tar.xz" ]; then
+		wget "https://sdk.lunarg.com/sdk/download/$vulkan_sdk_version/linux/vulkansdk-linux-x86_64-$vulkan_sdk_version.tar.xz"
+		tar -xf vulkansdk-linux-x86_64-$vulkan_sdk_version.tar.xz
+	fi
+	pushd "./$vulkan_sdk_version/"
+	source setup-env.sh
+	if ! vulkaninfo; then
+		echo "Vulkan SDK not acquired properly. You may need to install it manually."
+	fi
+	popd
+	popd
+	popd
 
 	return 0
 }
@@ -111,7 +129,7 @@ install_arch_deps() {
 
 	# TODO: This is definitely not the entire package list required for Arch...
 	if ! sudo pacman -S llvm git make libx11 libxkbcommon-x11 pkgconf xcb-util xcb-util-keysyms assimp openal; then
-		echo "Error: Failed to install dependencies for Debian/Ubuntu."
+		echo "Error: Failed to install dependencies for Arch."
 		return 1
 	fi
 }
