@@ -476,48 +476,38 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 	const char *filename = string_format("%s%s%s", prefix, name, extension);
 	KTRACE("Trying local path '%s' first.", filename);
 
-	void *library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
-	if (!library) {
-		KTRACE("Trying fallback path '%s' because of error: '%s'", filename, dlerror());
+	const char *formats[10] = {
+		"./%s",
+		"/lib/%s",
+		"/usr/local/lib/%s",
+		"/usr/lib64/%s",
+		"/lib/x86_64-linux-gnu/%s",
+		"./%s.1",
+		"/lib/%s.1",
+		"/usr/local/lib/%s.1",
+		"/usr/lib64/%s.1",
+		"/lib/x86_64-linux-gnu/%s.1",
+	};
 
-		// Try the /lib/ folder next
-		string_free(filename);
-		filename = string_format("/lib/%s%s%s", prefix, name, extension);
-
-		library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
+	void *library = KNULL;
+	const char *cur_path = KNULL;
+	for (u8 i = 0; i < 10; ++i) {
+		string_free(cur_path);
+		cur_path = string_format(formats[i], filename);
+		library = dlopen(cur_path, RTLD_NOW);
 		if (!library) {
-			KTRACE("Trying second fallback path '%s' because of error: '%s'", filename, dlerror());
-
-			// try a fallback to /usr/local/lib
-			string_free(filename);
-			filename = string_format("/usr/local/lib/%s%s%s", prefix, name, extension);
-
-			library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
-			if (!library) {
-				KTRACE("Trying third fallback path '%s' because of error: '%s'", filename, dlerror());
-
-				// try a fallback to /usr/lib64
-				string_free(filename);
-				filename = string_format("/usr/lib64/%s%s%s", prefix, name, extension);
-
-				library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
-				if (!library) {
-					KTRACE("Trying third fallback path '%s' because of error: '%s'", filename, dlerror());
-
-					// try a fallback to /lib/x86_64-linux-gnu/ - Ubuntu puts the Vulkan driver here.
-					string_free(filename);
-					filename = string_format("/lib/x86_64-linux-gnu/%s%s%s", prefix, name, extension);
-
-					library = dlopen(filename, RTLD_NOW); // "libtestbed_lib_loaded. so/dylib"
-					if (!library) {
-						KERROR("Error opening library: %s", dlerror());
-						return false;
-					}
-				}
-			}
+			KTRACE("Dynamic lib path '%s' failed to load because of error: '%s'", cur_path, dlerror());
+		} else {
+			break;
 		}
 	}
-	KTRACE("Found lib: '%s'", filename);
+	if (!library) {
+		KERROR("Error opening library: %s", dlerror());
+		return false;
+	}
+
+	KTRACE("Found lib: '%s'", cur_path);
+	string_free(cur_path);
 
 	out_library->name = string_duplicate(name);
 	out_library->filename = filename;

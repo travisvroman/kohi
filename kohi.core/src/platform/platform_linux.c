@@ -1019,7 +1019,7 @@ const char *platform_dynamic_library_extension (void) {
 }
 
 const char *platform_dynamic_library_prefix (void) {
-	return "./lib";
+	return "lib";
 }
 
 void platform_register_window_closed_callback (platform_window_closed_callback callback) {
