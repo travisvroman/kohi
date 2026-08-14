@@ -7,13 +7,14 @@
 #include <world/world_types.h>
 
 #include "editor/texture_browser.h"
+#include "strings/kstring.h"
 
 #define EDITOR_AXIS_COLOUR_R \
-	(colour4) { 1.0f, 0.5f, 0.5f, 1.0f }
+	(colour4){1.0f, 0.5f, 0.5f, 1.0f}
 #define EDITOR_AXIS_COLOUR_G \
-	(colour4) { 0.5f, 1.0f, 0.5f, 1.0f }
+	(colour4){0.5f, 1.0f, 0.5f, 1.0f}
 #define EDITOR_AXIS_COLOUR_B \
-	(colour4) { 0.5f, 0.5f, 1.0f, 1.0f }
+	(colour4){0.5f, 0.5f, 1.0f, 1.0f}
 
 #define EDITOR_HFT_PAINT_BRUSH_MAX_SIZE 64
 
@@ -37,7 +38,12 @@ typedef enum editor_mode {
 	EDITOR_MODE_ENTITY,
 	EDITOR_MODE_TREE,
 	EDITOR_MODE_HF_TERRAIN,
-	EDITOR_MODE_ASSETS
+	EDITOR_MODE_ASSETS,
+
+	// Any editor extensions should use beyond this point.
+	EDITOR_MODE_USER_SPACE = 0x00FF,
+	// Max number of editor modes available.
+	EDITOR_MODE_MAX = 0x0200
 } editor_mode;
 
 typedef struct keditor_gizmo_pass_data {
@@ -97,6 +103,8 @@ typedef enum editor_action {
 	EDITOR_ACTION_MAX = 0x1FFF,
 } editor_action;
 
+struct editor_plugin;
+
 typedef struct editor_state {
 	kname game_package_name;
 	// Editor camera
@@ -135,12 +143,15 @@ typedef struct editor_state {
 	colour_vertex_3d debug_points[256];
 	u64 debug_points_vertex_buffer_offset;
 
-	editor_mode mode;
+	u16 mode;
 
 	u16 font_size;
 	kname font_name;
 	u16 textbox_font_size;
 	kname textbox_font_name;
+
+	// Listing of base mode controls per editor mode.
+	kui_control base_mode_controls[EDITOR_MODE_MAX];
 
 	// UI elements
 	kui_state *kui_state;
@@ -276,7 +287,8 @@ KAPI void editor_shutdown (struct editor_state *state);
 
 KAPI b8 editor_open (struct editor_state *state, kname scene_name, kname scene_package_name);
 KAPI b8 editor_close (struct editor_state *state);
-KAPI void editor_set_mode (struct editor_state *state, editor_mode mode);
+// Can either be an editor_mode or a user-defined mode.
+KAPI void editor_set_mode (struct editor_state *state, u16 mode);
 
 KAPI void editor_clear_selected_entities (struct editor_state *state);
 KAPI void editor_select_entities (struct editor_state *state, u32 count, kentity *entities);
@@ -297,3 +309,5 @@ KAPI b8 editor_on_action (struct editor_state *state, u32 action_code);
 
 KAPI void editor_on_lib_load (struct editor_state *state);
 KAPI void editor_on_lib_unload (struct editor_state *state);
+
+KAPI void editor_register_user_mode_ui_control (struct editor_state *state, u16 user_mode, kui_control base_control);

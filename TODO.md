@@ -45,6 +45,11 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Animated doodads - items that can animate (i.e. react to wind) such as grass, plants, shrubs, etc.
     - [ ] Property to control distance-based rendering (i.e rocks/fine details only show at closest chunks, grass is closest & med. dist, nothing far away)
 - [?] Move avatars to engine?
+- [ ] KUI
+  - [ ] Horizontal layout panel with alignment (left, right, center, justify/evenly spaced)
+  - [ ] Vertical layout panel with alignment (top, bottom, middle, justify/evenly spaced)
+- [ ] Investigate and reduce startup time
+  - [ ] Known issue: Fonts are pre-loaded, and multiples are loaded if using a ttf collection (ttc). Only load fonts when they are needed, as needed.
 
 ## Future Releases
 
