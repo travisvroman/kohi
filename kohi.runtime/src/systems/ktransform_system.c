@@ -5,7 +5,6 @@
 #include "containers/darray.h"
 #include "core/console.h"
 #include "core/engine.h"
-#include "core_resource_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "logger.h"

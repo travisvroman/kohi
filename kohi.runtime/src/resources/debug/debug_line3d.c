@@ -1,6 +1,5 @@
 #include "debug_line3d.h"
 
-#include "core_resource_types.h"
 #include "math/geometry.h"
 #include "math/kmath.h"
 #include "math/math_types.h"

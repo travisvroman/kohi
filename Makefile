@@ -73,6 +73,12 @@ copy-utils: copy-utils-$(PLATFORM)
 copy-utils-win32:
 	copy utils\bin\* misc
 
+ifeq ($(filter Linux Darwin,$(UNAME_S)),$(UNAME_S))
+ifeq ($(wildcard utils/bin/versiongen),)
+copy-utils-linux copy-utils-macos: utils-debug
+endif
+endif
+
 copy-utils-linux copy-utils-macos:
 	cp utils/bin/* misc
 
@@ -113,6 +119,7 @@ copy-top-level-lib: copy-top-level-lib-$(PLATFORM)
 
 copy-top-level-lib-win32:
 	copy testbed.klib\bin\* bin
+
 
 copy-top-level-lib-linux copy-top-level-lib-macos:
 	cp testbed.klib/bin/* bin

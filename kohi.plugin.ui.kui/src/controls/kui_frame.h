@@ -2,7 +2,6 @@
 
 #include "kui_system.h"
 #include "kui_types.h"
-#include "utils/kcolour.h"
 
 KAPI kui_control kui_frame_control_create (kui_state *state, const char *name);
 

@@ -4,13 +4,11 @@
 #include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core_render_types.h>
-#include <core_resource_types.h>
 #include <defines.h>
 #include <math/math_types.h>
 #include <renderer/renderer_types.h>
 #include <systems/kmaterial_system.h>
 #include <systems/light_system.h>
-#include <utils/kcolour.h>
 
 #define DEFAULT_SHADOW_BIAS 0.0005f
 #define DEFAULT_SHADOW_DIST 100.0f

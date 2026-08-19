@@ -1,6 +1,5 @@
 #include "debug_box3d.h"
 
-#include "core_resource_types.h"
 #include "defines.h"
 #include "math/geometry.h"
 #include "math/kmath.h"

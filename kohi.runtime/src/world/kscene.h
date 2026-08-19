@@ -1,7 +1,6 @@
 #pragma once
 
 #include <core/frame_data.h>
-#include <core_resource_types.h>
 #include <defines.h>
 #include <math/math_types.h>
 #include <strings/kstring_id.h>
@@ -10,7 +9,6 @@
 #include "systems/kcamera_system.h"
 #include "systems/kmodel_system.h"
 #include "systems/light_system.h"
-#include "utils/kcolour.h"
 #include "world/heightfield_terrain.h"
 #include "world/world_types.h"
 

@@ -109,6 +109,13 @@ b8 kohi_plugin_renderer_vulkan_create (kruntime_plugin *out_plugin) {
 	backend->renderbuffer_copy_range = vulkan_buffer_copy_range;
 	backend->renderbuffer_draw = vulkan_buffer_draw;
 	backend->wait_for_idle = vulkan_renderer_wait_for_idle;
+	backend->gpu_profiler_initialize = vulkan_renderer_gpu_profiler_initialize;
+	backend->gpu_profiler_destroy = vulkan_renderer_gpu_profiler_destroy;
+	backend->gpu_profiler_begin_frame = vulkan_renderer_gpu_profiler_begin_frame;
+	backend->gpu_profiler_end_frame = vulkan_renderer_gpu_profiler_end_frame;
+	backend->gpu_profiler_begin_event = vulkan_renderer_gpu_profiler_begin_event;
+	backend->gpu_profiler_end_event = vulkan_renderer_gpu_profiler_end_event;
+	backend->gpu_profiler_query_timestamps = vulkan_renderer_gpu_profiler_query_timestamps;
 #if KOHI_DEBUG
 	backend->debug_pump_brakes = vulkan_renderer_debug_pump_brakes;
 #endif

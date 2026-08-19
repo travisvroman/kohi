@@ -7,7 +7,6 @@
 
 #include "editor_gizmo.h"
 
-#include <core_resource_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <logger.h>
@@ -17,7 +16,6 @@
 #include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/ktransform_system.h>
-#include <utils/kcolour.h>
 
 #include "core/engine.h"
 #include "systems/kcamera_system.h"

@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include <core_resource_types.h>
 #include <defines.h>
 #include <math/math_types.h>
 

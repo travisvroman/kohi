@@ -2,7 +2,6 @@
 
 #include "kui_system.h"
 #include "kui_types.h"
-#include "utils/kcolour.h"
 
 KAPI kui_control kui_textbox_control_create (kui_state *state, const char *name, font_type font_type, kname font_name, u16 font_size, const char *text, kui_textbox_type type);
 

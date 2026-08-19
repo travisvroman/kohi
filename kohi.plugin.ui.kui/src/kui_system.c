@@ -4,7 +4,6 @@
 #include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
-#include <core_resource_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <identifiers/identifier.h>
@@ -23,7 +22,6 @@
 #include <systems/kshader_system.h>
 #include <systems/ktransform_system.h>
 #include <systems/texture_system.h>
-#include <utils/kcolour.h>
 #include <utils/ksort.h>
 
 #include "assets/kasset_types.h"

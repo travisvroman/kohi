@@ -22,7 +22,6 @@
 #include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/texture_system.h"
-#include "utils/kcolour.h"
 
 #define VERTEX_LAYOUT_INDEX_STATIC 0
 #define VERTEX_LAYOUT_INDEX_SKINNED 1

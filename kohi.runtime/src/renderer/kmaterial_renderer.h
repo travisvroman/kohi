@@ -5,7 +5,6 @@
 
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
-#include "utils/kcolour.h"
 
 #define KMATERIAL_UBO_MAX_SHADOW_CASCADES 4
 

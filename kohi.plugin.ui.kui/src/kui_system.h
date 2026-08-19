@@ -19,7 +19,6 @@
 #include <math/math_types.h>
 #include <renderer/renderer_types.h>
 #include <systems/ktransform_system.h>
-#include <utils/kcolour.h>
 
 #include "kui_types.h"
 #include "memory/kmemory.h"

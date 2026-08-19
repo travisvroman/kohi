@@ -772,4 +772,7 @@ typedef struct vulkan_context {
 	 * Used for dynamic compilation of vulkan shaders (using the shaderc lib.)
 	 */
 	struct shaderc_compiler *shader_compiler;
+
+	// Used for profiling via timestamps;
+	VkQueryPool query_pool;
 } vulkan_context;

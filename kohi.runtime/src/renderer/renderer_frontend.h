@@ -853,3 +853,6 @@ KAPI u16 renderer_max_bound_texture_count_get (struct renderer_system_state *sta
  * @brief Returns the max number of samplers that can be bound at once for a single draw call.
  */
 KAPI u16 renderer_max_bound_sampler_count_get (struct renderer_system_state *state);
+
+KAPI kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_state *state, const char *name);
+KAPI void renderer_gpu_profiler_end_event (struct renderer_system_state *state, kgpu_profiler_eventid id);

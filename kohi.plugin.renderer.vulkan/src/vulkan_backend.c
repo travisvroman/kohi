@@ -347,6 +347,15 @@ b8 vulkan_renderer_backend_initialize (renderer_backend_interface *backend, cons
 
 	context->bound_shader = KSHADER_INVALID;
 
+	u8 max_frames_in_flight = context->triple_buffering_enabled ? 2 : 1;
+
+	// Setup querypool for timestamp collection.
+	VkQueryPoolCreateInfo timestamp_pool_info = {
+		.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+		.queryType = VK_QUERY_TYPE_TIMESTAMP,
+		.queryCount = max_frames_in_flight * KGPU_PROFILE_MAX_TIMESTAMPS * 2};
+	VK_CHECK(rhi->kvkCreateQueryPool(context->device.logical_device, &timestamp_pool_info, context->allocator, &context->query_pool));
+
 	KINFO("Vulkan renderer initialized successfully.");
 	return true;
 }
@@ -356,6 +365,9 @@ void vulkan_renderer_backend_shutdown (renderer_backend_interface *backend) {
 	vulkan_context *context = (vulkan_context *)backend->internal_context;
 	krhi_vulkan *rhi = &context->rhi;
 	rhi->kvkDeviceWaitIdle(context->device.logical_device);
+
+	// Destroy the query pool.
+	rhi->kvkDestroyQueryPool(context->device.logical_device, context->query_pool, context->allocator);
 
 	// Destroy the runtime shader compiler.
 	if (context->shader_compiler) {
@@ -2443,7 +2455,7 @@ b8 vulkan_renderer_shader_create (
 				}
 			}
 		} // end instances setup
-	}	  // end binding sets setup
+	} // end binding sets setup
 
 	// Setup descriptor pools
 	{
@@ -3970,6 +3982,74 @@ void vulkan_renderer_wait_for_idle (renderer_backend_interface *backend) {
 	}
 }
 
+void vulkan_renderer_gpu_profiler_initialize (renderer_backend_interface *backend, kgpu_profiler *profiler) {
+	if (backend && profiler) {
+		vulkan_context *context = backend->internal_context;
+		profiler->timestamp_period = context->device.properties.limits.timestampPeriod;
+	}
+}
+
+void vulkan_renderer_gpu_profiler_destroy (renderer_backend_interface *backend, kgpu_profiler *profiler) {
+	// NOTE: probably will always be a no-op for this renderer.
+}
+void vulkan_renderer_gpu_profiler_begin_frame (renderer_backend_interface *backend, kgpu_profiler *profiler) {
+	vulkan_context *context = (vulkan_context *)backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
+
+	// profiling - reset queries for current frame.
+	profiler->query_base = get_current_frame_index(context) * KGPU_PROFILE_MAX_TIMESTAMPS * 2;
+	rhi->kvkCmdResetQueryPool(command_buffer->handle, context->query_pool, profiler->query_base, KGPU_PROFILE_MAX_TIMESTAMPS * 2);
+}
+void vulkan_renderer_gpu_profiler_end_frame (renderer_backend_interface *backend, kgpu_profiler *profiler) {
+	// no-op for now
+}
+void vulkan_renderer_gpu_profiler_begin_event (renderer_backend_interface *backend, kgpu_profiler_eventid id) {
+	vulkan_context *context = (vulkan_context *)backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
+
+	// Write a timestamp for the beginning of the event, signified by the provided id.
+	rhi->kvkCmdWriteTimestamp2(command_buffer->handle, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, context->query_pool, id);
+}
+void vulkan_renderer_gpu_profiler_end_event (renderer_backend_interface *backend, kgpu_profiler_eventid id) {
+	vulkan_context *context = (vulkan_context *)backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
+
+	// Write a timestamp for the end of the event, signified by the provided id.
+	rhi->kvkCmdWriteTimestamp2(command_buffer->handle, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, context->query_pool, id);
+}
+
+struct TimestampResult {
+	u64 timestamp;
+	u64 available;
+};
+void vulkan_renderer_gpu_profiler_query_timestamps (renderer_backend_interface *backend, u32 begin_id, u64 *out_start, u64 *out_end) {
+	vulkan_context *context = (vulkan_context *)backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+
+	struct TimestampResult stamps[2];
+
+	VkResult result = rhi->kvkGetQueryPoolResults(
+		context->device.logical_device,
+		context->query_pool,
+		begin_id,
+		2, // Get the begin and the next, which is the end
+		sizeof(stamps),
+		stamps,
+		sizeof(struct TimestampResult),
+		VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+
+	if (vulkan_result_is_success(result)) {
+		if (stamps[0].available && stamps[1].available) {
+			*out_start = stamps[0].timestamp;
+			*out_end = stamps[1].timestamp;
+		}
+	}
+}
+
+#if KOHI_DEBUG
 void vulkan_renderer_debug_pump_brakes (renderer_backend_interface *backend) {
 	vulkan_context *context = backend->internal_context;
 	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
@@ -3986,6 +4066,7 @@ void vulkan_renderer_debug_pump_brakes (renderer_backend_interface *backend) {
 		   },
 		0, NULL, 0, NULL);
 }
+#endif
 
 static vulkan_command_buffer *get_current_command_buffer (vulkan_context *context) {
 	kwindow_renderer_backend_state *window_backend = context->current_window->renderer_state->backend_state;

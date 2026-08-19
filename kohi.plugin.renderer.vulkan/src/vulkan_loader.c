@@ -109,6 +109,11 @@ b8 vulkan_loader_load_device (krhi_vulkan *rhi, VkDevice device) {
 	RHI_DEVICE_FUNCTION(vkAllocateDescriptorSets);
 	RHI_DEVICE_FUNCTION(vkFreeDescriptorSets);
 	RHI_DEVICE_FUNCTION(vkUpdateDescriptorSets);
+	RHI_DEVICE_FUNCTION(vkCreateQueryPool);
+	RHI_DEVICE_FUNCTION(vkDestroyQueryPool);
+	RHI_DEVICE_FUNCTION(vkCmdResetQueryPool);
+	RHI_DEVICE_FUNCTION(vkCmdWriteTimestamp2);
+	RHI_DEVICE_FUNCTION(vkGetQueryPoolResults);
 
 	RHI_DEVICE_FUNCTION(vkCmdPipelineBarrier);
 	RHI_DEVICE_FUNCTION(vkCmdBlitImage);

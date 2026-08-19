@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core_render_types.h"
-#include <core_resource_types.h>
 #include <defines.h>
 #include <input_types.h>
 #include <math/geometry.h>

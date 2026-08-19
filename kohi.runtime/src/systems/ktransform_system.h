@@ -2,7 +2,6 @@
 #define _ktransform_SYSTEM_H_
 
 #include "systems/kmatrix_system.h"
-#include <core_resource_types.h>
 #include <math/math_types.h>
 
 struct frame_data;

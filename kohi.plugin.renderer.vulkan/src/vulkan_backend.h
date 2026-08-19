@@ -137,6 +137,14 @@ b8 vulkan_buffer_draw (renderer_backend_interface *backend, krenderbuffer handle
 
 void vulkan_renderer_wait_for_idle (renderer_backend_interface *backend);
 
+void vulkan_renderer_gpu_profiler_initialize (renderer_backend_interface *backend, kgpu_profiler *profiler);
+void vulkan_renderer_gpu_profiler_destroy (renderer_backend_interface *backend, kgpu_profiler *profiler);
+void vulkan_renderer_gpu_profiler_begin_frame (renderer_backend_interface *backend, kgpu_profiler *profiler);
+void vulkan_renderer_gpu_profiler_end_frame (renderer_backend_interface *backend, kgpu_profiler *profiler);
+void vulkan_renderer_gpu_profiler_begin_event (renderer_backend_interface *backend, kgpu_profiler_eventid id);
+void vulkan_renderer_gpu_profiler_end_event (renderer_backend_interface *backend, kgpu_profiler_eventid id);
+void vulkan_renderer_gpu_profiler_query_timestamps (renderer_backend_interface *backend, u32 begin_id, u64 *out_start, u64 *out_end);
+
 #if KOHI_DEBUG
 void vulkan_renderer_debug_pump_brakes (renderer_backend_interface *backend);
 #endif

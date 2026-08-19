@@ -16,9 +16,7 @@
 
 #include "core/engine.h"
 #include "core/frame_data.h"
-#include "core_resource_types.h"
 #include "renderer/renderer_types.h"
-#include "utils/kcolour.h"
 
 #define KRENDERBUFFER_NAME_LIGHTING_GLOBAL "Kohi.StorageBuffer.LightingGlobal"
 

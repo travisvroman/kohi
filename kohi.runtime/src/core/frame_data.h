@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core_render_types.h"
 #include "defines.h"
 #include "memory/kmemory.h"
 
@@ -8,6 +9,18 @@ struct linear_allocator;
 struct application_frame_data;
 struct kforward_renderer_render_data;
 struct kui_render_data;
+
+typedef struct frame_metrics_render_event {
+	char event_name[128];
+	colour4 colour;
+	f32 duration_ms;
+} frame_metrics_render_event;
+
+typedef struct frame_metrics_data {
+	u32 render_event_count;
+	// Dynamically allocated, but every frame using the frame allocator.
+	frame_metrics_render_event *render_events;
+} frame_metrics_data;
 
 /**
  * @brief Engine-level current frame-specific data.
@@ -32,4 +45,5 @@ typedef struct frame_data {
 	struct kui_render_data *kui_render_data;
 	struct kforward_renderer_render_data *render_data;
 
+	frame_metrics_data metrics;
 } frame_data;

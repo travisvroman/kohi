@@ -4,7 +4,6 @@
 #include <assets/kasset_types.h>
 #include <containers/darray.h>
 #include <core_render_types.h>
-#include <core_resource_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <input_types.h>
@@ -18,7 +17,6 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 #include <strings/kstring_id.h>
-#include <utils/kcolour.h>
 #include <utils/ksort.h>
 
 // Runtime

@@ -5,7 +5,6 @@
 #include <math/math_types.h>
 #include <systems/kcamera_system.h>
 
-#include "core_resource_types.h"
 #include "systems/kmatrix_system.h"
 
 #if KOHI_DEBUG

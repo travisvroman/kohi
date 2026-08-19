@@ -97,7 +97,15 @@ typedef struct renderer_system_state {
 
 	/** @brief Default textures. Registered from the texture system. */
 	ktexture default_textures[RENDERER_DEFAULT_TEXTURE_COUNT];
+
+	kgpu_profiler profiler;
+
+	kgpu_profiler_eventid frame_event_id;
 } renderer_system_state;
+
+static f32 gpu_timestamp_to_ms (u64 begin, u64 end, f32 timestamp_period) {
+	return (f32)(end - begin) * timestamp_period / 1000000.0f;
+}
 
 b8 renderer_system_deserialize_config (const char *config_str, renderer_system_config *out_config) {
 	if (!config_str || !out_config) {
@@ -281,6 +289,9 @@ b8 renderer_system_initialize (u64 *memory_requirement, renderer_system_state *s
 		KERROR("Error creating index buffer.");
 		return false;
 	}
+
+	// Setup profiler.
+	state->backend->gpu_profiler_initialize(state->backend, &state->profiler);
 
 	return true;
 }
@@ -481,10 +492,40 @@ b8 renderer_frame_command_list_begin (struct renderer_system_state *state, struc
 	// Now actually begin the command list in the renderer backend.
 	b8 result = state->backend->frame_commands_begin(state->backend, p_frame_data);
 
+	// profiling - begin the profiler frame.
+	state->profiler.prev_query_base = state->profiler.query_base;
+	if (result) {
+		// Gather results from previous frame and store... somehow...
+		p_frame_data->metrics.render_event_count = state->profiler.event_count;
+		p_frame_data->metrics.render_events = p_frame_data->allocator.allocate(sizeof(frame_metrics_render_event) * state->profiler.event_count);
+		for (u32 i = 0; i < state->profiler.event_count; ++i) {
+			kgpu_profiler_event *event = &state->profiler.events[i];
+			frame_metrics_render_event *m_event = &p_frame_data->metrics.render_events[i];
+
+			u64 begin, end;
+			state->backend->gpu_profiler_query_timestamps(state->backend, event->begin, &begin, &end);
+
+			m_event->duration_ms = gpu_timestamp_to_ms(begin, end, state->profiler.timestamp_period);
+			string_ncopy(m_event->event_name, event->name, 128);
+		}
+		// Reset all events for the coming frame...
+		kzero_memory(state->profiler.events, sizeof(state->profiler.events));
+		state->profiler.event_count = 0;
+
+		// Begin profiling the next frame.
+		state->backend->gpu_profiler_begin_frame(state->backend, &state->profiler);
+	}
+
+	// profiling - put in a timestamp around everything for the entire frame, starting here.
+	// This is the one place done automatically by the renderer and is thus stored in state.
+	// The rest of the events should all be in user code.
+	state->frame_event_id = renderer_gpu_profiler_begin_event(state, "frame");
+
 	return result;
 }
 
 b8 renderer_frame_command_list_end (struct renderer_system_state *state, struct frame_data *p_frame_data) {
+	renderer_gpu_profiler_end_event(state, state->frame_event_id);
 	return state->backend->frame_commands_end(state->backend, p_frame_data);
 }
 
@@ -1288,4 +1329,25 @@ u16 renderer_max_bound_texture_count_get (struct renderer_system_state *state) {
 u16 renderer_max_bound_sampler_count_get (struct renderer_system_state *state) {
 	// NOTE: while the backend could allow for more, most "non-bindless" APIs have a limit of 16.
 	return 16;
+}
+
+kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_state *state, const char *name) {
+	u32 event_id = state->profiler.event_count++;
+
+	u32 begin = state->profiler.query_base + event_id * 2;
+	u32 end = begin + 1;
+
+	kgpu_profiler_event *event = &state->profiler.events[event_id];
+	event->begin = begin;
+	event->end = end;
+	event->name = name;
+
+	state->backend->gpu_profiler_begin_event(state->backend, event->begin);
+
+	return event_id;
+}
+void renderer_gpu_profiler_end_event (struct renderer_system_state *state, kgpu_profiler_eventid id) {
+	kgpu_profiler_event *event = &state->profiler.events[id];
+
+	state->backend->gpu_profiler_end_event(state->backend, event->end);
 }

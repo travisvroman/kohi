@@ -252,6 +252,26 @@ typedef struct kwindow_renderer_state {
 typedef u16 ksampler_backend;
 #define KSAMPLER_BACKEND_INVALID INVALID_ID_U16
 
+#define KGPU_PROFILE_MAX_TIMESTAMPS 128
+
+typedef u32 kgpu_profiler_eventid;
+
+typedef struct kgpu_profiler_event {
+	u32 begin;
+	u32 end;
+	const char *name;
+} kgpu_profiler_event;
+typedef struct kgpu_profiler {
+	u32 prev_query_base;
+	u32 query_base;
+	u32 query_count;
+
+	f32 timestamp_period;
+
+	kgpu_profiler_event events[KGPU_PROFILE_MAX_TIMESTAMPS];
+	u32 event_count;
+} kgpu_profiler;
+
 /**
  * @brief A generic "interface" for the renderer backend. The renderer backend
  * is what is responsible for making calls to the graphics API such as
@@ -846,6 +866,14 @@ typedef struct renderer_backend_interface {
 	 * NOTE: This incurs a lot of overhead/waits, and should be used sparingly.
 	 */
 	void (*wait_for_idle)(struct renderer_backend_interface *backend);
+
+	void (*gpu_profiler_initialize)(struct renderer_backend_interface *backend, struct kgpu_profiler *profiler);
+	void (*gpu_profiler_destroy)(struct renderer_backend_interface *backend, struct kgpu_profiler *profiler);
+	void (*gpu_profiler_begin_frame)(struct renderer_backend_interface *backend, struct kgpu_profiler *profiler);
+	void (*gpu_profiler_end_frame)(struct renderer_backend_interface *backend, struct kgpu_profiler *profiler);
+	void (*gpu_profiler_begin_event)(struct renderer_backend_interface *backend, u32 begin_id);
+	void (*gpu_profiler_end_event)(struct renderer_backend_interface *backend, u32 end_id);
+	void (*gpu_profiler_query_timestamps)(struct renderer_backend_interface *backend, u32 begin_id, u64 *out_start, u64 *out_end);
 
 #if KOHI_DEBUG
 	void (*debug_pump_brakes)(struct renderer_backend_interface *backend);

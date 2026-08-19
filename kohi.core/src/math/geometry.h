@@ -1,8 +1,8 @@
 #pragma once
 
+#include "core_render_types.h"
 #include "math/math_types.h"
 #include "strings/kname.h"
-#include "utils/kcolour.h"
 
 /** @brief The maximum length of a geometry name. */
 #define GEOMETRY_NAME_MAX_LENGTH 256

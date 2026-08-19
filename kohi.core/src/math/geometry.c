@@ -8,7 +8,6 @@
 #include "math/math_types.h"
 #include "memory/kmemory.h"
 #include "strings/kname.h"
-#include "utils/kcolour.h"
 
 void geometry_generate_normals (u32 vertex_count, vertex_3d *vertices, u32 index_count, u32 *indices) {
 	for (u32 i = 0; i < index_count; i += 3) {

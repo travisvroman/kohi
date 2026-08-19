@@ -20,6 +20,8 @@ Changelog
   - Removed useless platform abstraction for memory copy/set/zero. The logic for these now resides in kmemory.c.
   - Several math lib updates, including reduction in reliance on libm.
   - Updated `make setup` to automatically gather required dependencies for supported platforms.
+  - Added timestamps to renderer for use with frame metrics.
+  - Consolidated a few straggler types from extraneous header files into more core header files.
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.
