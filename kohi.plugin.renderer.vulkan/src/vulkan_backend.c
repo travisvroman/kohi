@@ -617,8 +617,8 @@ void vulkan_renderer_backend_on_window_resized (renderer_backend_interface *back
 	KINFO("Vulkan renderer backend->resized: w/h/gen: %i/%i/%llu", window->width, window->height, backend_window->framebuffer_size_generation);
 }
 
-void vulkan_renderer_begin_debug_label (renderer_backend_interface *backend, const char *label_text, vec3 colour) {
-	VK_BEGIN_DEBUG_LABEL(backend->internal_context, get_current_command_buffer(backend->internal_context)->handle, label_text, ((vec4){colour.r, colour.g, colour.b, 1.0f}));
+void vulkan_renderer_begin_debug_label (renderer_backend_interface *backend, const char *label_text, vec4 colour) {
+	VK_BEGIN_DEBUG_LABEL(backend->internal_context, get_current_command_buffer(backend->internal_context)->handle, label_text, colour);
 }
 
 void vulkan_renderer_end_debug_label (renderer_backend_interface *backend) {

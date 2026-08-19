@@ -257,10 +257,13 @@ typedef u16 ksampler_backend;
 typedef u32 kgpu_profiler_eventid;
 
 typedef struct kgpu_profiler_event {
+	colour4 colour;
 	u32 begin;
 	u32 end;
 	const char *name;
+	i8 depth;
 } kgpu_profiler_event;
+
 typedef struct kgpu_profiler {
 	u32 prev_query_base;
 	u32 query_base;
@@ -270,6 +273,8 @@ typedef struct kgpu_profiler {
 
 	kgpu_profiler_event events[KGPU_PROFILE_MAX_TIMESTAMPS];
 	u32 event_count;
+
+	i8 depth;
 } kgpu_profiler;
 
 /**
@@ -308,7 +313,7 @@ typedef struct renderer_backend_interface {
 	 */
 	void (*shutdown)(struct renderer_backend_interface *backend);
 
-	void (*begin_debug_label)(struct renderer_backend_interface *backend, const char *label_text, vec3 colour);
+	void (*begin_debug_label)(struct renderer_backend_interface *backend, const char *label_text, vec4 colour);
 	void (*end_debug_label)(struct renderer_backend_interface *backend);
 
 	/**

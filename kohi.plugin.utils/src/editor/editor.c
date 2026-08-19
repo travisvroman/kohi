@@ -1245,7 +1245,7 @@ void editor_frame_prepare (struct editor_state *state, frame_data *p_frame_data,
 }
 
 static void set_render_state_defaults (rect_2di vp_rect) {
-	renderer_begin_debug_label("frame defaults", vec3_zero());
+	/* renderer_begin_debug_label("frame defaults", KCOLOUR4_BLACK); */
 
 	renderer_set_depth_test_enabled(false);
 	renderer_set_depth_write_enabled(false);
@@ -1264,7 +1264,7 @@ static void set_render_state_defaults (rect_2di vp_rect) {
 	rect_2di scissor_rect = {vp_rect.x, vp_rect.y, vp_rect.width, vp_rect.height};
 	renderer_scissor_set(scissor_rect);
 
-	renderer_end_debug_label();
+	/* renderer_end_debug_label(); */
 }
 
 b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera current_camera, ktexture colour_buffer_target, b8 draw_gizmo, keditor_gizmo_pass_render_data *render_data) {
@@ -1274,7 +1274,7 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 		return false;
 	}
 
-	renderer_begin_debug_label("Editor", (vec3){0.6f, 1.0f, 0.6});
+	renderer_begin_debug_label("Editor", (colour4){0.6f, 1.0f, 0.6f, 1.0f});
 
 	// Editor begin render
 	renderer_begin_rendering(state->renderer, p_frame_data, vp_rect, 1, &colour_buffer_target, INVALID_KTEXTURE, 0);
@@ -1284,7 +1284,7 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 	// NOTE: Editor gizmo only included in non-release builds
 	if (render_data->do_pass) {
 		if (render_data->visible) {
-			renderer_begin_debug_label("Editor gizmo", (vec3){0.5f, 1.0f, 0.5});
+			renderer_begin_debug_label("Editor gizmo", (colour4){0.5f, 1.0f, 0.5f, 1.0f});
 
 			// Disable depth test/write so the gizmo is always on top.
 			renderer_set_depth_test_enabled(false);
@@ -1330,7 +1330,7 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 
 	// Debug points render, if applicable
 	if (state->debug_point_count) {
-		renderer_begin_debug_label("Editor debug points", (vec3){0.4f, 1.0f, 0.4});
+		renderer_begin_debug_label("Editor debug points", (colour4){0.4f, 1.0f, 0.4f, 1.0f});
 
 		kshader_system_use_with_topology(state->colour_shader, PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT, 0);
 		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
@@ -1374,7 +1374,7 @@ b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera 
 
 	// Editor-specific Debug shapes
 	// TODO: debug shape renderer?
-	renderer_begin_debug_label("Editor debug shapes", (vec3){0.4f, 1.0f, 0.3});
+	renderer_begin_debug_label("Editor debug shapes", (colour4){0.4f, 1.0f, 0.3f, 1.0f});
 	if (state->mode == EDITOR_MODE_HF_TERRAIN && state->hft_edit_mode == HF_TERRAIN_EDIT_MODE_CHUNK) {
 		KASSERT(kshader_system_use_with_topology(state->debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0));
 

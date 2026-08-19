@@ -2191,9 +2191,13 @@ kstring kstring_append_data (kstring string, const void *data, u32 length) {
 		kstring_ensure_allocated(&out_str, new_length);
 	}
 
-	kcopy_memory(out_str.data, string.base_buffer, string.length);
+	if (string.data) {
+		kcopy_memory(out_str.data, string.data, string.length);
+	} else {
+		kcopy_memory(out_str.data, string.base_buffer, string.length);
+	}
 	kcopy_memory(out_str.data + string.length, data, length);
-	out_str.length += length;
+	out_str.length = string.length + length;
 
 	return out_str;
 }
@@ -2205,7 +2209,11 @@ kstring kstring_append_cstr (kstring string, const char *s) {
 }
 
 kstring kstring_append_kstring (kstring string, kstring other) {
-	return kstring_append_data(string, other.data, other.length);
+	if (other.data) {
+		return kstring_append_data(string, other.data, other.length);
+	} else {
+		return kstring_append_data(string, other.base_buffer, other.length);
+	}
 }
 
 kstring kstring_append_char (kstring string, char c) {

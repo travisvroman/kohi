@@ -27,7 +27,7 @@ b8 vulkan_renderer_on_window_created (renderer_backend_interface *backend, struc
 void vulkan_renderer_on_window_destroyed (renderer_backend_interface *backend, struct kwindow *window);
 void vulkan_renderer_backend_on_window_resized (renderer_backend_interface *backend, const struct kwindow *window);
 
-void vulkan_renderer_begin_debug_label (renderer_backend_interface *backend, const char *label_text, vec3 colour);
+void vulkan_renderer_begin_debug_label (renderer_backend_interface *backend, const char *label_text, vec4 colour);
 void vulkan_renderer_end_debug_label (renderer_backend_interface *backend);
 b8 vulkan_renderer_frame_prepare (renderer_backend_interface *backend, struct frame_data *p_frame_data);
 

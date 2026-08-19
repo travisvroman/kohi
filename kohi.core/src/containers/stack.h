@@ -73,3 +73,12 @@ KAPI b8 stack_peek (const stack *s, void *out_element_data);
  * @return True on succcess; otherwise false.
  */
 KAPI b8 stack_pop (stack *s, void *out_element_data);
+
+/**
+ * @brief Attempts to clear the provided stack. If the stack is null,
+ * nothing is done and false is returned.
+ *
+ * @param s A pointer to the stack to clear.
+ * @return True on succcess; otherwise false.
+ */
+KAPI b8 stack_clear (stack *s);

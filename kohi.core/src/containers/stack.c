@@ -82,3 +82,15 @@ b8 stack_pop (stack *s, void *out_element_data) {
 
 	return true;
 }
+
+b8 stack_clear (stack *s) {
+	if (!s) {
+		KERROR("stack_cleaar requires a pointer to a valid stack.");
+		return false;
+	}
+
+	kzero_memory(s->memory, s->allocated);
+	s->element_count = 0;
+
+	return true;
+}

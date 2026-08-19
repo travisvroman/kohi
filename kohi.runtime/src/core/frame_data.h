@@ -14,6 +14,7 @@ typedef struct frame_metrics_render_event {
 	char event_name[128];
 	colour4 colour;
 	f32 duration_ms;
+	i8 depth;
 } frame_metrics_render_event;
 
 typedef struct frame_metrics_data {

@@ -100,7 +100,7 @@ KAPI void renderer_on_window_resized (struct renderer_system_state *state, const
  * @param label_text The text to be used for the label.
  * @param colour The colour to be used for the label.
  */
-KAPI void renderer_begin_debug_label (const char *label_text, vec3 colour);
+KAPI void renderer_begin_debug_label (const char *label_text, vec4 colour);
 
 /**
  * @brief Ends the last debug section of commands. Becomes a no-op in non-debug builds.
@@ -854,5 +854,5 @@ KAPI u16 renderer_max_bound_texture_count_get (struct renderer_system_state *sta
  */
 KAPI u16 renderer_max_bound_sampler_count_get (struct renderer_system_state *state);
 
-KAPI kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_state *state, const char *name);
+KAPI kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_state *state, const char *name, colour4 colour);
 KAPI void renderer_gpu_profiler_end_event (struct renderer_system_state *state, kgpu_profiler_eventid id);

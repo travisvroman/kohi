@@ -14,6 +14,7 @@
 #include <time/kclock.h>
 
 // Version reporting
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
 #include "kohi.runtime_version.h"
@@ -884,7 +885,7 @@ b8 engine_run (application *app) {
 			}
 
 			// Begin "prepare_frame" render event grouping.
-			renderer_begin_debug_label("prepare_frame", (vec3){1.0f, 1.0f, 0.0f});
+			renderer_begin_debug_label("prepare_frame", KCOLOUR4_YELLOW);
 
 			// TODO: frame prepare for systems that need it.
 			// NOTE: Frame preparation for plugins

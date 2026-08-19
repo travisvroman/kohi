@@ -7,6 +7,7 @@
 #include <systems/kshader_system.h>
 #include <systems/texture_system.h>
 
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "kui_defines.h"
 #include "kui_types.h"
@@ -35,7 +36,7 @@ void kui_renderer_destroy (kui_renderer *renderer) {
 }
 
 static void set_render_state_defaults (rect_2di vp_rect) {
-	renderer_begin_debug_label("frame defaults", vec3_zero());
+	/* renderer_begin_debug_label("frame defaults", KCOLOUR4_BLACK); */
 
 	renderer_set_depth_test_enabled(false);
 	renderer_set_depth_write_enabled(false);
@@ -59,11 +60,11 @@ static void set_render_state_defaults (rect_2di vp_rect) {
 	rect_2di scissor_rect = {vp_rect.x, vp_rect.y, vp_rect.width, vp_rect.height};
 	renderer_scissor_set(scissor_rect);
 
-	renderer_end_debug_label();
+	/* renderer_end_debug_label(); */
 }
 
 b8 kui_renderer_render_frame (kui_renderer *renderer, frame_data *p_frame_data, kui_render_data *render_data) {
-	renderer_begin_debug_label("sui", (vec3){0.5f, 0.5f, 0.5});
+	renderer_begin_debug_label("sui", (colour4){0.5f, 0.5f, 0.5f, 1.0f});
 
 	rect_2di vp_rect = {0};
 	if (!texture_dimensions_get(render_data->colour_buffer, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
@@ -121,7 +122,7 @@ b8 kui_renderer_render_frame (kui_renderer *renderer, frame_data *p_frame_data, 
 		if (renderable->type == KUI_RENDERABLE_TYPE_STENCIL_CLIP_BEGIN) {
 			KASSERT(!clip_mask_active);
 			clip_mask_active = true;
-			renderer_begin_debug_label("clip_mask", (vec3){0, 1, 0});
+			renderer_begin_debug_label("clip_mask", KCOLOUR4_GREEN);
 			// Enable writing, disable test.
 			renderer_set_stencil_test_enabled(true);
 			renderer_set_depth_test_enabled(false);

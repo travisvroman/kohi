@@ -6,6 +6,7 @@
 
 #include <containers/darray.h>
 #include <containers/freelist.h>
+#include <containers/stack.h>
 #include <core_render_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
@@ -101,6 +102,8 @@ typedef struct renderer_system_state {
 	kgpu_profiler profiler;
 
 	kgpu_profiler_eventid frame_event_id;
+
+	stack event_id_stack;
 } renderer_system_state;
 
 static f32 gpu_timestamp_to_ms (u64 begin, u64 end, f32 timestamp_period) {
@@ -292,6 +295,9 @@ b8 renderer_system_initialize (u64 *memory_requirement, renderer_system_state *s
 
 	// Setup profiler.
 	state->backend->gpu_profiler_initialize(state->backend, &state->profiler);
+	state->profiler.depth = 0;
+
+	stack_create(&state->event_id_stack, sizeof(kgpu_profiler_eventid));
 
 	return true;
 }
@@ -300,6 +306,7 @@ void renderer_system_shutdown (renderer_system_state *state) {
 	if (state) {
 
 		// renderer_wait_for_idle();
+		stack_destroy(&state->event_id_stack);
 
 		// Destroy buffers.
 		renderer_renderbuffer_destroy(state, state->standard_vertex_buffer);
@@ -409,11 +416,14 @@ void renderer_on_window_resized (struct renderer_system_state *state, const stru
 	}
 }
 
-void renderer_begin_debug_label (const char *label_text, vec3 colour) {
+void renderer_begin_debug_label (const char *label_text, vec4 colour) {
 #if KOHI_DEBUG
 	renderer_system_state *state_ptr = engine_systems_get()->renderer_system;
 	if (state_ptr) {
 		state_ptr->backend->begin_debug_label(state_ptr->backend, label_text, colour);
+
+		kgpu_profiler_eventid event_id = renderer_gpu_profiler_begin_event(state_ptr, label_text, colour);
+		stack_push(&state_ptr->event_id_stack, &event_id);
 	}
 #endif
 }
@@ -423,6 +433,11 @@ void renderer_end_debug_label (void) {
 	renderer_system_state *state_ptr = engine_systems_get()->renderer_system;
 	if (state_ptr) {
 		state_ptr->backend->end_debug_label(state_ptr->backend);
+
+		kgpu_profiler_eventid event_id = INVALID_ID_U32;
+		if (stack_pop(&state_ptr->event_id_stack, &event_id)) {
+			renderer_gpu_profiler_end_event(state_ptr, event_id);
+		}
 	}
 #endif
 }
@@ -506,11 +521,18 @@ b8 renderer_frame_command_list_begin (struct renderer_system_state *state, struc
 			state->backend->gpu_profiler_query_timestamps(state->backend, event->begin, &begin, &end);
 
 			m_event->duration_ms = gpu_timestamp_to_ms(begin, end, state->profiler.timestamp_period);
-			string_ncopy(m_event->event_name, event->name, 128);
+			string_ncopy(m_event->event_name, event->name, 127);
+			// Don't leak the name
+			string_free(event->name);
+			m_event->colour = event->colour;
+			m_event->depth = event->depth;
 		}
 		// Reset all events for the coming frame...
 		kzero_memory(state->profiler.events, sizeof(state->profiler.events));
 		state->profiler.event_count = 0;
+
+		// Reset the event id stack.
+		stack_clear(&state->event_id_stack);
 
 		// Begin profiling the next frame.
 		state->backend->gpu_profiler_begin_frame(state->backend, &state->profiler);
@@ -519,7 +541,7 @@ b8 renderer_frame_command_list_begin (struct renderer_system_state *state, struc
 	// profiling - put in a timestamp around everything for the entire frame, starting here.
 	// This is the one place done automatically by the renderer and is thus stored in state.
 	// The rest of the events should all be in user code.
-	state->frame_event_id = renderer_gpu_profiler_begin_event(state, "frame");
+	state->frame_event_id = renderer_gpu_profiler_begin_event(state, "frame", KCOLOUR4_WHITE);
 
 	return result;
 }
@@ -1331,7 +1353,7 @@ u16 renderer_max_bound_sampler_count_get (struct renderer_system_state *state) {
 	return 16;
 }
 
-kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_state *state, const char *name) {
+kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_state *state, const char *name, colour4 colour) {
 	u32 event_id = state->profiler.event_count++;
 
 	u32 begin = state->profiler.query_base + event_id * 2;
@@ -1340,9 +1362,13 @@ kgpu_profiler_eventid renderer_gpu_profiler_begin_event (struct renderer_system_
 	kgpu_profiler_event *event = &state->profiler.events[event_id];
 	event->begin = begin;
 	event->end = end;
-	event->name = name;
+	event->name = string_duplicate(name);
+	event->colour = colour;
+	event->depth = state->profiler.depth;
 
 	state->backend->gpu_profiler_begin_event(state->backend, event->begin);
+
+	state->profiler.depth++;
 
 	return event_id;
 }
@@ -1350,4 +1376,6 @@ void renderer_gpu_profiler_end_event (struct renderer_system_state *state, kgpu_
 	kgpu_profiler_event *event = &state->profiler.events[id];
 
 	state->backend->gpu_profiler_end_event(state->backend, event->end);
+
+	state->profiler.depth--;
 }

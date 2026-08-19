@@ -850,6 +850,8 @@ KAPI void string_to_lower (char *str);
  */
 KAPI void string_to_upper (char *str);
 
+#define SPACES "                                                                "
+
 // ----------------------
 // KString implementation
 // ----------------------

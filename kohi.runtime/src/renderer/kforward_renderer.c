@@ -344,7 +344,7 @@ static void draw_geo_list (kforward_renderer *renderer, frame_data *p_frame_data
 }
 
 static void set_render_state_defaults (rect_2di vp_rect) {
-	renderer_begin_debug_label("frame defaults", vec3_zero());
+	/* renderer_begin_debug_label("frame defaults", KCOLOUR4_BLACK); */
 
 	renderer_set_depth_test_enabled(false);
 	renderer_set_depth_write_enabled(false);
@@ -368,7 +368,7 @@ static void set_render_state_defaults (rect_2di vp_rect) {
 	rect_2di scissor_rect = {vp_rect.x, vp_rect.y, vp_rect.width, vp_rect.height};
 	renderer_scissor_set(scissor_rect);
 
-	renderer_end_debug_label();
+	/* renderer_end_debug_label(); */
 }
 
 static b8 scene_pass (
@@ -406,7 +406,7 @@ static b8 scene_pass (
 
 	// Depth Pre-pass
 	if (do_depth_prepass) {
-		renderer_begin_debug_label("depth prepass", vec3_zero());
+		renderer_begin_debug_label("depth prepass", KCOLOUR4_BLACK);
 
 		renderer_begin_rendering(renderer->renderer_state, p_frame_data, vp_rect, 0, 0, depth_handle, 0);
 		set_render_state_defaults(vp_rect);
@@ -510,7 +510,7 @@ static b8 scene_pass (
 
 	// Render skybox. Assume no vertex count means not skybox.
 	if (skybox_data->do_pass && skybox_data->sb_vertex_count) {
-		renderer_begin_debug_label("scene - skybox", (vec3){0.5f, 0.5f, 1.0f});
+		renderer_begin_debug_label("scene - skybox", (colour4){0.5f, 0.5f, 1.0f, 1.0f});
 
 		// Skybox begin render
 		renderer_begin_rendering(renderer->renderer_state, p_frame_data, vp_rect, 1, &colour_handle, INVALID_KTEXTURE, 0);
@@ -564,7 +564,7 @@ static b8 scene_pass (
 
 	// Heightfield Terrain
 	{
-		renderer_begin_debug_label("scene - HF terrain", (vec3){0.5f, 1.0f, 0.5f});
+		renderer_begin_debug_label("scene - HF terrain", (colour4){0.5f, 1.0f, 0.5f, 1.0f});
 
 		const hf_terrain_render_data *trd = &pass_data->hf_terrain_data;
 
@@ -670,7 +670,7 @@ static b8 scene_pass (
 		renderer_end_debug_label();
 	}
 
-	renderer_begin_debug_label("scene - meshes", (vec3){0.0f, 1.0f, 1.0f});
+	renderer_begin_debug_label("scene - meshes", KCOLOUR4_CYAN);
 
 	// Mesh begin render
 	/* renderer_begin_rendering(renderer->renderer_state, p_frame_data, vp_rect, 1, &colour_handle, depth_handle, 0); */
@@ -724,7 +724,7 @@ static b8 scene_pass (
 		renderer_set_depth_bias(0.00f, 0.0f, -1.0f);
 	}
 	if (water_plane_count && water_planes) {
-		renderer_begin_debug_label("water planes", (vec3){0, 0, 1});
+		renderer_begin_debug_label("water planes", KCOLOUR4_BLUE);
 
 		// Water planes do not use animated geometry.
 		kmaterial_renderer_set_animated(renderer->material_renderer, false);
@@ -911,7 +911,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 	// Begin frame
 	{
 
-		renderer_begin_debug_label("kforward_renderer frame_begin", (vec3){0.75f, 0.75f, 0.75f});
+		renderer_begin_debug_label("kforward_renderer frame_begin", (colour4){0.75f, 0.75f, 0.75f, 1.0f});
 
 		// NOTE: frame begin logic here, if required.
 
@@ -947,7 +947,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 
 	// Clear colour
 	{
-		renderer_begin_debug_label("clear_colour", (vec3){0.75f, 0.75f, 0.75f});
+		renderer_begin_debug_label("clear_colour", (colour4){0.75f, 0.75f, 0.75f, 1.0f});
 
 		if (!renderer_clear_colour(renderer->renderer_state, renderer->colour_buffer)) {
 			KERROR("Failed to clear colour buffer.");
@@ -959,7 +959,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 
 	// Clear depth stencil
 	{
-		renderer_begin_debug_label("clear_depth_stencil", (vec3){0.75f, 0.75f, 0.75f});
+		renderer_begin_debug_label("clear_depth_stencil", (colour4){0.75f, 0.75f, 0.75f, 1.0f});
 
 		renderer_clear_depth_set(renderer->renderer_state, 1.0f);
 		renderer_clear_stencil_set(renderer->renderer_state, 0);
@@ -974,7 +974,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 
 	// Shadow pass
 	if (render_data->shadow_data.do_pass) {
-		renderer_begin_debug_label("shadow pass", (vec3){1.0f, 0.0f, 0.0f});
+		renderer_begin_debug_label("shadow pass", KCOLOUR4_RED);
 
 		// Clear the image first.
 		renderer_clear_depth_stencil(renderer->renderer_state, renderer->shadow_pass.shadow_tex);
@@ -1022,13 +1022,13 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			{
 				char label_text[17] = "shadow_cascade_0";
 				label_text[15] = '0' + p;
-				renderer_begin_debug_label(label_text, (vec3){0.8f - (p * 0.1f), 0.0f, 0.0f});
+				renderer_begin_debug_label(label_text, (colour4){0.8f - (p * 0.1f), 0.0f, 0.0f, 1.0f});
 			}
 
 			// Set the global UBO data first.
 			{
 				// FIXME: Not sure this can be done here, may have to do inside loop below (i.e. within the 'render pass').
-				renderer_begin_debug_label("shadow_staticmesh_global", (vec3){1.0f, 0.0f, 0.0f});
+				renderer_begin_debug_label("shadow_staticmesh_global", KCOLOUR4_RED);
 				shadow_staticmesh_global_ubo global_ubo_data = {0};
 				for (u32 i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
 					global_ubo_data.view_projections[i] = render_data->shadow_data.cascades[i].view_projection;
@@ -1040,7 +1040,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			// Set the global UBO data first.
 			{
 				// FIXME: Not sure this can be done here, may have to do inside loop below (i.e. within the 'render pass').
-				renderer_begin_debug_label("shadow_heightmap_terrain_global", (vec3){1.0f, 0.0f, 0.0f});
+				renderer_begin_debug_label("shadow_heightmap_terrain_global", KCOLOUR4_RED);
 				shadow_staticmesh_global_ubo global_ubo_data = {0};
 				for (u32 i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
 					global_ubo_data.view_projections[i] = render_data->shadow_data.cascades[i].view_projection;
@@ -1052,7 +1052,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			// Set the global UBO data first.
 			{
 				// FIXME: Not sure this can be done here, may have to do inside loop below (i.e. within the 'render pass').
-				renderer_begin_debug_label("shadow_hf_terrain_global", (vec3){1.0f, 0.0f, 0.0f});
+				renderer_begin_debug_label("shadow_hf_terrain_global", KCOLOUR4_RED);
 				shadow_hf_terrain_global_ubo global_ubo_data = {0};
 				for (u32 i = 0; i < KMATERIAL_MAX_SHADOW_CASCADES; ++i) {
 					global_ubo_data.view_projections[i] = render_data->shadow_data.cascades[i].view_projection;
@@ -1202,7 +1202,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 	// Forward pass
 	if (render_data->forward_data.do_pass) {
 
-		renderer_begin_debug_label("Forward pass", (vec3){1.0f, 0.5f, 0});
+		renderer_begin_debug_label("Forward pass", KCOLOUR4_ORANGE);
 
 		// FIXME: If render mode is not 'regular', there is no need to perform the reflect/refract passes.
 
@@ -1211,7 +1211,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			{
 				char label_text[14] = "water_plane_0";
 				label_text[12] = ('0' + w);
-				renderer_begin_debug_label(label_text, (vec3){0.0f, 0.3f, 0.8f - (w * 0.1f)});
+				renderer_begin_debug_label(label_text, (colour4){0.0f, 0.3f, 0.8f - (w * 0.1f), 1.0f});
 			}
 
 			kforward_pass_water_plane_render_data *plane = &render_data->forward_data.water_planes[w];
@@ -1242,7 +1242,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 				{
 					char label_text[22] = "water_plane_0_refract";
 					label_text[12] = '0' + w;
-					renderer_begin_debug_label(label_text, (vec3){0.3f, 0.3f, 0.8f - (w * 0.1f)});
+					renderer_begin_debug_label(label_text, (colour4){0.3f, 0.3f, 0.8f - (w * 0.1f), 1.0f});
 				}
 				scene_pass(
 					renderer,
@@ -1289,7 +1289,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 				{
 					char label_text[22] = "water_plane_0_reflect";
 					label_text[12] = '0' + w;
-					renderer_begin_debug_label(label_text, (vec3){0.3f, 0.3f, 0.8f - (w * 0.1f)});
+					renderer_begin_debug_label(label_text, (colour4){0.3f, 0.3f, 0.8f - (w * 0.1f)});
 				}
 				scene_pass(
 					renderer,
@@ -1340,7 +1340,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 			// Finally, draw the scene normally with no clipping. Include the water plane rendering. Uses bound camera.
 			vec4 clipping_plane = vec4_zero(); // NOTE: w is distance from origin, in this case the y-coord. Setting this to vec4_zero() effectively disables this.
 
-			renderer_begin_debug_label("standard scene pass", (vec3){1.0f, 0.5f, 1.0f});
+			renderer_begin_debug_label("standard scene pass", (colour4){1.0f, 0.5f, 1.0f, 1.0f});
 			scene_pass(
 				renderer,
 				p_frame_data,
@@ -1380,7 +1380,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 	if (render_data->world_debug_data.do_pass) {
 
 		if (render_data->world_debug_data.geometry_count > 0) {
-			renderer_begin_debug_label("world debug pass", (vec3){0.5f, 1.0f, 0});
+			renderer_begin_debug_label("world debug pass", (colour4){0.5f, 1.0f, 0, 1.0f});
 
 			// World debug begin render
 			rect_2di vp_rect = {0};
@@ -1476,7 +1476,7 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 
 	// Frame_end
 	{
-		renderer_begin_debug_label("kforward_renderer frame_end", (vec3){0.75f, 0.75f, 0.75f});
+		renderer_begin_debug_label("kforward_renderer frame_end", (colour4){0.75f, 0.75f, 0.75f, 1.0f});
 		// NOTE: This is a no-op intentionally for now.
 		renderer_end_debug_label();
 	}
