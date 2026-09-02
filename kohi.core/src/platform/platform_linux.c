@@ -553,7 +553,7 @@ void platform_window_destroy (struct kwindow *window) {
 		}
 		KERROR("Destroying a window that was somehow not registered with the platform layer.");
 		xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
-		window->platform_state->window = KNULL;
+		window->platform_state->window = 0;
 	}
 }
 

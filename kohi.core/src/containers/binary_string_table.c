@@ -8,8 +8,8 @@
 binary_string_table binary_string_table_create (void) {
 	binary_string_table table = {
 		.lookup = darray_create(binary_string_table_entry),
-		.header.entry_count = KNULL,
-		.header.data_block_size = KNULL,
+		.header.entry_count = 0,
+		.header.data_block_size = 0,
 		.data = KNULL};
 
 	return table;

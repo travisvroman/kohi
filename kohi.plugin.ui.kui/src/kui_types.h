@@ -148,6 +148,8 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_IMAGE_BOX,
 	KUI_CONTROL_TYPE_CHECKBOX,
 	KUI_CONTROL_TYPE_FRAME,
+	KUI_CONTROL_TYPE_WINDOW,
+	KUI_CONTROL_TYPE_FLOW,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -403,6 +405,85 @@ typedef struct kui_checkbox_control {
 
 	kui_checkbox_state state;
 } kui_checkbox_control;
+
+typedef enum kui_window_flag_bits {
+	KUI_WINDOW_FLAG_NONE = 0,
+	KUI_WINDOW_FLAG_IS_DIALOG_BIT = 1 << 0,
+	KUI_WINDOW_FLAG_HAS_CLOSE_BUTTON_BIT = 1 << 1,
+	KUI_WINDOW_FLAG_IS_OK_CANCEL_BIT = 1 << 2,
+	KUI_WINDOW_FLAG_HAS_TITLE = 1 << 3
+} kui_window_flags_bits;
+
+typedef u32 kui_window_flags;
+
+typedef struct kui_font_data {
+	font_type type;
+	kname font_name;
+	u16 font_size;
+} kui_font_data;
+
+#define KUI_WINDOW_RESULT_OK 0
+#define KUI_WINDOW_RESULT_CANCELLED 1
+#define KUI_WINDOW_RESULT_CLOSED 2
+#define KUI_WINDOW_RESULT_ERROR 3
+
+typedef struct kui_window_control {
+	kui_base_control base;
+
+	kui_window_flags flags;
+
+	nine_slice nslice;
+	u32 binding_instance_id;
+
+	kui_control title_bar;
+	kui_control title_text;
+	kui_control close_button;
+} kui_window_control;
+
+typedef enum kui_flow_mode {
+	KUI_FLOW_STATIC = 0,	 // All controls are manually defined, no flow logic takes place.
+	KUI_FLOW_DIRECTIONAL = 1 // controls are checked if they fit horizontally, if so are placed inline, if not moved to next line at max height of control on current line.
+} kui_flow_mode;
+
+typedef enum kui_flow_vertical {
+	KUI_FLOW_VERTICAL_TOP_TO_BOTTOM,
+	KUI_FLOW_VERTICAL_BOTTOM_TO_TOP,
+	// Aligns all rows of controls to the middle of the vertical spacing of the flow container.
+	KUI_FLOW_VERTICAL_MIDDLE,
+	// Spreads all rows of controls to occupy the entire vertical spacing of the flow container,
+	// with even spacing in between.
+	KUI_FLOW_VERTICAL_SPREAD
+} kui_flow_vertical;
+
+typedef enum kui_flow_horizontal {
+	KUI_FLOW_HORIZONTAL_LEFT_TO_RIGHT,
+	KUI_FLOW_HORIZONTAL_RIGHT_TO_LEFT,
+	// Centers controls fitting in a single row together.
+	KUI_FLOW_HORIZONTAL_CENTER,
+	// Spreads controls fitting in a single row to occupy the entire row,
+	// with even spacing in between.
+	KUI_FLOW_HORIZONTAL_SPREAD
+} kui_flow_horizontal;
+
+typedef enum kui_flow_overflow {
+	KUI_FLOW_OVERFLOW_EXPAND,
+	KUI_FLOW_OVERFLOW_NONE,
+} kui_flow_overflow;
+
+// NOTE: Enabling this shows debug displays for this control.
+#define KUI_FLOW_DEBUG_DISPLAY 1
+
+typedef struct kui_flow_control {
+	kui_base_control base;
+
+	kui_flow_horizontal horizontal;
+	kui_flow_vertical vertical;
+	kui_flow_overflow overflow;
+
+#if KUI_FLOW_DEBUG_DISPLAY
+	kui_control debug_panel;
+#endif
+} kui_flow_control;
 
 // Atlas configuration
 

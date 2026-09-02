@@ -14,8 +14,8 @@ static b8 create_and_verify (binary_string_table *out_table) {
 	// The lookup should be created.
 	expect_should_not_be(out_table->lookup, KNULL);
 	// Verify that memory has not yet beed assigned within the table's data.
-	expect_should_be(KNULL, out_table->header.data_block_size);
-	expect_should_be(KNULL, out_table->header.entry_count);
+	expect_should_be(0, out_table->header.data_block_size);
+	expect_should_be(0, out_table->header.entry_count);
 	expect_should_be(KNULL, out_table->data);
 
 	return true;
@@ -26,8 +26,8 @@ static b8 destroy_and_verify (binary_string_table *table) {
 
 	// Verify that memory has been cleared
 	expect_should_be(table->lookup, KNULL);
-	expect_should_be(KNULL, table->header.data_block_size);
-	expect_should_be(KNULL, table->header.entry_count);
+	expect_should_be(0, table->header.data_block_size);
+	expect_should_be(0, table->header.entry_count);
 	expect_should_be(KNULL, table->data);
 
 	return true;

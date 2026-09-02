@@ -12,6 +12,7 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Dropdown with variable content (text, text/image, image)
   - [ ] Windows with standard min/max/close controls, titlebar, resizing
   - [ ] Dialog/MessageBox that steals focus and has to be interacted with (i.e. to report errors, etc.)
+  - [ ] Horizontal/Vertical flow control.
 - [ ] Editor enhancements
   - [ ] HFTerrain->Chunk editor: Material selector dropdown
   - [ ] Generic scene - edit other global scene properties (shadow/directional light, fog dist/falloff, etc.)

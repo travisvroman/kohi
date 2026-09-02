@@ -125,6 +125,8 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	state->image_box_controls = darray_create(kui_image_box_control);
 	state->checkbox_controls = darray_create(kui_checkbox_control);
 	state->frame_controls = darray_create(kui_frame_control);
+	state->window_controls = darray_create(kui_window_control);
+	state->flow_controls = darray_create(kui_flow_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 
@@ -1462,6 +1464,14 @@ static kui_base_control *get_base (kui_state *state, kui_control control) {
 		len = darray_length(state->frame_controls);
 		base = type_index < len ? &state->frame_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_WINDOW:
+		len = darray_length(state->window_controls);
+		base = type_index < len ? &state->window_controls[type_index].base : KNULL;
+		break;
+	case KUI_CONTROL_TYPE_FLOW:
+		len = darray_length(state->flow_controls);
+		base = type_index < len ? &state->flow_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1616,6 +1626,36 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		base = &state->frame_controls[type_index].base;
 		break;
+
+	case KUI_CONTROL_TYPE_WINDOW:
+		len = darray_length(state->window_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->window_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->window_controls, &(kui_window_control){0});
+		}
+		base = &state->window_controls[type_index].base;
+		break;
+
+	case KUI_CONTROL_TYPE_FLOW:
+		len = darray_length(state->flow_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->flow_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->flow_controls, &(kui_flow_control){0});
+		}
+		base = &state->flow_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1673,10 +1713,19 @@ static void release_handle (kui_state *state, kui_control *handle) {
 			kzero_memory(&state->frame_controls[type_index], sizeof(kui_frame_control));
 			base = &state->frame_controls[type_index].base;
 			break;
+		case KUI_CONTROL_TYPE_WINDOW:
+			kzero_memory(&state->window_controls[type_index], sizeof(kui_window_control));
+			base = &state->window_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_FLOW:
+			kzero_memory(&state->flow_controls[type_index], sizeof(kui_flow_control));
+			base = &state->flow_controls[type_index].base;
+			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
 			// TODO: user type support
 			break; // do nothing
+			break;
 		}
 
 		base->handle = INVALID_KUI_CONTROL;
