@@ -22,6 +22,7 @@ Changelog
   - Updated `make setup` to automatically gather required dependencies for supported platforms.
   - Added timestamps to renderer for use with frame metrics.
   - Consolidated a few straggler types from extraneous header files into more core header files.
+  - Changed KNULL to actually be of type ((void *)0) instead of just 0 for more type safety. Fixed a few issues in the codebase that arose from this.
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.

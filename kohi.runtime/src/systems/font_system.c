@@ -927,6 +927,7 @@ static vec2 measure_string (font_data *font, const char *text, f32 max_width) {
 		if (!bytes_to_codepoint(text, c, &codepoint, &advance)) {
 			KWARN("Invalid UTF-8 found in string, using unknown codepoint of -1");
 			codepoint = -1;
+			advance = 1;
 		}
 
 		font_glyph *g = 0;

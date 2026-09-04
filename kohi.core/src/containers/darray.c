@@ -8,7 +8,7 @@
 void *_darray_create (u64 length, u64 stride, frame_allocator_int *allocator) {
 	u64 header_size = sizeof(darray_header);
 	u64 array_size = length * stride;
-	void *new_array = 0;
+	void *new_array = KNULL;
 	if (allocator) {
 		new_array = allocator->allocate(header_size + array_size);
 	} else {
@@ -112,6 +112,32 @@ void *darray_pop_at (void *array, u64 index, void *dest) {
 
 	darray_length_set(array, length - 1);
 	return array;
+}
+
+void darray_reverse (void *array) {
+	if (array) {
+		u64 length = darray_length(array);
+		u64 stride = darray_stride(array);
+		u32 i = 0;
+		u32 j = length - 1;
+
+		u64 addr = (u64)array;
+
+		void *temp = kallocate(stride, MEMORY_TAG_DARRAY);
+		while (i < j) {
+			void *a = (void *)(addr + (i * stride));
+			void *b = (void *)(addr + (j * stride));
+
+			// Swap
+			kcopy_memory(temp, a, stride);
+			kcopy_memory(a, b, stride);
+			kcopy_memory(b, temp, stride);
+
+			++i;
+			--j;
+		}
+		kfree(temp);
+	}
 }
 
 void *_darray_insert_at (void *array, u64 index, void *value_ptr) {

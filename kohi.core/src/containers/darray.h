@@ -175,6 +175,13 @@ KAPI void darray_pop (void *array, void *dest);
 KAPI void *darray_pop_at (void *array, u64 index, void *dest);
 
 /**
+ * @brief Reverses the given array in-place.
+ *
+ * @param array The array to be reversed.
+ */
+KAPI void darray_reverse (void *array);
+
+/**
  * @brief Clears all entries from the array. Does not release any internally-allocated memory.
  * @param array The array to be cleared.
  */

@@ -461,8 +461,13 @@ typedef enum kui_flow_horizontal {
 	// Centers controls fitting in a single row together.
 	KUI_FLOW_HORIZONTAL_CENTER,
 	// Spreads controls fitting in a single row to occupy the entire row,
-	// with even spacing in between.
-	KUI_FLOW_HORIZONTAL_SPREAD
+	// with even spacing in between. No spacing before first and after last.
+	// In the event of one control only, it is left-aligned.
+	KUI_FLOW_HORIZONTAL_SPREAD,
+	// Spreads controls fitting in a single row to occupy the entire row,
+	// with even spacing in between and before the first control as well as
+	// after the last.
+	KUI_FLOW_HORIZONTAL_EVEN_SPACED,
 } kui_flow_horizontal;
 
 typedef enum kui_flow_overflow {

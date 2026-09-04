@@ -56,7 +56,6 @@ kui_control kui_flow_control_create_with_options (
 
 	FLAG_SET(debug_panel_base->flags, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, false);
 	kui_system_control_add_child(state, handle, typed_data->debug_panel);
-#endif
 
 	// HACK: Adding some child controls here to test layout changes.
 	for (u8 i = 0; i < 20; ++i) {
@@ -74,6 +73,7 @@ kui_control kui_flow_control_create_with_options (
 
 		kui_system_control_add_child(state, handle, test_handle);
 	}
+#endif
 
 	return handle;
 }
@@ -83,27 +83,34 @@ void kui_flow_control_destroy (kui_state *state, kui_control *self) {
 }
 
 typedef struct row_data {
+	// total width of all controls in the row
 	f32 total_width;
+	f32 height;
 	// darray
 	kui_base_control **controls;
 } row_data;
 
-void relayout_centered_or_spread_top_bottom (kui_state *state, kui_flow_control *flow, struct frame_data *p_frame_data) {
-	kui_base_control *base = &flow->base;
+// Split data into what fits into each row first _without_ taking spacing into account.
+// Left/right/centered/spread doesn't matter here, just need to group controls into rows.
+// Returns darray built with frame allocator.
+static row_data *generate_rows (kui_state *state, kui_flow_control *control, frame_data *p_frame_data) {
+	kui_base_control *base = &control->base;
 
 	u32 i = 0;
 #if KUI_FLOW_DEBUG_DISPLAY
 	i = 1; // Skip debug panel
 #endif
 
-	row_data *rows = darray_create_with_allocator(row_data, &p_frame_data->allocator);
+	row_data *rows = darray_create(row_data); // darray_create_with_allocator(row_data, &p_frame_data->allocator);
 
-	u32 x_offset = 0, y_offset = 0, highest_y = 0;
+	u32 x_offset = 0;
 
 	u32 child_count = darray_length(base->children);
+
 	row_data current_row;
 	current_row.total_width = 0;
-	current_row.controls = darray_create_with_allocator(kui_base_control *, &p_frame_data->allocator);
+	current_row.height = 0;
+	current_row.controls = darray_create(kui_base_control *); // darray_create_with_allocator(kui_base_control *, &p_frame_data->allocator);
 	for (; i < child_count; ++i) {
 		kui_base_control *child_base = kui_system_get_base(state, base->children[i]);
 		if (child_base) {
@@ -111,30 +118,23 @@ void relayout_centered_or_spread_top_bottom (kui_state *state, kui_flow_control 
 			if (!x_offset || x_offset + child_base->bounds.width <= base->bounds.width) {
 				// Within bounds, position can be used as-is.
 				// However, ensure we track the highest control on this row.
-				if (child_base->bounds.height > highest_y) {
-					highest_y = child_base->bounds.height;
-				}
+				current_row.height = KMAX(current_row.height, child_base->bounds.height);
 				// Add to the current row data.
-				darray_push(current_row.controls, child_base);
+				darray_push(current_row.controls, &child_base);
 			} else {
 				// Doesn't fit. Move down to next row.
 				x_offset = 0;
-				y_offset += highest_y;
-				highest_y = child_base->bounds.height;
 
 				// Push current row into rows array and start new row.
 				darray_push(rows, &current_row);
 				current_row.total_width = 0;
-				current_row.controls = darray_create_with_allocator(kui_base_control *, &p_frame_data->allocator);
+				current_row.height = child_base->bounds.height;
+				current_row.controls = darray_create(kui_base_control *); // darray_create_with_allocator(kui_base_control *, &p_frame_data->allocator);
 				// Add to the new current row's controls
-				darray_push(current_row.controls, child_base);
+				darray_push(current_row.controls, &child_base);
 			}
 
 			current_row.total_width += child_base->bounds.width;
-
-			vec3 pos = vec3_create(x_offset, y_offset, 0);
-			ktransform_position_set(child_base->ktransform, pos);
-
 			x_offset += child_base->bounds.width;
 		}
 	}
@@ -142,120 +142,131 @@ void relayout_centered_or_spread_top_bottom (kui_state *state, kui_flow_control 
 		darray_push(rows, &current_row);
 	}
 
-	u32 len = darray_length(rows);
-	for (u32 r = 0; r < len; ++r) {
-		row_data *row = &rows[r];
-		f32 diff = flow->base.bounds.width - row->total_width;
+	if (!darray_length(rows)) {
+		darray_destroy(rows);
+		return KNULL;
+	}
 
-		if (diff < 0) {
-			// Nothing to do with overflowing rows... this is likely due to a single control
-			// occupying the entire space. Skip it.
-			continue;
+	return rows;
+}
+
+static void reorder_rows (kui_state *state, kui_flow_control *control, row_data *rows) {
+	if (control->vertical == KUI_FLOW_VERTICAL_BOTTOM_TO_TOP) {
+		/* darray_reverse(rows); */
+		u32 len = darray_length(rows);
+		u32 i = 0;
+		u32 j = len - 1;
+		while (i < j) {
+			row_data temp = rows[i];
+			rows[i] = rows[j];
+			rows[j] = temp;
+
+			++i;
+			--j;
 		}
+	}
+
+	// NOTE: The other vertical alignment types assume top->bottom
+}
+
+static void relayout (kui_state *state, kui_flow_control *control, row_data *rows) {
+	f32 x_offset = 0, y_offset = 0;
+
+	u32 row_count = darray_length(rows);
+
+	if (control->vertical == KUI_FLOW_VERTICAL_BOTTOM_TO_TOP) {
+		// If bottom->top, start from the bottom.
+		y_offset = control->base.bounds.height;
+	}
+
+	f32 y_diff = 0, total_height = 0;
+	for (u32 i = 0; i < row_count; ++i) {
+		total_height += rows[i].height;
+	}
+	y_diff = control->base.bounds.height - total_height;
+	f32 y_space_divided = 0;
+	if (y_diff > 0) {
+		if (control->vertical == KUI_FLOW_VERTICAL_MIDDLE) {
+			y_space_divided = y_diff / 2;
+			y_offset += y_space_divided;
+		} else if (control->vertical == KUI_FLOW_VERTICAL_SPREAD) {
+			y_space_divided = y_diff / (row_count > 1 ? (row_count - 1) : 1);
+		}
+	}
+
+	for (u32 i = 0; i < row_count; ++i) {
+		row_data *row = &rows[i];
 
 		u32 control_count = darray_length(row->controls);
-		f32 x_offset = 0;
-		f32 spacing;
-		if (flow->horizontal == KUI_FLOW_HORIZONTAL_CENTER) {
-			// Spacing applied evenly before first control and after last.
-			spacing = diff / (control_count - 1);
-			x_offset += spacing;
-			for (u32 c = 0; c < control_count; ++c) {
-				kui_base_control *control = row->controls[c];
-				vec3 pos = ktransform_position_get(control->ktransform);
-				ktransform_position_set(control->ktransform, vec3_create(x_offset, pos.y, pos.z));
-				x_offset += control->bounds.width;
-			}
+		f32 x_diff = control->base.bounds.width - row->total_width;
+		f32 x_space_divided = 0;
 
-		} else if (flow->horizontal == KUI_FLOW_HORIZONTAL_SPREAD) {
-			// Spacing applied evenly before first control, between each control, and after last.
-			spacing = diff / (control_count + 1);
-
-			x_offset += spacing;
-			for (u32 c = 0; c < control_count; ++c) {
-				kui_base_control *control = row->controls[c];
-				vec3 pos = ktransform_position_get(control->ktransform);
-				ktransform_position_set(control->ktransform, vec3_create(x_offset, pos.y, pos.z));
-				x_offset += control->bounds.width + spacing;
+		x_offset = 0;
+		// Spacing only applies if there is actually leftover space.
+		// Diff can be negative in the case of a single control being on
+		// a row, but is wider than the flow container.
+		if (x_diff > 0) {
+			if (control->horizontal == KUI_FLOW_HORIZONTAL_CENTER) {
+				// Only pad before the first item and after the last.
+				x_space_divided = x_diff / 2;
+			} else if (control->horizontal == KUI_FLOW_HORIZONTAL_EVEN_SPACED) {
+				// Pad before the first item, after the last, and between each item.
+				x_space_divided = x_diff / (control_count + 1);
+			} else if (control->horizontal == KUI_FLOW_HORIZONTAL_SPREAD) {
+				// No padding before first item or after last. Even between each item.
+				x_space_divided = x_diff / (control_count > 1 ? (control_count - 1) : 1);
 			}
-		} else {
-			// Anything else is an error.
-			KFATAL("Not a valid horizontal flow for this function.");
 		}
-	}
-}
 
-void relayout_left_right_top_bottom (kui_state *state, kui_flow_control *flow, struct frame_data *p_frame_data) {
-	kui_base_control *base = &flow->base;
+		if (control->horizontal == KUI_FLOW_HORIZONTAL_CENTER || control->horizontal == KUI_FLOW_HORIZONTAL_EVEN_SPACED) {
+			// Apply spacing first for these 2 layouts.
+			x_offset += x_space_divided;
+		} else if (control->horizontal == KUI_FLOW_HORIZONTAL_RIGHT_TO_LEFT) {
+			x_offset = control->base.bounds.width;
+		}
 
-	u32 i = 0;
-#if KUI_FLOW_DEBUG_DISPLAY
-	i = 1; // Skip debug panel
-#endif
+		if (control->vertical == KUI_FLOW_VERTICAL_BOTTOM_TO_TOP) {
+			y_offset -= row->height;
+		}
 
-	u32 x_offset = 0, y_offset = 0, highest_y = 0;
+		for (u32 j = 0; j < control_count; ++j) {
+			// Each control on the row.
 
-	// LEFTOFF: here
-	u32 child_count = darray_length(base->children);
-	for (; i < child_count; ++i) {
-		kui_base_control *child_base = kui_system_get_base(state, base->children[i]);
-		if (child_base) {
+			kui_base_control *child_base = row->controls[j];
 
-			if (!x_offset || x_offset + child_base->bounds.width <= base->bounds.width) {
-				// Within bounds, position can be used as-is.
-				// However, ensure we track the highest control on this row.
-				if (child_base->bounds.height > highest_y) {
-					highest_y = child_base->bounds.height;
-				}
-			} else {
-				// Doesn't fit. Move down to next row.
-				x_offset = 0;
-				y_offset += highest_y;
-				highest_y = child_base->bounds.height;
+			if (control->horizontal == KUI_FLOW_HORIZONTAL_RIGHT_TO_LEFT) {
+				x_offset -= child_base->bounds.width;
 			}
 
 			vec3 pos = vec3_create(x_offset, y_offset, 0);
 			ktransform_position_set(child_base->ktransform, pos);
 
-			x_offset += child_base->bounds.width;
-		}
-	}
-}
-
-void relayout_right_left_top_bottom (kui_state *state, kui_flow_control *flow, struct frame_data *p_frame_data) {
-	kui_base_control *base = &flow->base;
-
-	u32 i = 0;
-#if KUI_FLOW_DEBUG_DISPLAY
-	i = 1; // Skip debug panel
-#endif
-
-	u32 x_offset = (u32)base->bounds.width, y_offset = 0, highest_y = 0;
-
-	u32 child_count = darray_length(base->children);
-	for (; i < child_count; ++i) {
-		kui_base_control *child_base = kui_system_get_base(state, base->children[i]);
-		if (child_base) {
-
-			if (x_offset == (u32)base->bounds.width || x_offset + child_base->bounds.width <= base->bounds.width) {
-				// Within bounds, position can be used as-is.
-				// However, ensure we track the highest control on this row.
-				if (child_base->bounds.height > highest_y) {
-					highest_y = child_base->bounds.height;
-				}
-			} else {
-				// Doesn't fit. Move down to next row.
-				x_offset = 0;
-				y_offset += highest_y;
-				highest_y = child_base->bounds.height;
+			if (control->horizontal != KUI_FLOW_HORIZONTAL_RIGHT_TO_LEFT) {
+				x_offset += child_base->bounds.width;
 			}
 
-			vec3 pos = vec3_create(x_offset, y_offset, 0);
-			ktransform_position_set(child_base->ktransform, pos);
-
-			x_offset += child_base->bounds.width;
+			if (control->horizontal == KUI_FLOW_HORIZONTAL_EVEN_SPACED || control->horizontal == KUI_FLOW_HORIZONTAL_SPREAD) {
+				// Apply spacing between controls.
+				x_offset += x_space_divided;
+			}
 		}
+
+		if (control->vertical != KUI_FLOW_VERTICAL_BOTTOM_TO_TOP) {
+			y_offset += row->height;
+		}
+
+		if (control->vertical == KUI_FLOW_VERTICAL_SPREAD) {
+			y_offset += y_space_divided;
+		}
+	} // each row
+}
+
+static void cleanup_rows (row_data *rows) {
+	u32 row_count = darray_length(rows);
+	for (u32 i = 0; i < row_count; ++i) {
+		darray_destroy(rows[i].controls);
 	}
+	darray_destroy(rows);
 }
 
 b8 kui_flow_control_update (kui_state *state, kui_control self, struct frame_data *p_frame_data) {
@@ -277,36 +288,12 @@ b8 kui_flow_control_update (kui_state *state, kui_control self, struct frame_dat
 	}
 
 	// Recalculate flow.
-	if (flow->horizontal == KUI_FLOW_HORIZONTAL_RIGHT_TO_LEFT) {
-
-	} else if (flow->horizontal == KUI_FLOW_HORIZONTAL_LEFT_TO_RIGHT) {
-		if (flow->vertical == KUI_FLOW_VERTICAL_BOTTOM_TO_TOP) {
-
-		} else if (flow->vertical == KUI_FLOW_VERTICAL_TOP_TO_BOTTOM) {
-			relayout_left_right_top_bottom(state, flow, p_frame_data);
-		} else if (flow->vertical == KUI_FLOW_VERTICAL_MIDDLE) {
-
-		} else if (flow->vertical == KUI_FLOW_VERTICAL_SPREAD) {
-
-		} else {
-			// Anything else is an error.
-		}
-	} else if (flow->horizontal == KUI_FLOW_HORIZONTAL_CENTER || flow->horizontal == KUI_FLOW_HORIZONTAL_SPREAD) {
-		if (flow->vertical == KUI_FLOW_VERTICAL_BOTTOM_TO_TOP) {
-
-		} else if (flow->vertical == KUI_FLOW_VERTICAL_TOP_TO_BOTTOM) {
-			relayout_centered_or_spread_top_bottom(state, flow, p_frame_data);
-		} else if (flow->vertical == KUI_FLOW_VERTICAL_MIDDLE) {
-
-		} else if (flow->vertical == KUI_FLOW_VERTICAL_SPREAD) {
-
-		} else {
-			// Anything else is an error.
-		}
-	} else {
-		// Anything else is an error.
+	row_data *rows = generate_rows(state, flow, p_frame_data);
+	if (rows) {
+		reorder_rows(state, flow, rows);
+		relayout(state, flow, rows);
+		cleanup_rows(rows);
 	}
-
 	return true;
 }
 
