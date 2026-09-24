@@ -888,7 +888,6 @@ static b8 unregister_watch (u32 watch_id) {
 
 	macos_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
-	u32 len = string_length(w->file_path);
 	kfree((void *)w->file_path);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(long));
@@ -1401,6 +1400,122 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 
 		return ofd_result;
 	}
+}
+
+// NOTE: syscall implementation
+i64 syscall2 (i64 number, i64 arg0, i64 arg1) {
+#	if defined(__aarch64__)
+	register i64 x16 __asm__("x16") = number;
+	register i64 x0 __asm__("x0") = arg0;
+	register i64 x1 __asm__("x1") = arg1;
+
+	__asm__ volatile(
+		"svc #0x80"
+		: "+r"(x0)
+		: "r"(x16),
+		  "r"(x1)
+		: "memory");
+
+	return x0;
+#	else
+#		error "Only Apple silicon is supported for macOS at this time."
+#	endif
+}
+
+i64 syscall3 (i64 number, i64 arg0, i64 arg1, i64 arg2) {
+#	if defined(__aarch64__)
+	register i64 x16 __asm__("x16") = number;
+	register i64 x0 __asm__("x0") = arg0;
+	register i64 x1 __asm__("x1") = arg1;
+	register i64 x2 __asm__("x2") = arg2;
+
+	__asm__ volatile(
+		"svc #0x80"
+		: "+r"(x0)
+		: "r"(x16),
+		  "r"(x1),
+		  "r"(x2)
+		: "memory");
+
+	return x0;
+#	else
+#		error "Only Apple silicon is supported for macOS at this time."
+#	endif
+}
+
+i64 syscall4 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3) {
+#	if defined(__aarch64__)
+	register i64 x16 __asm__("x16") = number;
+	register i64 x0 __asm__("x0") = arg0;
+	register i64 x1 __asm__("x1") = arg1;
+	register i64 x2 __asm__("x2") = arg2;
+	register i64 x3 __asm__("x3") = arg3;
+
+	__asm__ volatile(
+		"svc #0x80"
+		: "+r"(x0)
+		: "r"(x16),
+		  "r"(x1),
+		  "r"(x2),
+		  "r"(x3)
+		: "memory");
+
+	return x0;
+#	else
+#		error "Only Apple silicon is supported for macOS at this time."
+#	endif
+}
+
+i64 syscall5 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3, i64 arg4) {
+#	if defined(__aarch64__)
+	register i64 x16 __asm__("x16") = number;
+	register i64 x0 __asm__("x0") = arg0;
+	register i64 x1 __asm__("x1") = arg1;
+	register i64 x2 __asm__("x2") = arg2;
+	register i64 x3 __asm__("x3") = arg3;
+	register i64 x4 __asm__("x4") = arg4;
+
+	__asm__ volatile(
+		"svc #0x80"
+		: "+r"(x0)
+		: "r"(x16),
+		  "r"(x1),
+		  "r"(x2),
+		  "r"(x3),
+		  "r"(x4)
+		: "memory");
+
+	return x0;
+#	else
+#		error "Only Apple silicon is supported for macOS at this time."
+#	endif
+}
+
+i64 syscall6 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3, i64 arg4, i64 arg5) {
+#	if defined(__aarch64__)
+	register i64 x16 __asm__("x16") = number;
+	register i64 x0 __asm__("x0") = arg0;
+	register i64 x1 __asm__("x1") = arg1;
+	register i64 x2 __asm__("x2") = arg2;
+	register i64 x3 __asm__("x3") = arg3;
+	register i64 x4 __asm__("x4") = arg4;
+	register i64 x5 __asm__("x5") = arg5;
+
+	__asm__ volatile(
+		"svc #0x80"
+		: "+r"(x0)
+		: "r"(x16),
+		  "r"(x1),
+		  "r"(x2),
+		  "r"(x3),
+		  "r"(x4),
+		  "r"(x5)
+		: "memory");
+
+	return x0;
+#	else
+#		error "Only Apple silicon is supported for macOS at this time."
+#	endif
 }
 
 static keys translate_keycode (u32 ns_keycode) {

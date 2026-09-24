@@ -27,7 +27,7 @@ else
     $(error Unsupported platform)
 endif
 
-.PHONY: all-debug all-release clean scaffold scaffold-win32 scaffold-linux scaffold-macos kohi-tools-debug copy-top-level copy-top-level-win32 copy-top-level-linux copy-top-level-macos tools-clean clean-top-level clean-top-level-win32 clean-top-level-linux clean-top-level-macos
+.PHONY: all-debug all-release clean scaffold scaffold-win32 scaffold-linux scaffold-macos kohi-tools-debug copy-top-level copy-top-level-win32 copy-top-level-nix copy-top-level-linux copy-top-level-macos tools-clean clean-top-level clean-top-level-win32 clean-top-level-linux clean-top-level-macos
 
 .PHONY: utils-debug core-debug core-tests-debug runtime-debug runtime-tests-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug tools-debug testbed-klib-debug testbed-kapp-debug
 .PHONY: kohi-debug kohi-tests-debug kohi-plugins-debug testbed-debug
@@ -99,7 +99,7 @@ copy-top-level-win32: copy-utils
 	copy testbed.kapp\bin\* bin
 	copy "$(ASSIMP)\bin\x64\*assimp*.dll" bin
 
-copy-top-level-linux copy-top-level-macos: copy-utils
+copy-top-level-nix: copy-utils
 	cp kohi.core/bin/* bin
 	cp kohi.core.tests/bin/* bin
 	cp kohi.runtime/bin/* bin
@@ -111,8 +111,12 @@ copy-top-level-linux copy-top-level-macos: copy-utils
 	cp kohi.tools/bin/* bin
 	cp testbed.klib/bin/* bin
 	cp testbed.kapp/bin/* bin
+
+copy-top-level-linux: copy-top-level-nix
 	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so bin
 	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so.1 bin
+
+copy-top-level-macos: copy-top-level-nix
 
 copy-top-level-lib: copy-top-level-lib-$(PLATFORM)
 .NOTPARALLEL: copy-top-level-lib

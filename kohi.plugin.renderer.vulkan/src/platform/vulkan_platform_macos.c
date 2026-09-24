@@ -40,8 +40,8 @@ void vulkan_platform_get_required_extension_names (const char ***names_darray) {
 	const char *ext = "VK_EXT_metal_surface";
 	darray_push(*names_darray, &ext);
 	// Required for macos
-	ext = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
-		darray_push(*names_darray, &ext);
+	ext = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+	darray_push(*names_darray, &ext);
 }
 
 b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindow *window) {

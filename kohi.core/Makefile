@@ -23,6 +23,7 @@ BUILD_TYPE =U
 
 
 UNAME_S := 
+UNAME_M :=
 ifneq ($(OS),Windows_NT)
 	UNAME_S = $(shell uname -s)
 endif
@@ -45,6 +46,15 @@ else ifeq ($(UNAME_S),Darwin)
 	SRC_FILES := $(shell find src -type f \( -name "*.c" -o -name "*.m" \))
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	# TODO: not sure if we are going to bother supporting intel macs, but if we do, 
+	# this will need to hinge off of that
+	UNAME_M = $(shell uname -m)
+ifeq ($(UNAME_M),arm64)
+	CFLAGS +=-arch arm64
+	LDFLAGS +=-arch arm64
+	CFLAGS +=-target arm64-apple-darwin
+	LDFLAGS +=-target arm64-apple-darwin
+endif
 else
     $(error Unsupported platform)
 endif
@@ -92,7 +102,7 @@ genversion-win32:
 	@..\misc\versiongen.exe version.txt -outfile=src\$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
 genversion-linux genversion-macos:
-	../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
+	@../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
 .PHONY: clean
 clean:    clean-$(PLATFORM)
@@ -159,7 +169,7 @@ gen_compile_flags-release: gen_compile_flags
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	@..\misc\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	@..\misc\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) $(CFLAGS) -ferror-limit=0
 else
-	@../misc/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	@../misc/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) $(CFLAGS) -ferror-limit=0
 endif

@@ -22,6 +22,24 @@
 #		define FD_STDERR 2
 #	endif
 
+// Apple Silicon syscall codes
+#	if defined(KPLATFORM_APPLE)
+#		define PROT_READ 0x01
+#		define PROT_WRITE 0x02
+
+#		define MAP_PRIVATE 0x0002
+#		define MAP_ANONYMOUS 0x1000
+
+#		define SYS_write 4
+
+#		define SYS_mmap 197
+#		define SYS_munmap 73
+
+#		define FD_STDIN 0
+#		define FD_STDOUT 1
+#		define FD_STDERR 2
+#	endif
+
 KAPI i64 syscall2 (i64 number, i64 arg0, i64 arg1);
 KAPI i64 syscall3 (i64 number, i64 arg0, i64 arg1, i64 arg2);
 KAPI i64 syscall4 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3);

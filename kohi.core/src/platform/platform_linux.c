@@ -2001,6 +2001,96 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 	return result;
 }
 
+// NOTE: syscall implementation
+i64 syscall2 (i64 number, i64 arg0, i64 arg1) {
+	i64 ret;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall3 (i64 number, i64 arg0, i64 arg1, i64 arg2) {
+	i64 ret;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall4 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3) {
+	i64 ret;
+
+	register i64 r10 __asm__("r10") = arg3;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2),
+		  "r"(r10)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall5 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3, i64 arg4) {
+	i64 ret;
+
+	register i64 r10 __asm__("r10") = arg3;
+	register i64 r8 __asm__("r8") = arg4;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2),
+		  "r"(r10),
+		  "r"(r8)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall6 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3, i64 arg4, i64 arg5) {
+	i64 ret;
+
+	register i64 r10 __asm__("r10") = arg3;
+	register i64 r8 __asm__("r8") = arg4;
+	register i64 r9 __asm__("r9") = arg5;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2),
+		  "r"(r10),
+		  "r"(r8),
+		  "r"(r9)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
 static kwindow *window_from_handle (xcb_window_t window) {
 	u32 len = darray_length(state_ptr->windows);
 	for (u32 i = 0; i < len; ++i) {
