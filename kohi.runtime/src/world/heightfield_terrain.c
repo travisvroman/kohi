@@ -7,6 +7,7 @@
 #include "logger.h"
 #include "math/kmath.h"
 #include "math/math_types.h"
+#include "renderer/kforward_renderer.h"
 #include "renderer/renderer_frontend.h"
 #include "renderer/renderer_types.h"
 #include "runtime_defines.h"
@@ -213,9 +214,6 @@ void generate_block (hf_terrain *t, kasset_hf_terrain_vertex *asset_vertices, ka
 	block->splatmap = texture_acquire_from_pixel_data(KPIXEL_FORMAT_RGBA8, pixel_array_size, pixels, HF_TERRAIN_SPLATMAP_RESOLUTION, HF_TERRAIN_SPLATMAP_RESOLUTION, name);
 
 	kfree(pixels);
-
-	// Acquire shader resources.
-	block->shader_instance_id = kshader_acquire_binding_set_instance(t->hf_terrain_shader, 1);
 
 	block->aabb = extents;
 	// Pad y just a bit.
@@ -467,8 +465,6 @@ void hf_terrain_destroy (hf_terrain *t) {
 			texture_release(block->splatmap);
 			kfree(block->splatmap_pixels);
 
-			kshader_release_binding_set_instance(t->hf_terrain_shader, 1, block->shader_instance_id);
-
 			/* for (u32 c = 0; c < 256; ++c) {
 				hf_chunk* chunk = &block->chunks[c];
 			} */
@@ -521,7 +517,6 @@ void hf_terrain_get_render_data (const hf_terrain *t, frame_data *p_frame_data, 
 				brd->chunk_count = HF_BLOCK_CHUNK_COUNT;
 				brd->chunks = p_frame_data->allocator.allocate(sizeof(hf_terrain_chunk_render_data) * brd->chunk_count);
 				brd->splatmap = block->splatmap;
-				brd->shader_instance_id = block->shader_instance_id;
 
 				// TODO: frustum culling within this block
 				for (u32 i = 0; i < brd->chunk_count; ++i) {

@@ -70,6 +70,7 @@ b8 kohi_plugin_renderer_vulkan_create (kruntime_plugin *out_plugin) {
 	backend->texture_write_data = vulkan_renderer_texture_write_data;
 	backend->texture_read_data = vulkan_renderer_texture_read_data;
 	backend->texture_read_pixel = vulkan_renderer_texture_read_pixel;
+	backend->texture_blit_2d = vulkan_renderer_texture_blit_2d;
 
 	backend->shader_create = vulkan_renderer_shader_create;
 	backend->shader_destroy = vulkan_renderer_shader_destroy;

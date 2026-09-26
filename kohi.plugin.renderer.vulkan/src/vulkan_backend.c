@@ -2199,6 +2199,195 @@ b8 vulkan_renderer_texture_read_pixel (renderer_backend_interface *backend, ktex
 	return texture_read_offset_range(backend, texture_data, 0, 0, x, y, 1, 1, out_rgba);
 }
 
+b8 vulkan_renderer_texture_blit_2d (renderer_backend_interface *backend, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size) {
+	vulkan_context *context = (vulkan_context *)backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+	vulkan_command_buffer *command_buffer = get_current_command_buffer(context);
+
+	kwindow_renderer_backend_state *window_backend = context->current_window->renderer_state->backend_state;
+
+	vulkan_texture_handle_data *source_image_handle = &context->textures[source];
+	vulkan_image *source_image = &source_image_handle->images[window_backend->image_index];
+
+	vulkan_texture_handle_data *target_image_handle = &context->textures[target];
+	vulkan_image *target_image = &target_image_handle->images[window_backend->image_index];
+
+	VkImageMemoryBarrier before_barriers[3];
+	kzero_memory(before_barriers, sizeof(VkImageMemoryBarrier) * 3);
+	// Need a barrier to ensure all previous writes are complete.
+	{
+		VkImageMemoryBarrier *barrier = &before_barriers[0];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier->newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->image = source_image->handle;
+		barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		// Mips
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = source_image->mip_levels;
+		barrier->subresourceRange.baseArrayLayer = 0;
+		barrier->subresourceRange.layerCount = source_image->layer_count;
+
+		barrier->srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		barrier->dstAccessMask = 0;
+	}
+
+	// Start by transitioning to transfer source layout.
+	{
+		/* VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "window colour->transfer_src", vec4_one()); */
+		VkImageMemoryBarrier *barrier = &before_barriers[1];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_NONCOHERENT_BIT_EXT; // VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+		barrier->dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier->oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier->image = source_image->handle;
+		barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier->subresourceRange.baseArrayLayer = 0;
+		barrier->subresourceRange.layerCount = source_image->layer_count;
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = source_image->mip_levels;
+
+		/* VK_END_DEBUG_LABEL(context, command_buffer->handle); */
+	}
+
+	// Transition target image to transfer destination layout.
+	{
+		/* VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "swapchain img->transfer_dst", vec4_one()); */
+		VkImageMemoryBarrier *barrier = &before_barriers[2];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+		barrier->dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; // Throw out previous data
+		barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier->image = target_image->handle;
+		barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier->subresourceRange.baseArrayLayer = 0;
+		barrier->subresourceRange.layerCount = target_image->layer_count;
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = target_image->mip_levels;
+		/* VK_END_DEBUG_LABEL(context, command_buffer->handle); */
+	}
+
+	rhi->kvkCmdPipelineBarrier(
+		command_buffer->handle,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, 0, 0, 0, 0, 3, before_barriers);
+
+	// Now do the blit operation from the source image to the target image
+	{
+		/* VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "blit", vec4_one()); */
+		VkImageBlit blit_region = {};
+		blit_region.srcOffsets[0] = (VkOffset3D){source_offset.x, source_offset.y, 0}; // Starting coordinates in the source image
+		blit_region.srcOffsets[1] = (VkOffset3D){source_size.x, source_size.y, 1};	   // Ending coordinates in the source image
+		blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit_region.srcSubresource.baseArrayLayer = 0;
+		blit_region.srcSubresource.layerCount = source_image->layer_count;
+		blit_region.srcSubresource.mipLevel = 0;
+
+		blit_region.dstOffsets[0] = (VkOffset3D){target_offset.x, target_offset.y, 0}; // Starting coordinates in the target image
+		blit_region.dstOffsets[1] = (VkOffset3D){target_size.x, target_size.y, 1};	   // Ending coordinates in the target image
+		blit_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit_region.dstSubresource.baseArrayLayer = 0;
+		blit_region.dstSubresource.layerCount = target_image->layer_count;
+		blit_region.dstSubresource.mipLevel = 0;
+
+		// Perform the blit operation
+		rhi->kvkCmdBlitImage(
+			command_buffer->handle,
+			source_image->handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			target_image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &blit_region,
+			VK_FILTER_LINEAR);
+		/* VK_END_DEBUG_LABEL(context, command_buffer->handle); */
+	}
+
+	VkImageMemoryBarrier after_image_barriers[2];
+	kzero_memory(after_image_barriers, sizeof(VkImageMemoryBarrier) * 2);
+	VkBufferMemoryBarrier after_buffer_barriers[2];
+	kzero_memory(after_buffer_barriers, sizeof(VkBufferMemoryBarrier) * 2);
+
+	// Transition source back to the correct layout for rendering to
+	{
+		/* VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "window colour->att. opt.", vec4_one()); */
+		VkImageMemoryBarrier *barrier = &after_image_barriers[0];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		barrier->dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT; // VK_ACCESS_MEMORY_WRITE_BIT;
+		barrier->oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barrier->newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier->image = source_image->handle;
+		barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier->subresourceRange.baseArrayLayer = 0;
+		barrier->subresourceRange.layerCount = source_image->layer_count;
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = source_image->mip_levels;
+		/* VK_END_DEBUG_LABEL(context, command_buffer->handle); */
+	}
+
+	// Transition target for presentation. NOTE: might not be needed.
+	/* {
+		// VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "swapchain img->present", vec4_one());
+		VkImageMemoryBarrier *barrier = &after_image_barriers[1];
+		barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier->srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier->dstAccessMask = 0;
+		barrier->oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier->newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		barrier->image = target_image->handle;
+		barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier->subresourceRange.baseArrayLayer = 0;
+		barrier->subresourceRange.layerCount = target_image->layer_count;
+		barrier->subresourceRange.baseMipLevel = 0;
+		barrier->subresourceRange.levelCount = target_image->mip_levels;
+
+		// VK_END_DEBUG_LABEL(context, command_buffer->handle);
+	} */
+
+	/* // Barrier for standard vertex buffer
+	{
+		krenderbuffer vertex_buffer = renderer_renderbuffer_get(backend->frontend_state, context->standard_vertex_buffer_name);
+		vulkan_buffer *internal_vertex_buffer = &context->renderbuffers[vertex_buffer];
+		u8 index = internal_vertex_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier *barrier = &after_buffer_barriers[0];
+		barrier->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->buffer = internal_vertex_buffer->infos[index].handle;
+		barrier->offset = 0;
+		barrier->size = VK_WHOLE_SIZE;
+		barrier->srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+		barrier->dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+	}
+
+	// Barrier for index buffer
+	{
+		krenderbuffer index_buffer = renderer_renderbuffer_get(backend->frontend_state, context->index_buffer_name);
+		vulkan_buffer *internal_index_buffer = &context->renderbuffers[index_buffer];
+		u8 index = internal_index_buffer->handle_count == 1 ? 0 : get_current_image_index(context);
+		VkBufferMemoryBarrier *barrier = &after_buffer_barriers[1];
+		barrier->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier->buffer = internal_index_buffer->infos[index].handle;
+		barrier->offset = 0;
+		barrier->size = VK_WHOLE_SIZE;
+		barrier->srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+		barrier->dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	} */
+
+	rhi->kvkCmdPipelineBarrier(
+		command_buffer->handle,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		0, 0, 0, 0, KNULL, /*2, after_buffer_barriers,*/ 1, after_image_barriers);
+
+	return true;
+}
+
 b8 vulkan_renderer_shader_create (
 	renderer_backend_interface *backend,
 	kshader shader,

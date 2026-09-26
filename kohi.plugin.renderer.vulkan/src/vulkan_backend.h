@@ -75,6 +75,7 @@ b8 vulkan_renderer_texture_resize (renderer_backend_interface *backend, ktexture
 b8 vulkan_renderer_texture_write_data (renderer_backend_interface *backend, ktexture t, u32 bpp, u32 px_x, u32 px_y, i32 layer, u32 width, u32 height, const u8 *pixels, b8 defer_to_next_frame);
 b8 vulkan_renderer_texture_read_data (renderer_backend_interface *backend, ktexture t, u32 offset, u32 size, u8 **out_pixels);
 b8 vulkan_renderer_texture_read_pixel (renderer_backend_interface *backend, ktexture t, u32 x, u32 y, u8 **out_rgba);
+b8 vulkan_renderer_texture_blit_2d (renderer_backend_interface *backend, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size);
 
 b8 vulkan_renderer_shader_create (
 	renderer_backend_interface *backend,

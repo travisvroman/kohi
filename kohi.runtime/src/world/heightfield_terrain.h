@@ -127,8 +127,6 @@ typedef struct hf_block {
 	ktexture splatmap;
 	u8 *splatmap_pixels;
 
-	u32 shader_instance_id;
-
 } hf_block;
 
 // Represents the entire terrain.
@@ -187,7 +185,6 @@ typedef struct hf_terrain_chunk_render_data {
 typedef struct hf_terrain_block_render_data {
 	u64 chunk_count;
 	hf_terrain_chunk_render_data *chunks;
-	u32 shader_instance_id;
 	ktexture splatmap;
 } hf_terrain_block_render_data;
 

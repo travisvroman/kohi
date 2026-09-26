@@ -35,6 +35,7 @@
 #include <world/world_types.h>
 
 #include "assets/kasset_types.h"
+#include "core/event.h"
 #include "serializers/kasset_hf_terrain_serializer.h"
 #include "systems/asset_system.h"
 #include "systems/kmatrix_system.h"
@@ -530,6 +531,11 @@ struct kscene *kscene_create (kname scene_asset_name, const char *config, kscene
 		asset_system_release_hf_terrain(engine_systems_get()->asset_state, terrain_asset);
 	}
 
+	// Notify anything that cares.
+	event_context ctx = {0};
+	ctx.data.u64[0] = (u64)(&scene->hf);
+	event_fire(EVENT_CODE_HF_TERRAIN_LOADED, scene, ctx);
+
 	return scene;
 }
 
@@ -663,6 +669,10 @@ void kscene_destroy (struct kscene *scene) {
 	scene->bvh_debug_vertex_pool = KNULL;
 	scene->bvh_debug_pool_size = 0;
 
+	// Notify anything that cares before destroying it.
+	event_context ctx = {0};
+	ctx.data.u64[0] = (u64)(&scene->hf);
+	event_fire(EVENT_CODE_HF_TERRAIN_UNLOADED, scene, ctx);
 	// HACK: move this to a proper location.
 	hf_terrain_destroy(&scene->hf);
 
@@ -2902,7 +2912,6 @@ hf_terrain_render_data kscene_get_hf_terrain_render_data (
 		block_rd->chunk_count = HF_BLOCK_CHUNK_COUNT;
 		block_rd->chunks = p_frame_data->allocator.allocate(sizeof(hf_terrain_chunk_render_data) * block_rd->chunk_count);
 		block_rd->splatmap = block->splatmap;
-		block_rd->shader_instance_id = block->shader_instance_id;
 
 		u16 chunk_count = 0;
 		for (u16 c = 0; c < block_rd->chunk_count; ++c) {

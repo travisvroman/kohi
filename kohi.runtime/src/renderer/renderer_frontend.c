@@ -721,6 +721,13 @@ b8 renderer_texture_read_pixel (struct renderer_system_state *state, ktexture t,
 	return false;
 }
 
+b8 renderer_texture_blit_2d (struct renderer_system_state *state, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size) {
+	if (state && source != INVALID_KTEXTURE && target != INVALID_KTEXTURE) {
+		return state->backend->texture_blit_2d(state->backend, source, target, source_offset, source_size, target_offset, target_size);
+	}
+	return false;
+}
+
 void renderer_default_texture_register (struct renderer_system_state *state, renderer_default_texture default_texture, ktexture t) {
 	if (state && t != INVALID_KTEXTURE) {
 		state->default_textures[default_texture] = t;

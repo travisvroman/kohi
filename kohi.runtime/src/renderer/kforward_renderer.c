@@ -1,4 +1,6 @@
 #include "kforward_renderer.h"
+#include "containers/darray.h"
+#include "core/event.h"
 #include "systems/kmatrix_system.h"
 #include "systems/ktransform_system.h"
 #include "world/heightfield_terrain.h"
@@ -123,6 +125,9 @@ typedef struct hf_terrain_immediate_data {
 	uvec4 material_indices;
 } hf_terrain_immediate_data;
 
+static b8 hf_terrain_on_loaded (u16 code, void *sender, void *listener_inst, event_context data);
+static b8 hf_terrain_on_unloaded (u16 code, void *sender, void *listener_inst, event_context data);
+
 b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer) {
 	KASSERT_DEBUG(out_renderer);
 
@@ -142,6 +147,11 @@ b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, kt
 	out_renderer->index_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 	out_renderer->debug_identity_matrix = kmatrix_system_add(out_renderer->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
+
+	out_renderer->current_terrain = KNULL;
+	out_renderer->hf_terrain_instance_ids = darray_create(u32);
+	event_register(EVENT_CODE_HF_TERRAIN_LOADED, out_renderer, hf_terrain_on_loaded);
+	event_register(EVENT_CODE_HF_TERRAIN_UNLOADED, out_renderer, hf_terrain_on_unloaded);
 
 	// Shadow pass data
 	{
@@ -246,6 +256,9 @@ b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, kt
 
 void kforward_renderer_destroy (kforward_renderer *renderer) {
 	if (renderer) {
+		darray_destroy(renderer->hf_terrain_instance_ids);
+		renderer->hf_terrain_instance_ids = KNULL;
+
 		kfree(renderer->shadow_pass.sm_set1_instance_ids);
 	}
 }
@@ -625,14 +638,15 @@ static b8 scene_pass (
 		// Draw the terrain chunks. This assumes chunks have already been culled at this point.
 		for (u32 b = 0; b < trd->block_count; ++b) {
 			hf_terrain_block_render_data *block_data = &trd->blocks[b];
+			u32 instance_id = renderer->hf_terrain_instance_ids[b];
 
 			// Splatmap
-			kshader_set_binding_texture(shader, 1, block_data->shader_instance_id, 0, 0, block_data->splatmap);
+			kshader_set_binding_texture(shader, 1, instance_id, 0, 0, block_data->splatmap);
 			ksampler_backend splatmap_sampler = renderer_generic_sampler_get(renderer->renderer_state, SHADER_GENERIC_SAMPLER_LINEAR_CLAMP);
-			kshader_set_binding_sampler(shader, 1, block_data->shader_instance_id, 1, 0, splatmap_sampler);
+			kshader_set_binding_sampler(shader, 1, instance_id, 1, 0, splatmap_sampler);
 
 			// Ensure the binding set is applied.
-			kshader_apply_binding_set(shader, 1, block_data->shader_instance_id);
+			kshader_apply_binding_set(shader, 1, instance_id);
 
 			for (u32 c = 0; c < block_data->chunk_count; ++c) {
 				hf_terrain_chunk_render_data *chunk_data = &block_data->chunks[c];
@@ -1486,4 +1500,43 @@ b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_fr
 
 void kforward_renderer_register_stage_callback (kforward_renderer *renderer, kforward_renderer_stage stage, PFN_kforward_renderer_on_render_callback callback) {
 	renderer->stage_callbacks[stage] = callback;
+}
+
+b8 hf_terrain_on_loaded (u16 code, void *sender, void *listener_inst, event_context data) {
+	kforward_renderer *renderer = listener_inst;
+	hf_terrain *t = (hf_terrain *)data.data.u64[0];
+	u32 instance_count = t->block_count_x * t->block_count_z;
+	renderer->current_terrain = t;
+
+	for (u32 i = 0; i < instance_count; ++i) {
+		u32 inst_id = kshader_acquire_binding_set_instance(renderer->forward_pass.hf_terrain_shader, 1);
+		if (inst_id == INVALID_ID_U32) {
+			KERROR("%s:%s() - Failed to acquire instance id. See logs for details", __FILE__, __FUNCTION__);
+			return false;
+		}
+		darray_push(renderer->hf_terrain_instance_ids, &inst_id);
+	}
+
+	return false; // allow other systems to handle this too.
+}
+
+b8 hf_terrain_on_unloaded (u16 code, void *sender, void *listener_inst, event_context data) {
+	kforward_renderer *renderer = listener_inst;
+	hf_terrain *t = (hf_terrain *)data.data.u64[0];
+	u32 instance_count = t->block_count_x * t->block_count_z;
+
+	u32 len = darray_length(renderer->hf_terrain_instance_ids);
+	if (instance_count > len) {
+		KERROR("%s:%s() - Not enough instances to release. Requested = %u, available = %u. Nothing will be done.", __FILE__, __FUNCTION__, instance_count, len);
+		return false;
+	}
+	for (u32 i = 0; i < instance_count; ++i) {
+		u32 inst_id = renderer->hf_terrain_instance_ids[0];
+		kshader_release_binding_set_instance(renderer->forward_pass.hf_terrain_shader, 1, inst_id);
+		darray_pop_at(renderer->hf_terrain_instance_ids, 0, KNULL);
+	}
+
+	renderer->current_terrain = KNULL;
+
+	return false; // allow other systems to handle this too.
 }

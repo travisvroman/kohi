@@ -351,6 +351,8 @@ KAPI b8 renderer_texture_read_data (struct renderer_system_state *state, ktextur
  */
 KAPI b8 renderer_texture_read_pixel (struct renderer_system_state *state, ktexture t, u32 x, u32 y, u8 **out_rgba);
 
+KAPI b8 renderer_texture_blit_2d (struct renderer_system_state *state, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size);
+
 /**
  * @brief Registers a texture with the given handle to the default texture slot specified.
  *

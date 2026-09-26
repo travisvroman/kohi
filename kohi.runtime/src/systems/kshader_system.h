@@ -103,6 +103,13 @@ KAPI void kshader_set_immediate_data (kshader shader, const void *data, u8 size)
 KAPI void kshader_set_binding_data (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u64 offset, void *data, u64 size);
 KAPI void kshader_set_binding_texture (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ktexture texture);
 KAPI void kshader_set_binding_sampler (kshader shader, u8 binding_set, u32 instance_id, u8 binding_index, u8 array_index, ksampler_backend sampler);
+/**
+ * @brief Acquires a new instance id for the given binding set on the provided shader.
+ *
+ * @param shader A handle to the shader to be used.
+ * @param binding_set The binding set to acquire the id for.
+ * @return instance id on success; otherwise INVALID_ID_U32.
+ */
 KAPI u32 kshader_acquire_binding_set_instance (kshader shader, u8 binding_set);
 KAPI void kshader_release_binding_set_instance (kshader shader, u8 binding_set, u32 instance_id);
 KAPI u32 kshader_binding_set_instance_count_get (kshader shader, u8 binding_set);

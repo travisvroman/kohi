@@ -541,6 +541,8 @@ typedef struct renderer_backend_interface {
 	 */
 	b8 (*texture_read_pixel)(struct renderer_backend_interface *backend, ktexture t, u32 x, u32 y, u8 **out_rgba);
 
+	b8 (*texture_blit_2d)(struct renderer_backend_interface *backend, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size);
+
 	/**
 	 * @brief Creates internal shader resources using the provided parameters.
 	 *

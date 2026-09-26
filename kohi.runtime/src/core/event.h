@@ -135,21 +135,21 @@ KAPI b8 event_fire (u16 code, void *sender, event_context context);
 /** @brief System internal event codes. Application should use codes beyond 255. */
 typedef enum system_event_code {
 	/** @brief Shuts the application down on the next frame. */
-	EVENT_CODE_APPLICATION_QUIT = 0x01,
+	EVENT_CODE_APPLICATION_QUIT = 0x0001,
 
 	/** @brief Keyboard key pressed.
 	 * Context usage:
 	 * u16 key_code = data.data.u16[0];
 	 * u16 repeat_count = data.data.u16[1];
 	 */
-	EVENT_CODE_KEY_PRESSED = 0x02,
+	EVENT_CODE_KEY_PRESSED = 0x0002,
 
 	/** @brief Keyboard key released.
 	 * Context usage:
 	 * u16 key_code = data.data.u16[0];
 	 * u16 repeat_count = data.data.u16[1];
 	 */
-	EVENT_CODE_KEY_RELEASED = 0x03,
+	EVENT_CODE_KEY_RELEASED = 0x0003,
 
 	/** @brief Mouse button pressed.
 	 * Context usage:
@@ -159,7 +159,7 @@ typedef enum system_event_code {
 	 * u16 delta_y = data.data.i16[3];
 	 * u16 button = data.data.u16[4];
 	 */
-	EVENT_CODE_BUTTON_PRESSED = 0x04,
+	EVENT_CODE_BUTTON_PRESSED = 0x0004,
 
 	/** @brief Mouse button released.
 	 * Context usage:
@@ -169,7 +169,7 @@ typedef enum system_event_code {
 	 * u16 delta_y = data.data.i16[3];
 	 * u16 button = data.data.u16[4];
 	 */
-	EVENT_CODE_BUTTON_RELEASED = 0x05,
+	EVENT_CODE_BUTTON_RELEASED = 0x0005,
 
 	/** @brief Mouse button pressed then released.
 	 * Context usage:
@@ -179,7 +179,7 @@ typedef enum system_event_code {
 	 * u16 delta_y = data.data.i16[3];
 	 * u16 button = data.data.u16[4];
 	 */
-	EVENT_CODE_BUTTON_CLICKED = 0x06,
+	EVENT_CODE_BUTTON_CLICKED = 0x0006,
 
 	/** @brief Mouse moved.
 	 * Context usage:
@@ -188,7 +188,7 @@ typedef enum system_event_code {
 	 * u16 delta_x = data.data.i16[2];
 	 * u16 delta_y = data.data.i16[3];
 	 */
-	EVENT_CODE_MOUSE_MOVED = 0x07,
+	EVENT_CODE_MOUSE_MOVED = 0x0007,
 
 	/** @brief Mouse moved.
 	 * Context usage:
@@ -198,7 +198,7 @@ typedef enum system_event_code {
 	 * u16 delta_y = data.data.i16[3];
 	 * ui z_delta = data.data.i8[8];
 	 */
-	EVENT_CODE_MOUSE_WHEEL = 0x08,
+	EVENT_CODE_MOUSE_WHEEL = 0x0008,
 
 	/** @brief Resized/resolution of a window changed from the OS.
 	 * Context usage:
@@ -206,13 +206,13 @@ typedef enum system_event_code {
 	 * u16 height = data.data.u16[1];
 	 * Sender is the window itself.
 	 */
-	EVENT_CODE_WINDOW_RESIZED = 0x09,
+	EVENT_CODE_WINDOW_RESIZED = 0x0009,
 
 	// Change the render mode for debugging purposes.
 	/* Context usage:
 	 * i32 mode = context.data.i32[0];
 	 */
-	EVENT_CODE_SET_RENDER_MODE = 0x0A,
+	EVENT_CODE_SET_RENDER_MODE = 0x000A,
 
 	/** @brief Clipboard content is ready to be retrieved.
 	 * NOTE: data is freed by the platform immediately after this event is fired.
@@ -220,49 +220,49 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * struct clipboard_context* = context.data.custom_data.data, (sizeof clipboard_context)
 	 */
-	EVENT_CODE_CLIPBOARD_PASTE = 0x0B,
+	EVENT_CODE_CLIPBOARD_PASTE = 0x000B,
 
 	/** @brief Special-purpose debugging event. Context will vary over time. */
-	EVENT_CODE_DEBUG0 = 0x10,
+	EVENT_CODE_DEBUG0 = 0x0010,
 	/** @brief Special-purpose debugging event. Context will vary over time. */
-	EVENT_CODE_DEBUG1 = 0x11,
+	EVENT_CODE_DEBUG1 = 0x0011,
 	/** @brief Special-purpose debugging event. Context will vary over time. */
-	EVENT_CODE_DEBUG2 = 0x12,
+	EVENT_CODE_DEBUG2 = 0x0012,
 	/** @brief Special-purpose debugging event. Context will vary over time. */
-	EVENT_CODE_DEBUG3 = 0x13,
+	EVENT_CODE_DEBUG3 = 0x0013,
 	/** @brief Special-purpose debugging event. Context will vary over time. */
-	EVENT_CODE_DEBUG4 = 0x14,
+	EVENT_CODE_DEBUG4 = 0x0014,
 
-	EVENT_CODE_DEBUG5 = 0x15,
-	EVENT_CODE_DEBUG6 = 0x16,
-	EVENT_CODE_DEBUG7 = 0x17,
-	EVENT_CODE_DEBUG8 = 0x18,
-	EVENT_CODE_DEBUG9 = 0x19,
-	EVENT_CODE_DEBUG10 = 0x1A,
-	EVENT_CODE_DEBUG11 = 0x1B,
-	EVENT_CODE_DEBUG12 = 0x1C,
-	EVENT_CODE_DEBUG13 = 0x1D,
-	EVENT_CODE_DEBUG14 = 0x1E,
-	EVENT_CODE_DEBUG15 = 0x1F,
+	EVENT_CODE_DEBUG5 = 0x0015,
+	EVENT_CODE_DEBUG6 = 0x0016,
+	EVENT_CODE_DEBUG7 = 0x0017,
+	EVENT_CODE_DEBUG8 = 0x0018,
+	EVENT_CODE_DEBUG9 = 0x0019,
+	EVENT_CODE_DEBUG10 = 0x001A,
+	EVENT_CODE_DEBUG11 = 0x001B,
+	EVENT_CODE_DEBUG12 = 0x001C,
+	EVENT_CODE_DEBUG13 = 0x001D,
+	EVENT_CODE_DEBUG14 = 0x001E,
+	EVENT_CODE_DEBUG15 = 0x001F,
 
 	/** @brief The hovered-over object id, if there is one.
 	 * Context usage:
 	 * i32 id = context.data.u32[0]; - will be INVALID ID if nothing is hovered over.
 	 */
-	EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x20,
+	EVENT_CODE_OBJECT_HOVER_ID_CHANGED = 0x0020,
 
 	/**
 	 * @brief An event fired by the renderer backend to indicate when any render targets
 	 * associated with the default window resources need to be refreshed (i.e. a window resize)
 	 */
-	EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x21,
+	EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x0021,
 
 	/**
 	 * @brief An event fired by the kvar system when a kvar has been updated.
 	 * Context usage:
 	 * kvar_change* change = context.data.custom_data.data;
 	 */
-	EVENT_CODE_KVAR_CHANGED = 0x22,
+	EVENT_CODE_KVAR_CHANGED = 0x0022,
 
 #if KOHI_HOT_RELOAD
 	/**
@@ -271,7 +271,7 @@ typedef enum system_event_code {
 	 * u32 watch_id = context.data.u32[0];
 	 * kasset* = sender;
 	 */
-	EVENT_CODE_ASSET_HOT_RELOADED = 0x23,
+	EVENT_CODE_ASSET_HOT_RELOADED = 0x0023,
 
 	/**
 	 * @brief An event fired when a watched file has written to disk.
@@ -279,7 +279,7 @@ typedef enum system_event_code {
 	 * u32 watch_id = context.data.u32[0];
 	 * vfs_asset_data* = sender
 	 */
-	EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK = 0x24,
+	EVENT_CODE_VFS_FILE_WRITTEN_TO_DISK = 0x0024,
 
 	/**
 	 * @brief An event fired when a watched file has been removed from disk.
@@ -287,7 +287,7 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * u32 watch_id = context.data.u32[0];
 	 */
-	EVENT_CODE_VFS_FILE_DELETED_FROM_DISK = 0x25,
+	EVENT_CODE_VFS_FILE_DELETED_FROM_DISK = 0x0025,
 
 #endif
 
@@ -302,7 +302,7 @@ typedef enum system_event_code {
 	 * i16 delta_y = context.data.i16[3]
 	 * u16 button = context.data.u16[4]
 	 */
-	EVENT_CODE_MOUSE_DRAGGED = 0x30,
+	EVENT_CODE_MOUSE_DRAGGED = 0x0030,
 
 	/**
 	 * @brief An event fired when a button is pressed and a mouse movement
@@ -315,7 +315,7 @@ typedef enum system_event_code {
 	 * i16 delta_y = context.data.i16[3]
 	 * u16 button = context.data.u16[4]
 	 */
-	EVENT_CODE_MOUSE_DRAG_BEGIN = 0x31,
+	EVENT_CODE_MOUSE_DRAG_BEGIN = 0x0031,
 
 	/**
 	 * @brief An event fired when a button is released was previously dragging.
@@ -327,7 +327,7 @@ typedef enum system_event_code {
 	 * i16 delta_y = context.data.i16[3]
 	 * u16 button = context.data.u16[4]
 	 */
-	EVENT_CODE_MOUSE_DRAG_END = 0x32,
+	EVENT_CODE_MOUSE_DRAG_END = 0x0032,
 
 	/**
 	 * @brief An event fired when an animation starts.
@@ -335,7 +335,7 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * kname animation_name = context.data.u64[0]
 	 */
-	EVENT_CODE_ANIMATION_STARTED = 0x33,
+	EVENT_CODE_ANIMATION_STARTED = 0x0033,
 
 	/**
 	 * @brief An event fired when an animation completes.
@@ -343,7 +343,7 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * kname animation_name = context.data.u64[0]
 	 */
-	EVENT_CODE_ANIMATION_COMPLETE = 0x34,
+	EVENT_CODE_ANIMATION_COMPLETE = 0x0034,
 
 	/**
 	 * @brief An event fired when an audio starts playing.
@@ -351,7 +351,7 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * kname animation_name = context.data.u64[0]
 	 */
-	EVENT_CODE_AUDIO_STARTED = 0x35,
+	EVENT_CODE_AUDIO_STARTED = 0x0035,
 
 	/**
 	 * @brief An event fired when an audio completes.
@@ -360,8 +360,48 @@ typedef enum system_event_code {
 	 * kaudio base = context.data.u16[0]
 	 * instance_id = context.data.u16[1]
 	 */
-	EVENT_CODE_AUDIO_COMPLETE = 0x36,
+	EVENT_CODE_AUDIO_COMPLETE = 0x0036,
+
+	/**
+	 * @brief An event fired when a scene entity is loaded.
+	 *
+	 * Context usage:
+	 * kentity entity = context.data.u64[0]
+	 *
+	 * Sender is typically kscene*
+	 */
+	EVENT_CODE_SCENE_ENTITY_LOADED = 0x0037,
+
+	/**
+	 * @brief An event fired when a scene entity is unloaded.
+	 *
+	 * Context usage:
+	 * kentity entity = context.data.u64[0]
+	 *
+	 * Sender is typically kscene*
+	 */
+	EVENT_CODE_SCENE_ENTITY_UNLOADED = 0x0038,
+
+	/**
+	 * @brief An event fired when a heightfield terrain is loaded.
+	 *
+	 * Context usage:
+	 * addrof hf_terrain (cast to hf_terrain*) = context.data.u64[0]
+	 *
+	 * Sender is typically kscene*
+	 */
+	EVENT_CODE_HF_TERRAIN_LOADED = 0x0039,
+
+	/**
+	 * @brief An event fired when a heightfield terrain is loaded.
+	 *
+	 * Context usage:
+	 * addrof hf_terrain (cast to hf_terrain*) = context.data.u64[0]
+	 *
+	 * Sender is typically kscene*
+	 */
+	EVENT_CODE_HF_TERRAIN_UNLOADED = 0x003A,
 
 	/** @brief The maximum event code that can be used internally. */
-	MAX_EVENT_CODE = 0xFF
+	MAX_EVENT_CODE = 0x00FF
 } system_event_code;

@@ -111,6 +111,9 @@ typedef struct kforward_renderer {
 	// Max of one callback per stage. The application should split up multiple calls here if need be.
 	PFN_kforward_renderer_on_render_callback stage_callbacks[KFORWARD_RENDERER_STAGE_COUNT];
 
+	// Darray, acquired/released in bulk for rendering HF terrain.
+	hf_terrain *current_terrain;
+	u32 *hf_terrain_instance_ids;
 } kforward_renderer;
 
 typedef struct kskybox_render_data {
