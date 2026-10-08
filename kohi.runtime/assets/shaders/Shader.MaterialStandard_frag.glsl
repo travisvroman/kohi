@@ -50,12 +50,6 @@ const uint MATERIAL_STANDARD_FLAG_USE_AO_TEX = 0x0010;
 const uint MATERIAL_STANDARD_FLAG_USE_MRA_TEX = 0x0020;
 const uint MATERIAL_STANDARD_FLAG_USE_EMISSIVE_TEX = 0x0040;
 
-const uint KMATERIAL_DATA_INDEX_VIEW = 0;
-const uint KMATERIAL_DATA_INDEX_PROJECTION = 1;
-
-const uint KMATERIAL_DATA_INDEX2_ANIMATION = 0;
-const uint KMATERIAL_DATA_INDEX2_BASE_MATERIAL = 1;
-
 struct light_data {
 	// Directional light: .rgb = colour, .w = ignored - Point lights: .rgb = colour, .a = linear 
 	vec4 colour;

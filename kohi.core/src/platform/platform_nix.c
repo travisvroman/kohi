@@ -55,15 +55,29 @@ static u32 semaphore_id = 0;
 
 // NOTE: Begin threads.
 
-typedef void *(*kthread_work_callback)(void *);
+typedef struct kthread_work_info {
+	pfn_thread_start start;
+	void *params;
+} kthread_work_info;
+
+static void *kthread_do_work (void *params) {
+	kthread_work_info *info = params;
+	if (!info->start(info->params)) {
+		KERROR("Failed to start kthread due to failure in user callback. Check logs for details");
+	}
+
+	return KNULL;
+}
 
 b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
 	if (!start_function_ptr) {
 		return false;
 	}
 
-	// pthread_create uses a function pointer that returns void*, so cold-cast to this type.
-	i32 result = pthread_create((pthread_t *)&out_thread->thread_id, 0, (kthread_work_callback)start_function_ptr, params);
+	kthread_work_info info = {
+		.params = params,
+		.start = start_function_ptr};
+	i32 result = pthread_create((pthread_t *)&out_thread->thread_id, 0, kthread_do_work, &info);
 	if (result != 0) {
 		switch (result) {
 		case EAGAIN:
@@ -306,8 +320,7 @@ b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count)
 		return false;
 	}
 
-	char name_buf[20] = {0};
-	string_format_unsafe(name_buf, "/kohi_job_sem_%u", semaphore_id);
+	char *name_buf = string_format("/kohi_job_sem_%u", semaphore_id);
 	semaphore_id++;
 
 	out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
@@ -317,7 +330,7 @@ b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count)
 		KERROR("Failed to open semaphore");
 		return false;
 	}
-	internal->name = string_duplicate(name_buf);
+	internal->name = name_buf;
 
 	return true;
 }

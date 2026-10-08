@@ -21,7 +21,6 @@
 #include "core/console.h"
 #include "core/engine.h"
 #include "core/event.h"
-#include "renderer/kmaterial_renderer.h"
 #include "renderer/renderer_frontend.h"
 #include "runtime_defines.h"
 #include "systems/asset_system.h"
@@ -923,8 +922,11 @@ static b8 material_create (kmaterial_system_state *state, kmaterial material_han
 	FLAG_SET(material->flags, KMATERIAL_FLAG_CASTS_SHADOW_BIT, asset->casts_shadow);
 	FLAG_SET(material->flags, KMATERIAL_FLAG_USE_VERTEX_COLOUR_AS_BASE_COLOUR_BIT, asset->use_vertex_colour_as_base_colour);
 
-	// Register the base material with the renderer.
-	kmaterial_renderer_register_base(engine_systems_get()->material_renderer, material);
+	// Tell systems that care about it. (i.e. registering the base material with the renderer)
+	event_context evt = {0};
+	evt.data.custom_data.data = material;
+	evt.data.custom_data.size = sizeof(kmaterial_data);
+	event_fire(EVENT_CODE_MATERIAL_CREATED, KNULL, evt);
 
 	material->state = KMATERIAL_STATE_LOADED;
 
@@ -938,42 +940,18 @@ static void material_destroy (kmaterial_system_state *state, kmaterial_data *mat
 	material->state = KMATERIAL_STATE_UNINITIALIZED;
 
 	// Release texture resources/references
-	if (material->base_colour_texture) {
-		texture_release(material->base_colour_texture);
-	}
-	if (material->normal_texture) {
-		texture_release(material->normal_texture);
-	}
-	if (material->metallic_texture) {
-		texture_release(material->metallic_texture);
-	}
-	if (material->roughness_texture) {
-		texture_release(material->roughness_texture);
-	}
-	if (material->ao_texture) {
-		texture_release(material->ao_texture);
-	}
-	if (material->mra_texture) {
-		texture_release(material->mra_texture);
-	}
-	if (material->emissive_texture) {
-		texture_release(material->emissive_texture);
-	}
-	if (material->dudv_texture) {
-		texture_release(material->dudv_texture);
-	}
-	if (material->reflection_texture) {
-		texture_release(material->reflection_texture);
-	}
-	if (material->reflection_depth_texture) {
-		texture_release(material->reflection_depth_texture);
-	}
-	if (material->refraction_texture) {
-		texture_release(material->refraction_texture);
-	}
-	if (material->refraction_depth_texture) {
-		texture_release(material->refraction_depth_texture);
-	}
+	texture_release(material->base_colour_texture);
+	texture_release(material->normal_texture);
+	texture_release(material->metallic_texture);
+	texture_release(material->roughness_texture);
+	texture_release(material->ao_texture);
+	texture_release(material->mra_texture);
+	texture_release(material->emissive_texture);
+	texture_release(material->dudv_texture);
+	texture_release(material->reflection_texture);
+	texture_release(material->reflection_depth_texture);
+	texture_release(material->refraction_texture);
+	texture_release(material->refraction_depth_texture);
 
 	if (material->type == KMATERIAL_TYPE_WATER) {
 		// Immediately stop listening for resize events.
@@ -983,8 +961,11 @@ static void material_destroy (kmaterial_system_state *state, kmaterial_data *mat
 		}
 	}
 
-	// Unregister the material.
-	kmaterial_renderer_unregister_base(engine_systems_get()->material_renderer, material);
+	// Tell systems that care about it. (i.e. unregistering the base material with the renderer)
+	event_context evt = {0};
+	evt.data.custom_data.data = material;
+	evt.data.custom_data.size = sizeof(kmaterial_data);
+	event_fire(EVENT_CODE_MATERIAL_DESTROYED, KNULL, evt);
 
 	// Destroy instances.
 	u32 instance_count = darray_length(state->instances[material_index]);

@@ -55,8 +55,8 @@ typedef LONG NTSTATUS;
 } RTL_OSVERSIONINFOW; */
 
 __declspec(dllimport)
-	NTSTATUS NTAPI
-	RtlGetVersion(RTL_OSVERSIONINFOW *lpVersionInformation);
+NTSTATUS NTAPI
+RtlGetVersion (RTL_OSVERSIONINFOW *lpVersionInformation);
 
 typedef struct win32_handle_info {
 	HINSTANCE h_instance;
@@ -468,17 +468,37 @@ f32 platform_device_pixel_ratio (const struct kwindow *window) {
 	return window->platform_state->device_pixel_ratio;
 }
 
+typedef struct kthread_work_info {
+	pfn_thread_start start;
+	void *params;
+} kthread_work_info;
+
+static DWORD kthread_do_work (void *params) {
+	kthread_work_info *info = params;
+	if (!info->start(info->params)) {
+		KERROR("Failed to start kthread due to failure in user callback. Check logs for details");
+		// Nonzero exit code indicates failure.
+		return 1;
+	}
+
+	// Zero exit code indicates success.
+	return 0;
+}
+
 // NOTE: Begin threads
 b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_detach, kthread *out_thread) {
 	if (!start_function_ptr) {
 		return false;
 	}
 
+	kthread_work_info info = {
+		.params = params,
+		.start = start_function_ptr};
 	out_thread->internal_data = CreateThread(
 		0,
-		0,											// Default stack size
-		(LPTHREAD_START_ROUTINE)start_function_ptr, // function ptr
-		params,										// param to pass to thread
+		0,										 // Default stack size
+		(LPTHREAD_START_ROUTINE)kthread_do_work, // function ptr
+		&info,									 // param to pass to thread
 		0,
 		(DWORD *)&out_thread->thread_id);
 	KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);

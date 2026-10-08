@@ -3,7 +3,7 @@
 #include "defines.h"
 
 // Represents the value of a binary tree node.
-typedef union bt_node_value {
+typedef union u32_bst_node_value {
 	void *p;
 	const char *str;
 	u64 u64;

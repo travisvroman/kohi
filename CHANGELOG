@@ -23,6 +23,10 @@ Changelog
   - Added timestamps to renderer for use with frame metrics.
   - Consolidated a few straggler types from extraneous header files into more core header files.
   - Changed KNULL to actually be of type ((void *)0) instead of just 0 for more type safety. Fixed a few issues in the codebase that arose from this.
+  - Fixed an issue where platform-specific return types were ignored for thread function pointers at the platform layer.
+  - Added a u32_bst for situations that don't need such a large key. Functionally identical to u64_bst, but half-sized storage.
+  - Decoupled shader binding_set_instance_id from material, is now tracked by material renderer, which also now fires an event on (un)load so multiple systems can handle it as well.
+  - Removed unused kmaterial_data_index refrences from shaders and code.
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.

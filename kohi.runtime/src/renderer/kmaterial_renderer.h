@@ -10,6 +10,8 @@
 
 #define KRENDERBUFFER_NAME_MATERIALS_GLOBAL "Kohi.StorageBuffer.MaterialsGlobal"
 
+struct u32_bst_node;
+
 /**
  * The uniform data for a light. 32 bytes.
  * Can be used for point or directional lights.
@@ -21,6 +23,7 @@ typedef struct klight_shader_data {
 	vec4 position;
 } klight_shader_data;
 
+// Base per-material data uploaded to SSBO on the GPU.
 typedef struct base_material_shader_data {
 	u32 metallic_texture_channel;
 	u32 roughness_texture_channel;
@@ -52,6 +55,7 @@ typedef struct base_material_shader_data {
 	f32 emissive_texture_intensity;
 } base_material_shader_data;
 
+// Global material shader settings uploaded to GPU in the global uniform buffer.
 typedef struct kmaterial_settings_ubo {
 	mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
 
@@ -82,16 +86,7 @@ typedef struct kmaterial_settings_ubo {
 	u32 mat_ssbo_genc_offset;
 } kmaterial_settings_ubo;
 
-typedef enum kmaterial_data_index {
-	KMATERIAL_DATA_INDEX_VIEW = 0,
-	KMATERIAL_DATA_INDEX_PROJECTION = 1
-} kmaterial_data_index;
-
-typedef enum kmaterial_data_index2 {
-	KMATERIAL_DATA_INDEX2_ANIMATION = 0,
-	KMATERIAL_DATA_INDEX2_BASE_MATERIAL = 1
-} kmaterial_data_index2;
-
+// Immediate data uploaded to GPU.
 typedef struct kmaterial_render_immediate_data {
 	// bytes 0-15
 	u32 view_index;
@@ -153,6 +148,9 @@ typedef struct kmaterial_renderer {
 	struct texture_system_state *texture_system;
 	struct kmaterial_system_state *material_state;
 
+	// Lookup of kmaterial->binding_set_instance_id
+	struct u32_bst_node *lookup;
+
 	u32 max_material_count;
 
 	// Renderer state settings.
@@ -171,10 +169,6 @@ KAPI void kmaterial_renderer_update (kmaterial_renderer *state);
 
 KAPI void kmaterial_renderer_set_fog_colour (kmaterial_renderer *state, colour4 colour);
 KAPI void kmaterial_renderer_set_fog_near_far (kmaterial_renderer *state, f32 near, f32 far);
-
-// Sets material_data->group_id;
-KAPI void kmaterial_renderer_register_base (kmaterial_renderer *state, kmaterial_data *material_data);
-KAPI void kmaterial_renderer_unregister_base (kmaterial_renderer *state, kmaterial_data *material_data);
 
 KAPI void kmaterial_renderer_set_irradiance_cubemap_textures (kmaterial_renderer *state, u8 count, ktexture *irradiance_cubemap_textures);
 

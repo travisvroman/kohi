@@ -11,7 +11,7 @@ typedef struct work {
 	void *params;
 } work;
 
-static u32 worker_thread_loop (void *params) {
+static b8 worker_thread_loop (void *params) {
 	worker_thread *thread = params;
 
 	while (true) {
@@ -24,7 +24,7 @@ static u32 worker_thread_loop (void *params) {
 		if (!queue_pop(&thread->work_queue, &w)) {
 			KERROR("Failed to pop work from work queue.");
 			kmutex_unlock(&thread->queue_mutex);
-			return 0;
+			return false;
 		}
 		kmutex_unlock(&thread->queue_mutex);
 		w.work_fn(w.params);
@@ -32,7 +32,7 @@ static u32 worker_thread_loop (void *params) {
 
 	KTRACE("Worker thread work complete.");
 
-	return 1;
+	return true;
 }
 
 b8 worker_thread_create (worker_thread *out_thread) {

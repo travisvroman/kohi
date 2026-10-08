@@ -159,7 +159,7 @@ static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend);
 
 static b8 stream_data (kaudio_backend_interface *backend, ALuint buffer, kaudio_space audio_space, kaudio audio);
 static b8 openal_backend_stream_update (kaudio_backend_interface *plugin, kaudio_plugin_source *source);
-static u32 source_work_thread (void *params);
+static b8 source_work_thread (void *params);
 static b8 source_set_defaults (kaudio_backend_interface *backend, kaudio_plugin_source *source, b8 reset_use);
 static b8 openal_backend_channel_create (kaudio_backend_interface *backend, kaudio_plugin_source *out_source);
 static void openal_backend_channel_destroy (kaudio_backend_interface *backend, kaudio_plugin_source *source);
@@ -840,7 +840,7 @@ static b8 openal_backend_stream_update (kaudio_backend_interface *backend, kaudi
 	return true;
 }
 
-static u32 source_work_thread (void *params) {
+static b8 source_work_thread (void *params) {
 	ksource_work_thread_params *typed_params = params;
 	kaudio_backend_interface *backend = typed_params->backend;
 	kaudio_backend_state *state = backend->internal_state;
@@ -855,7 +855,7 @@ static u32 source_work_thread (void *params) {
 	while (!do_break) {
 		if (!source->data_mutex.internal_data) {
 			// This can happen during unexpected shutdown, and if so kill the thread.
-			return 0;
+			return true;
 		}
 		kmutex_lock(&source->data_mutex);
 		if (source->trigger_exit) {
@@ -879,7 +879,7 @@ static u32 source_work_thread (void *params) {
 	}
 
 	KDEBUG("Audio source thread shutting down.");
-	return 0;
+	return true;
 }
 
 static b8 source_set_defaults (kaudio_backend_interface *backend, kaudio_plugin_source *source, b8 reset_use) {

@@ -91,7 +91,7 @@ static void store_result (pfn_job_on_complete callback, u32 param_size, void *pa
 	}
 }
 
-static u32 job_thread_run (void *params) {
+static b8 job_thread_run (void *params) {
 	u32 index = *(u32 *)params;
 	job_thread *thread = &state_ptr->job_threads[index];
 	KTRACE("Starting job thread #%i (id=%#x, type=%#x).", thread->index, thread->thread.thread_id, thread->type_mask);
@@ -99,13 +99,13 @@ static u32 job_thread_run (void *params) {
 	// A mutex to lock info for this thread.
 	if (!kmutex_create(&thread->info_mutex)) {
 		KERROR("Failed to create job thread mutex! Aborting thread.");
-		return 0;
+		return false;
 	}
 
 	// Create a semaphore for the thread which will block until there is work to do.
 	if (!ksemaphore_create(&thread->semaphore, 1, 1)) {
 		KERROR("Failed to create job thread semaphore! Aborting thread.");
-		return 0;
+		return false;
 	}
 
 	// Run forever, waiting for jobs.
@@ -180,7 +180,7 @@ static u32 job_thread_run (void *params) {
 	// Destroy the semaphore.
 	ksemaphore_destroy(&thread->semaphore);
 
-	return 1;
+	return true;
 }
 
 b8 job_system_initialize (u64 *job_system_memory_requirement, void *state, void *config) {

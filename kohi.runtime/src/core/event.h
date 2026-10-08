@@ -402,6 +402,24 @@ typedef enum system_event_code {
 	 */
 	EVENT_CODE_HF_TERRAIN_UNLOADED = 0x003A,
 
+	/**
+	 * @brief An event fired when a material is created.
+	 *
+	 * Context usage:
+	 * addrof kmaterial_data (cast to kmaterial_data*) = context.custom_data.data
+	 * sizeof kmaterial_data = context.custom_data.size
+	 */
+	EVENT_CODE_MATERIAL_CREATED = 0x003B,
+
+	/**
+	 * @brief An event fired when a material is destroyed.
+	 *
+	 * Context usage:
+	 * addrof kmaterial_data (cast to kmaterial_data*) = context.custom_data.data
+	 * sizeof kmaterial_data = context.custom_data.size
+	 */
+	EVENT_CODE_MATERIAL_DESTROYED = 0x003C,
+
 	/** @brief The maximum event code that can be used internally. */
 	MAX_EVENT_CODE = 0x00FF
 } system_event_code;

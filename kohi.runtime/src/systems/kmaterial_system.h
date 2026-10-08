@@ -28,16 +28,16 @@
 #define KMATERIAL_MAX_POINT_LIGHTS 10
 
 #define KMATERIAL_DEFAULT_BASE_COLOUR_VALUE \
-	(vec4) { 1.0f, 1.0f, 1.0f, 1.0f }
+	(vec4){1.0f, 1.0f, 1.0f, 1.0f}
 #define KMATERIAL_DEFAULT_NORMAL_VALUE \
-	(vec3) { 0.0f, 0.0f, 1.0f }
+	(vec3){0.0f, 0.0f, 1.0f}
 #define KMATERIAL_DEFAULT_NORMAL_ENABLED true
 #define KMATERIAL_DEFAULT_METALLIC_VALUE 0.0f
 #define KMATERIAL_DEFAULT_ROUGHNESS_VALUE 0.5f
 #define KMATERIAL_DEFAULT_AO_VALUE 1.0f
 #define KMATERIAL_DEFAULT_AO_ENABLED true
 #define KMATERIAL_DEFAULT_MRA_VALUE \
-	(vec3) { 0.0f, 0.5f, 1.0f }
+	(vec3){0.0f, 0.5f, 1.0f}
 #define KMATERIAL_DEFAULT_MRA_ENABLED true
 #define KMATERIAL_DEFAULT_HAS_TRANSPARENCY false
 #define KMATERIAL_DEFAULT_MASKED false
@@ -187,9 +187,6 @@ typedef struct kmaterial_data {
 	// Affects wave movement speed for a water material.
 	f32 wave_speed;
 	f32 tiling;
-
-	// Shader binding set id for base material data.
-	u32 binding_set_id;
 
 } kmaterial_data;
 

@@ -1,7 +1,7 @@
 /**
  * @file darray.h
  * @author Travis Vroman (travis@kohiengine.com)
- * @brief This files contains an implementation of a dynamic array.
+ * @brief This file contains an implementation of a dynamic array.
  *
  * @details
  * Memory layout:

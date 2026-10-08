@@ -15,7 +15,7 @@ typedef struct kthread {
 } kthread;
 
 // A function pointer to be invoked when the thread starts.
-typedef u32 (*pfn_thread_start)(void *);
+typedef b8 (*pfn_thread_start)(void *);
 
 /**
  * Creates a new thread, immediately calling the function pointed to.
