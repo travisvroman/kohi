@@ -821,6 +821,27 @@ KAPI const char *string_filename_no_extension_from_path (const char *path);
 KAPI const char *string_extension_from_path (const char *path, b8 include_dot);
 
 /**
+ * @brief Convert local file URI (i.e. file://) to a filesystem path.
+ *
+ * NOTE: This function dynamically allocates string memory. The string should be freed by the caller.
+ *
+ * @param uri The file URI to decode.
+ * @returns The decoded local file path on success; otherwise KNULL.
+ */
+KAPI const char *string_from_file_uri (const char *uri);
+
+/**
+ * @brief Convert local file URI (i.e. file://) to a filesystem path.
+ * Marked as unsafe due to potential buffer overflow. Use string_from_file_uri() instead.
+ *
+ * @param uri The file URI to decode.
+ * @param out A buffer to hold the decoded file path.
+ * @param capacity The max capacity of the buffer.
+ * @returns True on success; otherwise false.
+ */
+KAPI b8 string_from_file_uri_unsafe (const char *uri, char *out, u64 capacity);
+
+/**
  * @brief Attempts to extract an array length from a given string. Ex: a string of sampler2D[4] will return True and set out_length to 4.
  * @param str The string to examine.
  * @param out_length A pointer to hold the length, if extracted successfully.

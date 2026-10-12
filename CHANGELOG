@@ -1,6 +1,6 @@
 Changelog
 
-- 0.13.0
+- 0.13.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Project now uses C99 (with POSIX.1-2008 for time, threads, etc. on GNU/Linux and MacOS). As a result, a full clean/rebuild should be done when updating to this version.
   - Due to the above, darray_push and darray_insert_at both now require pointers to data being inserted, and no longer accept rvalues. The entire codebase has been updated to reflect this.
   - Ran formatting pass across the entire codebase to fix various formatting issues (i.e. idiot stars)
@@ -27,6 +27,9 @@ Changelog
   - Added a u32_bst for situations that don't need such a large key. Functionally identical to u64_bst, but half-sized storage.
   - Decoupled shader binding_set_instance_id from material, is now tracked by material renderer, which also now fires an event on (un)load so multiple systems can handle it as well.
   - Removed unused kmaterial_data_index refrences from shaders and code.
+  - Removed systemd dependencies on Linux for open file dialog and replaced with lower-level dbus implementation.
+  - Added a few utility functions to the string and math libs for decoding file:/// uris.
+  - Open File dialog now offers a bit more context in its reporting. User cancellation is handled separately from an error state now.
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.

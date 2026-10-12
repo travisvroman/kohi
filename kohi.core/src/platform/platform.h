@@ -509,8 +509,14 @@ typedef struct platform_open_file_dialog_options {
 	const char *filter;
 } platform_open_file_dialog_options;
 
+typedef enum platform_open_file_dialog_op_result {
+	PLATFORM_OFD_OP_RESULT_SUCCESS,
+	PLATFORM_OFD_OP_RESULT_USER_CANCELLED,
+	PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE,
+} platform_open_file_dialog_op_result;
+
 typedef struct platform_open_file_dialog_result {
-	b8 success;
+	platform_open_file_dialog_op_result result;
 	u8 file_count;
 	const char **file_paths;
 } platform_open_file_dialog_result;

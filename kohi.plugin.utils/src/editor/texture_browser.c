@@ -418,11 +418,11 @@ static b8 texture_browser_import_button_clicked (struct kui_state *state, kui_co
 		.filter = "Image Files (*.bmp;*.jpg;*.gif;*.png)|*.bmp;*.jpg;*.gif;*.png|All files (*.*)|*.*",
 	};
 	platform_open_file_dialog_result result = platform_open_file_dialog_open(options);
-	if (result.success) {
+	if (result.result == PLATFORM_OFD_OP_RESULT_SUCCESS) {
 		u8 success_count = 0;
 		kpackage *package = vfs_package_get(engine_systems_get()->vfs_system_state, tb->game_package_name);
 		const char *package_dir = string_directory_from_path(package->manifest_file_path);
-		KTRACE("Open file dialog success: %s", bool_to_string(result.success));
+		KTRACE("Open file dialog success");
 		for (u8 i = 0; i < result.file_count; ++i) {
 			KTRACE("File selected (%u): '%s'", i, result.file_paths[i]);
 

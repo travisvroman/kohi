@@ -54,7 +54,7 @@ install_fedora_deps() {
 	# Update package cache
 	sudo dnf check-update >/dev/null 2>&1 || true
 
-	if ! sudo $pkg_mgr_cmd install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel assimp-devel; then
+	if ! sudo $pkg_mgr_cmd install git make clang libX11-devel libxcb-devel libxkbcommon-devel dbus-devel openal-soft-devel assimp-devel; then
 		echo "Error: Failed to install dependencies for Fedora."
 		return 1
 	fi
@@ -85,7 +85,7 @@ install_debian_deps() {
 	# Update package cache
 	sudo apt-get update >/dev/null 2>&1 || true
 
-	if ! sudo apt-get install -y llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libsystemd-dev libassimp-dev libopenal1 libopenal-dev libstdc++-14-dev; then
+	if ! sudo apt-get install -y llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev libdbus-1-dev libassimp-dev libopenal1 libopenal-dev libstdc++-14-dev; then
 		echo "Error: Failed to install dependencies for Debian/Ubuntu."
 		return 1
 	fi
@@ -128,7 +128,7 @@ install_arch_deps() {
 	sudo pacman -Syu >/dev/null 2>&1 || true
 
 	# TODO: This is definitely not the entire package list required for Arch...
-	if ! sudo pacman -S llvm git make libx11 libxkbcommon-x11 pkgconf xcb-util xcb-util-keysyms assimp openal; then
+	if ! sudo pacman -S llvm git make libx11 libxkbcommon-x11 pkgconf xcb-util xcb-util-keysyms assimp openal dbus; then
 		echo "Error: Failed to install dependencies for Arch."
 		return 1
 	fi

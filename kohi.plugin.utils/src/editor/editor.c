@@ -1833,7 +1833,8 @@ static void editor_command_execute (console_command_context context) {
 			.filter = "Image Files (*.bmp;*.jpg;*.gif;*.png)|*.bmp;*.jpg;*.gif;*.png|All files (*.*)|*.*",
 		};
 		platform_open_file_dialog_result result = platform_open_file_dialog_open(options);
-		KTRACE("Open file dialog success: %s", bool_to_string(result.success));
+		KTRACE("Open file dialog result: %s", result.result == PLATFORM_OFD_OP_RESULT_SUCCESS ? "success" : result.result == PLATFORM_OFD_OP_RESULT_USER_CANCELLED ? "cancelled"
+																																								   : "internal error");
 		for (u8 i = 0; i < result.file_count; ++i) {
 			KTRACE("File selected (%u): '%s'", i, result.file_paths[i]);
 		}

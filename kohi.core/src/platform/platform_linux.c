@@ -13,6 +13,10 @@
 #		define XRANDR_ROTATION_RIGHT (1 << 9)
 #	endif
 
+#	include <stddef.h>
+#	include <stdio.h>
+#	include <string.h>
+
 #	include <X11/XKBlib.h>	  // sudo apt-get install libx11-dev
 #	include <X11/Xlib-xcb.h> // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
 #	include <X11/Xlib.h>
@@ -43,10 +47,10 @@
 #	include <sys/sysinfo.h> // Processor info
 #	include <sys/utsname.h>
 #	include <unistd.h>
-#	include <systemd/sd-bus.h>
-#	include <systemd/sd-bus-protocol.h>
 #	include <dlfcn.h> // dlopen
 #	include <fcntl.h> // open, O_CREAT, etc.
+#	include <dbus/dbus.h>
+#	include <dbus/dbus-protocol.h>
 
 #	include "defines.h"
 #	include "containers/darray.h"
@@ -109,22 +113,38 @@ typedef struct internal_clipboard_state {
 
 } internal_clipboard_state;
 
-typedef int (*PFN_sd_bus_open_user)(sd_bus **ret);
-typedef int (*PFN_sd_bus_call_method)(sd_bus *bus, const char *destination, const char *path, const char *interface, const char *member, sd_bus_error *reterr_error, sd_bus_message **ret_reply, const char *types, ...);
-typedef int (*PFN_sd_bus_message_new_method_call)(sd_bus *bus, sd_bus_message **ret, const char *destination, const char *path, const char *interface, const char *member);
-typedef int (*PFN_sd_bus_call)(sd_bus *bus, sd_bus_message *m, uint64_t usec, sd_bus_error *reterr_error, sd_bus_message **ret_reply);
-typedef int (*PFN_sd_bus_message_read)(sd_bus_message *m, const char *types, ...);
-typedef int (*PFN_sd_bus_message_skip)(sd_bus_message *m, const char *types);
-typedef int (*PFN_sd_bus_message_append)(sd_bus_message *m, const char *types, ...);
-typedef int (*PFN_sd_bus_message_append_array)(sd_bus_message *m, char type, const void *ptr, size_t size);
-typedef int (*PFN_sd_bus_add_match)(sd_bus *bus, sd_bus_slot **ret_slot, const char *match, sd_bus_message_handler_t callback, void *userdata);
-typedef int (*PFN_sd_bus_process)(sd_bus *bus, sd_bus_message **ret);
-typedef int (*PFN_sd_bus_wait)(sd_bus *bus, uint64_t timeout_usec);
-typedef sd_bus *(*PFN_sd_bus_unref)(sd_bus *bus);
-typedef int (*PFN_sd_bus_message_enter_container)(sd_bus_message *m, char type, const char *contents);
-typedef int (*PFN_sd_bus_message_exit_container)(sd_bus_message *m);
-typedef int (*PFN_sd_bus_message_open_container)(sd_bus_message *m, char type, const char *contents);
-typedef int (*PFN_sd_bus_message_close_container)(sd_bus_message *m);
+typedef void (*PFN_dbus_error_init)(DBusError *error);
+typedef void (*PFN_dbus_error_free)(DBusError *error);
+typedef dbus_bool_t (*PFN_dbus_error_is_set)(const DBusError *error);
+typedef DBusMessage *(*PFN_dbus_connection_send_with_reply_and_block)(DBusConnection *connection, DBusMessage *message, int timeout_milliseconds, DBusError *error);
+typedef DBusConnection *(*PFN_dbus_bus_get)(DBusBusType type, DBusError *error);
+typedef void (*PFN_dbus_bus_add_match)(DBusConnection *connection, const char *rule, DBusError *error);
+typedef DBusMessage *(*PFN_dbus_message_new_method_call)(const char *bus_name, const char *path, const char *iface, const char *method);
+typedef void (*PFN_dbus_message_iter_init_append)(DBusMessage *message, DBusMessageIter *iter);
+typedef dbus_bool_t (*PFN_dbus_message_iter_append_basic)(DBusMessageIter *iter, int type, const void *value);
+typedef dbus_bool_t (*PFN_dbus_message_iter_append_fixed_array)(DBusMessageIter *iter, int element_type, const void *value, int n_elements);
+typedef dbus_bool_t (*PFN_dbus_message_iter_open_container)(DBusMessageIter *iter, int type, const char *contained_signature, DBusMessageIter *sub);
+typedef dbus_bool_t (*PFN_dbus_message_iter_close_container)(DBusMessageIter *iter, DBusMessageIter *sub);
+typedef dbus_bool_t (*PFN_dbus_message_get_args)(DBusMessage *message, DBusError *error, int first_arg_type, ...);
+typedef DBusMessage *(*PFN_dbus_connection_pop_message)(DBusConnection *connection);
+typedef dbus_bool_t (*PFN_dbus_message_is_signal)(DBusMessage *message, const char *iface, const char *signal_name);
+typedef const char *(*PFN_dbus_message_get_path)(DBusMessage *message);
+typedef void (*PFN_dbus_message_unref)(DBusMessage *message);
+typedef dbus_bool_t (*PFN_dbus_connection_read_write)(DBusConnection *connection, int timeout_milliseconds);
+typedef dbus_bool_t (*PFN_dbus_message_iter_init)(DBusMessage *message, DBusMessageIter *iter);
+typedef dbus_bool_t (*PFN_dbus_message_iter_next)(DBusMessageIter *iter);
+typedef void (*PFN_dbus_message_iter_recurse)(DBusMessageIter *iter, DBusMessageIter *sub);
+typedef int (*PFN_dbus_message_iter_get_arg_type)(DBusMessageIter *iter);
+typedef void (*PFN_dbus_message_iter_get_basic)(DBusMessageIter *iter, void *value);
+
+#	define KDECLARE_DBUS_PFN(name) PFN_##name name
+
+#	define KLOAD_DBUS_PFN(name)                                                         \
+		state->name = dlsym(state->dbus_lib, #name);                                     \
+		if (!state->name) {                                                              \
+			KERROR("Linux platform layer failed to load PFN '%s' from dbus-1.0.", #name) \
+			return false;                                                                \
+		}
 
 typedef struct platform_state {
 	Display *display;
@@ -152,26 +172,37 @@ typedef struct platform_state {
 
 	internal_clipboard_state clipboard;
 
-	void *sd_bus_lib;
-	b8 kill_sd_bus_loop;
-	PFN_sd_bus_open_user ksd_bus_open_user;
-	PFN_sd_bus_call_method ksd_bus_call_method;
-	PFN_sd_bus_message_new_method_call ksd_bus_message_new_method_call;
-	PFN_sd_bus_call ksd_bus_call;
-	PFN_sd_bus_message_read ksd_bus_message_read;
-	PFN_sd_bus_message_skip ksd_bus_message_skip;
-	PFN_sd_bus_message_append ksd_bus_message_append;
-	PFN_sd_bus_message_append_array ksd_bus_message_append_array;
-	PFN_sd_bus_add_match ksd_bus_add_match;
-	PFN_sd_bus_process ksd_bus_process;
-	PFN_sd_bus_wait ksd_bus_wait;
-	PFN_sd_bus_unref ksd_bus_unref;
-	PFN_sd_bus_message_enter_container ksd_bus_message_enter_container;
-	PFN_sd_bus_message_exit_container ksd_bus_message_exit_container;
-	PFN_sd_bus_message_open_container ksd_bus_message_open_container;
-	PFN_sd_bus_message_close_container ksd_bus_message_close_container;
-	const char **ofd_files_temp;
+	void *dbus_lib;
+	KDECLARE_DBUS_PFN (dbus_error_init);
+	KDECLARE_DBUS_PFN (dbus_error_free);
+	KDECLARE_DBUS_PFN (dbus_error_is_set);
+	KDECLARE_DBUS_PFN (dbus_connection_send_with_reply_and_block);
+	KDECLARE_DBUS_PFN (dbus_bus_get);
+	KDECLARE_DBUS_PFN (dbus_bus_add_match);
+	KDECLARE_DBUS_PFN (dbus_message_new_method_call);
+	KDECLARE_DBUS_PFN (dbus_message_iter_init_append);
+	KDECLARE_DBUS_PFN (dbus_message_iter_append_basic);
+	KDECLARE_DBUS_PFN (dbus_message_iter_append_fixed_array);
+	KDECLARE_DBUS_PFN (dbus_message_iter_open_container);
+	KDECLARE_DBUS_PFN (dbus_message_iter_close_container);
+	KDECLARE_DBUS_PFN (dbus_message_get_args);
+	KDECLARE_DBUS_PFN (dbus_connection_pop_message);
+	KDECLARE_DBUS_PFN (dbus_message_is_signal);
+	KDECLARE_DBUS_PFN (dbus_message_get_path);
+	KDECLARE_DBUS_PFN (dbus_message_unref);
+	KDECLARE_DBUS_PFN (dbus_connection_read_write);
+	KDECLARE_DBUS_PFN (dbus_message_iter_init);
+	KDECLARE_DBUS_PFN (dbus_message_iter_next);
+	KDECLARE_DBUS_PFN (dbus_message_iter_recurse);
+	KDECLARE_DBUS_PFN (dbus_message_iter_get_arg_type);
+	KDECLARE_DBUS_PFN (dbus_message_iter_get_basic);
 } platform_state;
+
+typedef struct ofd_file_filter {
+	const char *name;
+	const char **patterns;
+	u64 pattern_count;
+} ofd_file_filter;
 
 static platform_state *state_ptr;
 
@@ -180,6 +211,20 @@ static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev)
 // Key translation
 static keys translate_keycode (u32 x_keycode);
 static kwindow *window_from_handle (xcb_window_t window);
+
+#	define OFD_DBUS_PORTAL_NAME "org.freedesktop.portal.Desktop"
+#	define OFD_DBUS_PORTAL_PATH "/org/freedesktop/portal/desktop"
+#	define OFD_DBUS_PORTAL_INTERFACE "org.freedesktop.portal.FileChooser"
+#	define OFD_DBUS_REQUEST_INTERFACE "org.freedesktop.portal.Request"
+
+static i32 kdbus_append_bool_variant (DBusMessageIter *dict, const char *key, b8 value);
+// Appends a dictionary entry containing a string variant.
+static i32 kdbus_append_string_variant (DBusMessageIter *dict, const char *key, const char *value);
+// Appends a dictionary entry containing a byte-array variant.
+static i32 kdbus_append_byte_array_variant (DBusMessageIter *dict, const char *key, const u8 *bytes, i32 length);
+static i32 kdbus_append_filters_variant (DBusMessageIter *dict, const ofd_file_filter *filters, u64 filter_count);
+// >= 0 = number of paths obtained, 0 = user cancelled, -1 = internal error
+static char **extract_selected_path (DBusMessage *message, i32 *out_result);
 
 static xcb_atom_t intern_atom (xcb_connection_t *conn, const char *name) {
 	xcb_intern_atom_cookie_t cookie = xcb_intern_atom(conn, 0, string_length(name), name);
@@ -286,28 +331,42 @@ b8 platform_system_startup (u64 *memory_requirement, struct platform_state *stat
 
 	state->windows = darray_create(kwindow *);
 
-	state->kill_sd_bus_loop = false;
-	state->sd_bus_lib = dlopen("libsystemd.so", RTLD_LOCAL | RTLD_NOW);
-	if (state->sd_bus_lib) {
-		state->ksd_bus_open_user = dlsym(state->sd_bus_lib, "sd_bus_open_user");
-		state->ksd_bus_call_method = dlsym(state->sd_bus_lib, "sd_bus_call_method");
-		state->ksd_bus_message_new_method_call = dlsym(state->sd_bus_lib, "sd_bus_message_new_method_call");
-		state->ksd_bus_call = dlsym(state->sd_bus_lib, "sd_bus_call");
-		state->ksd_bus_message_read = dlsym(state->sd_bus_lib, "sd_bus_message_read");
-		state->ksd_bus_message_skip = dlsym(state->sd_bus_lib, "sd_bus_message_skip");
-		state->ksd_bus_message_append = dlsym(state->sd_bus_lib, "sd_bus_message_append");
-		state->ksd_bus_message_append_array = dlsym(state->sd_bus_lib, "sd_bus_message_append_array");
-		state->ksd_bus_add_match = dlsym(state->sd_bus_lib, "sd_bus_add_match");
-		state->ksd_bus_process = dlsym(state->sd_bus_lib, "sd_bus_process");
-		state->ksd_bus_wait = dlsym(state->sd_bus_lib, "sd_bus_wait");
-		state->ksd_bus_unref = dlsym(state->sd_bus_lib, "sd_bus_unref");
-		state->ksd_bus_message_enter_container = dlsym(state->sd_bus_lib, "sd_bus_message_enter_container");
-		state->ksd_bus_message_exit_container = dlsym(state->sd_bus_lib, "sd_bus_message_exit_container");
-		state->ksd_bus_message_open_container = dlsym(state->sd_bus_lib, "sd_bus_message_open_container");
-		state->ksd_bus_message_close_container = dlsym(state->sd_bus_lib, "sd_bus_message_close_container");
+	// DBus functions are loaded dynamically to avoid the hard dependency on it.
+	// Things depending on it won't execute if it doesn't load, but it won't prevent
+	// the entire system from running this way.
+	state->dbus_lib = dlopen("libdbus-1.so.3", RTLD_LOCAL | RTLD_NOW);
+	if (!state->dbus_lib) {
+		state->dbus_lib = dlopen("libdbus-1.so", RTLD_LOCAL | RTLD_NOW);
+	}
+
+	if (state->dbus_lib) {
+		KLOAD_DBUS_PFN(dbus_error_init);
+		KLOAD_DBUS_PFN(dbus_error_free);
+		KLOAD_DBUS_PFN(dbus_error_is_set);
+		KLOAD_DBUS_PFN(dbus_connection_send_with_reply_and_block);
+		KLOAD_DBUS_PFN(dbus_bus_get);
+		KLOAD_DBUS_PFN(dbus_bus_add_match);
+		KLOAD_DBUS_PFN(dbus_message_new_method_call);
+		KLOAD_DBUS_PFN(dbus_message_iter_init_append);
+		KLOAD_DBUS_PFN(dbus_message_iter_append_basic);
+		KLOAD_DBUS_PFN(dbus_message_iter_append_fixed_array);
+		KLOAD_DBUS_PFN(dbus_message_iter_open_container);
+		KLOAD_DBUS_PFN(dbus_message_iter_close_container);
+		KLOAD_DBUS_PFN(dbus_message_get_args);
+		KLOAD_DBUS_PFN(dbus_connection_pop_message);
+		KLOAD_DBUS_PFN(dbus_message_is_signal);
+		KLOAD_DBUS_PFN(dbus_message_get_path);
+		KLOAD_DBUS_PFN(dbus_message_unref);
+		KLOAD_DBUS_PFN(dbus_connection_read_write);
+		KLOAD_DBUS_PFN(dbus_message_iter_init);
+		KLOAD_DBUS_PFN(dbus_message_iter_next);
+		KLOAD_DBUS_PFN(dbus_message_iter_recurse);
+		KLOAD_DBUS_PFN(dbus_message_iter_get_arg_type);
+		KLOAD_DBUS_PFN(dbus_message_iter_get_basic);
 	} else {
 		KERROR("Linux platform error: Unable to load sd-bus. Some platform functions (such as browsing for files) may not be available.");
 	}
+
 	return true;
 }
 
@@ -487,8 +546,8 @@ b8 platform_window_create (const kwindow_config *config, struct kwindow *window,
 
 	// Tell the server to notify when the window manager
 	// attempts to destroy the window.
-	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
-	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_PROTOCOLS"), "WM_PROTOCOLS");
+	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, string_length("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
+	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, string_length("WM_PROTOCOLS"), "WM_PROTOCOLS");
 	xcb_intern_atom_reply_t *wm_delete_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_delete_cookie, NULL);
 	xcb_intern_atom_reply_t *wm_protocols_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_protocols_cookie, NULL);
 	state_ptr->wm_delete_win = wm_delete_reply->atom;
@@ -1349,9 +1408,9 @@ static u32 linux_physical_core_count (void) {
 	char line[256];
 	while (fgets(line, sizeof(line), f)) {
 
-		if (strncmp(line, "physical id", 11) == 0) {
+		if (strings_nequal(line, "physical id", 11)) {
 			sscanf(line, "physical id : %d", &physical_id);
-		} else if (strncmp(line, "core id", 7) == 0) {
+		} else if (strings_nequal(line, "core id", 7)) {
 			sscanf(line, "core id : %d", &core_id);
 		} else if (line[0] == '\n') {
 			/* end of one processor block */
@@ -1450,7 +1509,7 @@ static void linux_cpu (ksystem_info *s) {
 			struct dirent *entry;
 			u32 freq_khz = 0;
 			while ((entry = readdir(dir)) != NULL) {
-				if (strncmp(entry->d_name, "cpu", 3) == 0 && kisdigit(entry->d_name[3])) {
+				if (strings_nequal(entry->d_name, "cpu", 3) && kisdigit(entry->d_name[3])) {
 					char path[256];
 					ksnprintf(path, sizeof(path),
 							  "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
@@ -1490,8 +1549,8 @@ static void linux_os (ksystem_info *s) {
 	struct utsname u;
 	uname(&u);
 
-	strcpy(s->os_name, "Linux");
-	strcpy(s->kernel_version, u.release);
+	string_copy(s->os_name, "Linux");
+	string_copy(s->kernel_version, u.release);
 
 	FILE *f = fopen("/etc/os-release", "r");
 	if (!f) {
@@ -1500,7 +1559,7 @@ static void linux_os (ksystem_info *s) {
 
 	char line[256];
 	while (fgets(line, sizeof(line), f)) {
-		if (strncmp(line, "PRETTY_NAME=", 12) == 0) {
+		if (strings_nequal(line, "PRETTY_NAME=", 12)) {
 			sscanf(line, "PRETTY_NAME=\"%[^\"]\"", s->distro);
 		}
 	}
@@ -1542,21 +1601,21 @@ static kdrive_type linux_classify_drive (
 		return KDRIVE_TYPE_NO_ROOT_DIR;
 
 	// 2. RAM disk
-	if (!strcmp(fs_type, "tmpfs") || !strcmp(fs_type, "ramfs"))
+	if (strings_equal(fs_type, "tmpfs") || strings_equal(fs_type, "ramfs"))
 		return KDRIVE_TYPE_RAMDISK;
 
 	// 3. Network drive
-	if (!strcmp(fs_type, "nfs") ||
-		!strcmp(fs_type, "nfs4") ||
-		!strcmp(fs_type, "cifs") ||
-		!strcmp(fs_type, "smbfs") ||
-		!strcmp(fs_type, "sshfs") ||
-		!strcmp(fs_type, "fuse.sshfs") ||
-		!strcmp(fs_type, "davfs"))
+	if (strings_equal(fs_type, "nfs") ||
+		strings_equal(fs_type, "nfs4") ||
+		strings_equal(fs_type, "cifs") ||
+		strings_equal(fs_type, "smbfs") ||
+		strings_equal(fs_type, "sshfs") ||
+		strings_equal(fs_type, "fuse.sshfs") ||
+		strings_equal(fs_type, "davfs"))
 		return KDRIVE_TYPE_REMOTE;
 
 	// Only real block devices below this point
-	if (strncmp(device, "/dev/", 5) != 0)
+	if (strings_nequal(device, "/dev/", 5))
 		return KDRIVE_TYPE_UNKNOWN;
 
 	// Extract parent disk: sda1 → sda, nvme0n1p2 → nvme0n1
@@ -1609,14 +1668,14 @@ static void linux_query_storage (ksystem_info *s) {
 				continue;
 
 			// Only real block devices
-			if (strncmp(device, "/dev/", 5) != 0)
+			if (strings_nequal(device, "/dev/", 5))
 				continue;
 
 			// Skip pseudo FS
-			if (!strcmp(fs, "tmpfs") ||
-				!strcmp(fs, "proc") ||
-				!strcmp(fs, "sysfs") ||
-				!strcmp(fs, "devtmpfs"))
+			if (strings_equal(fs, "tmpfs") ||
+				strings_equal(fs, "proc") ||
+				strings_equal(fs, "sysfs") ||
+				strings_equal(fs, "devtmpfs"))
 				continue;
 
 			struct statvfs vfs;
@@ -1624,8 +1683,8 @@ static void linux_query_storage (ksystem_info *s) {
 				continue;
 
 			kstorage_info *m = &s->storage[s->storage_count++];
-			strncpy(m->name, device, sizeof(m->name));
-			strncpy(m->mount_point, mount, sizeof(m->mount_point));
+			string_ncopy(m->name, device, sizeof(m->name));
+			string_ncopy(m->mount_point, mount, sizeof(m->mount_point));
 			m->total_bytes = (u64)vfs.f_blocks * vfs.f_frsize;
 			m->free_bytes = (u64)vfs.f_bavail * vfs.f_frsize;
 			m->type = linux_classify_drive(device, mount, fs);
@@ -1644,7 +1703,7 @@ static u32 linux_get_ram_speed_mhz (void) {
 
 	while ((ent = readdir(dir)) != NULL) {
 		// Memory Device (Type 17)
-		if (strncmp(ent->d_name, "17-", 3) != 0)
+		if (strings_nequal(ent->d_name, "17-", 3))
 			continue;
 
 		char path[512];
@@ -1684,9 +1743,9 @@ b8 platform_system_info_collect (ksystem_info *out_info) {
 	out_info->ram_speed_mhz = linux_get_ram_speed_mhz();
 
 #	if defined(__x86_64__)
-	strcpy(out_info->cpu_arch, "x86_64");
+	string_copy(out_info->cpu_arch, "x86_64");
 #	elif defined(__aarch64__)
-	strcpy(out_info->cpu_arch, "arm_64");
+	string_copy(out_info->cpu_arch, "arm_64");
 	detect_arm_features(&out_info->features);
 #	endif
 
@@ -1763,60 +1822,7 @@ void platform_clipboard_content_set (kwindow *window, kclipboard_content_type ty
 	xcb_flush(state_ptr->handle.connection);
 }
 
-static i32 openfiledialog_on_response (sd_bus_message *m, void *user_data, sd_bus_error *error) {
-	u32 response;
-	state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_STRUCT, "u a{sv}");
-
-	// 0=success, 1=cancel
-	state_ptr->ksd_bus_message_read(m, "u", &response);
-	if (response != 0) {
-		KTRACE("User cancelled.");
-		state_ptr->kill_sd_bus_loop = true;
-		return 0;
-	}
-
-	// Read the results dictionary
-	state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
-
-	state_ptr->ofd_files_temp = darray_create(const char *);
-
-	const char *key;
-	while (state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv")) {
-		state_ptr->ksd_bus_message_read(m, "s", &key);
-		if (strings_equal(key, "uris")) {
-			state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_VARIANT, "as");
-			state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "s");
-
-			const char *uri;
-			while (state_ptr->ksd_bus_message_read(m, "s", &uri)) {
-				// Add to selection list, sanitizing "file://" from the front.
-				// TODO: May need to decode this path too, to handle spaces, etc.
-				char *turi = string_duplicate(uri + 7);
-				darray_push(state_ptr->ofd_files_temp, &turi);
-				/* KTRACE("Selected: '%s'", uri); */
-			}
-
-			state_ptr->ksd_bus_message_exit_container(m); // array
-			state_ptr->ksd_bus_message_exit_container(m); // variant
-		} else {
-			state_ptr->ksd_bus_message_skip(m, "v");
-		}
-
-		state_ptr->ksd_bus_message_exit_container(m); // dictionary entry
-	}
-
-	state_ptr->kill_sd_bus_loop = true;
-
-	return 0;
-}
-
-typedef struct open_file_filter_type_data {
-	const char *description;
-	u8 extension_count;
-	const char **extensions;
-} open_file_filter_type_data;
-
-static open_file_filter_type_data *parse_open_file_filters (const char *filter_str, u8 *out_count) {
+static ofd_file_filter *parse_open_file_filters (const char *filter_str, u8 *out_count) {
 	if (!filter_str || !out_count) {
 		return KNULL;
 	}
@@ -1830,17 +1836,17 @@ static open_file_filter_type_data *parse_open_file_filters (const char *filter_s
 	}
 
 	u32 type_count = parts_count / 2;
-	open_file_filter_type_data *types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
+	ofd_file_filter *types = KALLOC_TYPE_CARRAY(ofd_file_filter, type_count);
 	for (u32 i = 0; i < type_count; ++i) {
 		char **extensions = darray_create(char *);
 		u32 extensions_count = string_split(parts[(i * 2) + 1], ';', &extensions, true, false, false);
-		open_file_filter_type_data type_data = {
-			.description = string_duplicate(parts[(i * 2)]),
-			.extension_count = (u8)extensions_count,
+		ofd_file_filter type_data = {
+			.name = string_duplicate(parts[(i * 2)]),
+			.pattern_count = (u8)extensions_count,
 		};
-		type_data.extensions = KALLOC_TYPE_CARRAY(const char *, extensions_count);
+		type_data.patterns = KALLOC_TYPE_CARRAY(const char *, extensions_count);
 		for (u8 j = 0; j < extensions_count; ++j) {
-			type_data.extensions[j] = string_duplicate(extensions[j]);
+			type_data.patterns[j] = string_duplicate(extensions[j]);
 		}
 		string_cleanup_split_darray(extensions);
 
@@ -1854,150 +1860,170 @@ static open_file_filter_type_data *parse_open_file_filters (const char *filter_s
 }
 
 platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
+	DBusConnection *connection;
+	DBusMessage *call = KNULL;
+	DBusMessage *reply = KNULL;
+	DBusMessage *signal = KNULL;
+	DBusMessageIter args, opts;
+	DBusError error;
+	const char *request_path;
+	const char *empty_parent = "";
+	char match_rule[512];
+	ofd_file_filter *types;
+
+	types = KNULL;
+
 	platform_open_file_dialog_result result = {
 		.file_count = 0,
 		.file_paths = KNULL,
-		.success = false,
+		.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE,
 	};
-	if (!state_ptr->sd_bus_lib) {
-		KERROR("Linux platform: open file dialog not available.");
+
+	state_ptr->dbus_error_init(&error);
+	connection = state_ptr->dbus_bus_get(DBUS_BUS_SESSION, &error);
+	if (!connection) {
+		KERROR("Failed to connect to bus. Open file dialog cannot open. Error='%s'.", error.message ? error.message : "unknown error");
+		state_ptr->dbus_error_free(&error);
 		return result;
 	}
 
-	state_ptr->kill_sd_bus_loop = false;
-
-	sd_bus *bus = KNULL;
-	sd_bus_message *m = KNULL;
-	sd_bus_message *reply = KNULL;
-	sd_bus_error err = SD_BUS_ERROR_NULL;
-
-	i32 r = state_ptr->ksd_bus_open_user(&bus);
-	if (r < 0) {
-		KERROR("Failed to connect to bus. Open file dialog cannot open.");
+	state_ptr->dbus_bus_add_match(connection, "type='signal',interface='org.freedesktop.portal.Request',member='Response'", &error);
+	if (state_ptr->dbus_error_is_set(&error)) {
+		KERROR("DBus match error: '%s'.", error.message ? error.message : "unknown error");
+		state_ptr->dbus_error_free(&error);
 		return result;
 	}
 
-	r = state_ptr->ksd_bus_message_new_method_call(
-		bus,
-		&m,
-		"org.freedesktop.portal.Desktop",
-		"/org/freedesktop/portal/desktop",
-		"org.freedesktop.portal.FileChooser",
-		"OpenFile");
+	call = state_ptr->dbus_message_new_method_call(OFD_DBUS_PORTAL_NAME, OFD_DBUS_PORTAL_PATH, OFD_DBUS_PORTAL_INTERFACE, "OpenFile");
+	if (!call) {
+		goto ofd_open_cleanup;
+	}
 
-	// Parent and title
+	state_ptr->dbus_message_iter_init_append(call, &args);
+
+	// Parent window identifier.
+	if (!state_ptr->dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &empty_parent)) {
+		goto ofd_open_cleanup;
+	}
+
+	// Dialog title.
 	const char *title = (options.title) ? options.title : "Open File";
-	state_ptr->ksd_bus_message_append(m, "ss", "", title);
+	if (!state_ptr->dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &title)) {
+		goto ofd_open_cleanup;
+	}
 
-	// Options dictionary
-	state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
+	// Options dict.
+	if (!state_ptr->dbus_message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &opts)) {
+		goto ofd_open_cleanup;
+	}
+
+	if (options.starting_dir) {
+		u32 len = string_length(options.starting_dir);
+		if (len > U32_MAX) {
+			goto ofd_open_cleanup;
+		}
+
+		if (!kdbus_append_byte_array_variant(&opts, "current_folder", (const u8 *)options.starting_dir, (i32)len)) {
+			goto ofd_open_cleanup;
+		}
+	}
 
 	// multiselect
 	if (options.allow_multiselect) {
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
-		state_ptr->ksd_bus_message_append(m, "s", "multiple");
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, "b");
-		state_ptr->ksd_bus_message_append(m, "b", 1);
-		state_ptr->ksd_bus_message_close_container(m); // Close variant
-		state_ptr->ksd_bus_message_close_container(m); // Close dict entry
-	}
-
-	// starting_dir
-	{
-		const char *path = options.starting_dir ? options.starting_dir : ".";
-
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
-		state_ptr->ksd_bus_message_append(m, "s", "current_folder");
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, "ay");
-		state_ptr->ksd_bus_message_append_array(m, SD_BUS_TYPE_BYTE, path, string_length(path));
-		state_ptr->ksd_bus_message_close_container(m); // Close variant
-		state_ptr->ksd_bus_message_close_container(m); // Close dict entry
+		// NOTE: only add if the value is true.
+		if (!kdbus_append_bool_variant(&opts, "multiple", true)) {
+			goto ofd_open_cleanup;
+		}
 	}
 
 	// Filters, if included. If not, a default of *.*/all files is assumed.
 	if (options.filter) {
 		u8 type_count = 0;
-		open_file_filter_type_data *types = parse_open_file_filters(options.filter, &type_count);
+		types = parse_open_file_filters(options.filter, &type_count);
 		if (type_count > 0) {
-			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
-			state_ptr->ksd_bus_message_append(m, "s", "filters");
-			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, "a(sa(us))");
-			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, "(sa(us))");
+			if (!kdbus_append_filters_variant(&opts, types, type_count)) {
+				goto ofd_open_cleanup;
+			}
+		}
+	}
 
-			// Each type
-			for (u8 i = 0; i < type_count; ++i) {
-				open_file_filter_type_data *type = &types[i];
-				state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_STRUCT, "sa(us)");
-				state_ptr->ksd_bus_message_append(m, "s", type->description);
-				KTRACE("Type desc: '%s'", type->description);
+	if (!state_ptr->dbus_message_iter_close_container(&args, &opts)) {
+		goto ofd_open_cleanup;
+	}
 
-				state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, "(us)");
+	reply = state_ptr->dbus_connection_send_with_reply_and_block(connection, call, DBUS_TIMEOUT_USE_DEFAULT, &error);
+	if (!reply) {
+		KERROR("OpenFile error: '%s'.", error.message ? error.message : "unknown error");
+		state_ptr->dbus_error_free(&error);
+		goto ofd_open_cleanup;
+	}
 
-				// Each extension for the type.
-				for (u8 j = 0; j < type->extension_count; ++j) {
-					const char *ext = type->extensions[j];
-					KTRACE("ext: '%s'", ext);
-					state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_STRUCT, "us");
-					state_ptr->ksd_bus_message_append(m, "u", 0);
-					state_ptr->ksd_bus_message_append(m, "s", ext);
-					state_ptr->ksd_bus_message_close_container(m); // struct
-																   //
+	if (!state_ptr->dbus_message_get_args(reply, &error, DBUS_TYPE_OBJECT_PATH, &request_path, DBUS_TYPE_INVALID)) {
+		KERROR("OpenFile reply error: '%s'.", error.message ? error.message : "invalid reply");
+		state_ptr->dbus_error_free(&error);
+		goto ofd_open_cleanup;
+	}
+
+	string_nformat(match_rule, sizeof(match_rule), "type='signal',interface='org.freedesktop.portal.Request',member='Response',path='%s'", request_path);
+
+	for (;;) {
+		DBusMessage *msg;
+		const char *path;
+
+		while ((msg = state_ptr->dbus_connection_pop_message(connection)) != KNULL) {
+			if (state_ptr->dbus_message_is_signal(msg, OFD_DBUS_REQUEST_INTERFACE, "Response")) {
+				path = state_ptr->dbus_message_get_path(msg);
+
+				if (path && strings_equal(path, request_path)) {
+					dbus_uint32_t response = 1;
+					if (state_ptr->dbus_message_get_args(msg, &error, DBUS_TYPE_UINT32, &response, DBUS_TYPE_INVALID)) {
+						if (response == 0) {
+							i32 extracted_count = 0;
+							char **paths = extract_selected_path(msg, &extracted_count);
+							result.result = (extracted_count >= 1) ? PLATFORM_OFD_OP_RESULT_SUCCESS : (extracted_count == 0) ? PLATFORM_OFD_OP_RESULT_USER_CANCELLED
+																															 : PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE;
+							// Return a standard C array, not a darray.
+							result.file_count = darray_length(paths);
+							result.file_paths = KALLOC_TYPE_CARRAY(const char *, result.file_count);
+							for (u8 i = 0; i < result.file_count; ++i) {
+								result.file_paths[i] = paths[i];
+								KTRACE("path[%u]: '%s", i, paths[i]);
+							}
+							darray_destroy(paths);
+						} else if (response == 1) {
+							result.result = PLATFORM_OFD_OP_RESULT_USER_CANCELLED;
+						} else {
+							result.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE; // Portal reported failure.
+						}
+					} else {
+						state_ptr->dbus_error_free(&error);
+						result.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE;
+					}
+
+					state_ptr->dbus_message_unref(msg);
+					goto ofd_open_cleanup;
 				}
-
-				state_ptr->ksd_bus_message_close_container(m); // type exts array
-				state_ptr->ksd_bus_message_close_container(m); // type struct
 			}
 
-			// Close filters containers
-			state_ptr->ksd_bus_message_close_container(m); // array
-			state_ptr->ksd_bus_message_close_container(m); // variant
-			state_ptr->ksd_bus_message_close_container(m); // struct
+			state_ptr->dbus_message_unref(msg);
+		}
+
+		if (!state_ptr->dbus_connection_read_write(connection, -1)) {
+			goto ofd_open_cleanup;
 		}
 	}
-	state_ptr->ksd_bus_message_close_container(m); // Close options
 
-	state_ptr->ksd_bus_call(bus, m, 0, &err, &reply);
-
-	if (r < 0) {
-		KERROR("Call failed with '%s'. Open file dialog cannot open.", err.message);
-		return result;
+ofd_open_cleanup:
+	if (signal) {
+		state_ptr->dbus_message_unref(signal);
+	}
+	if (reply) {
+		state_ptr->dbus_message_unref(reply);
+	}
+	if (call) {
+		state_ptr->dbus_message_unref(call);
 	}
 
-	// Read returned object path.
-	const char *request_path = KNULL;
-	state_ptr->ksd_bus_message_read(reply, "o", &request_path);
-
-	KTRACE("Request path: '%s'", request_path);
-
-	// Listen for response signal.
-	state_ptr->ksd_bus_add_match(
-		bus,
-		KNULL,
-		"type='signal',interface='org.freedesktop.portal.Request'",
-		openfiledialog_on_response,
-		KNULL // user_data
-	);
-
-	// Event loop
-	while (true) {
-		state_ptr->ksd_bus_process(bus, KNULL);
-		state_ptr->ksd_bus_wait(bus, (u64)500000); // Half second between iterations.
-		if (state_ptr->kill_sd_bus_loop) {
-			break;
-		}
-	}
-	state_ptr->kill_sd_bus_loop = false;
-
-	// Read from results list here and return listing of file paths.
-	result.success = state_ptr->ofd_files_temp != KNULL;
-	result.file_count = (u8)darray_length(state_ptr->ofd_files_temp);
-	if (result.success) {
-		KDUPLICATE_TYPE_CARRAY(result.file_paths, state_ptr->ofd_files_temp, const char *, result.file_count);
-	}
-	darray_destroy(state_ptr->ofd_files_temp);
-	state_ptr->ofd_files_temp = KNULL;
-
-	state_ptr->ksd_bus_unref(bus);
 	return result;
 }
 
@@ -2414,6 +2440,270 @@ static keys translate_keycode (u32 x_keycode) {
 	default:
 		return 0;
 	}
+}
+
+// Appends a dictionary entry containing a bool variant.
+static i32 kdbus_append_bool_variant (DBusMessageIter *dict, const char *key, b8 value) {
+	DBusMessageIter entry, variant;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "b", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_BOOLEAN, &value)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+// Appends a dictionary entry containing a string variant.
+static i32 kdbus_append_string_variant (DBusMessageIter *dict, const char *key, const char *value) {
+	DBusMessageIter entry, variant;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &value)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+// Appends a dictionary entry containing a byte-array variant.
+static i32 kdbus_append_byte_array_variant (DBusMessageIter *dict, const char *key, const u8 *bytes, i32 length) {
+	DBusMessageIter entry, variant, array;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "ay", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&variant, DBUS_TYPE_ARRAY, "y", &array)) {
+		return 0;
+	}
+
+	if (length > 0 && !state_ptr->dbus_message_iter_append_fixed_array(&array, DBUS_TYPE_BYTE, &bytes, length)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&variant, &array)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+static i32 kdbus_append_filters_variant (DBusMessageIter *dict, const ofd_file_filter *filters, u64 filter_count) {
+	DBusMessageIter entry, variant, array;
+	u64 i, j;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	const char *key = "filters";
+	if (!state_ptr->dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "a(sa(us))", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&variant, DBUS_TYPE_ARRAY, "(sa(us))", &array)) {
+		return 0;
+	}
+
+	for (i = 0; i < filter_count; ++i) {
+		DBusMessageIter structure, patterns;
+
+		if (!state_ptr->dbus_message_iter_open_container(&array, DBUS_TYPE_STRUCT, KNULL, &structure)) {
+			return 0;
+		}
+
+		if (!state_ptr->dbus_message_iter_append_basic(&structure, DBUS_TYPE_STRING, &filters[i].name)) {
+			return 0;
+		}
+
+		if (!state_ptr->dbus_message_iter_open_container(&structure, DBUS_TYPE_ARRAY, "(us)", &patterns)) {
+			return 0;
+		}
+
+		for (j = 0; j < filters[i].pattern_count; ++j) {
+			DBusMessageIter pattern;
+			dbus_uint32_t type = 0;
+			const char *text = filters[i].patterns[j];
+
+			if (!state_ptr->dbus_message_iter_open_container(&patterns, DBUS_TYPE_STRUCT, KNULL, &pattern)) {
+				return 0;
+			}
+
+			if (!state_ptr->dbus_message_iter_append_basic(&pattern, DBUS_TYPE_UINT32, &type)) {
+				return 0;
+			}
+
+			if (!state_ptr->dbus_message_iter_append_basic(&pattern, DBUS_TYPE_STRING, &text)) {
+				return 0;
+			}
+
+			if (!state_ptr->dbus_message_iter_close_container(&patterns, &pattern)) {
+				return 0;
+			}
+		}
+
+		if (!state_ptr->dbus_message_iter_close_container(&structure, &patterns)) {
+			return 0;
+		}
+
+		if (!state_ptr->dbus_message_iter_close_container(&array, &structure)) {
+			return 0;
+		}
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&variant, &array)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+// out_result: >0 = number of paths obtained, 0 = user cancelled, -1 = error
+static char **extract_selected_path (DBusMessage *message, i32 *out_result) {
+	DBusMessageIter iter, dict;
+	char **out_paths;
+
+	out_paths = KNULL;
+	*out_result = -2;
+
+	if (!state_ptr->dbus_message_iter_init(message, &iter)) {
+		*out_result = -1;
+		goto extract_selected_path_cleanup;
+	}
+
+	// Response arguments: u32 response, a{sv} results
+	if (state_ptr->dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_UINT32) {
+		*out_result = -1;
+		goto extract_selected_path_cleanup;
+	}
+
+	state_ptr->dbus_message_iter_next(&iter);
+
+	if (state_ptr->dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+		*out_result = -1;
+		goto extract_selected_path_cleanup;
+	}
+
+	state_ptr->dbus_message_iter_recurse(&iter, &dict);
+
+	while (state_ptr->dbus_message_iter_get_arg_type(&dict) != DBUS_TYPE_INVALID) {
+		DBusMessageIter entry, value;
+
+		state_ptr->dbus_message_iter_recurse(&dict, &entry);
+
+		if (state_ptr->dbus_message_iter_get_arg_type(&entry) != DBUS_TYPE_STRING) {
+			*out_result = -1;
+			goto extract_selected_path_cleanup;
+		}
+
+		const char *key;
+		state_ptr->dbus_message_iter_get_basic(&entry, &key);
+
+		if (strings_equal(key, "uris")) {
+			state_ptr->dbus_message_iter_next(&entry);
+
+			if (state_ptr->dbus_message_iter_get_arg_type(&entry) != DBUS_TYPE_VARIANT) {
+				*out_result = -1;
+				goto extract_selected_path_cleanup;
+			}
+
+			state_ptr->dbus_message_iter_recurse(&entry, &value);
+
+			if (state_ptr->dbus_message_iter_get_arg_type(&value) != DBUS_TYPE_ARRAY) {
+				*out_result = -1;
+				goto extract_selected_path_cleanup;
+			}
+
+			state_ptr->dbus_message_iter_recurse(&value, &entry);
+
+			if (state_ptr->dbus_message_iter_get_arg_type(&entry) != DBUS_TYPE_STRING) {
+				*out_result = -1;
+				goto extract_selected_path_cleanup;
+			}
+
+			const char *uri;
+			state_ptr->dbus_message_iter_get_basic(&entry, &uri);
+
+			// Add to the list of strings.
+			const char *val = string_from_file_uri(uri);
+			if (val) {
+				if (!out_paths) {
+					out_paths = darray_create(char *);
+				}
+
+				darray_push(out_paths, &val);
+			}
+		}
+
+		state_ptr->dbus_message_iter_next(&dict);
+	}
+
+	*out_result = darray_length(out_paths);
+
+extract_selected_path_cleanup:
+	if (*out_result < 1) {
+		if (out_paths) {
+			u32 len = darray_length(out_paths);
+			for (u32 i = 0; i < len; ++i) {
+				kfree(out_paths[i]);
+			}
+			darray_destroy(out_paths);
+			out_paths = KNULL;
+		}
+	}
+
+	return out_paths;
 }
 
 #endif

@@ -61,6 +61,23 @@ f32 klog2 (f32 x) { return log2f(x); }
 
 f32 kpow (f32 x, f32 y) { return powf(x, y); }
 
+// Decode a hexadecimal digit.
+i32 hex_value (char c) {
+	if (c >= '0' && c <= '9') {
+		return c - '0';
+	}
+
+	if (c >= 'a' && c <= 'f') {
+		return c - 'a' + 10;
+	}
+
+	if (c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	}
+
+	return -1;
+}
+
 void _ksrand (u32 seed) {
 	if (seed != 0) {
 		rand_state = seed;

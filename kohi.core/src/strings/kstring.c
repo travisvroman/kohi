@@ -1903,6 +1903,71 @@ const char *string_extension_from_path (const char *path, b8 include_dot) {
 	return out_str;
 }
 
+const char *string_from_file_uri (const char *uri) {
+	if (!uri) {
+		return KNULL;
+	}
+
+	char buf[4096];
+	if (!string_from_file_uri_unsafe(uri, buf, 4095)) {
+		return KNULL;
+	}
+
+	return string_duplicate(buf);
+}
+
+b8 string_from_file_uri_unsafe (const char *uri, char *out, u64 capacity) {
+	const char *p;
+	u64 n;
+
+	n = 0;
+	if (kstr_ncmp(uri, "file:///", 8) != 0) {
+		return false;
+	}
+
+	p = uri + 7; // NOTE: retain the leading slash.
+
+	while (*p && *p != '#') {
+		u8 c = (u8)*p++;
+
+		if (c == '?') {
+			return false;
+		}
+
+		if (c == '%') {
+			i32 hi, lo;
+
+			if (!p[0] || !p[1]) {
+				return false;
+			}
+
+			hi = hex_value(p[0]);
+			lo = hex_value(p[1]);
+
+			if (hi < 0 || lo < 0) {
+				return false;
+			}
+
+			c = (u8)((hi << 4) | lo);
+			p += 2;
+
+			// Disallow encoded nul bytes in path.
+			if (c == '\0') {
+				return false;
+			}
+		}
+
+		if (n + 1 >= capacity) {
+			return false;
+		}
+
+		out[n++] = (char)c;
+	}
+
+	out[n] = '\0';
+	return true;
+}
+
 b8 string_parse_array_length (const char *str, u32 *out_length) {
 	if (!str || !out_length) {
 		return false;
