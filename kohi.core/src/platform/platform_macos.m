@@ -1342,6 +1342,7 @@ static open_file_filter_type_data *parse_open_file_filters (const char *filter_s
 
 platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
 	platform_open_file_dialog_result ofd_result = {0};
+	ofd_result.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE;
 
 	@autoreleasepool {
 		NSOpenPanel *panel = [NSOpenPanel openPanel];
@@ -1393,9 +1394,9 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 				ofd_result.file_paths[i] = string_duplicate(path);
 				++i;
 			}
-			ofd_result.success = true;
+			ofd_result.result = PLATFORM_OFD_OP_RESULT_SUCCESS;
 		} else {
-			ofd_result.success = false;
+			ofd_result.result = PLATFORM_OFD_OP_RESULT_USER_CANCELLED;
 		}
 
 		return ofd_result;
