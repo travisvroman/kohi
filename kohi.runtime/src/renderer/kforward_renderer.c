@@ -256,6 +256,9 @@ b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, kt
 
 void kforward_renderer_destroy (kforward_renderer *renderer) {
 	if (renderer) {
+		event_unregister(EVENT_CODE_HF_TERRAIN_LOADED, renderer, hf_terrain_on_loaded);
+		event_unregister(EVENT_CODE_HF_TERRAIN_UNLOADED, renderer, hf_terrain_on_unloaded);
+
 		darray_destroy(renderer->hf_terrain_instance_ids);
 		renderer->hf_terrain_instance_ids = KNULL;
 

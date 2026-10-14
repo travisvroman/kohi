@@ -52,6 +52,7 @@ typedef struct nix_semaphore_internal {
 } nix_semaphore_internal;
 
 static u32 semaphore_id = 0;
+static kmutex *semaphore_id_mutex = KNULL;
 
 // NOTE: Begin threads.
 
@@ -66,6 +67,11 @@ static void *kthread_do_work (void *params) {
 		KERROR("Failed to start kthread due to failure in user callback. Check logs for details");
 	}
 
+	// Ensure the info is freed.
+	if (info) {
+		kfree(info);
+	}
+
 	return KNULL;
 }
 
@@ -74,20 +80,25 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 		return false;
 	}
 
-	kthread_work_info info = {
-		.params = params,
-		.start = start_function_ptr};
-	i32 result = pthread_create((pthread_t *)&out_thread->thread_id, 0, kthread_do_work, &info);
+	// NOTE: this gets freed within kthread_do_work(), so unless the thread fails to create
+	// there is no need to do it elsewhere.
+	kthread_work_info *info = KALLOC_TYPE(kthread_work_info, MEMORY_TAG_PLATFORM);
+	info->params = params;
+	info->start = start_function_ptr;
+	i32 result = pthread_create((pthread_t *)&out_thread->thread_id, 0, kthread_do_work, info);
 	if (result != 0) {
 		switch (result) {
 		case EAGAIN:
 			KERROR("Failed to create thread: insufficient resources to create another thread.");
+			kfree(info);
 			return false;
 		case EINVAL:
 			KERROR("Failed to create thread: invalid settings were passed in attributes..");
+			kfree(info);
 			return false;
 		default:
 			KERROR("Failed to create thread: an unhandled error has occurred. errno=%i", result);
+			kfree(info);
 			return false;
 		}
 	}
@@ -95,8 +106,7 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 
 	// Only save off the handle if not auto-detaching.
 	if (!auto_detach) {
-		out_thread->internal_data = platform_allocate(sizeof(u64), false);
-		*(u64 *)out_thread->internal_data = out_thread->thread_id;
+		out_thread->internal_data = info;
 	} else {
 		// If immediately detaching, make sure the operation is a success.
 		result = pthread_detach((pthread_t)out_thread->thread_id);
@@ -104,12 +114,15 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 			switch (result) {
 			case EINVAL:
 				KERROR("Failed to detach newly-created thread: thread is not a joinable thread.");
+				kfree(info);
 				return false;
 			case ESRCH:
 				KERROR("Failed to detach newly-created thread: no thread with the id %#x could be found.", out_thread->thread_id);
+				kfree(info);
 				return false;
 			default:
 				KERROR("Failed to detach newly-created thread: an unknown error has occurred. errno=%i", result);
+				kfree(info);
 				return false;
 			}
 		}
@@ -119,14 +132,14 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 }
 
 void kthread_destroy (kthread *thread) {
-	if (thread->internal_data) {
+	if (thread->thread_id) {
 		kthread_cancel(thread);
 	}
 }
 
 void kthread_detach (kthread *thread) {
-	if (thread->internal_data) {
-		i32 result = pthread_detach(*(pthread_t *)thread->internal_data);
+	if (thread->thread_id) {
+		i32 result = pthread_detach(*(pthread_t *)thread->thread_id);
 		if (result != 0) {
 			switch (result) {
 			case EINVAL:
@@ -140,15 +153,14 @@ void kthread_detach (kthread *thread) {
 				break;
 			}
 		}
-		platform_free(thread->internal_data, false, sizeof(pthread_mutex_t));
+		thread->internal_data = KNULL;
 		thread->thread_id = 0;
-		thread->internal_data = 0;
 	}
 }
 
 void kthread_cancel (kthread *thread) {
-	if (thread->internal_data) {
-		i32 result = pthread_cancel(*(pthread_t *)thread->internal_data);
+	if (thread->thread_id) {
+		i32 result = pthread_cancel(*(pthread_t *)thread->thread_id);
 		if (result != 0) {
 			switch (result) {
 			case ESRCH:
@@ -159,15 +171,14 @@ void kthread_cancel (kthread *thread) {
 				break;
 			}
 		}
-		platform_free(thread->internal_data, false, sizeof(pthread_mutex_t));
-		thread->internal_data = 0;
+		thread->internal_data = KNULL;
 		thread->thread_id = 0;
 	}
 }
 
 b8 kthread_is_active (kthread *thread) {
 	// TODO: Find a better way to verify this.
-	return thread->internal_data != 0;
+	return thread->thread_id != 0;
 }
 
 void kthread_sleep (kthread *thread, u64 ms) {
@@ -175,11 +186,9 @@ void kthread_sleep (kthread *thread, u64 ms) {
 }
 
 b8 kthread_wait (kthread *thread) {
-	if (thread && thread->internal_data) {
-		i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
-		// When a thread is joined, its lifecycle ends.
-		platform_free(thread->internal_data, false, sizeof(pthread_mutex_t));
-		thread->internal_data = 0;
+	if (thread && thread->thread_id) {
+		i32 result = pthread_join(*(pthread_t *)thread->thread_id, 0);
+		thread->internal_data = KNULL;
 		thread->thread_id = 0;
 		if (result == 0) {
 			return true;
@@ -189,13 +198,11 @@ b8 kthread_wait (kthread *thread) {
 }
 
 b8 kthread_wait_timeout (kthread *thread, u64 wait_ms) {
-	if (thread && thread->internal_data) {
+	if (thread && thread->thread_id) {
 		KWARN("kthread_wait_timeout - timeout not supported on this platform.");
-		// LEFTOFF: Need a wait/notify loop to support timeout.
-		i32 result = pthread_join(*(pthread_t *)thread->internal_data, 0);
-		// When a thread is joined, its lifecycle ends.
-		platform_free(thread->internal_data, false, sizeof(pthread_mutex_t));
-		thread->internal_data = 0;
+		// TODO: Need a wait/notify loop to support timeout.
+		i32 result = pthread_join(*(pthread_t *)thread->thread_id, 0);
+		thread->internal_data = KNULL;
 		thread->thread_id = 0;
 		if (result == 0) {
 			return true;
@@ -320,8 +327,15 @@ b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count)
 		return false;
 	}
 
+	if (!semaphore_id_mutex) {
+		semaphore_id_mutex = KALLOC_TYPE(kmutex, MEMORY_TAG_PLATFORM);
+		kmutex_create(semaphore_id_mutex);
+	}
+
+	kmutex_lock(semaphore_id_mutex);
 	char *name_buf = string_format("/kohi_job_sem_%u", semaphore_id);
 	semaphore_id++;
+	kmutex_unlock(semaphore_id_mutex);
 
 	out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
 	nix_semaphore_internal *internal = out_semaphore->internal_data;

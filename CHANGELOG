@@ -30,6 +30,7 @@ Changelog
   - Removed systemd dependencies on Linux for open file dialog and replaced with lower-level dbus implementation.
   - Added a few utility functions to the string and math libs for decoding file:/// uris.
   - Open File dialog now offers a bit more context in its reporting. User cancellation is handled separately from an error state now.
+  - Made several tweaks to various systems to improve startup time - initial benchmarks show a ~300% decrease when testing illumina.
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.

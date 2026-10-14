@@ -166,25 +166,31 @@ b8 vulkan_renderer_backend_initialize (renderer_backend_interface *backend, cons
 	create_info.enabledExtensionCount = darray_length(required_extensions);
 	create_info.ppEnabledExtensionNames = required_extensions;
 
-	u32 available_extension_count = 0;
-	rhi->kvkEnumerateInstanceExtensionProperties(0, &available_extension_count, 0);
-	VkExtensionProperties *available_extensions = darray_reserve(VkExtensionProperties, available_extension_count);
-	rhi->kvkEnumerateInstanceExtensionProperties(0, &available_extension_count, available_extensions);
+	// NOTE: Not taking the time to verify this unless validation is also enabled because
+	// it takes quite a while to do - over a full second added to startup on its own...
+	VkExtensionProperties *available_extensions = KNULL;
+	if (context->validation_enabled) {
 
-	// Verify required extensions are available.
-	for (u32 i = 0; i < required_extension_count; ++i) {
-		b8 found = false;
-		for (u32 j = 0; j < available_extension_count; ++j) {
-			if (strings_equal(required_extensions[i], available_extensions[j].extensionName)) {
-				found = true;
-				KINFO("Required exension found: %s...", required_extensions[i]);
-				break;
+		u32 available_extension_count = 0;
+		rhi->kvkEnumerateInstanceExtensionProperties(0, &available_extension_count, 0);
+		available_extensions = darray_reserve(VkExtensionProperties, available_extension_count);
+		rhi->kvkEnumerateInstanceExtensionProperties(0, &available_extension_count, available_extensions);
+
+		// Verify required extensions are available.
+		for (u32 i = 0; i < required_extension_count; ++i) {
+			b8 found = false;
+			for (u32 j = 0; j < available_extension_count; ++j) {
+				if (strings_equal(required_extensions[i], available_extensions[j].extensionName)) {
+					found = true;
+					KINFO("Required exension found: %s...", required_extensions[i]);
+					break;
+				}
 			}
-		}
 
-		if (!found) {
-			KFATAL("Required extension is missing: %s", required_extensions[i]);
-			return false;
+			if (!found) {
+				KFATAL("Required extension is missing: %s", required_extensions[i]);
+				return false;
+			}
 		}
 	}
 

@@ -70,7 +70,7 @@ b8 dynamic_allocator_create (u64 total_size, u64 *memory_requirement, void *memo
 	// Actually create the freelist
 	freelist_create(total_size, &freelist_requirement, state->freelist_block, &state->list);
 
-	kzero_memory(state->memory_block, total_size);
+	/* kzero_memory(state->memory_block, total_size); */
 	return true;
 }
 

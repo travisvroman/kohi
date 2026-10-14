@@ -86,19 +86,26 @@ typedef struct system_font_lookup {
 	u64 uniqueid;
 	// darray
 	system_font_variant_data *size_variants;
-	// A copy of all this is kept for each for convenience.
-	u64 binary_size;
+	// Index into the state->font_binaries table.
+	u16 binary_index;
 	kname face;
-	void *font_binary;
 	i32 offset;
 	i32 index;
 	stbtt_fontinfo info;
 } system_font_lookup;
 
+typedef struct sys_font_binary_data {
+	u64 binary_size;
+	void *binary_data;
+} sys_font_binary_data;
+
 typedef struct font_system_state {
 	font_system_config config;
 	bitmap_font_lookup *bitmap_fonts;
 	system_font_lookup *system_fonts;
+
+	// darray
+	sys_font_binary_data *font_binaries;
 } font_system_state;
 
 static bitmap_font_lookup *get_bitmap_font_lookup (font_system_state *state, khandle base_font);
@@ -110,9 +117,9 @@ static system_font_variant_data *get_system_font_variant_by_size (font_system_st
 static vec2 measure_string (font_data *font, const char *text, f32 max_width);
 static void setup_tab_xadvance (font_data *font);
 static void cleanup_font_data (font_data *font);
-static b8 create_system_font_variant (system_font_lookup *lookup, u16 size, kname font_name, system_font_variant_data *out_variant);
-static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_font_variant_data *variant);
-static b8 verify_system_font_size_variant (system_font_lookup *lookup, system_font_variant_data *variant, const char *text);
+static b8 create_system_font_variant (font_system_state *state, system_font_lookup *lookup, u16 size, kname font_name, system_font_variant_data *out_variant);
+static b8 rebuild_system_font_variant_atlas (font_system_state *state, system_font_lookup *lookup, system_font_variant_data *variant);
+static b8 verify_system_font_size_variant (font_system_state *state, system_font_lookup *lookup, system_font_variant_data *variant, const char *text);
 static void bitmap_font_release (font_system_state *state, bitmap_font_lookup *lookup);
 static void system_font_release (font_system_state *state, system_font_lookup *lookup);
 static font_glyph *glyph_from_codepoint (const font_data *font, i32 codepoint);
@@ -263,6 +270,7 @@ b8 font_system_initialize (u64 *memory_requirement, void *memory, font_system_co
 
 	state->bitmap_fonts = bmp_array_block;
 	state->system_fonts = sys_array_block;
+	state->font_binaries = darray_create(sys_font_binary_data);
 
 	// Invalidate all entries in both arrays.
 	kzero_memory(state->bitmap_fonts, sizeof(bitmap_font_lookup) * config->max_bitmap_font_count);
@@ -310,7 +318,7 @@ void font_system_shutdown (font_system_state *state) {
 	}
 
 	// Allocated as part of the state block, so won't need freeing here.
-	state->bitmap_fonts = 0;
+	state->bitmap_fonts = KNULL;
 
 	// Cleanup system fonts.
 	for (u16 i = 0; i < state->config.max_system_font_count; ++i) {
@@ -320,7 +328,10 @@ void font_system_shutdown (font_system_state *state) {
 		}
 	}
 	// Allocated as part of the state block, so won't need freeing here.
-	state->system_fonts = 0;
+	state->system_fonts = KNULL;
+
+	darray_destroy(state->font_binaries);
+	state->font_binaries = KNULL;
 }
 
 b8 font_system_bitmap_font_acquire (font_system_state *state, kname font_name, khandle *out_font) {
@@ -501,6 +512,17 @@ b8 font_system_system_font_load (font_system_state *state, kname asset_name, kna
 		return false;
 	}
 
+	// Add the data to the lookup table. Don't bother checking for duplicates - there aren't
+	// going to be _that_ many fonts where this will be an issue... ever.
+	sys_font_binary_data font_binary_data = {
+		.binary_size = font_asset->font_binary_size,
+		.binary_data = kallocate(font_asset->font_binary_size, MEMORY_TAG_SYSTEM_FONT)};
+	kcopy_memory(font_binary_data.binary_data, font_asset->font_binary, font_binary_data.binary_size);
+
+	u16 binary_index = (u16)darray_length(state->font_binaries);
+
+	darray_push(state->font_binaries, &font_binary_data);
+
 	// Loop through the faces and create one lookup for each, as well as a default size
 	// variant for each lookup.
 	for (u32 source_face_idx = 0; source_face_idx < font_asset->face_count; ++source_face_idx) {
@@ -518,7 +540,7 @@ b8 font_system_system_font_load (font_system_state *state, kname asset_name, kna
 
 		// Proceed with the load otherwise.
 		if (!face_already_exists) {
-			system_font_lookup *lookup = 0;
+			system_font_lookup *lookup = KNULL;
 
 			// Start by finding a free slot.
 			for (u32 i = 0; i < state->config.max_system_font_count; ++i) {
@@ -531,13 +553,12 @@ b8 font_system_system_font_load (font_system_state *state, kname asset_name, kna
 			if (lookup) {
 				KTRACE("Loading system font '%s'...", kname_string_get(source_face));
 				lookup->face = source_face;
-				lookup->binary_size = font_asset->font_binary_size;
 				lookup->index = source_face_idx;
-				// Take a copy of the binary data.
-				// FIXME: Maybe only keep one copy of this in a table, with an id, and look it up.
-				lookup->font_binary = kallocate(lookup->binary_size, MEMORY_TAG_SYSTEM_FONT);
-				kcopy_memory(lookup->font_binary, font_asset->font_binary, lookup->binary_size);
+				lookup->binary_index = binary_index;
+				// Note the index for later lookups.
 
+				// HACK: trying to shut this off for performance reasons.
+#if 0
 				// The offset
 				lookup->offset = stbtt_GetFontOffsetForIndex(lookup->font_binary, lookup->index);
 				i32 result = stbtt_InitFont(&lookup->info, lookup->font_binary, lookup->offset);
@@ -569,6 +590,9 @@ b8 font_system_system_font_load (font_system_state *state, kname asset_name, kna
 					// Add to the lookup's size variants.
 					darray_push(lookup->size_variants, &default_variant);
 				}
+#else
+				lookup->size_variants = KNULL;
+#endif
 
 				// Create a handle for the lookup and sync ids.
 				khandle face_handle = khandle_create(lookup->index);
@@ -599,7 +623,7 @@ b8 font_system_system_font_verify_atlas (font_system_state *state, system_font_v
 		return false;
 	}
 
-	return verify_system_font_size_variant(base_font, v, text);
+	return verify_system_font_size_variant(state, base_font, v, text);
 }
 
 b8 font_system_system_font_measure_string (struct font_system_state *state, system_font_variant variant, const char *text, f32 max_width, vec2 *out_size) {
@@ -753,8 +777,28 @@ static system_font_variant_data *get_system_font_variant_by_size (font_system_st
 	// No variant exists for that size. Create one?
 	if (auto_create) {
 
+		// This also means the font isn't initialized, so do it here.
+		if (!base_font->size_variants) {
+			base_font->size_variants = darray_create(system_font_variant_data);
+
+			void *font_binary = state->font_binaries[base_font->binary_index].binary_data;
+
+			// The offset
+			base_font->offset = stbtt_GetFontOffsetForIndex(font_binary, base_font->index);
+			i32 result = stbtt_InitFont(&base_font->info, font_binary, base_font->offset);
+			// Zero indicates failure.
+			if (result == 0) {
+				KERROR("Failed to init system font face '%s' at index %i.", kname_string_get(base_font->face), base_font->index);
+
+				// Reset the lookup before moving on.
+				kzero_memory(base_font, sizeof(system_font_lookup));
+				base_font->uniqueid = INVALID_ID_U64;
+				return KNULL;
+			}
+		}
+
 		system_font_variant_data variant;
-		if (!create_system_font_variant(base_font, size, base_font->face, &variant)) {
+		if (!create_system_font_variant(state, base_font, size, base_font->face, &variant)) {
 			KERROR("Failed to create system_font size variant - nothing will be returned. (face='%s', index=%u, size=%u)", base_font->face, base_font->index, size);
 			return 0;
 		}
@@ -768,7 +812,7 @@ static system_font_variant_data *get_system_font_variant_by_size (font_system_st
 
 	*out_resource_index = INVALID_ID_U64;
 	KERROR("Attempted to get system font variant which was not found. Null will be returned. (face='%s', size=%hu, auto_create=%s)", kname_string_get(base_font->face), size, bool_to_string(auto_create));
-	return 0;
+	return KNULL;
 }
 
 static vec2 measure_string (font_data *font, const char *text, f32 max_width) {
@@ -1038,7 +1082,7 @@ static void cleanup_font_data (font_data *font) {
 	}
 }
 
-static b8 create_system_font_variant (system_font_lookup *lookup, u16 size, kname font_name, system_font_variant_data *out_variant) {
+static b8 create_system_font_variant (font_system_state *state, system_font_lookup *lookup, u16 size, kname font_name, system_font_variant_data *out_variant) {
 	kzero_memory(out_variant, sizeof(system_font_variant_data));
 	out_variant->data.atlas_size_x = 1024; // TODO: configurable size
 	out_variant->data.atlas_size_y = 1024;
@@ -1080,14 +1124,14 @@ static b8 create_system_font_variant (system_font_lookup *lookup, u16 size, knam
 		setup_tab_xadvance(&out_variant->data);
 
 		// Build the variant atlas.
-		return rebuild_system_font_variant_atlas(lookup, out_variant);
+		return rebuild_system_font_variant_atlas(state, lookup, out_variant);
 	}
 
 	KERROR("Request for writeable font texture atlas resource failed. See logs for details.");
 	return false;
 }
 
-static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_font_variant_data *variant) {
+static b8 rebuild_system_font_variant_atlas (font_system_state *state, system_font_lookup *lookup, system_font_variant_data *variant) {
 	system_font_variant_data *internal_data = variant;
 
 	u32 pack_image_size = variant->data.atlas_size_x * variant->data.atlas_size_y * sizeof(u8);
@@ -1104,6 +1148,8 @@ static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_
 		return false;
 	}
 
+	void *font_binary = state->font_binaries[lookup->binary_index].binary_data;
+
 	// Fit all codepoints into a single range for packing.
 	stbtt_pack_range range;
 	range.first_unicode_codepoint_in_range = 0;
@@ -1111,7 +1157,7 @@ static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_
 	range.num_chars = codepoint_count;
 	range.chardata_for_range = packed_chars;
 	range.array_of_unicode_codepoints = internal_data->codepoints;
-	if (!stbtt_PackFontRanges(&context, lookup->font_binary, lookup->index, &range, 1)) {
+	if (!stbtt_PackFontRanges(&context, font_binary, lookup->index, &range, 1)) {
 		KERROR("stbtt_PackFontRanges failed");
 		return false;
 	}
@@ -1190,7 +1236,7 @@ static b8 rebuild_system_font_variant_atlas (system_font_lookup *lookup, system_
 	return true;
 }
 
-static b8 verify_system_font_size_variant (system_font_lookup *lookup, system_font_variant_data *variant, const char *text) {
+static b8 verify_system_font_size_variant (font_system_state *state, system_font_lookup *lookup, system_font_variant_data *variant, const char *text) {
 	system_font_variant_data *internal_data = variant;
 
 	u32 char_length = string_length(text);
@@ -1226,7 +1272,7 @@ static b8 verify_system_font_size_variant (system_font_lookup *lookup, system_fo
 
 	// If codepoints were added, rebuild the atlas.
 	if (added_codepoint_count > 0) {
-		return rebuild_system_font_variant_atlas(lookup, variant);
+		return rebuild_system_font_variant_atlas(state, lookup, variant);
 	}
 
 	// Otherwise, proceed as normal.
@@ -1273,10 +1319,6 @@ static void system_font_release (font_system_state *state, system_font_lookup *l
 		}
 
 		darray_destroy(lookup->size_variants);
-
-		if (lookup->binary_size && lookup->font_binary) {
-			kfree(lookup->font_binary);
-		}
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "platform/platform.h"
 #include "strings/kstring.h"
 #include "threads/kmutex.h"
+#include <string.h>
 
 // NOTE: If this is disabled, C11 must be used to enable aligned_alloc.
 #define K_USE_CUSTOM_MEMORY_ALLOCATOR 1
@@ -346,6 +347,7 @@ void *kzero_memory (void *block, u64 size) {
 }
 
 void *kcopy_memory (void *dest, const void *source, u64 size) {
+#if 0
 	u8 *d = (u8 *)dest;
 	const u8 *s = (const u8 *)source;
 
@@ -373,9 +375,13 @@ void *kcopy_memory (void *dest, const void *source, u64 size) {
 	}
 
 	return dest;
+#else
+	return memcpy(dest, source, size);
+#endif
 }
 
 void *kset_memory (void *dest, i32 value, u64 size) {
+#if 0
 	u8 *d = (u8 *)dest;
 	u8 v = (u8)value;
 
@@ -391,9 +397,9 @@ void *kset_memory (void *dest, i32 value, u64 size) {
 		pattern |= pattern << 8;
 		pattern |= pattern << 16;
 
-#if UINTPTR_MAX > 0xFFFFFFFFu
+#	if UINTPTR_MAX > 0xFFFFFFFFu
 		pattern |= pattern << 32;
-#endif
+#	endif
 
 		u64 *dw = (u64 *)d;
 
@@ -410,6 +416,9 @@ void *kset_memory (void *dest, i32 value, u64 size) {
 	}
 
 	return dest;
+#else
+	return memset(dest, value, size);
+#endif
 }
 
 const char *get_unit_for_size (u64 size_bytes, f32 *out_amount) {
