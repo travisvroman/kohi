@@ -486,13 +486,13 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 			KFATAL("Error: Platform reported processor count (minus one for main thread) as %i. Need at least one additional thread for the job system.", thread_count);
 			return false;
 		} else {
-			KTRACE("Available threads: %i", thread_count);
+			KDEBUG("Available threads: %i", thread_count);
 		}
 
 		// Cap the thread count.
 		const i32 max_thread_count = 15;
 		if (thread_count > max_thread_count) {
-			KTRACE("Available threads on the system is %i, but will be capped at %i.", thread_count, max_thread_count);
+			KDEBUG("Available threads on the system is %i, but will be capped at %i.", thread_count, max_thread_count);
 			thread_count = max_thread_count;
 		}
 

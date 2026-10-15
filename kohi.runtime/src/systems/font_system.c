@@ -551,7 +551,7 @@ b8 font_system_system_font_load (font_system_state *state, kname asset_name, kna
 			}
 
 			if (lookup) {
-				KTRACE("Loading system font '%s'...", kname_string_get(source_face));
+				/* KTRACE("Loading system font '%s'...", kname_string_get(source_face)); */
 				lookup->face = source_face;
 				lookup->index = source_face_idx;
 				lookup->binary_index = binary_index;

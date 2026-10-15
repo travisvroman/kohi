@@ -102,7 +102,7 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 			return false;
 		}
 	}
-	KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);
+	/* KDEBUG("Starting process on thread id: %#x", out_thread->thread_id); */
 
 	// Only save off the handle if not auto-detaching.
 	if (!auto_detach) {
@@ -415,7 +415,7 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 	const char *prefix = platform_dynamic_library_prefix();
 
 	const char *filename = string_format("%s%s%s", prefix, name, extension);
-	KTRACE("Trying local path '%s' first.", filename);
+	/* KTRACE("Trying local path '%s' first.", filename); */
 
 	const char *formats[10] = {
 		"./%s",
@@ -437,7 +437,7 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 		cur_path = string_format(formats[i], filename);
 		library = dlopen(cur_path, RTLD_NOW);
 		if (!library) {
-			KTRACE("Dynamic lib path '%s' failed to load because of error: '%s'", cur_path, dlerror());
+			/* KTRACE("Dynamic lib path '%s' failed to load because of error: '%s'", cur_path, dlerror()); */
 		} else {
 			break;
 		}
@@ -447,7 +447,7 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 		return false;
 	}
 
-	KTRACE("Found lib: '%s'", cur_path);
+	/* KTRACE("Found lib: '%s'", cur_path); */
 	string_free(cur_path);
 
 	out_library->name = string_duplicate(name);

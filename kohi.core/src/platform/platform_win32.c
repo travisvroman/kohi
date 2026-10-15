@@ -501,7 +501,7 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 		&info,									 // param to pass to thread
 		0,
 		(DWORD *)&out_thread->thread_id);
-	KDEBUG("Starting process on thread id: %#x", out_thread->thread_id);
+	/* KDEBUG("Starting process on thread id: %#x", out_thread->thread_id); */
 	if (!out_thread->internal_data) {
 		return false;
 	}

@@ -46,6 +46,9 @@
 #	include <sys/stat.h>
 #	include <sys/sysinfo.h> // Processor info
 #	include <sys/utsname.h>
+#	include <limits.h>
+#	include <linux/cdrom.h> // cdrom detection
+#	include <sys/ioctl.h>	 // cdrom detection
 #	include <unistd.h>
 #	include <dlfcn.h> // dlopen
 #	include <fcntl.h> // open, O_CREAT, etc.
@@ -1591,6 +1594,20 @@ static int file_read_int (const char *path, int *out) {
 	*out = v;
 	return 1;
 }
+
+i32 linux_cdrom_status (const char *device) {
+	i32 fd = open(device, O_RDONLY | O_NONBLOCK);
+	i32 status;
+
+	if (fd < 0)
+		return -1; /* Cannot open device */
+
+	status = ioctl(fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
+	close(fd);
+
+	return status;
+}
+
 static kdrive_type linux_classify_drive (
 	const char *device,		 // /dev/sda1
 	const char *mount_point, // /
@@ -1615,8 +1632,16 @@ static kdrive_type linux_classify_drive (
 		return KDRIVE_TYPE_REMOTE;
 
 	// Only real block devices below this point
-	if (strings_nequal(device, "/dev/", 5))
+	if (strings_nequal(device, "/dev/", 5)) {
+		if (strings_equal(fs_type, "nfs4") ||
+			strings_equal(fs_type, "ext4") ||
+			strings_equal(fs_type, "btrfs")) {
+			return KDRIVE_TYPE_FIXED;
+		} else if (strings_equal(device, "/dev/sr0")) {
+			return KDRIVE_TYPE_CDROM;
+		}
 		return KDRIVE_TYPE_UNKNOWN;
+	}
 
 	// Extract parent disk: sda1 → sda, nvme0n1p2 → nvme0n1
 	char disk[128];
@@ -1658,6 +1683,7 @@ static void linux_query_storage (ksystem_info *s) {
 
 		char line[1024];
 
+		b8 devsr0_found = false;
 		while (fgets(line, sizeof(line), f) && s->storage_count < KMAX_STORAGE_DEVICES) {
 			char device[256];
 			char mount[256];
@@ -1668,8 +1694,9 @@ static void linux_query_storage (ksystem_info *s) {
 				continue;
 
 			// Only real block devices
-			if (strings_nequal(device, "/dev/", 5))
+			if (!strings_nequal(device, "/dev/", 5)) {
 				continue;
+			}
 
 			// Skip pseudo FS
 			if (strings_equal(fs, "tmpfs") ||
@@ -1688,6 +1715,42 @@ static void linux_query_storage (ksystem_info *s) {
 			m->total_bytes = (u64)vfs.f_blocks * vfs.f_frsize;
 			m->free_bytes = (u64)vfs.f_bavail * vfs.f_frsize;
 			m->type = linux_classify_drive(device, mount, fs);
+
+			if (strings_equal(device, "/dev/sr0")) {
+				devsr0_found = true;
+			}
+		}
+
+		// Check cdrom status if not mounted.
+		if (!devsr0_found) {
+			i32 status = linux_cdrom_status("/dev/sr0");
+			const char *cdrom_status_text = "";
+			if (status == -1) {
+				/* Device unavailable, unsupported, or permission error */
+			} else if (status == CDS_DISC_OK) {
+				/* Drive is ready with a disc inserted */
+				cdrom_status_text = "CD-ROM (Disc Inserted)";
+			} else if (status == CDS_NO_DISC) {
+				/* Drive exists, but no disc is inserted */
+				cdrom_status_text = "CD-ROM (No Disc)";
+			} else if (status == CDS_TRAY_OPEN) {
+				/* Tray is open */
+				cdrom_status_text = "CD-ROM (Tray Open)";
+			} else if (status == CDS_DRIVE_NOT_READY) {
+				/* Drive is busy or not ready */
+				cdrom_status_text = "CD-ROM (Not ready)";
+			} else if (status == CDS_NO_INFO) {
+				/* Status is unknown */
+				cdrom_status_text = "CD-ROM (Unknown status)";
+			}
+			if (status >= 0) {
+				kstorage_info *m = &s->storage[s->storage_count++];
+				string_ncopy(m->name, "/dev/sr0", sizeof(m->name));
+				string_ncopy(m->mount_point, cdrom_status_text, string_length(cdrom_status_text));
+				m->total_bytes = 0;
+				m->free_bytes = 0;
+				m->type = KDRIVE_TYPE_CDROM;
+			}
 		}
 
 		fclose(f);

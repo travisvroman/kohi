@@ -535,7 +535,7 @@ void kmaterial_system_dump (kmaterial_system_state *state) {
 }
 
 static b8 create_default_standard_material (kmaterial_system_state *state) {
-	KTRACE("Creating default standard material...");
+	/* KTRACE("Creating default standard material..."); */
 	kname material_name = kname_create(KMATERIAL_STANDARD_NAME_DEFAULT);
 
 	// Create a fake material "asset" that can be used to load the material.
@@ -566,12 +566,12 @@ static b8 create_default_standard_material (kmaterial_system_state *state) {
 	// Save off a pointer to the material.
 	state->default_standard_material = &state->materials[new_material];
 
-	KTRACE("Done.");
+	/* KTRACE("Done."); */
 	return true;
 }
 
 static b8 create_default_water_material (kmaterial_system_state *state) {
-	KTRACE("Creating default water material...");
+	/* KTRACE("Creating default water material..."); */
 	kname material_name = kname_create(KMATERIAL_WATER_NAME_DEFAULT);
 
 	// Create a fake material "asset" that can be serialized into a string.
@@ -611,7 +611,7 @@ static b8 create_default_water_material (kmaterial_system_state *state) {
 	// Save off a pointer to the material.
 	state->default_water_material = &state->materials[new_material];
 
-	KTRACE("Done.");
+	/* KTRACE("Done."); */
 	return true;
 }
 

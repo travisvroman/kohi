@@ -286,7 +286,7 @@ b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_materia
 
 		// Serialize
 		const char *config_source = kasset_shader_serialize(&mat_std_shader);
-		KTRACE(config_source);
+		/* KTRACE(config_source); */
 
 		// Destroy the temp asset.
 		for (u8 i = 0; i < mat_std_shader.pipeline_count; ++i) {

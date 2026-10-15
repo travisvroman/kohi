@@ -438,7 +438,7 @@ kasset_image *asset_system_request_image_from_package_sync (struct asset_system_
 
 void asset_system_release_image (struct asset_system_state *state, kasset_image *asset) {
 	if (state && asset) {
-		KTRACE("Releasing image asset '%s'.", kname_string_get(asset->name));
+		/* KTRACE("Releasing image asset '%s'.", kname_string_get(asset->name)); */
 		if (asset->pixel_array_size && asset->pixels) {
 			kfree((void *)asset->pixels);
 		}

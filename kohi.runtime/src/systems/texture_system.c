@@ -835,7 +835,7 @@ b8 texture_is_loaded (ktexture t) {
 static b8 create_default_textures (texture_system_state *state) {
 	// NOTE: Create default texture, a 256x256 blue/white checkerboard pattern.
 	// This is done in code to eliminate asset dependencies.
-	KTRACE("Creating default texture...");
+	/* KTRACE("Creating default texture..."); */
 	const u32 tex_dimension = 16;
 	const u32 channels = 4;
 	const u32 pixel_count = tex_dimension * tex_dimension;
@@ -874,7 +874,7 @@ static b8 create_default_textures (texture_system_state *state) {
 
 	// Base colour texture.
 	{
-		KTRACE("Creating default base colour texture...");
+		/* KTRACE("Creating default base colour texture..."); */
 
 		u8 diff_pixels[16 * 16 * 4] = {0};
 		// Default diffuse map is all white.
@@ -892,7 +892,7 @@ static b8 create_default_textures (texture_system_state *state) {
 
 	// Specular texture.
 	{
-		KTRACE("Creating default specular texture...");
+		/* KTRACE("Creating default specular texture..."); */
 		u8 spec_pixels[16 * 16 * 4] = {0};
 		// Default spec map is black (no specular)
 		kset_memory(spec_pixels, 0, sizeof(u8) * 16 * 16 * 4);
@@ -907,7 +907,7 @@ static b8 create_default_textures (texture_system_state *state) {
 	// Normal texture.
 	u8 normal_pixels[16 * 16 * 4] = {0}; // w * h * channels
 	{
-		KTRACE("Creating default normal texture...");
+		/* KTRACE("Creating default normal texture..."); */
 		kset_memory(normal_pixels, 255, sizeof(u8) * 16 * 16 * 4);
 
 		// Each pixel.
@@ -933,7 +933,7 @@ static b8 create_default_textures (texture_system_state *state) {
 	// MRA texture
 	u8 mra_pixels[16 * 16 * 4] = {0}; // w * h * channels
 	{
-		KTRACE("Creating default MRA (metallic, roughness, AO) texture...");
+		/* KTRACE("Creating default MRA (metallic, roughness, AO) texture..."); */
 		kset_memory(mra_pixels, 255, sizeof(u8) * 16 * 16 * 4);
 
 		// Each pixel.
@@ -956,7 +956,7 @@ static b8 create_default_textures (texture_system_state *state) {
 
 	// Cube texture.
 	{
-		KTRACE("Creating default cube texture...");
+		/* KTRACE("Creating default cube texture..."); */
 
 		// New resource type
 		const u32 tex_dimension = 16;

@@ -3507,7 +3507,7 @@ static b8 create_shader_module (vulkan_context *context, vulkan_shader *internal
 		return false;
 	}
 
-	KDEBUG("Compiling stage '%s' for shader '%s'...", shader_stage_to_string(stage), kname_string_get(internal_shader->name));
+	/* KDEBUG("Compiling stage '%s' for shader '%s'...", shader_stage_to_string(stage), kname_string_get(internal_shader->name)); */
 
 	// KTRACE("Shader source:\n%s", source);
 
@@ -3536,13 +3536,14 @@ static b8 create_shader_module (vulkan_context *context, vulkan_shader *internal
 	if (status != shaderc_compilation_status_success) {
 		const char *error_message = shaderc_result_get_error_message(compilation_result);
 		u64 error_count = shaderc_result_get_num_errors(compilation_result);
+		KERROR("Error compiling stage '%s' for shader '%s'...", shader_stage_to_string(stage), kname_string_get(internal_shader->name));
 		KERROR("Error compiling shader with %llu errors.", error_count);
 		KERROR("Error(s):\n%s", error_message);
 		shaderc_result_release(compilation_result);
 		return false;
 	}
 
-	KDEBUG("Shader compiled successfully.");
+	/* KDEBUG("Shader compiled successfully."); */
 
 	// Output warnings if there are any.
 	u64 warning_count = shaderc_result_get_num_warnings(compilation_result);
@@ -4590,7 +4591,7 @@ static b8 vulkan_graphics_pipeline_create (vulkan_context *context, const vulkan
 #endif
 
 	if (vulkan_result_is_success(result)) {
-		KDEBUG("Graphics pipeline created!");
+		/* KDEBUG("Graphics pipeline created!"); */
 		return true;
 	}
 

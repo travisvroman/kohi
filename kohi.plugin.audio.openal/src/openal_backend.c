@@ -849,7 +849,7 @@ static b8 source_work_thread (void *params) {
 	// Release this right away since it's no longer needed.
 	kfree(params);
 
-	KDEBUG("Audio source thread starting...");
+	/* KDEBUG("Audio source thread starting..."); */
 
 	b8 do_break = false;
 	while (!do_break) {
@@ -878,7 +878,7 @@ static b8 source_work_thread (void *params) {
 		platform_sleep(2);
 	}
 
-	KDEBUG("Audio source thread shutting down.");
+	/* KDEBUG("Audio source thread shutting down."); */
 	return true;
 }
 

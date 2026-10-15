@@ -196,7 +196,7 @@ vfs_asset_data vfs_request_asset_sync (vfs_state *state, vfs_request_info info) 
 
 		if (info.package_name == INVALID_KNAME || package->name == info.package_name) {
 
-			KDEBUG("Attempting to load asset '%s' from package '%s'...", asset_name_str, kname_string_get(package->name));
+			/* KDEBUG("Attempting to load asset '%s' from package '%s'...", asset_name_str, kname_string_get(package->name)); */
 
 			// Determine if the asset type is text.
 			kpackage_result result = KPACKAGE_RESULT_INTERNAL_FAILURE;
@@ -495,7 +495,7 @@ static b8 process_manifest_refs (vfs_state *state, const asset_manifest *manifes
 			u32 package_count = darray_length(state->packages);
 			for (u32 j = 0; j < package_count; ++j) {
 				if (state->packages[j].name == ref->name) {
-					KTRACE("Package '%s' already loaded, skipping.", kname_string_get(ref->name));
+					/* KTRACE("Package '%s' already loaded, skipping.", kname_string_get(ref->name)); */
 					exists = true;
 					break;
 				}
