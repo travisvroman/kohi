@@ -51,7 +51,7 @@ typedef struct nix_semaphore_internal {
 	char *name;
 } nix_semaphore_internal;
 
-static u32 semaphore_id = 0;
+static volatile u32 semaphore_id = 0;
 static kmutex *semaphore_id_mutex = KNULL;
 
 // NOTE: Begin threads.

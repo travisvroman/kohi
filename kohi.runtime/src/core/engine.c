@@ -58,6 +58,8 @@ typedef struct engine_state_t {
 	kclock clock;
 	f64 last_time;
 
+	kclock startup_clock;
+
 	// An allocator used for per-frame allocations, that is reset every frame.
 	linear_allocator frame_allocator;
 
@@ -137,6 +139,13 @@ static void on_memory_dump (console_command_context context) {
 b8 engine_create (application *app, const char *app_config_path, const char *game_lib_name) {
 	KASSERT(app_config_path);
 
+	// Startup clock, but created here until engine state exists.
+	// Doing this here so that this begins timing as soon as possible within the application.
+	// Technically there are a couple small operations that begin before this, but the timing
+	// of those should be negligible.
+	kclock temp_clock = {0};
+	kclock_start(&temp_clock);
+
 	if (app->engine_state) {
 		KERROR("engine_create called more than once.");
 		return false;
@@ -163,6 +172,7 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 	engine_state->app = app;
 	engine_state->is_running = false;
 	engine_state->is_suspended = false;
+	engine_state->startup_clock = temp_clock; // Set the already-started clock.
 
 	// Setup a registry for external systems to register themselves to.
 	kregistry_create(&engine_state->external_systems_registry);
@@ -344,6 +354,33 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		app->engine_state = 0;
 		app->state = 0;
 	}
+
+	// Reach into platform and open new window(s) in accordance with app config.
+	u32 window_count = darray_length(app->app_config.windows);
+	if (window_count > 1) {
+		KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
+		return false;
+	}
+
+	// Create windows, but don't tell renderer about them just yet.
+	engine_state->windows = darray_create(kwindow);
+	for (u32 i = 0; i < window_count; ++i) {
+		kwindow_config *window_config = &app->app_config.windows[i];
+		kwindow new_window = {0};
+		new_window.name = string_duplicate(window_config->name);
+		// Add to tracked window list
+		darray_push(engine_state->windows, &new_window);
+
+		kwindow *window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
+		if (!platform_window_create(window_config, window, true)) {
+			KERROR("Failed to create window '%s'.", window_config->name);
+			return false;
+		}
+	}
+
+	// Take the startup time so far and write it out.
+	kclock_update(&engine_state->startup_clock);
+	KINFO("Time to window open is %f seconds.", engine_state->startup_clock.elapsed);
 
 	// Virtual File System
 	{
@@ -607,28 +644,12 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		}
 	}
 
-	// Reach into platform and open new window(s) in accordance with app config.
 	// Notify renderer of window(s)/setup surface(s), etc.
 	// NOTE: This must happen after the texture system is initialized since the window "owns" it's render target textures.
-	u32 window_count = darray_length(app->app_config.windows);
-	if (window_count > 1) {
-		KFATAL("Multiple windows are not yet implemented at the engine level. Please just stick to one for now.");
-		return false;
-	}
-
-	engine_state->windows = darray_create(kwindow);
 	for (u32 i = 0; i < window_count; ++i) {
 		kwindow_config *window_config = &app->app_config.windows[i];
-		kwindow new_window = {0};
-		new_window.name = string_duplicate(window_config->name);
-		// Add to tracked window list
-		darray_push(engine_state->windows, &new_window);
 
 		kwindow *window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
-		if (!platform_window_create(window_config, window, true)) {
-			KERROR("Failed to create window '%s'.", window_config->name);
-			return false;
-		}
 
 		// Tell the renderer about the window.
 		if (!renderer_on_window_created(engine_state->systems.renderer_system, window)) {
@@ -775,6 +796,12 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 b8 engine_run (application *app) {
 	app->stage = APPLICATION_STAGE_RUNNING;
 	engine_state->is_running = true;
+
+	// Take the startup time and write it out.
+	kclock_update(&engine_state->startup_clock);
+	KINFO("Time to first update is %f seconds.", engine_state->startup_clock.elapsed);
+	kclock_stop(&engine_state->startup_clock);
+
 	kclock_start(&engine_state->clock);
 	kclock_update(&engine_state->clock);
 	engine_state->last_time = engine_state->clock.elapsed;
