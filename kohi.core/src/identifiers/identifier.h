@@ -23,6 +23,12 @@ typedef struct identifier {
 } identifier;
 
 /**
+ * @brief Seeds the identifier generator, so the same seed gives the same identifiers in the same
+ * order. Without a call it is seeded from the clock on first use.
+ */
+KAPI void identifier_seed (u64 seed);
+
+/**
  * @brief Generates a new unique identifier.
  */
 KAPI identifier identifier_create (void);

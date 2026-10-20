@@ -106,6 +106,18 @@ b8 application_config_parse_file_content (const char *file_content, application_
 		out_config->log_file_path = string_duplicate("console.log");
 	}
 
+	// The seed for every engine RNG. Optional; without it debug builds use a fixed seed and
+	// release builds one from the clock (logged at startup either way).
+	i64 random_seed = 0;
+	if (kson_object_property_value_get_int(&app_config_tree.root, "random_seed", &random_seed)) {
+		if (random_seed < 0) {
+			KERROR("'random_seed' cannot be negative. Using the default seed.");
+		} else {
+			out_config->has_random_seed = true;
+			out_config->random_seed = (u64)random_seed;
+		}
+	}
+
 	i64 max_frames = 0;
 	kson_object_property_value_get_int(&app_config_tree.root, "max_frames", &max_frames);
 	if (max_frames < 0) {

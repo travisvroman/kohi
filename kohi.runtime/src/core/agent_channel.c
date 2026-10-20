@@ -1,6 +1,7 @@
 #include "agent_channel.h"
 
 #include <logger.h>
+#include <math/kmath.h>
 #include <memory/kmemory.h>
 #include <platform/platform.h>
 #include <strings/kstring.h>
@@ -506,6 +507,10 @@ static b8 cmd_commands (const agent_request *request, agent_reply *reply, void *
 
 static b8 cmd_status (const agent_request *request, agent_reply *reply, void *listener) {
 	status_fields_add(reply);
+	// Written as raw JSON so seeds above 2^63 stay exact.
+	char seed[32];
+	string_format_unsafe(seed, "%llu", krandom_seed_get());
+	agent_reply_json_add(reply, "seed", seed);
 	return true;
 }
 
@@ -632,7 +637,7 @@ static void builtin_register (const char *name, const char *help, void *listener
 
 static void builtin_commands_register (void) {
 	builtin_register("commands", "Lists the available commands.", 0, cmd_commands);
-	builtin_register("status", "Returns the simulation step, time, step length and whether it is paused.", 0, cmd_status);
+	builtin_register("status", "Returns the simulation step, time, step length, whether it is paused, and the random seed.", 0, cmd_status);
 	// "step" is handled by the channel itself, because its reply waits for the steps to run.
 	builtin_register("step", "Runs \"count\" simulation steps (default 1), then replies with the status.", 0, 0);
 	builtin_register("pause", "Pauses the simulation.", 0, cmd_pause);

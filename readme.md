@@ -170,7 +170,7 @@ cd bin
 ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.kson
 ```
 
-`--config <path>` picks the application config to load. The headless options are top-level application config properties:
+`--config <path>` picks the application config to load, and `--seed <n>` sets the random seed. The headless options are top-level application config properties:
 
 | Property | Default | Effect |
 | --- | --- | --- |
@@ -179,6 +179,7 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 | `simulation_mode` | `"lockstep"` when headless, else `"realtime"` | How fixed steps are scheduled. |
 | `max_steps_per_frame` | `8` | Real-time mode only: the most fixed steps one frame may run. |
 | `max_frames` | `0` (unlimited) | Shut down cleanly after this many frames. |
+| `random_seed` | `42` in debug builds, from the clock in release | Seed for every engine RNG (`krandom*`, `kfrandom*`, identifiers). `--seed <n>` overrides it. The seed in use is logged at startup and returned by the agent `status` command, so any run can be repeated. |
 
 Pair `headless` with the null renderer (`kohi.plugin.renderer.null`), which accepts every renderer call and draws nothing. Its buffers live in CPU memory, so engine systems that write to mapped buffers behave as usual. Textures hold no pixels and read back as zeroes. OpenAL still opens an audio device, so `ALSOFT_DRIVERS=null` is needed on machines without one.
 
@@ -210,7 +211,7 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | Command | Arguments | Does |
 | --- | --- | --- |
 | `step` | `count` (default 1) | Runs that many simulation steps, then replies with the status. Later requests wait until the steps have run. |
-| `status` | | Step count, simulated time, step length, paused. |
+| `status` | | Step count, simulated time, step length, paused, random seed. |
 | `pause`, `resume` | | Stops, or restarts, the simulation's own clock. |
 | `key` | `key` (name such as `"a"`, `"space"`, `"esc"`), `pressed` | Presses or releases a key, exactly as OS input would. |
 | `mouse_button` | `button` (`left`, `right`, `middle`), `pressed` | Presses or releases a mouse button. |

@@ -92,6 +92,15 @@ typedef struct application_config {
 	 */
 	u32 max_steps_per_frame;
 
+	/** @brief True when the config sets random_seed. */
+	b8 has_random_seed;
+
+	/**
+	 * @brief The seed for every engine RNG, so runs repeat. Optional; the --seed command-line
+	 * flag overrides it. Without either, debug builds use 42 and release builds a clock-based seed.
+	 */
+	u64 random_seed;
+
 	/** @brief When nonzero, the engine shuts down after this many frames. Optional, defaults to 0 (unlimited). */
 	u64 max_frames;
 

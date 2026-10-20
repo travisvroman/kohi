@@ -2,9 +2,11 @@
 
 #include <containers/darray.h>
 #include <containers/registry.h>
+#include <identifiers/identifier.h>
 #include <identifiers/khandle.h>
 #include <identifiers/uuid.h>
 #include <logger.h>
+#include <math/kmath.h>
 #include <memory/allocators/linear_allocator.h>
 #include <memory/kmemory.h>
 #include <platform/filesystem.h>
@@ -172,6 +174,31 @@ static void on_sim_status (console_command_context context) {
 		  sim->step_count, sim->sim_seconds, sim->step_seconds, sim->pending_steps);
 }
 
+// Set by --seed before the engine exists; wins over the config's random_seed.
+static b8 random_seed_overridden = false;
+static u64 random_seed_override = 0;
+
+void engine_random_seed_override (u64 seed) {
+	random_seed_overridden = true;
+	random_seed_override = seed;
+}
+
+static void random_seed_apply (const application_config *config) {
+	const char *source = "default";
+	if (random_seed_overridden) {
+		krandom_seed_set(random_seed_override);
+		source = "--seed";
+	} else if (config->has_random_seed) {
+		krandom_seed_set(config->random_seed);
+		source = "app config";
+	}
+	// Reading the seed fills in the default when none was given, so it can be logged and reused.
+	u64 seed = krandom_seed_get();
+	// Identifiers get their own stream, so creating handles never shifts the gameplay RNG.
+	identifier_seed(seed ^ 0x9E3779B97F4A7C15ull);
+	KINFO("Random seed: %llu (%s). Set random_seed or pass --seed to repeat this run.", seed, source);
+}
+
 b8 engine_create (application *app, const char *app_config_path, const char *game_lib_name) {
 	KASSERT(app_config_path);
 
@@ -229,6 +256,8 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		return false;
 	}
 	string_free(app_file_content);
+
+	random_seed_apply(&app->app_config);
 
 	// Platform initialization first. NOTE: NOT window creation - that should happen much later.
 	{

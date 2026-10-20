@@ -57,6 +57,9 @@ extern const char *application_klib_name_get (void);
  */
 #include "strings/kstring.h"
 
+#include <errno.h>
+#include <stdlib.h>
+
 /**
  * @brief Returns the value following the given flag on the command line, or 0 if the flag
  * is not given (or is given without a value).
@@ -73,12 +76,28 @@ static const char *command_line_value (int argc, char **argv, const char *flag) 
 	return 0;
 }
 
+/** @brief Parses a whole decimal string as a u64, rejecting signs, junk and overflow. */
+static b8 seed_parse (const char *text, u64 *out_seed) {
+	if (!text || *text < '0' || *text > '9') {
+		return false;
+	}
+	errno = 0;
+	char *end = 0;
+	unsigned long long value = strtoull(text, &end, 10);
+	if (errno || *end) {
+		return false;
+	}
+	*out_seed = (u64)value;
+	return true;
+}
+
 /**
  * Command-line flags:
  *   --config <path>  Application config to load instead of the default one, for example a
  *                    headless config.
  *   --log <path>     File to write the log to instead of the config's log_file (default
  *                    "console.log"). Give each instance its own file when running several.
+ *   --seed <n>       Seed every engine RNG, overriding the config's random_seed.
  *   --agent          Control the engine with JSON lines over stdin/stdout.
  */
 int main (int argc, char **argv) {
@@ -98,6 +117,16 @@ int main (int argc, char **argv) {
 		app_config_path = application_config_path_get();
 	}
 	app_inst.log_file_path_override = command_line_value(argc, argv, "--log");
+
+	const char *seed_text = command_line_value(argc, argv, "--seed");
+	if (seed_text) {
+		u64 seed = 0;
+		if (!seed_parse(seed_text, &seed)) {
+			KERROR("'--seed' needs a non-negative integer, not '%s'.", seed_text);
+			return 1;
+		}
+		engine_random_seed_override(seed);
+	}
 
 	// Initialization.
 	if (!engine_create(&app_inst, app_config_path, application_klib_name_get())) {

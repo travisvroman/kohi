@@ -28,7 +28,7 @@ An agent needs one stable way to control a run and see what happened.
 
 The same inputs and seed must give the same run, every time, so agent experiments can be replayed and compared.
 
-- [ ] A seed in the app config for every RNG. The global RNG is time-seeded in release builds today.
+- [x] A seed for every RNG: `random_seed` in the app config or `--seed`, logged at startup and reported by the agent `status` command.
 - [ ] Load assets synchronously, or in a deterministic order, in lockstep mode. Async loads currently finish in varying order.
 - [ ] Record and replay: save inputs per step and replay them to the same end state.
 - [ ] World snapshot/restore beyond physics: scene, transforms and game state.
