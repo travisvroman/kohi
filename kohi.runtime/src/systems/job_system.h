@@ -95,6 +95,13 @@ typedef struct job_system_config {
 	u8 max_job_thread_count;
 	/** @param type_masks A collection of type masks for each job thread. Must match max_job_thread_count. */
 	u32 *type_masks;
+	/**
+	 * @brief Run each job on the submitting thread as soon as it is submitted, with no job
+	 * threads. The next job_system_update delivers the results in submission order, along with
+	 * those of any jobs the callbacks submit. Jobs then finish in the same frame and order on
+	 * every run, which lockstep mode needs to repeat exactly.
+	 */
+	b8 synchronous;
 } job_system_config;
 
 /**

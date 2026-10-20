@@ -636,6 +636,12 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		job_system_config job_sys_config = {0};
 		job_sys_config.max_job_thread_count = thread_count;
 		job_sys_config.type_masks = job_thread_types;
+		// Lockstep runs must repeat exactly, so jobs (asset loads) run in order instead of racing
+		// on job threads.
+		job_sys_config.synchronous = app->app_config.simulation_mode == KSIM_CLOCK_MODE_LOCKSTEP;
+		if (job_sys_config.synchronous) {
+			KINFO("Lockstep mode: jobs run synchronously, so asset loads finish in the same order every run.");
+		}
 		job_system_initialize(&systems->job_system_memory_requirement, 0, &job_sys_config);
 		systems->job_system = kallocate(systems->job_system_memory_requirement, MEMORY_TAG_ENGINE);
 

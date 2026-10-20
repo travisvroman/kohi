@@ -1,5 +1,6 @@
 #include "job_system.h"
 
+#include "containers/darray.h"
 #include "containers/ring_queue.h"
 #include "core/frame_data.h"
 #include "debug/kassert.h"
@@ -56,6 +57,10 @@ typedef struct job_system_state {
 
 	job_result_entry pending_results[MAX_JOB_RESULTS];
 	kmutex result_mutex;
+
+	// Synchronous mode only: results in submission order, delivered at the next update.
+	b8 synchronous;
+	job_result_entry *ordered_results;
 	// A mutex for the result array
 } job_system_state;
 
@@ -78,6 +83,11 @@ static void store_result (pfn_job_on_complete callback, u32 param_size, void *pa
 	// Lock, find a free space, store, unlock.
 	if (!kmutex_lock(&state_ptr->result_mutex)) {
 		KERROR("Failed to obtain mutex lock for storing a result! Result storage may be corrupted.");
+	}
+	if (state_ptr->synchronous) {
+		darray_push(state_ptr->ordered_results, &entry);
+		kmutex_unlock(&state_ptr->result_mutex);
+		return;
 	}
 	for (u16 i = 0; i < MAX_JOB_RESULTS; ++i) {
 		if (state_ptr->pending_results[i].id == INVALID_ID_U16) {
@@ -199,7 +209,11 @@ b8 job_system_initialize (u64 *job_system_memory_requirement, void *state, void 
 	ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->low_priority_queue);
 	ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->normal_priority_queue);
 	ring_queue_create(sizeof(job_info), 1024, 0, &state_ptr->high_priority_queue);
-	state_ptr->thread_count = typed_config->max_job_thread_count;
+	state_ptr->synchronous = typed_config->synchronous;
+	state_ptr->thread_count = state_ptr->synchronous ? 0 : typed_config->max_job_thread_count;
+	if (state_ptr->synchronous) {
+		state_ptr->ordered_results = darray_create(job_result_entry);
+	}
 
 	// Invalidate all result slots
 	for (u16 i = 0; i < MAX_JOB_RESULTS; ++i) {
@@ -264,6 +278,17 @@ void job_system_shutdown (void *state) {
 		ring_queue_destroy(&state_ptr->low_priority_queue);
 		ring_queue_destroy(&state_ptr->normal_priority_queue);
 		ring_queue_destroy(&state_ptr->high_priority_queue);
+
+		if (state_ptr->ordered_results) {
+			u32 count = darray_length(state_ptr->ordered_results);
+			for (u32 i = 0; i < count; ++i) {
+				if (state_ptr->ordered_results[i].params) {
+					kfree(state_ptr->ordered_results[i].params);
+				}
+			}
+			darray_destroy(state_ptr->ordered_results);
+			state_ptr->ordered_results = 0;
+		}
 
 		// Destroy mutexes
 		kmutex_destroy(&state_ptr->result_mutex);
@@ -346,9 +371,67 @@ static void process_queue (ring_queue *queue, kmutex *queue_mutex) {
 	}
 }
 
+// Synchronous mode: runs a job now on this thread. Its result waits for the next update, so
+// callers still see the callback after the submit returns, as with a job thread.
+static void job_run_now (job_info info) {
+	b8 result = info.entry_point(info.param_data, info.result_data);
+	if (result && info.on_success) {
+		store_result(info.on_success, info.result_data_size, info.result_data);
+	} else if (!result && info.on_fail) {
+		store_result(info.on_fail, info.result_data_size, info.result_data);
+	}
+
+	if (info.param_data) {
+		kfree(info.param_data);
+	}
+	if (info.result_data) {
+		kfree(info.result_data);
+	}
+	if (info.dependency_ids) {
+		kfree(info.dependency_ids);
+	}
+
+	kmutex_lock(&state_ptr->job_status_mutex);
+	state_ptr->job_statuses[info.id] = true;
+	kmutex_unlock(&state_ptr->job_status_mutex);
+}
+
+// Synchronous mode: delivers results oldest first, including those of jobs the callbacks
+// submit, until none are left. A chain of loads (model, then material, then texture) then
+// finishes within one frame, so the state at a given step never depends on how many frames ran.
+static void deliver_ordered_results (void) {
+	// Guards against callbacks that keep submitting jobs forever.
+	const u32 max_rounds = 1024;
+	for (u32 round = 0; round < max_rounds; ++round) {
+		kmutex_lock(&state_ptr->result_mutex);
+		job_result_entry *batch = state_ptr->ordered_results;
+		state_ptr->ordered_results = darray_create(job_result_entry);
+		kmutex_unlock(&state_ptr->result_mutex);
+
+		u32 count = darray_length(batch);
+		for (u32 i = 0; i < count; ++i) {
+			batch[i].callback(batch[i].params);
+			if (batch[i].params) {
+				kfree(batch[i].params);
+			}
+		}
+		darray_destroy(batch);
+
+		if (count == 0) {
+			return;
+		}
+	}
+	KERROR("Job results were still arriving after %u rounds in one frame; the rest wait for the next frame.", max_rounds);
+}
+
 b8 job_system_update (void *state, struct frame_data *p_frame_data) {
 	if (!state_ptr || !state_ptr->running) {
 		return false;
+	}
+
+	if (state_ptr->synchronous) {
+		deliver_ordered_results();
+		return true;
 	}
 
 	process_queue(&state_ptr->high_priority_queue, &state_ptr->high_pri_queue_mutex);
@@ -390,6 +473,11 @@ b8 job_system_update (void *state, struct frame_data *p_frame_data) {
 }
 
 void job_system_submit (job_info info) {
+	if (state_ptr->synchronous) {
+		job_run_now(info);
+		return;
+	}
+
 	u64 thread_count = state_ptr->thread_count;
 	ring_queue *queue = &state_ptr->normal_priority_queue;
 	kmutex *queue_mutex = &state_ptr->normal_pri_queue_mutex;
