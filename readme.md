@@ -218,6 +218,11 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `mouse_wheel` | `delta` | Scrolls. |
 | `console` | `line` | Runs a console command, such as `physics_state_save`. |
 | `physics_hash` | | Hash of the full physics state. |
+| `scenes` | | Live scenes and whether each is loaded. A scene finishes loading during the first frames, so step until it reports `loaded`. |
+| `entities` | `scene` (default: newest loaded) | Every entity with name, type, parent, world position, rotation, scale, and for physics bodies motion, velocity and whether it is awake. |
+| `entity` | `entity` (name), `scene` | One entity, same fields. |
+| `physics_impulse` | `entity`, `x`, `y`, `z` | Applies an impulse to a dynamic or kinematic body. |
+| `physics_velocity_set` | `entity`, `x`, `y`, `z` | Sets a body's linear velocity. |
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
 

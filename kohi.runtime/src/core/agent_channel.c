@@ -428,6 +428,10 @@ b8 agent_request_bool_get (const agent_request *request, const char *key, b8 *ou
 // Commands.
 
 b8 agent_command_register (const char *name, const char *help, void *listener, PFN_agent_command handler) {
+	if (!state.enabled) {
+		// Nothing would ever call it.
+		return true;
+	}
 	for (u32 i = 0; i < state.command_count; ++i) {
 		if (strings_equal(state.commands[i].name, name)) {
 			state.commands[i].listener = listener;

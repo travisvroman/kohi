@@ -34,7 +34,7 @@ typedef struct agent_reply agent_reply;
  */
 typedef b8 (*PFN_agent_command)(const agent_request *request, agent_reply *reply, void *listener);
 
-/** @brief Adds a command, or replaces one with the same name. Callable before or after the channel starts. */
+/** @brief Adds a command, or replaces one with the same name. Callable before or after the channel starts; does nothing without --agent. */
 KAPI b8 agent_command_register (const char *name, const char *help, void *listener, PFN_agent_command handler);
 
 /** @brief True when the engine was started with --agent. */
