@@ -4539,6 +4539,198 @@ static void agent_entity_json_append (kscene *scene, kentity entity, char **json
 	agent_json_append(json, "}");
 }
 
+typedef struct scene_entity_record {
+	kname name;
+	kname parent;
+	vec3 position;
+	quat rotation;
+	vec3 scale;
+} scene_entity_record;
+
+static void scene_records_collect_r (kscene *scene, kentity entity, scene_entity_record **records) {
+	base_entity *base = get_entity_base(scene, entity);
+	scene_entity_record record = {0};
+	record.name = base->name;
+	if (base->parent != KENTITY_INVALID) {
+		base_entity *parent = get_entity_base(scene, base->parent);
+		record.parent = parent ? parent->name : INVALID_KNAME;
+	} else {
+		record.parent = INVALID_KNAME;
+	}
+	record.position = ktransform_position_get(base->transform);
+	record.rotation = ktransform_rotation_get(base->transform);
+	record.scale = ktransform_scale_get(base->transform);
+	darray_push(*records, &record);
+
+	u32 child_count = base->children ? darray_length(base->children) : 0;
+	for (u32 i = 0; i < child_count; ++i) {
+		scene_records_collect_r(scene, base->children[i], records);
+	}
+}
+
+// Walks the scene in tree order. A record is 8 + 8 + 12 + 16 + 12 bytes with no padding, so the
+// bytes can be hashed directly.
+static scene_entity_record *scene_records_collect (kscene *scene) {
+	scene_entity_record *records = darray_create(scene_entity_record);
+	u32 root_count = darray_length(scene->root_entities);
+	for (u32 i = 0; i < root_count; ++i) {
+		scene_records_collect_r(scene, scene->root_entities[i], &records);
+	}
+	return records;
+}
+
+static void scene_records_entities_r (kscene *scene, kentity entity, kentity **entities) {
+	darray_push(*entities, &entity);
+	base_entity *base = get_entity_base(scene, entity);
+	u32 child_count = base->children ? darray_length(base->children) : 0;
+	for (u32 i = 0; i < child_count; ++i) {
+		scene_records_entities_r(scene, base->children[i], entities);
+	}
+}
+
+b8 kscene_state_save (struct kscene *scene, void **out_data, u64 *out_size) {
+	if (!scene || scene->state != KSCENE_STATE_LOADED || !out_data || !out_size) {
+		return false;
+	}
+	scene_entity_record *records = scene_records_collect(scene);
+	u32 count = darray_length(records);
+	*out_size = sizeof(u32) + (u64)count * sizeof(scene_entity_record);
+	u8 *data = kallocate(*out_size, MEMORY_TAG_SCENE);
+	kcopy_memory(data, &count, sizeof(u32));
+	kcopy_memory(data + sizeof(u32), records, (u64)count * sizeof(scene_entity_record));
+	darray_destroy(records);
+	*out_data = data;
+	return true;
+}
+
+b8 kscene_state_restore (struct kscene *scene, const void *data, u64 size) {
+	if (!scene || scene->state != KSCENE_STATE_LOADED || !data || size < sizeof(u32)) {
+		return false;
+	}
+	u32 saved_count = 0;
+	kcopy_memory(&saved_count, data, sizeof(u32));
+	if (size != sizeof(u32) + (u64)saved_count * sizeof(scene_entity_record)) {
+		KERROR("kscene_state_restore: the snapshot is malformed.");
+		return false;
+	}
+	const scene_entity_record *saved = (const scene_entity_record *)((const u8 *)data + sizeof(u32));
+
+	scene_entity_record *current = scene_records_collect(scene);
+	u32 count = darray_length(current);
+	b8 matches = count == saved_count;
+	for (u32 i = 0; matches && i < count; ++i) {
+		matches = current[i].name == saved[i].name && current[i].parent == saved[i].parent;
+	}
+	darray_destroy(current);
+	if (!matches) {
+		KERROR("kscene_state_restore: the scene's entities differ from the snapshot (an entity was added, removed or moved).");
+		return false;
+	}
+
+	kentity *entities = darray_create(kentity);
+	u32 root_count = darray_length(scene->root_entities);
+	for (u32 i = 0; i < root_count; ++i) {
+		scene_records_entities_r(scene, scene->root_entities[i], &entities);
+	}
+	for (u32 i = 0; i < saved_count; ++i) {
+		base_entity *base = get_entity_base(scene, entities[i]);
+		ktransform_position_rotation_scale_set(base->transform, saved[i].position, saved[i].rotation, saved[i].scale);
+	}
+	darray_destroy(entities);
+	return true;
+}
+
+u64 kscene_state_hash (struct kscene *scene) {
+	void *data = 0;
+	u64 size = 0;
+	if (!kscene_state_save(scene, &data, &size)) {
+		return 0;
+	}
+	// FNV-1a over the saved bytes.
+	u64 hash = 14695981039346656037ull;
+	const u8 *bytes = data;
+	for (u64 i = 0; i < size; ++i) {
+		hash = (hash ^ bytes[i]) * 1099511628211ull;
+	}
+	kfree(data);
+	return hash;
+}
+
+// The world snapshot an agent saved: scene transforms plus the physics state. One slot.
+static struct {
+	kscene *scene;
+	void *scene_data;
+	u64 scene_size;
+	void *physics_data;
+	u64 physics_size;
+} agent_world_snapshot;
+
+static void agent_world_snapshot_clear (void) {
+	if (agent_world_snapshot.scene_data) {
+		kfree(agent_world_snapshot.scene_data);
+	}
+	if (agent_world_snapshot.physics_data) {
+		kfree(agent_world_snapshot.physics_data);
+	}
+	kzero_memory(&agent_world_snapshot, sizeof(agent_world_snapshot));
+}
+
+static b8 agent_cmd_world_save (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	if (!scene) {
+		return false;
+	}
+	agent_world_snapshot_clear();
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	if (!kscene_state_save(scene, &agent_world_snapshot.scene_data, &agent_world_snapshot.scene_size)) {
+		agent_reply_error(reply, "could not save the scene");
+		return false;
+	}
+	if (physics && !kphysics_state_save(physics, &agent_world_snapshot.physics_data, &agent_world_snapshot.physics_size)) {
+		agent_world_snapshot_clear();
+		agent_reply_error(reply, "could not save the physics state");
+		return false;
+	}
+	agent_world_snapshot.scene = scene;
+	agent_reply_string_add(reply, "scene", kscene_get_name(scene));
+	agent_reply_int_add(reply, "entities", (i64) * (u32 *)agent_world_snapshot.scene_data);
+	return true;
+}
+
+static b8 agent_cmd_world_restore (const agent_request *request, agent_reply *reply, void *listener) {
+	if (!agent_world_snapshot.scene_data) {
+		agent_reply_error(reply, "no saved world; run world_save first");
+		return false;
+	}
+	if (!kscene_state_restore(agent_world_snapshot.scene, agent_world_snapshot.scene_data, agent_world_snapshot.scene_size)) {
+		agent_reply_error(reply, "the scene's entities differ from the saved world");
+		return false;
+	}
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	if (physics && agent_world_snapshot.physics_data && !kphysics_state_restore(physics, agent_world_snapshot.physics_data, agent_world_snapshot.physics_size)) {
+		agent_reply_error(reply, "could not restore the physics state");
+		return false;
+	}
+	return true;
+}
+
+static b8 agent_cmd_world_hash (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	if (!scene) {
+		return false;
+	}
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	// Hex strings: a JSON number would lose the top bits of a 64-bit hash.
+	char text[32];
+	string_format_unsafe(text, "%016llx", kscene_state_hash(scene));
+	agent_reply_string_add(reply, "scene_hash", text);
+	if (physics) {
+		string_format_unsafe(text, "%016llx", kphysics_state_hash(physics));
+		agent_reply_string_add(reply, "physics_hash", text);
+	}
+	return true;
+}
+
 static void agent_entities_append_r (kscene *scene, kentity entity, char **json, b8 *first) {
 	if (!*first) {
 		agent_json_append(json, ",");
@@ -4677,6 +4869,9 @@ static void agent_scene_add (kscene *scene) {
 		agent_scenes = darray_create(kscene *);
 		agent_command_register("scenes", "Lists live scenes and whether they are loaded.", 0, agent_cmd_scenes);
 		agent_command_register("entities", "Lists every entity in a scene (\"scene\", default the newest loaded) with its world position, rotation, scale and physics state.", 0, agent_cmd_entities);
+		agent_command_register("world_save", "Saves the scene's entity transforms and the physics state (one slot): {\"scene\"} optional.", 0, agent_cmd_world_save);
+		agent_command_register("world_restore", "Restores what world_save saved. Fails if the scene's entities changed since.", 0, agent_cmd_world_restore);
+		agent_command_register("world_hash", "Hashes the scene's entity transforms and the physics state, as hex strings.", 0, agent_cmd_world_hash);
 		agent_command_register("entity", "Returns one entity by name: {\"entity\": \"ball\"}.", 0, agent_cmd_entity);
 		agent_command_register("physics_impulse", "Applies an impulse to a physics body entity: {\"entity\", \"x\", \"y\", \"z\"}.", 0, agent_cmd_physics_impulse);
 		agent_command_register("physics_velocity_set", "Sets a physics body entity's linear velocity: {\"entity\", \"x\", \"y\", \"z\"}.", 0, agent_cmd_physics_velocity_set);
@@ -4685,6 +4880,10 @@ static void agent_scene_add (kscene *scene) {
 }
 
 static void agent_scene_remove (kscene *scene) {
+	// A snapshot of a destroyed scene can never be restored.
+	if (agent_world_snapshot.scene == scene) {
+		agent_world_snapshot_clear();
+	}
 	u32 count = agent_scenes ? darray_length(agent_scenes) : 0;
 	for (u32 i = 0; i < count; ++i) {
 		if (agent_scenes[i] == scene) {

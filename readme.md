@@ -227,6 +227,9 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `ui_controls` | `visible_only` | UI controls with name, type, screen rect, visible, active, focused, and text or checked state where the control has one. |
 | `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
+| `world_save` | `scene` (optional) | Saves the scene's entity transforms (name, parent, local position, rotation, scale) and the physics state, in one slot. |
+| `world_restore` | | Puts the saved world back. Fails, changing nothing, if entities were added, removed or moved in the tree since. |
+| `world_hash` | `scene` (optional) | `scene_hash` and `physics_hash` as hex strings, for comparing runs. |
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
 

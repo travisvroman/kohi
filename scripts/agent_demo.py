@@ -4,8 +4,9 @@
 Run from the repository root after a build:
     python3 scripts/agent_demo.py
 
-It steps the physics scene, saves the physics state, steps on, restores the state, and replays
-the same steps. The run passes when the replay ends at the same physics hash as the first time.
+It steps the physics scene, saves the world (entity transforms and physics state), steps on,
+restores it, and replays the same steps. The run passes when the replay ends at the same physics
+and scene hashes as the first time.
 """
 import json
 import os
@@ -63,18 +64,20 @@ def main():
     engine = Engine(CONFIG, os.path.join(BIN, "agent_demo.log"))
     try:
         engine.call("step", count=30)
-        engine.call("console", line="physics_state_save")
+        engine.call("world_save")  # entity transforms and physics state
         engine.call("step", count=30)
         first = engine.call("physics_hash")
-        engine.call("console", line="physics_state_restore")
+        first_world = engine.call("world_hash")
+        engine.call("world_restore")
         engine.call("step", count=30)
         replay = engine.call("physics_hash")
+        replay_world = engine.call("world_hash")
     finally:
         code = engine.close()
 
-    print(f"step {first['step']}: {first['hash']}")
-    print(f"step {replay['step']} (after restore and replay): {replay['hash']}")
-    if first["hash"] != replay["hash"] or code != 0:
+    print(f"step {first['step']}: {first['hash']} (scene {first_world['scene_hash']})")
+    print(f"step {replay['step']} (after restore and replay): {replay['hash']} (scene {replay_world['scene_hash']})")
+    if first["hash"] != replay["hash"] or first_world["scene_hash"] != replay_world["scene_hash"] or code != 0:
         print("FAIL")
         return 1
     print("PASS: the replay reproduced the physics state exactly")
