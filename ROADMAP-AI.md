@@ -46,7 +46,7 @@ Agents run many instances at once (search, training, testing).
 
 - [x] Upstream #271: `u32_bst_delete`/`u64_bst_delete` copied the key but not the value, and callers ignored the returned root (left `scene->name_lookup` dangling).
 - [x] Upstream #281: missing assets. The engine now refuses to start when any manifest asset file is missing, lists each one, and says to run the importer.
-- [ ] OpenAL `openal_backend_find_free_buffer`: indexes `sources[i - 1]` starting at `i = 0`, loops over the buffer count instead of the source count, and unqueues several buffers into one `ALuint`. Only hit once all buffers are in use.
+- [x] OpenAL buffers: `openal_backend_find_free_buffer`'s reclaim path indexed `sources[-1]` and handed out buffers still owned by loaded audio, and unloading never returned buffers. Buffers now go back to the free list on unload, and running out is a clear error.
 - [ ] `kohi.core.tests` segfaults after the first test.
 - [ ] Vulkan fails on lavapipe (software Vulkan) with `VK_ERROR_OUT_OF_HOST_MEMORY` from the custom allocator.
 - [ ] `prepare_frame` failure skips the frame without ending the open command list.

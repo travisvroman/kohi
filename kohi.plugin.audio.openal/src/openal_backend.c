@@ -163,8 +163,7 @@ static b8 source_work_thread (void *params);
 static b8 source_set_defaults (kaudio_backend_interface *backend, kaudio_plugin_source *source, b8 reset_use);
 static b8 openal_backend_channel_create (kaudio_backend_interface *backend, kaudio_plugin_source *out_source);
 static void openal_backend_channel_destroy (kaudio_backend_interface *backend, kaudio_plugin_source *source);
-static void openal_backend_find_playing_sources (kaudio_backend_interface *backend, u32 playing[], u32 *count);
-static void clear_buffer (kaudio_backend_interface *backend, u32 *buf_ptr, u32 amount);
+static void release_buffer (kaudio_backend_interface *backend, ALuint *buffer);
 static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend);
 static const char *openal_backend_error_str (ALCenum err);
 static b8 openal_backend_check_error (void);
@@ -302,7 +301,7 @@ b8 openal_backend_update (kaudio_backend_interface *backend, struct frame_data *
 		if (source_state == AL_STOPPED && source->previous_state == AL_PLAYING) {
 			KTRACE("Playing -> Stopped");
 			// Audio is newly stopped. Notify completion if not looping.
-			if (!state->datas[source->current].is_looping) {
+			if (source->current != INVALID_KAUDIO && !state->datas[source->current].is_looping) {
 				_kaudio_system_play_completed(engine_systems_get()->audio_system, source->current, source->current_instance_id);
 			}
 		}
@@ -348,7 +347,11 @@ b8 openal_backend_load (struct kaudio_backend_interface *backend, i32 channels, 
 			data->streaming_buffers[i] = openal_backend_find_free_buffer(backend);
 			if (data->streaming_buffers[i] == INVALID_ID) {
 				KERROR("Unable to load streaming audio due to no buffers being available.");
-				return 0;
+				data->streaming_buffers[i] = 0;
+				for (u32 j = 0; j < i; ++j) {
+					release_buffer(backend, &data->streaming_buffers[j]);
+				}
+				return false;
 			}
 
 			// Streams loop by default.
@@ -360,6 +363,7 @@ b8 openal_backend_load (struct kaudio_backend_interface *backend, i32 channels, 
 		data->buffer = openal_backend_find_free_buffer(backend);
 		if (data->buffer == INVALID_ID) {
 			KERROR("Unable to open audio file due to no buffers being available.");
+			data->buffer = 0;
 			return false;
 		}
 		openal_backend_check_error();
@@ -374,6 +378,8 @@ b8 openal_backend_load (struct kaudio_backend_interface *backend, i32 channels, 
 		data->mono_buffer = openal_backend_find_free_buffer(backend);
 		if (data->mono_buffer == INVALID_ID) {
 			KERROR("Unable to open audio file due to no buffers being available.");
+			data->mono_buffer = 0;
+			release_buffer(backend, &data->buffer);
 			return false;
 		}
 		openal_backend_check_error();
@@ -413,7 +419,29 @@ void openal_backend_unload (struct kaudio_backend_interface *backend, kaudio aud
 		data->downmixed_size = 0;
 	}
 
-	clear_buffer(backend, &data->buffer, 0);
+	// Stop any source still playing this audio, so its buffers are detached before they are
+	// handed out again (OpenAL refuses to refill a buffer that is queued on a source).
+	for (u32 i = 0; i < state->max_sources; ++i) {
+		kaudio_plugin_source *source = &state->sources[i];
+		kmutex_lock(&source->data_mutex);
+		if (source->current == audio) {
+			alSourceStop(source->id);
+			alSourcei(source->id, AL_BUFFER, 0);
+			openal_backend_check_error();
+			source->current = INVALID_KAUDIO;
+		}
+		kmutex_unlock(&source->data_mutex);
+	}
+
+	// Return this audio's buffers to the free list.
+	if (data->is_stream) {
+		for (u32 i = 0; i < OPENAL_BACKEND_STREAM_MAX_BUFFER_COUNT; ++i) {
+			release_buffer(backend, &data->streaming_buffers[i]);
+		}
+	} else {
+		release_buffer(backend, &data->buffer);
+		release_buffer(backend, &data->mono_buffer);
+	}
 
 	// FIXME: Mark entry as available for use
 }
@@ -510,7 +538,7 @@ b8 openal_backend_channel_play (kaudio_backend_interface *backend, u8 channel_id
 	if (channel_id_valid(state, channel_id)) {
 		kaudio_plugin_source *source = &state->sources[channel_id];
 		kmutex_lock(&source->data_mutex);
-		if (source->current) {
+		if (source->current != INVALID_KAUDIO) {
 			source->trigger_play = true;
 		}
 		kmutex_unlock(&source->data_mutex);
@@ -644,7 +672,7 @@ b8 openal_backend_channel_stop (kaudio_backend_interface *backend, u8 channel_id
 		// Rewind.
 		alSourceRewind(source->id);
 
-		source->current = 0;
+		source->current = INVALID_KAUDIO;
 
 		return true;
 	}
@@ -862,8 +890,8 @@ static b8 source_work_thread (void *params) {
 			alSourcePlay(source->id);
 			source->trigger_play = false;
 		}
-		kmutex_unlock(&source->data_mutex);
 
+		// Stream under the lock, so unload can't free the data mid-stream.
 		if (source->current != INVALID_KAUDIO) {
 			kaudio_internal_data *data = &state->datas[source->current];
 			if (data->is_stream) {
@@ -871,6 +899,7 @@ static b8 source_work_thread (void *params) {
 				openal_backend_stream_update(backend, source);
 			}
 		}
+		kmutex_unlock(&source->data_mutex);
 
 		platform_sleep(2);
 	}
@@ -883,7 +912,7 @@ static b8 source_set_defaults (kaudio_backend_interface *backend, kaudio_plugin_
 
 	// Mark it as not in use.
 	if (reset_use) {
-		source->current = 0;
+		source->current = INVALID_KAUDIO;
 	}
 
 	// Set some defaults. FIXME: Define these instead of having magic numbers.
@@ -957,38 +986,21 @@ static void openal_backend_channel_destroy (kaudio_backend_interface *backend, k
 	}
 }
 
-static void openal_backend_find_playing_sources (kaudio_backend_interface *backend, u32 playing[], u32 *count) {
-	if (!backend || !count) {
+// Puts a buffer back on the free list and zeroes the caller's id so it cannot be released twice.
+static void release_buffer (kaudio_backend_interface *backend, ALuint *buffer) {
+	if (!backend || !buffer || *buffer == 0 || *buffer == INVALID_ID) {
 		return;
 	}
 
 	kaudio_backend_state *state = backend->internal_state;
-
-	ALint source_state = 0;
-	for (u32 i = 0; i < state->max_sources; ++i) {
-		alGetSourcei(state->sources[i - 1].id, AL_SOURCE_STATE, &source_state);
-		if (source_state == AL_PLAYING) {
-			playing[(*count)] = state->sources[i - 1].id;
-			(*count)++;
+	for (u32 i = 0; i < state->buffer_count; ++i) {
+		if (state->buffers[i] == *buffer) {
+			darray_push(state->free_buffers, buffer);
+			*buffer = 0;
+			return;
 		}
 	}
-}
-
-static void clear_buffer (kaudio_backend_interface *backend, u32 *buf_ptr, u32 amount) {
-	if (backend) {
-
-		kaudio_backend_state *state = backend->internal_state;
-
-		for (u32 a = 0; a < amount; ++a) {
-			for (u32 i = 0; i < state->buffer_count; ++i) {
-				if (buf_ptr[a] == state->buffers[i]) {
-					darray_push(state->free_buffers, &i);
-					return;
-				}
-			}
-		}
-	}
-	KWARN("Buffer could not be cleared.");
+	KWARN("Buffer %u is not owned by the OpenAL backend and was not released.", *buffer);
 }
 
 static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend) {
@@ -997,51 +1009,9 @@ static u32 openal_backend_find_free_buffer (kaudio_backend_interface *backend) {
 		kaudio_backend_state *state = backend->internal_state;
 		u32 free_count = darray_length(state->free_buffers);
 
-		// If there are no free buffers, attempt to free one first.
-		if (free_count == 0) {
-			KINFO("openal_backend_find_free_buffer() - no free buffers, attempting to free an existing one.");
-			if (!openal_backend_check_error()) {
-				return false;
-			}
-
-			u32 playing_source_count = 0;
-			u32 *playing_sources = kallocate(sizeof(u32) * state->max_sources, MEMORY_TAG_ARRAY);
-			openal_backend_find_playing_sources(backend, playing_sources, &playing_source_count);
-			// Avoid a crash when calling alGetSourcei while checking for freeable buffers. Resumed below.
-			for (u32 i = 0; i < playing_source_count; ++i) {
-				alSourcePause(state->sources[i - 1].id);
-				openal_backend_check_error();
-			}
-
-			ALint to_be_freed = 0;
-			ALuint buffers_freed = 0;
-			for (u32 i = 0; i < state->buffer_count; ++i) {
-				// Get number of buffers to be freed for this source.
-				alGetSourcei(state->sources[i - 1].id, AL_BUFFERS_PROCESSED, &to_be_freed);
-				openal_backend_check_error();
-				if (to_be_freed > 0) {
-					// If there are buffers to be freed, free them.
-					openal_backend_check_error();
-					alSourceUnqueueBuffers(state->sources[i - 1].id, to_be_freed, &buffers_freed);
-					openal_backend_check_error();
-
-					clear_buffer(backend, &buffers_freed, to_be_freed);
-				}
-			}
-
-			// Resume the paused sources.
-			for (u32 i = 0; i < playing_source_count; ++i) {
-				kaudio_plugin_source *source = &state->sources[i - 1];
-				alSourcePlay(source->id);
-				openal_backend_check_error();
-			}
-			kfree(playing_sources);
-		}
-
-		// Check free count again, this time there must be at least one or there is an error condition.
-		free_count = darray_length(state->free_buffers);
+		// Buffers belong to loaded audio until it is unloaded, so there is nothing to reclaim here.
 		if (free_count < 1) {
-			KERROR("Could not find or clear a buffer. This means too many things are being played at once.");
+			KERROR("No free OpenAL buffers: all %u are held by loaded audio. Unload audio, or raise the buffer count.", state->buffer_count);
 			return INVALID_ID;
 		}
 
