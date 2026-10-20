@@ -15,8 +15,9 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(REPO, "bin")
 CONFIG = os.path.join(REPO, "testbed.kapp", "app_config_headless.kson")
-# Windows does not add .exe to a name that already has an extension.
-EXE = "testbed.kapp.exe" if os.name == "nt" else "./testbed.kapp"
+# An absolute path: Windows resolves a relative one against this script's working directory, not
+# cwd, and does not add .exe to a name that already has an extension.
+EXE = os.path.join(BIN, "testbed.kapp.exe" if os.name == "nt" else "testbed.kapp")
 
 
 class Engine:
