@@ -31,7 +31,7 @@ The same inputs and seed must give the same run, every time, so agent experiment
 - [x] A seed for every RNG: `random_seed` in the app config or `--seed`, logged at startup and reported by the agent `status` command.
 - [x] Load assets synchronously in lockstep mode, so they finish at the same step and in the same order every run.
 - [x] Record and replay: `--record` saves keyboard and mouse input per step, `--replay` plays it back to the same end state. Recording agent commands beyond input: not yet.
-- [ ] World snapshot/restore beyond physics: scene, transforms and game state.
+- [x] World snapshot/restore beyond physics: entity transforms plus physics state (`world_save`, `world_restore`, `world_hash`). Game-specific state: not yet, the application would need a hook.
 - [x] Determinism test in CI: `scripts/determinism_check.py` records a run with input, replays it twice and compares physics hashes and the re-recorded input.
 
 ## 3. Parallel runs

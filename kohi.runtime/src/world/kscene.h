@@ -85,6 +85,24 @@ KAPI b8 kscene_frame_prepare (struct kscene *scene, struct frame_data *p_frame_d
 KAPI kscene_state kscene_state_get (const struct kscene *scene);
 KAPI kname kscene_asset_name_get (const struct kscene *scene);
 
+/**
+ * @brief Saves the scene's entity state: the name, parent and local position, rotation and scale
+ * of every entity, in tree order. Physics bodies are not included; save those with
+ * kphysics_state_save. Free the data with kfree (MEMORY_TAG_SCENE).
+ * @returns False if the scene is not loaded.
+ */
+KAPI b8 kscene_state_save (struct kscene *scene, void **out_data, u64 *out_size);
+
+/**
+ * @brief Puts the entity transforms from kscene_state_save back. Fails, changing nothing, when
+ * the scene's entities differ from the snapshot (a different count, or a name or parent in a
+ * different place), for example after an entity was added or removed.
+ */
+KAPI b8 kscene_state_restore (struct kscene *scene, const void *data, u64 size);
+
+/** @brief A 64-bit hash of the scene's saved entity state, for comparing runs. 0 if not loaded. */
+KAPI u64 kscene_state_hash (struct kscene *scene);
+
 KAPI kscene_flags kscene_get_flags (const struct kscene *scene);
 KAPI b8 kscene_get_flag (const struct kscene *scene, kscene_flag_bits flag);
 KAPI void kscene_set_flags (struct kscene *scene, kscene_flags flags);
