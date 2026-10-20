@@ -73,6 +73,8 @@ typedef struct kui_state {
 	kui_flow_control *flow_controls;
 	kui_progress_bar_control *progress_bar_controls;
 	kui_slider_control *slider_controls;
+	kui_list_control *list_controls;
+	kui_dropdown_control *dropdown_controls;
 
 	// The window size in pixels; 0 until the application reports it.
 	vec2 screen_size;

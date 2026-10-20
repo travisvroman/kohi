@@ -144,6 +144,12 @@ typedef struct kui_slider_event {
 } kui_slider_event;
 typedef void (*PFN_slider_event_callback)(struct kui_state *state, kui_control self, kui_slider_event event);
 
+typedef struct kui_list_event {
+	// The item's position in the list, or -1 for none.
+	i32 index;
+} kui_list_event;
+typedef void (*PFN_list_event_callback)(struct kui_state *state, kui_control self, kui_list_event event);
+
 typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_NONE, // indicates a "free" slot in the internal arrays
 	KUI_CONTROL_TYPE_BASE,
@@ -160,6 +166,8 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_FLOW,
 	KUI_CONTROL_TYPE_PROGRESS_BAR,
 	KUI_CONTROL_TYPE_SLIDER,
+	KUI_CONTROL_TYPE_LIST,
+	KUI_CONTROL_TYPE_DROPDOWN,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -577,6 +585,47 @@ typedef struct kui_slider_control {
 
 	PFN_slider_event_callback on_value_changed;
 } kui_slider_control;
+
+/**
+ * @brief A column of text items with one selected. It shows visible_rows of them at a time; the
+ * mouse wheel, or moving the selection with the keyboard, scrolls the rest into view.
+ */
+typedef struct kui_list_control {
+	kui_base_control base;
+
+	kui_control background;
+	kui_control highlight;
+	// darray of the label controls for the visible rows.
+	kui_control *rows;
+	// darray of copies of the item texts.
+	char **items;
+
+	f32 row_height;
+	u32 visible_rows;
+	// The item shown in the top row.
+	u32 first;
+	// -1 for none.
+	i32 selected;
+
+	PFN_list_event_callback on_selected;
+	PFN_list_event_callback on_activated;
+} kui_list_control;
+
+/** @brief A button-like header showing the selected item; clicking it opens a list to choose from. */
+typedef struct kui_dropdown_control {
+	kui_base_control base;
+
+	kui_control header;
+	kui_control header_label;
+	kui_control arrow_label;
+	kui_control list;
+
+	b8 open;
+	/** @brief The chosen item. The list's own selection is only the highlight while the dropdown is open. */
+	i32 selected;
+
+	PFN_list_event_callback on_selected;
+} kui_dropdown_control;
 
 // Atlas configuration
 

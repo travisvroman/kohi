@@ -29,6 +29,8 @@
 #include "controls/checkbox_control.h"
 #include "controls/kui_progress_bar.h"
 #include "controls/kui_slider.h"
+#include "controls/kui_list.h"
+#include "controls/kui_dropdown.h"
 #include "controls/image_box_control.h"
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"
@@ -136,6 +138,8 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	state->flow_controls = darray_create(kui_flow_control);
 	state->progress_bar_controls = darray_create(kui_progress_bar_control);
 	state->slider_controls = darray_create(kui_slider_control);
+	state->list_controls = darray_create(kui_list_control);
+	state->dropdown_controls = darray_create(kui_dropdown_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 	agent_commands_register(state);
@@ -299,6 +303,26 @@ void kui_system_shutdown (kui_state *state) {
 				}
 			}
 			darray_destroy(state->slider_controls);
+		}
+
+		{
+			u32 len = darray_length(state->list_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->list_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_list_destroy(state, &state->list_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->list_controls);
+		}
+
+		{
+			u32 len = darray_length(state->dropdown_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->dropdown_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_dropdown_destroy(state, &state->dropdown_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->dropdown_controls);
 		}
 
 		darray_destroy(state->inactive_controls);
@@ -1880,6 +1904,14 @@ static kui_base_control *get_base (kui_state *state, kui_control control) {
 		len = darray_length(state->slider_controls);
 		base = type_index < len ? &state->slider_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_LIST:
+		len = darray_length(state->list_controls);
+		base = type_index < len ? &state->list_controls[type_index].base : KNULL;
+		break;
+	case KUI_CONTROL_TYPE_DROPDOWN:
+		len = darray_length(state->dropdown_controls);
+		base = type_index < len ? &state->dropdown_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -2092,6 +2124,34 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		base = &state->slider_controls[type_index].base;
 		break;
+	case KUI_CONTROL_TYPE_LIST:
+		len = darray_length(state->list_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->list_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->list_controls, &(kui_list_control){0});
+		}
+		base = &state->list_controls[type_index].base;
+		break;
+	case KUI_CONTROL_TYPE_DROPDOWN:
+		len = darray_length(state->dropdown_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->dropdown_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->dropdown_controls, &(kui_dropdown_control){0});
+		}
+		base = &state->dropdown_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -2164,6 +2224,14 @@ static void release_handle (kui_state *state, kui_control *handle) {
 		case KUI_CONTROL_TYPE_SLIDER:
 			kzero_memory(&state->slider_controls[type_index], sizeof(kui_slider_control));
 			base = &state->slider_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_LIST:
+			kzero_memory(&state->list_controls[type_index], sizeof(kui_list_control));
+			base = &state->list_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_DROPDOWN:
+			kzero_memory(&state->dropdown_controls[type_index], sizeof(kui_dropdown_control));
+			base = &state->dropdown_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
@@ -2400,6 +2468,10 @@ static const char *agent_control_type_name (kui_control_type type) {
 		return "progress_bar";
 	case KUI_CONTROL_TYPE_SLIDER:
 		return "slider";
+	case KUI_CONTROL_TYPE_LIST:
+		return "list";
+	case KUI_CONTROL_TYPE_DROPDOWN:
+		return "dropdown";
 	default:
 		return "unknown";
 	}
@@ -2467,6 +2539,24 @@ static void agent_control_json_append (kui_state *state, kui_control control, ch
 	if (base->type == KUI_CONTROL_TYPE_PROGRESS_BAR || base->type == KUI_CONTROL_TYPE_SLIDER) {
 		agent_json_append(json, ",\"value\":");
 		agent_json_append_f32(json, base->type == KUI_CONTROL_TYPE_SLIDER ? kui_slider_value_get(state, control) : kui_progress_bar_value_get(state, control));
+	}
+	if (base->type == KUI_CONTROL_TYPE_LIST || base->type == KUI_CONTROL_TYPE_DROPDOWN) {
+		i32 selected = base->type == KUI_CONTROL_TYPE_LIST ? kui_list_selected_get(state, control) : kui_dropdown_selected_get(state, control);
+		agent_json_append(json, ",\"selected\":");
+		agent_json_append_f32(json, (f32)selected);
+		agent_json_append(json, ",\"items\":[");
+		kui_control list = base->type == KUI_CONTROL_TYPE_LIST ? control : ((kui_dropdown_control *)base)->list;
+		u32 item_count = kui_list_count_get(state, list);
+		for (u32 i = 0; i < item_count; ++i) {
+			if (i) {
+				agent_json_append(json, ",");
+			}
+			agent_json_append_string(json, kui_list_item_get(state, list, i));
+		}
+		agent_json_append(json, "]");
+		if (base->type == KUI_CONTROL_TYPE_DROPDOWN) {
+			agent_json_append(json, kui_dropdown_is_open(state, control) ? ",\"open\":true" : ",\"open\":false");
+		}
 	}
 	if (base->parent.val != INVALID_KUI_CONTROL.val && base->parent.val != state->root.val) {
 		kui_base_control *parent = get_base(state, base->parent);
@@ -2670,6 +2760,36 @@ static b8 agent_cmd_ui_navigate (const agent_request *request, agent_reply *repl
 	return false;
 }
 
+static b8 agent_cmd_ui_select (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	kui_control control = agent_control_from_request(state, request, reply);
+	if (control.val == INVALID_KUI_CONTROL.val) {
+		return false;
+	}
+	f64 index = 0;
+	if (!agent_request_number_get(request, "index", &index)) {
+		agent_reply_error(reply, "needs \"index\" (-1 for none)");
+		return false;
+	}
+	kui_base_control *base = get_base(state, control);
+	if (base->type != KUI_CONTROL_TYPE_LIST && base->type != KUI_CONTROL_TYPE_DROPDOWN) {
+		agent_reply_error(reply, "only lists and dropdowns have items to select");
+		return false;
+	}
+	kui_control list = base->type == KUI_CONTROL_TYPE_LIST ? control : ((kui_dropdown_control *)base)->list;
+	if (index < -1 || index >= kui_list_count_get(state, list)) {
+		agent_reply_error(reply, "index is out of range");
+		return false;
+	}
+	if (base->type == KUI_CONTROL_TYPE_LIST) {
+		kui_list_selected_set(state, control, (i32)index);
+	} else {
+		kui_dropdown_selected_set(state, control, (i32)index);
+	}
+	agent_reply_int_add(reply, "selected", base->type == KUI_CONTROL_TYPE_LIST ? kui_list_selected_get(state, list) : kui_dropdown_selected_get(state, control));
+	return true;
+}
+
 static void agent_commands_register (kui_state *state) {
 	agent_command_register("ui_controls", "Lists UI controls with name, type, screen rect, visibility, focus and text. {\"visible_only\": true} skips hidden ones.", state, agent_cmd_ui_controls);
 	agent_command_register("ui_click", "Clicks a UI control by name: {\"control\": \"ok_button\"}.", state, agent_cmd_ui_click);
@@ -2677,5 +2797,6 @@ static void agent_commands_register (kui_state *state) {
 	agent_command_register("ui_screen_size", "Tells the UI the window size, as a resize would: {\"width\", \"height\"} in pixels. Anchored controls move. Replies with the UI scale.", state, agent_cmd_ui_screen_size);
 	agent_command_register("ui_reference_size", "Designs the UI for a size and scales it to fit the window: {\"width\", \"height\"}; 0 and 0 turns scaling off. Replies with the UI scale.", state, agent_cmd_ui_reference_size);
 	agent_command_register("ui_navigate", "Presses a navigation key in the UI: {\"action\": \"up\"|\"down\"|\"left\"|\"right\"|\"next\"|\"prev\"|\"accept\"|\"cancel\"}. Replies with whether the UI used it and the focused control.", state, agent_cmd_ui_navigate);
+	agent_command_register("ui_select", "Selects an item in a list or dropdown: {\"control\", \"index\"}, -1 for none. ui_controls shows the items and the selection.", state, agent_cmd_ui_select);
 	agent_command_register("ui_text_set", "Sets a textbox's text: {\"control\", \"text\"}.", state, agent_cmd_ui_text_set);
 }

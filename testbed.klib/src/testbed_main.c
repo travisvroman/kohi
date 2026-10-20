@@ -50,6 +50,8 @@
 #include <controls/kui_label.h>
 #include <controls/kui_panel.h>
 #include <controls/kui_progress_bar.h>
+#include <controls/kui_dropdown.h>
+#include <controls/kui_list.h>
 #include <controls/kui_slider.h>
 #include <kui_plugin_main.h>
 #include <kui_system.h>
@@ -127,6 +129,11 @@ static b8 demo_button_clicked (struct kui_state *state, kui_control self, struct
 
 static void demo_slider_changed (kui_state *state, kui_control self, kui_slider_event event) {
 	kui_progress_bar_value_set(state, demo_progress_bar, event.value / 10.0f);
+}
+
+// Choosing a level sets the slider to 0, 5 or 10, which in turn moves the bar.
+static void demo_level_selected (kui_state *state, kui_control self, kui_list_event event) {
+	kui_slider_value_set(state, demo_slider, (f32)event.index * 5.0f);
 }
 
 b8 application_boot (struct application *app) {
@@ -307,6 +314,25 @@ b8 application_initialize (struct application *app) {
 		kui_control demo_checkbox = kui_checkbox_control_create(ui, "demo_checkbox", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "Sound");
 		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_checkbox));
 		kui_control_anchor_set(ui, demo_checkbox, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 140}));
+
+		kui_control demo_list = kui_list_create(ui, "demo_list", 200, 3, FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21);
+		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_list));
+		kui_control_anchor_set(ui, demo_list, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-240, 180}));
+		const char *maps[] = {"Lowfield", "Ashen Keep", "The Tower", "Sunken Gate"};
+		for (u32 i = 0; i < 4; ++i) {
+			kui_list_item_add(ui, demo_list, maps[i]);
+		}
+
+		// Created last so its open list is drawn over the controls below.
+		kui_control demo_dropdown = kui_dropdown_create(ui, "demo_dropdown", 200, 3, FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21);
+		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_dropdown));
+		kui_control_anchor_set(ui, demo_dropdown, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 180}));
+		const char *levels[] = {"Easy", "Normal", "Hard"};
+		for (u32 i = 0; i < 3; ++i) {
+			kui_dropdown_item_add(ui, demo_dropdown, levels[i]);
+		}
+		kui_dropdown_set_on_selected(ui, demo_dropdown, demo_level_selected);
+		kui_dropdown_selected_set(ui, demo_dropdown, 1);
 	}
 
 	return true;
