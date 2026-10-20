@@ -175,6 +175,8 @@ jobs:
           make build-${{ matrix.config }} -j $env:NUMBER_OF_PROCESSORS
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item "$env:RUNNER_TEMP\openal-bin\OpenAL32.dll" bin
+          # The Makefile copies only the assimp DLL; vcpkg's build also needs its dependencies (zlib etc.).
+          Copy-Item C:\assimp\bin\x64\*.dll bin
           Copy-Item "$env:VULKAN_SDK\Bin\shaderc_shared.dll" bin -ErrorAction SilentlyContinue
 
       - name: Unit tests
