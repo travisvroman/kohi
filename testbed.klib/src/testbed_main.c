@@ -42,6 +42,7 @@
 #include <time/kclock.h>
 #include <time/time_utils.h>
 #include <world/kscene.h>
+#include <physics/kphysics_system.h>
 
 // Standard UI.
 #include <controls/kui_button.h>
@@ -259,6 +260,18 @@ b8 application_initialize (struct application *app) {
 	app->state->scene_package_name = kname_create("Testbed");
 
 	app->state->running = true;
+
+	// With the physics system configured (see app_config_headless.kson), start in the physics
+	// scene so a run exercises the simulation.
+	if (engine_systems_get()->physics_system) {
+		kasset_text *asset = asset_system_request_text_sync(engine_systems_get()->asset_state, "physics_scene");
+		if (asset) {
+			app->state->current_scene = kscene_create(kname_create("physics_scene"), asset->content, 0, 0, false);
+			asset_system_release_text(engine_systems_get()->asset_state, asset);
+		} else {
+			KERROR("Failed to load physics_scene scene asset.");
+		}
+	}
 
 	return true;
 }
@@ -799,6 +812,10 @@ void application_on_action (struct application *app_inst, u32 action_code) {
 void application_shutdown (struct application *app) {
 	app->state->running = false;
 	KINFO("Testbed ran %llu fixed simulation steps.", app->state->fixed_update_count);
+	if (engine_systems_get()->physics_system) {
+		// Two runs with the same config should print the same hash.
+		KINFO("Physics state hash: %016llx", kphysics_state_hash(engine_systems_get()->physics_system));
+	}
 
 #if TESTBED_EDITOR
 	editor_shutdown(app->state->editor);

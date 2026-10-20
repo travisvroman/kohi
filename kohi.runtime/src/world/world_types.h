@@ -54,6 +54,7 @@ typedef enum kentity_type {
 	KENTITY_TYPE_HIT_SHAPE,
 	KENTITY_TYPE_POINT_LIGHT,
 	KENTITY_TYPE_SPAWN_POINT,
+	KENTITY_TYPE_PHYSICS_BODY,
 
 	// The number of types of entities. Not a valid entity type.
 	KENTITY_TYPE_COUNT,

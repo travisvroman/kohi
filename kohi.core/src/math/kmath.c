@@ -6,6 +6,7 @@
 #include "defines.h"
 #include "math/math_types.h"
 #include "math/mtwister.h" // for 64-bit RNG
+#include "platform/platform.h" // for platform_get_absolute_time (release builds seed from it)
 
 #define KMATH_USE_CUSTOM_RAND 1
 #if KMATH_USE_CUSTOM_RAND

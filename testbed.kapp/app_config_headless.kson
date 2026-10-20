@@ -122,6 +122,17 @@ systems = [
 		}
 	}
 	{
+		name = "physics"
+		config = {
+			backend_plugin_name = "kohi.plugin.physics.jolt"
+			gravity = "0 -9.81 0"
+			max_bodies = 1024
+			// Worker threads for the physics step; 0 runs it on the engine thread. Results are
+			// identical either way, because Jolt is built for deterministic simulation.
+			thread_count = 0
+		}
+	}
+	{
 	   name="plugin_system"
 	   config = {
 			plugins = [
@@ -136,6 +147,9 @@ systems = [
 					config = {
 						
 					}
+				}
+				{
+					name = "kohi.plugin.physics.jolt"
 				}
 				{
 					name = "kohi.plugin.audio.openal"

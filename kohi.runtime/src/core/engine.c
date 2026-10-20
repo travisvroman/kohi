@@ -28,6 +28,7 @@
 #include "core/kvar.h"
 #include "core/metrics.h"
 #include "core/sim_clock.h"
+#include "physics/kphysics_system.h"
 #include "frame_data.h"
 #include "plugins/plugin_types.h"
 #include "renderer/kmaterial_renderer.h"
@@ -631,6 +632,19 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		}
 	}
 
+	// Physics system. Optional: only started when the app config has a "physics" entry.
+	{
+		application_system_config generic_sys_config = {0};
+		if (application_config_system_config_get(&app->app_config, "physics", &generic_sys_config)) {
+			kphysics_system_initialize(&systems->physics_system_memory_requirement, 0, generic_sys_config.configuration_str);
+			systems->physics_system = kallocate(systems->physics_system_memory_requirement, MEMORY_TAG_ENGINE);
+			if (!kphysics_system_initialize(&systems->physics_system_memory_requirement, systems->physics_system, generic_sys_config.configuration_str)) {
+				KERROR("Failed to initialize physics system.");
+				return false;
+			}
+		}
+	}
+
 	// matrix
 	{
 		kmatrix_system_config matrix_system_config = {.max_matrix_count = 16384};
@@ -858,6 +872,12 @@ static b8 engine_simulation_step (application *app, f64 step_seconds) {
 		return false;
 	}
 
+	// Physics steps after the application, so forces and velocities set this step take effect now.
+	if (engine_state->systems.physics_system && !kphysics_system_step(engine_state->systems.physics_system, (f32)step_seconds)) {
+		KFATAL("Physics step failed, shutting down.");
+		return false;
+	}
+
 	ksim_clock_step_complete(&engine_state->sim_clock);
 	return true;
 }
@@ -1055,6 +1075,9 @@ b8 engine_run (application *app) {
 		if (sim->mode == KSIM_CLOCK_MODE_VARIABLE) {
 			// Legacy path: simulation systems advance once per frame by the frame time.
 			kmodel_system_update(engine_state->systems.model_system, (f32)frame_delta, &engine_state->p_frame_data);
+			if (engine_state->systems.physics_system && frame_delta > 0.0) {
+				kphysics_system_step(engine_state->systems.physics_system, (f32)frame_delta);
+			}
 			ksim_clock_variable_advance(sim, frame_delta);
 		}
 
@@ -1149,6 +1172,9 @@ b8 engine_run (application *app) {
 		texture_system_shutdown(systems->texture_system);
 		ktimeline_system_shutdown(systems->timeline_system);
 		kaudio_system_shutdown(systems->audio_system);
+		if (systems->physics_system) {
+			kphysics_system_shutdown(systems->physics_system);
+		}
 		// Shutdown plugins, but not the system yet in case plugins which do not
 		// "auto-unload" rely on the state still existing.
 		plugin_system_shutdown_all_plugins(systems->plugin_system);

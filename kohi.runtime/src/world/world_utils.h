@@ -2,6 +2,7 @@
 
 #include <defines.h>
 
+#include "physics/kphysics_types.h"
 #include "world/world_types.h"
 
 #define kentity_pack(type, type_index, reserved_0, reserved_1) (kentity) PACK_U64_U16S(type, type_index, reserved_0, reserved_1)
@@ -26,3 +27,8 @@ KAPI const char *kshape_type_to_string (kshape_type type);
 KAPI kscene_volume_type scene_volume_type_from_string (const char *str);
 
 KAPI const char *scene_volume_type_to_string (kscene_volume_type type);
+
+KAPI kphysics_shape_type physics_shape_type_from_string (const char *str);
+KAPI const char *physics_shape_type_to_string (kphysics_shape_type type);
+KAPI kphysics_motion_type physics_motion_type_from_string (const char *str);
+KAPI const char *physics_motion_type_to_string (kphysics_motion_type type);
