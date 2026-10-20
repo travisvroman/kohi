@@ -48,6 +48,8 @@
 #include <controls/kui_button.h>
 #include <controls/kui_label.h>
 #include <controls/kui_panel.h>
+#include <controls/kui_progress_bar.h>
+#include <controls/kui_slider.h>
 #include <kui_plugin_main.h>
 #include <kui_system.h>
 #include <kui_types.h>
@@ -111,6 +113,13 @@ static void game_command_set_render_mode (console_command_context context);
 
 u64 application_state_size (void) {
 	return sizeof(application_state);
+}
+
+// Demo of the slider and progress bar for the headless physics run: the bar follows the slider.
+static kui_control demo_progress_bar;
+
+static void demo_slider_changed (kui_state *state, kui_control self, kui_slider_event event) {
+	kui_progress_bar_value_set(state, demo_progress_bar, event.value / 10.0f);
 }
 
 b8 application_boot (struct application *app) {
@@ -271,6 +280,16 @@ b8 application_initialize (struct application *app) {
 		} else {
 			KERROR("Failed to load physics_scene scene asset.");
 		}
+
+		struct kui_state *ui = app->state->kui_state;
+		demo_progress_bar = kui_progress_bar_create(ui, "demo_progress", (vec2){300, 20}, (vec4){0.15f, 0.15f, 0.18f, 1.0f}, (vec4){0.3f, 0.8f, 0.4f, 1.0f});
+		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_progress_bar));
+		kui_control_position_set(ui, demo_progress_bar, vec3_create(20, 110, 0));
+		kui_control demo_slider = kui_slider_create(ui, "demo_slider", (vec2){300, 24}, 0.0f, 10.0f, 1.0f, 5.0f);
+		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_slider));
+		kui_control_position_set(ui, demo_slider, vec3_create(20, 140, 0));
+		kui_slider_set_on_value_changed(ui, demo_slider, demo_slider_changed);
+		kui_progress_bar_value_set(ui, demo_progress_bar, 0.5f);
 	}
 
 	return true;

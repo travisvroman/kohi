@@ -136,6 +136,11 @@ typedef b8 (*PFN_mouse_event_callback)(struct kui_state *state, kui_control self
 typedef void (*PFN_keyboard_event_callback)(struct kui_state *state, kui_control self, struct kui_keyboard_event event);
 typedef void (*PFN_checkbox_event_callback)(struct kui_state *state, kui_control self, kui_checkbox_event event);
 
+typedef struct kui_slider_event {
+	f32 value;
+} kui_slider_event;
+typedef void (*PFN_slider_event_callback)(struct kui_state *state, kui_control self, kui_slider_event event);
+
 typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_NONE, // indicates a "free" slot in the internal arrays
 	KUI_CONTROL_TYPE_BASE,
@@ -150,6 +155,8 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_FRAME,
 	KUI_CONTROL_TYPE_WINDOW,
 	KUI_CONTROL_TYPE_FLOW,
+	KUI_CONTROL_TYPE_PROGRESS_BAR,
+	KUI_CONTROL_TYPE_SLIDER,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -489,6 +496,35 @@ typedef struct kui_flow_control {
 	kui_control debug_panel;
 #endif
 } kui_flow_control;
+
+/** @brief A bar that shows how far along something is. The value runs from 0 to 1. */
+typedef struct kui_progress_bar_control {
+	kui_base_control base;
+
+	kui_control track;
+	kui_control fill;
+
+	f32 value;
+} kui_progress_bar_control;
+
+/**
+ * @brief A bar with a handle the player drags to pick a value from min to max. With a step above 0
+ * the value snaps to min + n * step.
+ */
+typedef struct kui_slider_control {
+	kui_base_control base;
+
+	kui_control track;
+	kui_control fill;
+	kui_control handle;
+
+	f32 min;
+	f32 max;
+	f32 step;
+	f32 value;
+
+	PFN_slider_event_callback on_value_changed;
+} kui_slider_control;
 
 // Atlas configuration
 

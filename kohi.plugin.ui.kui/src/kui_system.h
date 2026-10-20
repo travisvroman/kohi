@@ -71,6 +71,8 @@ typedef struct kui_state {
 	kui_frame_control *frame_controls;
 	kui_window_control *window_controls;
 	kui_flow_control *flow_controls;
+	kui_progress_bar_control *progress_bar_controls;
+	kui_slider_control *slider_controls;
 } kui_state;
 
 /**
