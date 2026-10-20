@@ -324,6 +324,12 @@ KAPI void platform_free (void *block, b8 aligned, u64 size);
 KAPI void platform_console_write (struct platform_state *platform, log_level level, const char *message);
 
 /**
+ * @brief Sends all console output to stderr instead of only errors, leaving stdout free for
+ * machine-readable output (for example the agent channel).
+ */
+KAPI void platform_console_stderr_only_set (b8 enabled);
+
+/**
  * @brief Gets the absolute time since the application started.
  *
  * @return The absolute time since the application started.
