@@ -62,6 +62,27 @@ b8 application_config_parse_file_content (const char *file_content, application_
 		return false;
 	}
 
+	// Headless/simulation options. All optional.
+	if (!kson_object_property_value_get_bool(&app_config_tree.root, "headless", &out_config->headless)) {
+		out_config->headless = false;
+	}
+
+	i64 fixed_step_hz = 0;
+	kson_object_property_value_get_int(&app_config_tree.root, "fixed_step_hz", &fixed_step_hz);
+	if (fixed_step_hz < 0) {
+		KERROR("'fixed_step_hz' cannot be negative. Fixed stepping will be disabled.");
+		fixed_step_hz = 0;
+	}
+	out_config->fixed_step_hz = (u32)fixed_step_hz;
+
+	i64 max_frames = 0;
+	kson_object_property_value_get_int(&app_config_tree.root, "max_frames", &max_frames);
+	if (max_frames < 0) {
+		KERROR("'max_frames' cannot be negative. The frame limit will be disabled.");
+		max_frames = 0;
+	}
+	out_config->max_frames = (u64)max_frames;
+
 	// Window configs.
 	out_config->windows = darray_create(kwindow_config);
 	kson_array window_configs_array;

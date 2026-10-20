@@ -29,13 +29,13 @@ endif
 
 .PHONY: all-debug all-release clean scaffold scaffold-win32 scaffold-linux scaffold-macos kohi-tools-debug copy-top-level copy-top-level-win32 copy-top-level-nix copy-top-level-linux copy-top-level-macos tools-clean clean-top-level clean-top-level-win32 clean-top-level-linux clean-top-level-macos
 
-.PHONY: utils-debug core-debug core-tests-debug runtime-debug runtime-tests-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug tools-debug testbed-klib-debug testbed-kapp-debug
+.PHONY: utils-debug core-debug core-tests-debug runtime-debug runtime-tests-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-null-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug tools-debug testbed-klib-debug testbed-kapp-debug
 .PHONY: kohi-debug kohi-tests-debug kohi-plugins-debug testbed-debug
 
-.PHONY: utils-release core-release core-tests-release runtime-release runtime-tests-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-ui-kui-release plugin-renderer-utils-release tools-release testbed-klib-release testbed-kapp-release
+.PHONY: utils-release core-release core-tests-release runtime-release runtime-tests-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-null-release plugin-renderer-ui-kui-release plugin-renderer-utils-release tools-release testbed-klib-release testbed-kapp-release
 .PHONY: kohi-release kohi-tests-release kohi-plugins-release testbed-release
 
-.PHONY: utils-clean core-clean core-tests-clean runtime-clean runtime-tests-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean tools-clean testbed-klib-clean testbed-kapp-clean
+.PHONY: utils-clean core-clean core-tests-clean runtime-clean runtime-tests-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-null-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean tools-clean testbed-klib-clean testbed-kapp-clean
 .PHONY: kohi-clean kohi-tests-clean kohi-plugins-clean testbed-clean
 
 .PHONY: setup getdeps getdeps-linux getdeps-win32 getdeps-macos build-debug build-release
@@ -92,6 +92,7 @@ copy-top-level-win32: copy-utils
 	copy kohi.runtime.tests\bin\* bin
 	copy kohi.plugin.audio.openal\bin\* bin
 	copy kohi.plugin.renderer.vulkan\bin\* bin
+	copy kohi.plugin.renderer.null\bin\* bin
 	copy kohi.plugin.ui.kui\bin\* bin
 	copy kohi.plugin.utils\bin\* bin
 	copy kohi.tools\bin\* bin
@@ -106,6 +107,7 @@ copy-top-level-nix: copy-utils
 	cp kohi.runtime.tests/bin/* bin
 	cp kohi.plugin.audio.openal/bin/* bin
 	cp kohi.plugin.renderer.vulkan/bin/* bin
+	cp kohi.plugin.renderer.null/bin/* bin
 	cp kohi.plugin.ui.kui/bin/* bin
 	cp kohi.plugin.utils/bin/* bin
 	cp kohi.tools/bin/* bin
@@ -133,7 +135,7 @@ all-debug: setup build-debug
 build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
 kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
-kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-ui-kui-debug plugin-utils-debug
+kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-null-debug plugin-ui-kui-debug plugin-utils-debug
 testbed-debug: kohi-debug kohi-plugins-debug testbed-klib-debug testbed-kapp-debug
 testbed-lib-debug: testbed-klib-debug copy-top-level-lib
 
@@ -158,6 +160,9 @@ plugin-audio-openal-debug:
 plugin-renderer-vulkan-debug:
 	$(MAKE) -C kohi.plugin.renderer.vulkan all-debug
 
+plugin-renderer-null-debug:
+	$(MAKE) -C kohi.plugin.renderer.null all-debug
+
 plugin-ui-kui-debug:
 	$(MAKE) -C kohi.plugin.ui.kui all-debug
 
@@ -178,7 +183,7 @@ all-release: setup build-release
 build-release: kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
 kohi-release: core-release runtime-release 
 kohi-tests-release: kohi-release core-tests-release runtime-tests-release
-kohi-plugins-release: kohi-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-ui-kui-release plugin-renderer-utils-release
+kohi-plugins-release: kohi-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-null-release plugin-renderer-ui-kui-release plugin-renderer-utils-release
 testbed-release: kohi-release kohi-plugins-release testbed-klib-release testbed-kapp-release
 
 utils-release:
@@ -202,6 +207,9 @@ plugin-audio-openal-release:
 plugin-renderer-vulkan-release:
 	$(MAKE) -C kohi.plugin.renderer.vulkan all-release
 
+plugin-renderer-null-release:
+	$(MAKE) -C kohi.plugin.renderer.null all-release
+
 plugin-renderer-ui-kui-release:
 	$(MAKE) -C kohi.plugin.ui.kui all-release
 
@@ -221,7 +229,7 @@ testbed-kapp-release:
 clean: utils-clean kohi-clean kohi-tests-clean kohi-plugins-clean tools-clean testbed-clean clean-top-level
 kohi-clean: utils-clean core-clean runtime-clean clean-top-level
 kohi-tests-clean: core-tests-clean runtime-tests-clean clean-top-level
-kohi-plugins-clean: utils-clean kohi-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean clean-top-level
+kohi-plugins-clean: utils-clean kohi-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-null-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean clean-top-level
 testbed-clean: utils-clean testbed-klib-clean testbed-kapp-clean clean-top-level
 
 clean-top-level: clean-top-level-$(PLATFORM)
@@ -255,6 +263,9 @@ plugin-audio-openal-clean:
 
 plugin-renderer-vulkan-clean:
 	$(MAKE) -C kohi.plugin.renderer.vulkan clean
+
+plugin-renderer-null-clean:
+	$(MAKE) -C kohi.plugin.renderer.null clean
 
 plugin-renderer-ui-kui-clean:
 	$(MAKE) -C kohi.plugin.ui.kui clean

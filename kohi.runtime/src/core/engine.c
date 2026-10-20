@@ -180,10 +180,25 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 	// Engine systems
 	engine_system_states *systems = &engine_state->systems;
 
+	// Get/parse application config. This happens before platform startup because the platform
+	// needs to know whether to connect to a display server (see 'headless').
+	const char *app_file_content = filesystem_read_entire_text_file(app_config_path);
+	if (!app_file_content) {
+		KFATAL("Failed to read app_config.kson file text. Application cannot start.");
+		return false;
+	}
+
+	if (!application_config_parse_file_content(app_file_content, &app->app_config)) {
+		KFATAL("Failed to parse application config. Cannot start.");
+		return false;
+	}
+	string_free(app_file_content);
+
 	// Platform initialization first. NOTE: NOT window creation - that should happen much later.
 	{
 		platform_system_config plat_config = {0};
 		plat_config.application_name = app->app_config.name;
+		plat_config.headless = app->app_config.headless;
 		systems->platform_memory_requirement = 0;
 		platform_system_startup(&systems->platform_memory_requirement, 0, &plat_config);
 		systems->platform_system = kallocate(systems->platform_memory_requirement, MEMORY_TAG_ENGINE);
@@ -289,19 +304,6 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 #endif
 	KINFO("Kohi Runtime %s (%s)", KVERSION, build_type);
 
-	// Get/parse application config.
-	const char *app_file_content = filesystem_read_entire_text_file(app_config_path);
-	if (!app_file_content) {
-		KFATAL("Failed to read app_config.kson file text. Application cannot start.");
-		return false;
-	}
-
-	if (!application_config_parse_file_content(app_file_content, &app->app_config)) {
-		KFATAL("Failed to parse application config. Cannot start.");
-		return false;
-	}
-	string_free(app_file_content);
-
 	// Create application
 	{
 		app->game_library_name = string_duplicate(game_lib_name);
@@ -372,7 +374,14 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		darray_push(engine_state->windows, &new_window);
 
 		kwindow *window = &engine_state->windows[(darray_length(engine_state->windows) - 1)];
-		if (!platform_window_create(window_config, window, true)) {
+		if (app->app_config.headless) {
+			// A virtual window: it has a size for render targets and viewports, but no OS window behind it.
+			window->title = string_duplicate(window_config->title);
+			window->width = window_config->width;
+			window->height = window_config->height;
+			window->device_pixel_ratio = 1.0f;
+			KINFO("Created headless virtual window '%s' (%ux%u).", window->name, window->width, window->height);
+		} else if (!platform_window_create(window_config, window, true)) {
 			KERROR("Failed to create window '%s'.", window_config->name);
 			return false;
 		}
@@ -811,6 +820,19 @@ b8 engine_run (application *app) {
 	f64 target_frame_seconds = 1.0f / 60;
 	f64 frame_elapsed_time = 0;
 
+	// With a fixed step, every frame advances time by the same amount regardless of how long it took.
+	const u32 fixed_step_hz = app->app_config.fixed_step_hz;
+	const f64 fixed_step_seconds = fixed_step_hz ? 1.0 / (f64)fixed_step_hz : 0.0;
+	const u64 max_frames = app->app_config.max_frames;
+	u64 frames_run = 0;
+	f64 simulated_seconds = 0;
+	if (fixed_step_hz) {
+		KINFO("Fixed-step simulation enabled: %u Hz (%.6f s per frame).", fixed_step_hz, fixed_step_seconds);
+	}
+	if (max_frames) {
+		KINFO("Engine will stop after %llu frames.", max_frames);
+	}
+
 	char *mem_usage = get_memory_usage_str();
 	KINFO(mem_usage);
 	string_free(mem_usage);
@@ -829,7 +851,7 @@ b8 engine_run (application *app) {
 			// Update clock and get delta time.
 			kclock_update(&engine_state->clock);
 			f64 current_time = engine_state->clock.elapsed;
-			f64 delta = (current_time - engine_state->last_time);
+			f64 delta = fixed_step_hz ? fixed_step_seconds : (current_time - engine_state->last_time);
 			f64 frame_start_time = platform_get_absolute_time();
 
 			// Reset the frame allocator
@@ -981,6 +1003,13 @@ b8 engine_run (application *app) {
 
 			// Update last time
 			engine_state->last_time = current_time;
+
+			frames_run++;
+			simulated_seconds += delta;
+			if (max_frames && frames_run >= max_frames) {
+				KINFO("Reached max_frames (%llu); shutting down.", max_frames);
+				engine_state->is_running = false;
+			}
 		} else {
 			KDEBUG("suspended...");
 		}
@@ -988,6 +1017,9 @@ b8 engine_run (application *app) {
 
 	engine_state->is_running = false;
 	app->stage = APPLICATION_STAGE_SHUTTING_DOWN;
+
+	kclock_update(&engine_state->clock);
+	KINFO("Ran %llu frames: %.3f s simulated in %.3f s wall-clock.", frames_run, simulated_seconds, engine_state->clock.elapsed);
 
 	// Shut down the game and unload the lib.
 	app->shutdown(app);
@@ -1004,7 +1036,12 @@ b8 engine_run (application *app) {
 		// Tell the renderer about the window destruction.
 		renderer_on_window_destroyed(engine_state->systems.renderer_system, window);
 
-		platform_window_destroy(window);
+		if (app->app_config.headless) {
+			string_free(window->name);
+			string_free(window->title);
+		} else {
+			platform_window_destroy(window);
+		}
 	}
 	darray_destroy(engine_state->windows);
 

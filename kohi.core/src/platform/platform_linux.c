@@ -150,6 +150,8 @@ typedef void (*PFN_dbus_message_iter_get_basic)(DBusMessageIter *iter, void *val
 		}
 
 typedef struct platform_state {
+	// True when running without a display server. No X connection exists in this mode.
+	b8 headless;
 	Display *display;
 	linux_handle_info handle;
 	// NOTE: May need to be part of window.
@@ -289,6 +291,9 @@ static b8 enable_detectable_autorepeat (xcb_connection_t *conn) {
 	return turned_on;
 }
 
+static b8 x_connect (platform_state *state);
+static b8 load_dbus (platform_state *state);
+
 b8 platform_system_startup (u64 *memory_requirement, struct platform_state *state, platform_system_config *config) {
 	*memory_requirement = sizeof(platform_state);
 	if (state == 0) {
@@ -296,9 +301,25 @@ b8 platform_system_startup (u64 *memory_requirement, struct platform_state *stat
 	}
 
 	state_ptr = state;
+	state->headless = config->headless;
+	state->windows = darray_create(kwindow *);
 
+	if (state->headless) {
+		KINFO("Platform running headless; no display server connection will be made.");
+	} else if (!x_connect(state)) {
+		return false;
+	}
+
+	return load_dbus(state);
+}
+
+static b8 x_connect (platform_state *state) {
 	// Connect to X
 	state->display = XOpenDisplay(NULL);
+	if (!state->display) {
+		KFATAL("Failed to open X display. Set 'headless = true' in the application config to run without one.");
+		return false;
+	}
 
 	// Retrieve the connection from the display.
 	state->handle.connection = XGetXCBConnection(state->display);
@@ -332,8 +353,10 @@ b8 platform_system_startup (u64 *memory_requirement, struct platform_state *stat
 	state->screen = it.data;
 	state->handle.screen = state->screen;
 
-	state->windows = darray_create(kwindow *);
+	return true;
+}
 
+static b8 load_dbus (platform_state *state) {
 	// DBus functions are loaded dynamically to avoid the hard dependency on it.
 	// Things depending on it won't execute if it doesn't load, but it won't prevent
 	// the entire system from running this way.
@@ -394,8 +417,10 @@ void platform_system_shutdown (struct platform_state *state) {
 			darray_destroy(state->watches);
 		}
 
-		xcb_flush(state->handle.connection);
-		XCloseDisplay(state->display);
+		if (state->display) {
+			xcb_flush(state->handle.connection);
+			XCloseDisplay(state->display);
+		}
 		state->display = KNULL;
 		state->handle.connection = KNULL;
 	}
@@ -403,6 +428,11 @@ void platform_system_shutdown (struct platform_state *state) {
 
 b8 platform_window_create (const kwindow_config *config, struct kwindow *window, b8 show_immediately) {
 	if (!window) {
+		return false;
+	}
+
+	if (state_ptr->headless) {
+		KERROR("platform_window_create - Cannot create an OS window while running headless.");
 		return false;
 	}
 
@@ -729,8 +759,8 @@ b8 platform_pump_messages (void) {
 
 		b8 quit_flagged = false;
 
-		// Poll for events until null is returned.
-		while ((event = xcb_poll_for_event(state_ptr->handle.connection))) {
+		// Poll for events until null is returned. There are none to poll when headless.
+		while (state_ptr->handle.connection && (event = xcb_poll_for_event(state_ptr->handle.connection))) {
 			// Input events
 			switch (event->response_type & ~0x80) {
 			case XCB_KEY_PRESS:
@@ -1073,7 +1103,7 @@ void platform_get_handle_info (u64 *out_size, void *memory) {
 }
 
 f32 platform_device_pixel_ratio (const struct kwindow *window) {
-	return window->platform_state->device_pixel_ratio;
+	return window->platform_state ? window->platform_state->device_pixel_ratio : 1.0f;
 }
 
 const char *platform_dynamic_library_extension (void) {
@@ -1852,6 +1882,11 @@ void platform_request_clipboard_content (kwindow *window) {
 }
 
 void platform_clipboard_content_set (kwindow *window, kclipboard_content_type type, u32 size, void *content) {
+	if (!state_ptr->handle.connection || !window->platform_state) {
+		KWARN("Clipboard is not available without a display server.");
+		return;
+	}
+
 	internal_clipboard_state *cb = &state_ptr->clipboard;
 	if (cb->owned_data) {
 		if (cb->owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {

@@ -51,8 +51,10 @@ typedef struct nix_semaphore_internal {
 	char *name;
 } nix_semaphore_internal;
 
-static volatile u32 semaphore_id = 0;
-static kmutex *semaphore_id_mutex = KNULL;
+static u32 semaphore_id = 0;
+// Statically initialized so concurrent first calls to ksemaphore_create (e.g. job threads
+// starting at the same time) can't race on creating it.
+static pthread_mutex_t semaphore_id_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // NOTE: Begin threads.
 
@@ -327,15 +329,10 @@ b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count)
 		return false;
 	}
 
-	if (!semaphore_id_mutex) {
-		semaphore_id_mutex = KALLOC_TYPE(kmutex, MEMORY_TAG_PLATFORM);
-		kmutex_create(semaphore_id_mutex);
-	}
-
-	kmutex_lock(semaphore_id_mutex);
+	pthread_mutex_lock(&semaphore_id_mutex);
 	char *name_buf = string_format("/kohi_job_sem_%u", semaphore_id);
 	semaphore_id++;
-	kmutex_unlock(semaphore_id_mutex);
+	pthread_mutex_unlock(&semaphore_id_mutex);
 
 	out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
 	nix_semaphore_internal *internal = out_semaphore->internal_data;
