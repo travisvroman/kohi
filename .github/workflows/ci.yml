@@ -118,9 +118,10 @@ jobs:
           Copy-Item "$src\libs\Win64\OpenAL32.lib" "$sdk\libs\Win64"
           Copy-Item "$src\bin\Win64\soft_oal.dll" "$env:RUNNER_TEMP\openal-bin\OpenAL32.dll"
 
-      - name: Cache assimp
+      # Restore and save are split so a later failing step does not throw away a slow build.
+      - name: Restore assimp
         id: assimp-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: C:\assimp
           key: assimp-vcpkg-windows-2025-v1
@@ -138,18 +139,31 @@ jobs:
           Copy-Item $lib.FullName C:\assimp\lib\x64\assimp-vc143-mt.lib
           Copy-Item "$installed\bin\*.dll" C:\assimp\bin\x64
 
-      - name: Cache Jolt
-        uses: actions/cache@v6
+      - name: Save assimp
+        if: steps.assimp-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: C:\assimp
+          key: assimp-vcpkg-windows-2025-v1
+
+      - name: Restore Jolt
+        id: jolt-cache
+        uses: actions/cache/restore@v6
         with:
           path: vendor/jolt
           key: jolt-windows-${{ hashFiles('kohi.plugin.physics.jolt/deps/**') }}
 
       - name: Build Jolt
+        if: steps.jolt-cache.outputs.cache-hit != 'true'
         shell: bash
-        run: |
-          if [ ! -f vendor/jolt/lib/joltc.dll ]; then
-            ./kohi.plugin.physics.jolt/deps/build_jolt.sh || { cat vendor/jolt/src/*.log; exit 1; }
-          fi
+        run: ./kohi.plugin.physics.jolt/deps/build_jolt.sh || { cat vendor/jolt/src/*.log; exit 1; }
+
+      - name: Save Jolt
+        if: steps.jolt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: vendor/jolt
+          key: jolt-windows-${{ hashFiles('kohi.plugin.physics.jolt/deps/**') }}
 
       - name: Build (${{ matrix.config }})
         run: |
