@@ -327,8 +327,12 @@ u64 dynamic_allocator_total_space (dynamic_allocator *allocator) {
 }
 
 u64 dynamic_allocator_header_size (void) {
-	// Enough space for a header and size storage.
-	return sizeof(alloc_header) + KSIZE_STORAGE;
+	// Enough space for a header and size storage, plus the guards when they are compiled in.
+	u64 size = sizeof(alloc_header) + KSIZE_STORAGE;
+#if MEM_DEBUG_TRACE
+	size += sizeof(memory_guard) * 2;
+#endif
+	return size;
 }
 
 #if MEM_DEBUG_TRACE

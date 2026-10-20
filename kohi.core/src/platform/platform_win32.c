@@ -405,6 +405,15 @@ void platform_console_write (struct platform_state *platform, log_level level, c
 	b8 is_error = console_stderr_only || (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
 	HANDLE console_handle = GetStdHandle(is_error ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
 
+	// WriteConsoleW writes nothing when output is redirected to a pipe or file (CI, agents
+	// capturing output), so write the UTF-8 bytes directly in that case.
+	DWORD console_mode = 0;
+	if (!GetConsoleMode(console_handle, &console_mode)) {
+		DWORD bytes_written = 0;
+		WriteFile(console_handle, message, (DWORD)string_length(message), &bytes_written, 0);
+		return;
+	}
+
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	if (state_ptr) {
 		csbi = is_error ? state_ptr->err_output_csbi : state_ptr->std_output_csbi;
@@ -480,8 +489,10 @@ typedef struct kthread_work_info {
 } kthread_work_info;
 
 static DWORD kthread_do_work (void *params) {
-	kthread_work_info *info = params;
-	if (!info->start(info->params)) {
+	// Copy and free the heap-allocated info from kthread_create before running the thread.
+	kthread_work_info info = *(kthread_work_info *)params;
+	kfree(params);
+	if (!info.start(info.params)) {
 		KERROR("Failed to start kthread due to failure in user callback. Check logs for details");
 		// Nonzero exit code indicates failure.
 		return 1;
@@ -497,18 +508,21 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 		return false;
 	}
 
-	kthread_work_info info = {
-		.params = params,
-		.start = start_function_ptr};
+	// Heap-allocated because the new thread can start after this function returns; it is
+	// freed by kthread_do_work.
+	kthread_work_info *info = KALLOC_TYPE(kthread_work_info, MEMORY_TAG_PLATFORM);
+	info->params = params;
+	info->start = start_function_ptr;
 	out_thread->internal_data = CreateThread(
 		0,
 		0,										 // Default stack size
 		(LPTHREAD_START_ROUTINE)kthread_do_work, // function ptr
-		&info,									 // param to pass to thread
+		info,									 // param to pass to thread
 		0,
 		(DWORD *)&out_thread->thread_id);
 	/* KDEBUG("Starting process on thread id: %#x", out_thread->thread_id); */
 	if (!out_thread->internal_data) {
+		kfree(info);
 		return false;
 	}
 	if (auto_detach) {
@@ -1244,9 +1258,9 @@ b8 platform_system_info_collect (ksystem_info *out_info) {
 	// OS info
 	OSVERSIONINFOEXA v = {sizeof(v)};
 	RtlGetVersion((PRTL_OSVERSIONINFOW)&v);
-	sprintf(out_info->os_version, "%lu.%lu", v.dwMajorVersion, v.dwMinorVersion);
-	sprintf(out_info->os_build, "%lu", v.dwBuildNumber);
-	sprintf(out_info->kernel_version, "NT %lu.%lu.%lu", v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber);
+	string_nformat(out_info->os_version, sizeof(out_info->os_version), "%lu.%lu", v.dwMajorVersion, v.dwMinorVersion);
+	string_nformat(out_info->os_build, sizeof(out_info->os_build), "%lu", v.dwBuildNumber);
+	string_nformat(out_info->kernel_version, sizeof(out_info->kernel_version), "NT %lu.%lu.%lu", v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber);
 
 	DWORD product = 0;
 	GetProductInfo(v.dwMajorVersion, v.dwMinorVersion, 0, 0, &product);
@@ -1473,7 +1487,7 @@ static wchar_t *build_filter_string (const wchar_t *input) {
 
 platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
 	platform_open_file_dialog_result result = {
-		.success = false,
+		.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE,
 		.file_count = 0,
 		.file_paths = KNULL,
 	};
@@ -1504,9 +1518,12 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 		for (u32 i = 0; i < fl.count; ++i) {
 			KDEBUG("Selected: '%s'", fl.items[i]);
 		}
-		result.success = true;
+		result.result = PLATFORM_OFD_OP_RESULT_SUCCESS;
 		result.file_count = fl.count;
 		result.file_paths = fl.items;
+	} else if (CommDlgExtendedError() == 0) {
+		// No error code means the user closed the dialog.
+		result.result = PLATFORM_OFD_OP_RESULT_USER_CANCELLED;
 	}
 
 	if (options.title) {
@@ -1726,7 +1743,6 @@ static LPCWSTR cstr_to_wcstr (const char *str) {
 
 static void wcstr_free (LPCWSTR wstr) {
 	if (wstr) {
-		u32 len = lstrlen(wstr); // Note that lstrlen doesn't account for the null terminator.
 		kfree((WCHAR *)wstr);
 	}
 }

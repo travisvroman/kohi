@@ -548,13 +548,16 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments_random (void) {
 	const u64 header_size = dynamic_allocator_header_size();
 
 	const u32 alloc_data_count = 65556;
-	alloc_data alloc_datas[65556] = {0};
+	// Static: ~1.5 MiB would overflow the default 1 MiB main-thread stack on Windows.
+	static alloc_data alloc_datas[65556];
+	kzero_memory(alloc_datas, sizeof(alloc_datas));
 	u16 po2[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 
 	// Pick random sizes and alignments.
 	for (u32 i = 0; i < alloc_data_count; ++i) {
 		alloc_datas[i].alignment = po2[krandom_in_range(0, 7)];
-		alloc_datas[i].size = (u64)krandom_in_range(1, 65536);
+		// Up to 4 KiB each keeps the whole allocator around 150 MiB.
+		alloc_datas[i].size = (u64)krandom_in_range(1, 4096);
 	}
 
 	// Total size needed, including headers.
@@ -578,10 +581,10 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments_random (void) {
 	// Allocate randomly until all have been allocated.
 	u32 alloc_count = 0;
 	while (alloc_count != alloc_data_count) {
-		u32 index = (u32)krandom_in_range(0, alloc_data_count);
+		u32 index = (u32)krandom_in_range(0, alloc_data_count - 1);
 		if (alloc_datas[index].block == 0) {
 			if (!util_allocate(&alloc, &alloc_datas[index], &currently_allocated, header_size, total_allocator_size)) {
-				KERROR("util_allocate failed on index: %u.");
+				KERROR("util_allocate failed on index: %u.", index);
 				return false;
 			}
 			alloc_count++;
@@ -591,11 +594,11 @@ u8 dynamic_allocator_multiple_alloc_aligned_different_alignments_random (void) {
 	KTRACE("Randomly allocated %u times. Freeing randomly...", alloc_count);
 
 	// Should all be allocated at this point, free randomly.
-	while (alloc_count != alloc_data_count) {
-		u32 index = (u32)krandom_in_range(0, alloc_data_count);
+	while (alloc_count != 0) {
+		u32 index = (u32)krandom_in_range(0, alloc_data_count - 1);
 		if (alloc_datas[index].block != 0) {
 			if (!util_free(&alloc, &alloc_datas[index], &currently_allocated, header_size, total_allocator_size)) {
-				KERROR("util_free failed on index: %u.");
+				KERROR("util_free failed on index: %u.", index);
 				return false;
 			}
 			alloc_count--;
@@ -616,7 +619,9 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
 	const u64 header_size = dynamic_allocator_header_size();
 
 	const u32 alloc_data_count = 65556;
-	alloc_data alloc_datas[65556] = {0};
+	// Static: ~1.5 MiB would overflow the default 1 MiB main-thread stack on Windows.
+	static alloc_data alloc_datas[65556];
+	kzero_memory(alloc_datas, sizeof(alloc_datas));
 	u16 po2[8] = {1, 2, 4, 8, 16, 32, 64, 128};
 
 	// Pick random sizes and alignments.
@@ -695,7 +700,7 @@ u8 dynamic_allocator_multiple_alloc_and_free_aligned_different_alignments_random
 	for (u32 i = 0; i < alloc_data_count; ++i) {
 		if (alloc_datas[i].block != 0) {
 			if (!util_free(&alloc, &alloc_datas[i], &currently_allocated, header_size, total_allocator_size)) {
-				KERROR("util_free (1) failed on index: %u.");
+				KERROR("util_free (1) failed on index: %u.", i);
 				return false;
 			}
 		}

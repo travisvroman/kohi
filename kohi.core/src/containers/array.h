@@ -70,6 +70,9 @@ KAPI void array_iterator_prev (array_iterator *it);
 	KINLINE void array_##name##_destroy(array_##name *arr) {                                                              \
 		if (arr) {                                                                                                        \
 			_karray_free((void **)&arr->data);                                                                            \
+			arr->base.length = 0;                                                                                         \
+			arr->base.stride = 0;                                                                                         \
+			arr->base.p_data = 0;                                                                                         \
 			arr->begin = 0;                                                                                               \
 			arr->rbegin = 0;                                                                                              \
 		}                                                                                                                 \

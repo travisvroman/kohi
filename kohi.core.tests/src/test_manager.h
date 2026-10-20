@@ -10,4 +10,4 @@ void test_manager_init (void);
 
 void test_manager_register_test (PFN_test, char *desc);
 
-void test_manager_run_tests (void);
+u32 test_manager_run_tests (void);

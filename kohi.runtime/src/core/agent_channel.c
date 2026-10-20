@@ -8,6 +8,7 @@
 #include <threads/kthread.h>
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,6 +143,26 @@ void agent_json_append_string (char **buffer, const char *value) {
 	agent_json_append(buffer, "\"");
 }
 
+static void json_append_number (char **buffer, f64 value, int digits) {
+	if (isnan(value) || isinf(value)) {
+		agent_json_append(buffer, "null");
+		return;
+	}
+	char text[64];
+	snprintf(text, sizeof(text), "%.*g", digits, value);
+	agent_json_append(buffer, text);
+}
+
+void agent_json_append_f64 (char **buffer, f64 value) {
+	// 17 significant digits round-trip any f64.
+	json_append_number(buffer, value, 17);
+}
+
+void agent_json_append_f32 (char **buffer, f32 value) {
+	// 9 significant digits round-trip any f32.
+	json_append_number(buffer, (f64)value, 9);
+}
+
 static void reply_key_append (agent_reply *reply, const char *key) {
 	agent_json_append(&reply->fields, ",");
 	agent_json_append_string(&reply->fields, key);
@@ -154,11 +175,8 @@ void agent_reply_string_add (agent_reply *reply, const char *key, const char *va
 }
 
 void agent_reply_number_add (agent_reply *reply, const char *key, f64 value) {
-	char text[64];
-	// 17 significant digits round-trip any f64 exactly.
-	snprintf(text, sizeof(text), "%.17g", value);
 	reply_key_append(reply, key);
-	agent_json_append(&reply->fields, text);
+	agent_json_append_f64(&reply->fields, value);
 }
 
 void agent_reply_int_add (agent_reply *reply, const char *key, i64 value) {
@@ -428,6 +446,10 @@ b8 agent_request_bool_get (const agent_request *request, const char *key, b8 *ou
 // Commands.
 
 b8 agent_command_register (const char *name, const char *help, void *listener, PFN_agent_command handler) {
+	if (!state.enabled) {
+		// Nothing would ever call it.
+		return true;
+	}
 	for (u32 i = 0; i < state.command_count; ++i) {
 		if (strings_equal(state.commands[i].name, name)) {
 			state.commands[i].listener = listener;

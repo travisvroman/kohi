@@ -115,7 +115,7 @@ The audio plugin requires an installatiion of OpenAL.
 
 ## Physics Plugin Prerequisites
 
-`kohi.plugin.physics.jolt` uses [Jolt Physics](https://github.com/jrouwe/JoltPhysics) through its C wrapper [joltc](https://github.com/amerkoleci/joltc). `make setup` (or `make getdeps-jolt`) runs `kohi.plugin.physics.jolt/deps/build_jolt.sh`, which needs git, CMake and clang. It fetches pinned versions of both, patches joltc to expose state save/restore, and builds them into `vendor/jolt`. The script is bash, so on Windows it needs Git Bash or WSL; the Windows build of the plugin is untested.
+`kohi.plugin.physics.jolt` uses [Jolt Physics](https://github.com/jrouwe/JoltPhysics) through its C wrapper [joltc](https://github.com/amerkoleci/joltc). `make setup` (or `make getdeps-jolt`) runs `kohi.plugin.physics.jolt/deps/build_jolt.sh`, which needs git, CMake and clang. It fetches pinned versions of both, patches joltc to expose state save/restore, and builds them into `vendor/jolt`. The script is bash, so on Windows run it from Git Bash; there it builds with clang-cl and Ninja. CI builds and runs the plugin on GNU/Linux and Windows.
 
 # Start
 
@@ -174,7 +174,7 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 
 | Property | Default | Effect |
 | --- | --- | --- |
-| `headless` | `false` | Skip the display server. Windows become virtual: they have a size for render targets, but no OS window and no input events. GNU/Linux only for now. |
+| `headless` | `false` | Skip the display server. Windows become virtual: they have a size for render targets, but no OS window and no input events. Checked in CI on GNU/Linux and Windows. |
 | `fixed_step_hz` | `0` (off) | Run the simulation in fixed steps of `1 / fixed_step_hz` seconds. See [Fixed-step simulation](#fixed-step-simulation). |
 | `simulation_mode` | `"lockstep"` when headless, else `"realtime"` | How fixed steps are scheduled. |
 | `max_steps_per_frame` | `8` | Real-time mode only: the most fixed steps one frame may run. |
@@ -218,10 +218,18 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `mouse_wheel` | `delta` | Scrolls. |
 | `console` | `line` | Runs a console command, such as `physics_state_save`. |
 | `physics_hash` | | Hash of the full physics state. |
+| `scenes` | | Live scenes and whether each is loaded. A scene finishes loading during the first frames, so step until it reports `loaded`. |
+| `entities` | `scene` (default: newest loaded) | Every entity with name, type, parent, world position, rotation, scale, and for physics bodies motion, velocity and whether it is awake. |
+| `entity` | `entity` (name), `scene` | One entity, same fields. |
+| `physics_impulse` | `entity`, `x`, `y`, `z` | Applies an impulse to a dynamic or kinematic body. |
+| `physics_velocity_set` | `entity`, `x`, `y`, `z` | Sets a body's linear velocity. |
+| `ui_controls` | `visible_only` | UI controls with name, type, screen rect, visible, active, focused, and text or checked state where the control has one. |
+| `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
+| `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
 
-`id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
+The process exits with 0 on a clean shutdown, 1 if the engine failed to start, and 2 if it stopped because of an error, so a harness can tell a crash-free run from a failed one without parsing logs. `id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
 
 ## Physics
 

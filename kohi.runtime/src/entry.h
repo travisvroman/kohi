@@ -52,7 +52,8 @@ extern const char *application_klib_name_get (void);
 
 /**
  * @brief The main entry point of the application.
- * @returns 0 on successful execution; nonzero on error.
+ * @returns 0 on a clean shutdown, 1 if the engine failed to start, 2 if it stopped because of an
+ * error (for example a failed simulation step or a fatal renderer error).
  */
 #include "strings/kstring.h"
 
