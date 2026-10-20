@@ -249,9 +249,15 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `screenshot` | `path` (optional, default `screenshot_<step>.png`) | Saves the last rendered frame as a PNG. Needs a renderer that can read frames back (Vulkan); the null renderer replies with an error. See [Capturing frames](#capturing-frames). |
 | `world_save` | `scene` (optional) | Saves the scene's entity transforms (name, parent, local position, rotation, scale) and the physics state, in one slot. |
 | `world_restore` | | Puts the saved world back. Fails, changing nothing, if entities were added, removed or moved in the tree since. |
+| `save_game` | `slot` (optional, default `quicksave`), `scene` (optional) | Writes the scene's transforms, the physics state and the state of every `ksave_hook` to `saves/<slot>.ksav`. The file is checksummed and written through a temporary. See [Save games](#save-games). |
+| `load_game` | `slot` (optional) | Loads `saves/<slot>.ksav`, including one written by an earlier run. A damaged file, or one made for different entities, fails and changes nothing. |
 | `world_hash` | `scene` (optional) | `scene_hash` and `physics_hash` as hex strings, for comparing runs. |
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
+
+### Save games
+
+`kscene_save_game(scene, path)` and `kscene_load_game(scene, path)` (`world/kscene.h`) write and read a save file: named sections plus a CRC-64 (`core/save_game.h`). The engine writes a `scene` section (entity transforms) and a `physics` section. A game adds its own state with `ksave_hook_register(name, save, restore, user)`: `save` returns a `kallocate`d buffer, `restore` gets the same bytes back, and a save without a registered hook's section cannot be loaded. Loading needs the same entities and physics bodies, created in the same order, as when saving, which holds when the same scene is loaded; creating or removing entities after the scene loads is not saved yet. The simulation step counter is not saved either.
 
 The process exits with 0 on a clean shutdown, 1 if the engine failed to start, and 2 if it stopped because of an error, so a harness can tell a crash-free run from a failed one without parsing logs. `id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
 

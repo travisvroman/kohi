@@ -67,7 +67,7 @@ Agents run many instances at once (search, training, testing).
 - [ ] UI: data-driven layouts (UI files with hot reload), anchoring and resolution-independent layout, gamepad and keyboard navigation, missing widgets (slider, dropdown, progress bar, list), transitions, localization.
 - [ ] Physics follow-ups: render interpolation with `sim_alpha`, collision events and triggers, character controller, constraints, mesh and heightfield colliders, collision layers in config.
 - [ ] Navigation: navmesh generation and pathfinding (for example Recast/Detour).
-- [ ] Save/load of game state, built on the snapshot work in phase 2.
+- [x] Save/load of game state, built on the snapshot work in phase 2: `.ksav` files with scene, physics and game hooks (#15). Still open: the simulation step counter and entity creation/removal are not in the save (a load needs the same entities as the save).
 - [ ] Gameplay scripting that agents can write and hot-reload safely.
 - [ ] Immediate-mode 2D layer: rects, rounded rects, lines, circles, textured quads, nine-slice, text with measure, and scissor clipping, drawn each frame beside KUI (KUI stays as it is). Needs a draw order between the two, a shared "pointer is over a control" answer for input, and one font atlas. Ascended Tower draws all its screens this way.
 
