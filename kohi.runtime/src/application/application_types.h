@@ -48,6 +48,12 @@ typedef struct application {
 	application_config app_config;
 
 	/**
+	 * @brief Optional. When set before engine_create, replaces app_config.log_file_path. The
+	 * entry point sets it from the --log command-line flag.
+	 */
+	const char *log_file_path_override;
+
+	/**
 	 * @brief Function pointer to the application's boot sequence. This should
 	 * fill out the application config with the application's specific requirements.
 	 * @param app_inst A pointer to the application instance.

@@ -298,9 +298,9 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 
 		// Platform should then register as a console consumer.
 		console_consumer_register(systems->platform_system, engine_platform_console_write, &engine_state->platform_consumer_id);
-		// Setup the engine as another console consumer, which now owns the "console.log" file.
+		// Setup the engine as another console consumer, which now owns the log file.
 		// Create new/wipe existing log file, then open it.
-		const char *log_filename = "console.log";
+		const char *log_filename = app->log_file_path_override ? app->log_file_path_override : app->app_config.log_file_path;
 		if (!filesystem_open(log_filename, FILE_MODE_WRITE, false, &engine_state->log_file_handle)) {
 			KFATAL("Unable to open '%s' for writing.", log_filename);
 			return false;
@@ -1399,7 +1399,7 @@ static b8 engine_log_file_write (void *engine_state, log_level level, const char
 		u64 length = string_length(message);
 		u64 written = 0;
 		if (!filesystem_write(&engine->log_file_handle, length, message, &written)) {
-			platform_console_write(0, LOG_LEVEL_ERROR, "ERROR writing to console.log.");
+			platform_console_write(0, LOG_LEVEL_ERROR, "ERROR writing to the log file.");
 			return false;
 		}
 		return true;

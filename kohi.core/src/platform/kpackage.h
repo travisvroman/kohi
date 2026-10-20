@@ -88,6 +88,16 @@ KAPI const char *kpackage_path_for_asset (const kpackage *package, kname name);
  */
 KAPI const char *kpackage_source_path_for_asset (const kpackage *package, kname name);
 
+/**
+ * @brief Checks that every asset file listed in a manifest package exists on disk and logs an
+ * error for each one that does not. An asset whose file is missing but whose source file exists
+ * has not been imported yet (see import-updated-assets.sh).
+ *
+ * @param package A constant pointer to the package to check.
+ * @returns The number of assets whose file is missing. Always 0 for binary packages.
+ */
+KAPI u32 kpackage_missing_asset_count (const kpackage *package);
+
 KAPI b8 kpackage_asset_bytes_write (kpackage *package, kname name, u64 size, const void *bytes);
 KAPI b8 kpackage_asset_text_write (kpackage *package, kname name, u64 size, const char *text);
 

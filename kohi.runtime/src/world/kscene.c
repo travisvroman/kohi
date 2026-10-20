@@ -391,6 +391,9 @@ static void notify_initial_load_entity_complete (kscene *scene, kentity entity);
 static b8 deserialize (const char *file_content, kscene *out_scene);
 // Returns KNULL if not found
 static base_entity *get_entity_base (kscene *scene, kentity entity);
+// Removes name from the scene's name lookup, but only if it maps to the given entity, so
+// renaming or destroying one entity never drops another entity's entry with the same name.
+static void name_lookup_remove (kscene *scene, kname name, kentity entity);
 
 static void base_entity_destroy (kscene *scene, base_entity *base, kentity entity_handle);
 static void model_entity_destroy (kscene *scene, model_entity *typed_entity, kentity entity_handle);
@@ -1953,12 +1956,9 @@ void kscene_set_entity_name (struct kscene *scene, kentity entity, kname name) {
 		kname old_name = base->name;
 		base->name = name;
 
-		u64_bst_delete(scene->name_lookup, old_name);
+		name_lookup_remove(scene, old_name, entity);
 		bt_node_value val = {.u64 = entity};
-		bt_node *new_node = u64_bst_insert(scene->name_lookup, name, val);
-		if (!scene->name_lookup) {
-			scene->name_lookup = new_node;
-		}
+		scene->name_lookup = u64_bst_insert(scene->name_lookup, name, val);
 	}
 }
 
@@ -2236,7 +2236,7 @@ static void base_entity_destroy (kscene *scene, base_entity *base, kentity entit
 		}
 
 		// Remove its name from the lookup table.
-		u64_bst_delete(scene->name_lookup, base->name);
+		name_lookup_remove(scene, base->name, entity_handle);
 	}
 
 	if (base->children) {
@@ -3303,10 +3303,7 @@ static kentity init_base_entity_with_extents (kscene *scene, base_entity *base, 
 	kentity entity = kentity_pack((u16)type, (u16)entity_index, 0, 0);
 
 	bt_node_value val = {.u64 = entity};
-	bt_node *lookup = u64_bst_insert(scene->name_lookup, name, val);
-	if (!scene->name_lookup) {
-		scene->name_lookup = lookup;
-	}
+	scene->name_lookup = u64_bst_insert(scene->name_lookup, name, val);
 
 	// Create a default transform if one is not provided.
 	if (transform == KTRANSFORM_INVALID) {
@@ -4345,6 +4342,13 @@ static void notify_initial_load_entity_complete (kscene *scene, kentity entity) 
 	if (scene->state == KSCENE_STATE_LOADING || scene->state == KSCENE_STATE_PARSING_CONFIG) {
 		scene->queued_initial_asset_loads--;
 		KTRACE("(-) Scene queued initial asset loads is now: %u", scene->queued_initial_asset_loads);
+	}
+}
+
+static void name_lookup_remove (kscene *scene, kname name, kentity entity) {
+	const bt_node *node = u64_bst_find(scene->name_lookup, name);
+	if (node && node->value.u64 == entity) {
+		scene->name_lookup = u64_bst_delete(scene->name_lookup, name);
 	}
 }
 

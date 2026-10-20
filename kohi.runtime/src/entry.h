@@ -61,20 +61,19 @@ extern const char *application_klib_name_get (void);
 #include <stdlib.h>
 
 /**
- * @brief Returns the value following '--config' on the command line, or the application's
- * default config path if the flag is not given. Lets one binary run different configurations,
- * for example a headless one.
+ * @brief Returns the value following the given flag on the command line, or 0 if the flag
+ * is not given (or is given without a value).
  */
-static const char *app_config_path_from_args (int argc, char **argv) {
+static const char *command_line_value (int argc, char **argv, const char *flag) {
 	for (int i = 1; i < argc; ++i) {
-		if (strings_equal(argv[i], "--config")) {
+		if (strings_equal(argv[i], flag)) {
 			if (i + 1 < argc) {
 				return argv[i + 1];
 			}
-			KWARN("'--config' was given without a path; using the default application config.");
+			KWARN("'%s' was given without a value; ignoring it.", flag);
 		}
 	}
-	return application_config_path_get();
+	return 0;
 }
 
 /** @brief Parses a whole decimal string as a u64, rejecting signs, junk and overflow. */
@@ -92,6 +91,15 @@ static b8 seed_parse (const char *text, u64 *out_seed) {
 	return true;
 }
 
+/**
+ * Command-line flags:
+ *   --config <path>  Application config to load instead of the default one, for example a
+ *                    headless config.
+ *   --log <path>     File to write the log to instead of the config's log_file (default
+ *                    "console.log"). Give each instance its own file when running several.
+ *   --seed <n>       Seed every engine RNG, overriding the config's random_seed.
+ *   --agent          Control the engine with JSON lines over stdin/stdout.
+ */
 int main (int argc, char **argv) {
 
 	application app_inst = {0};
@@ -104,22 +112,27 @@ int main (int argc, char **argv) {
 		}
 	}
 
-	// --seed <n>: seed every engine RNG, overriding the config's random_seed.
-	for (int i = 1; i < argc; ++i) {
-		if (strings_equal(argv[i], "--seed")) {
-			u64 seed = 0;
-			if (i + 1 < argc && seed_parse(argv[i + 1], &seed)) {
-				engine_random_seed_override(seed);
-			} else {
-				KERROR("'--seed' needs a non-negative integer.");
-				return 1;
-			}
+	const char *app_config_path = command_line_value(argc, argv, "--config");
+	if (!app_config_path) {
+		app_config_path = application_config_path_get();
+	}
+	app_inst.log_file_path_override = command_line_value(argc, argv, "--log");
+
+	const char *seed_text = command_line_value(argc, argv, "--seed");
+	if (seed_text) {
+		u64 seed = 0;
+		if (!seed_parse(seed_text, &seed)) {
+			KERROR("'--seed' needs a non-negative integer, not '%s'.", seed_text);
+			return 1;
 		}
+		engine_random_seed_override(seed);
 	}
 
 	// Initialization.
-	if (!engine_create(&app_inst, app_config_path_from_args(argc, argv), application_klib_name_get())) {
-		KFATAL("Engine failed to create!.");
+	if (!engine_create(&app_inst, app_config_path, application_klib_name_get())) {
+		// KERROR, not KFATAL: KFATAL raises a debug trap, so the process would die with SIGTRAP
+		// instead of exiting with this code.
+		KERROR("Engine failed to create. See the errors above.");
 		return 1;
 	}
 

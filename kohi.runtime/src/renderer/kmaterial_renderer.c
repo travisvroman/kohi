@@ -653,7 +653,6 @@ static b8 on_material_loaded (u16 code, void *sender, void *listener_inst, event
 	kmaterial_data *material;
 	kshader shader;
 	u32 binding_set_instance_id;
-	u32_bst_node *node;
 
 	state = listener_inst;
 	KASSERT_DEBUG(state);
@@ -666,10 +665,7 @@ static b8 on_material_loaded (u16 code, void *sender, void *listener_inst, event
 	KASSERT_DEBUG_MSG(binding_set_instance_id != INVALID_ID_U32, "Failed to acquire shader binding set instance (base material). See logs for details.");
 
 	u32_bst_node_value val = {.u32 = binding_set_instance_id};
-	node = u32_bst_insert(state->lookup, material->index, val);
-	if (!state->lookup) {
-		state->lookup = node;
-	}
+	state->lookup = u32_bst_insert(state->lookup, material->index, val);
 
 	// Consider event as not handled so other systems can handle it as well.
 	return false;
@@ -694,7 +690,7 @@ static b8 on_material_unloaded (u16 code, void *sender, void *listener_inst, eve
 	binding_set_instance_id = node->value.u32;
 	kshader_release_binding_set_instance(shader, MATERIAL_BINDING_SET_INSTANCE, binding_set_instance_id);
 
-	u32_bst_delete(state->lookup, material->index);
+	state->lookup = u32_bst_delete(state->lookup, material->index);
 
 	return false;
 }

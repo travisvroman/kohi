@@ -103,6 +103,13 @@ typedef struct application_config {
 
 	/** @brief When nonzero, the engine shuts down after this many frames. Optional, defaults to 0 (unlimited). */
 	u64 max_frames;
+
+	/**
+	 * @brief The file the engine writes its log to, relative to the working directory.
+	 * Config key "log_file". Optional, defaults to "console.log". Give each instance its own
+	 * file when running several at once; the --log command-line flag overrides this value.
+	 */
+	const char *log_file_path;
 } application_config;
 
 /**

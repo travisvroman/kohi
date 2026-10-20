@@ -102,6 +102,10 @@ b8 application_config_parse_file_content (const char *file_content, application_
 	}
 	out_config->max_steps_per_frame = (u32)max_steps_per_frame;
 
+	if (!kson_object_property_value_get_string(&app_config_tree.root, "log_file", &out_config->log_file_path)) {
+		out_config->log_file_path = string_duplicate("console.log");
+	}
+
 	// The seed for every engine RNG. Optional; without it debug builds use a fixed seed and
 	// release builds one from the clock (logged at startup either way).
 	i64 random_seed = 0;
@@ -263,6 +267,7 @@ void application_config_destroy (application_config *config) {
 	string_free(config->name);
 	string_free(config->audio_plugin_name);
 	string_free(config->manifest_file_path);
+	string_free(config->log_file_path);
 
 	{
 		u32 len = darray_length(config->systems);

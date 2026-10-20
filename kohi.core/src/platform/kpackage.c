@@ -328,6 +328,32 @@ const char *kpackage_source_path_for_asset (const kpackage *package, kname name)
 	return 0;
 }
 
+u32 kpackage_missing_asset_count (const kpackage *package) {
+	if (!package || package->is_binary || !package->internal_data) {
+		return 0;
+	}
+
+	const char *package_name = kname_string_get(package->name);
+	u32 missing_count = 0;
+	u32 entry_count = darray_length(package->internal_data->entries);
+	for (u32 i = 0; i < entry_count; ++i) {
+		const asset_entry *entry = &package->internal_data->entries[i];
+		if (!entry->path || filesystem_exists(entry->path)) {
+			continue;
+		}
+
+		missing_count++;
+		if (entry->source_path && filesystem_exists(entry->source_path)) {
+			KERROR("Package '%s': asset '%s' has not been imported: '%s' is missing (source: '%s').",
+				   package_name, kname_string_get(entry->name), entry->path, entry->source_path);
+		} else {
+			KERROR("Package '%s': asset '%s' is missing: '%s'.", package_name, kname_string_get(entry->name), entry->path);
+		}
+	}
+
+	return missing_count;
+}
+
 // Writes file to disk for packages using the asset manifest, not binary packages.
 static b8 kpackage_asset_write_file_internal (kpackage *package, kname name, u64 size, const void *bytes, b8 is_binary) {
 	file_handle f = {0};

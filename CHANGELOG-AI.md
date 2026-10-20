@@ -19,16 +19,18 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - `AGENTS.md`: how agents build, run and read results (#4).
 - Agent control channel (`--agent`): JSON lines over stdin and stdout for stepping, input injection, console commands and physics hashes (#5).
 - Agent commands for scenes, entities and physics bodies, and for UI controls by name (#6).
+- Several engine processes can run at once: job semaphores are process-local, and `--log <path>` or `log_file` sets the log file (#7).
 - `random_seed` app config key and `--seed` flag seed every engine RNG; the seed is logged and returned by the agent `status` command (#8).
 
 ### Fixed
 - OpenAL shutdown crash (#2).
-- The process exited 0 after a failed simulation step or a fatal renderer error; it now exits 2 (#6).
-- `console_command_execute` always reported failure (#5).
-- Identifiers were seeded from the clock even in debug builds (#8).
 - Release builds from a clean tree (#3).
 - `kohi.core.tests` crashed after the first test; both test suites now pass and exit non-zero on failure (#4).
 - `array_*_destroy` left the length, stride and data pointer set (#4).
 - `dynamic_allocator_header_size` ignored the debug memory guards (#4).
 - Windows builds again: `platform_win32.c` compile errors, a parallel-make link race, a dangling pointer in `kthread_create` that crashed on startup, and log output lost when stdout is redirected (#4).
 - The headless testbed gives the same physics hash on GNU/Linux and Windows (#4).
+- `console_command_execute` always reported failure (#5).
+- The process exited 0 after a failed simulation step or a fatal renderer error; it now exits 2 (#6).
+- BST delete lost values and left lookup roots dangling (upstream #271); the engine refuses to start when assets are missing, and exits 1 instead of SIGTRAP when start fails (upstream #281); OpenAL buffers are returned on unload and no longer handed to two owners (#7).
+- Identifiers were seeded from the clock even in debug builds (#8).

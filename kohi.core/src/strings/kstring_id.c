@@ -28,7 +28,7 @@ kstring_id kstring_id_create (const char *str) {
 		value.str = string_duplicate(str);
 		bt_node *inserted = u64_bst_insert(kstring_id_lookup, new_string_id, value);
 		if (!inserted) {
-			KERROR("Failed to save kstring_id string '%s' to global lookup table.");
+			KERROR("Failed to save kstring_id string '%s' to global lookup table.", str);
 		} else if (!kstring_id_lookup) {
 			kstring_id_lookup = inserted;
 		}
