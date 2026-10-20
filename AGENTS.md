@@ -51,7 +51,7 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 ```
 
 - `--config <path>` picks the application config.
-- `headless = true` needs no display or GPU (GNU/Linux only for now). Pair it with the null renderer.
+- `headless = true` needs no display or GPU. CI runs it on GNU/Linux and Windows. Pair it with the null renderer.
 - `fixed_step_hz = 60` and lockstep mode (the headless default) give exactly one 1/60 s step per frame, as fast as the CPU allows.
 - `max_frames = 600` ends the run after 600 frames.
 - `ALSOFT_DRIVERS=null` lets OpenAL start with no audio device.

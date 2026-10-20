@@ -24,3 +24,5 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - `kohi.core.tests` crashed after the first test; both test suites now pass and exit non-zero on failure (#4).
 - `array_*_destroy` left the length, stride and data pointer set (#4).
 - `dynamic_allocator_header_size` ignored the debug memory guards (#4).
+- Windows builds again: `platform_win32.c` compile errors, a parallel-make link race, a dangling pointer in `kthread_create` that crashed on startup, and log output lost when stdout is redirected (#4).
+- The headless testbed gives the same physics hash on GNU/Linux and Windows (#4).
