@@ -52,6 +52,9 @@ typedef enum file_modes {
  */
 KAPI b8 filesystem_exists (const char *path);
 
+/** @brief Creates one directory (not its parents). Succeeds if it already exists. */
+KAPI b8 filesystem_directory_create (const char *path);
+
 /**
  * @brief Attempt to open file located at path.
  * @param path The path of the file to be opened.

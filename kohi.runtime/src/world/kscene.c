@@ -39,7 +39,11 @@
 #include "assets/kasset_types.h"
 #include "core/event.h"
 #include "physics/kphysics_system.h"
+#include <string.h>
+
 #include "core/agent_channel.h"
+#include "core/save_game.h"
+#include "platform/filesystem.h"
 #include "serializers/kasset_hf_terrain_serializer.h"
 #include "systems/asset_system.h"
 #include "systems/kmatrix_system.h"
@@ -4658,6 +4662,85 @@ u64 kscene_state_hash (struct kscene *scene) {
 	return hash;
 }
 
+#define SAVE_SECTION_SCENE "scene"
+#define SAVE_SECTION_PHYSICS "physics"
+#define SAVE_SECTIONS_MAX (2 + KSAVE_HOOK_MAX)
+
+b8 kscene_save_game (struct kscene *scene, const char *path) {
+	ksave_section sections[SAVE_SECTIONS_MAX];
+	u32 count = 0;
+	void *scene_data = 0;
+	u64 scene_size = 0;
+	void *physics_data = 0;
+	u64 physics_size = 0;
+	u32 hook_count = 0;
+	b8 ok = false;
+
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	if (!kscene_state_save(scene, &scene_data, &scene_size)) {
+		KERROR("kscene_save_game: the scene is not loaded.");
+		return false;
+	}
+	sections[count++] = (ksave_section){.name = SAVE_SECTION_SCENE, .data = scene_data, .size = scene_size};
+	if (physics) {
+		if (!kphysics_state_save(physics, &physics_data, &physics_size)) {
+			goto cleanup;
+		}
+		sections[count++] = (ksave_section){.name = SAVE_SECTION_PHYSICS, .data = physics_data, .size = physics_size};
+	}
+	if (!ksave_hooks_sections_collect(sections + count, SAVE_SECTIONS_MAX - count, &hook_count)) {
+		goto cleanup;
+	}
+	ok = ksave_file_write(path, sections, count + hook_count);
+	ksave_hooks_sections_free(sections + count, hook_count);
+
+cleanup:
+	kfree(scene_data);
+	if (physics_data) {
+		kphysics_state_free(physics_data);
+	}
+	return ok;
+}
+
+b8 kscene_load_game (struct kscene *scene, const char *path) {
+	if (!scene || scene->state != KSCENE_STATE_LOADED) {
+		KERROR("kscene_load_game: the scene is not loaded.");
+		return false;
+	}
+	void *file = 0;
+	u64 file_size = 0;
+	if (!ksave_file_read(path, &file, &file_size)) {
+		return false;
+	}
+	ksave_section sections[SAVE_SECTIONS_MAX];
+	u32 count = 0;
+	b8 ok = false;
+	if (!ksave_unpack(file, file_size, sections, SAVE_SECTIONS_MAX, &count)) {
+		goto cleanup;
+	}
+
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	const ksave_section *scene_section = ksave_section_find(sections, count, SAVE_SECTION_SCENE);
+	const ksave_section *physics_section = ksave_section_find(sections, count, SAVE_SECTION_PHYSICS);
+	if (!scene_section || (physics && !physics_section)) {
+		KERROR("kscene_load_game: '%s' has no %s data.", path, scene_section ? "physics" : "scene");
+		goto cleanup;
+	}
+
+	// The scene check is the one that can reject a save made for different content, so it goes first.
+	if (!kscene_state_restore(scene, scene_section->data, scene_section->size)) {
+		goto cleanup;
+	}
+	if (physics && !kphysics_state_restore(physics, physics_section->data, physics_section->size)) {
+		goto cleanup;
+	}
+	ok = ksave_hooks_restore(sections, count);
+
+cleanup:
+	kfree(file);
+	return ok;
+}
+
 // The world snapshot an agent saved: scene transforms plus the physics state. One slot.
 static struct {
 	kscene *scene;
@@ -4713,6 +4796,52 @@ static b8 agent_cmd_world_restore (const agent_request *request, agent_reply *re
 		agent_reply_error(reply, "could not restore the physics state");
 		return false;
 	}
+	return true;
+}
+
+/** @brief Slot names become file names, so only a few characters are allowed. */
+static b8 agent_save_slot_path (const agent_request *request, agent_reply *reply, char *out_path, u32 out_size) {
+	const char *slot = "quicksave";
+	agent_request_string_get(request, "slot", &slot);
+	u32 length = (u32)strlen(slot);
+	b8 valid = length > 0 && length <= 64;
+	for (u32 i = 0; valid && i < length; ++i) {
+		char c = slot[i];
+		valid = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+	}
+	if (!valid) {
+		agent_reply_error(reply, "slot must be 1 to 64 characters from A-Z a-z 0-9 _ -");
+		return false;
+	}
+	snprintf(out_path, out_size, "saves/%s.ksav", slot);
+	return true;
+}
+
+static b8 agent_cmd_save_game (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	char path[128];
+	if (!scene || !agent_save_slot_path(request, reply, path, sizeof(path))) {
+		return false;
+	}
+	if (!filesystem_directory_create("saves") || !kscene_save_game(scene, path)) {
+		agent_reply_error(reply, "could not write the save; see the log");
+		return false;
+	}
+	agent_reply_string_add(reply, "path", path);
+	return true;
+}
+
+static b8 agent_cmd_load_game (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	char path[128];
+	if (!scene || !agent_save_slot_path(request, reply, path, sizeof(path))) {
+		return false;
+	}
+	if (!kscene_load_game(scene, path)) {
+		agent_reply_error(reply, "could not load the save; see the log");
+		return false;
+	}
+	agent_reply_string_add(reply, "path", path);
 	return true;
 }
 
@@ -4969,6 +5098,8 @@ static void agent_scene_add (kscene *scene) {
 		agent_command_register("scene_summary", "A plain-text description of a scene (\"scene\" optional): entity counts, the camera, and every entity with position and physics state.", 0, agent_cmd_scene_summary);
 		agent_command_register("world_save", "Saves the scene's entity transforms and the physics state (one slot): {\"scene\"} optional.", 0, agent_cmd_world_save);
 		agent_command_register("world_restore", "Restores what world_save saved. Fails if the scene's entities changed since.", 0, agent_cmd_world_restore);
+		agent_command_register("save_game", "Writes the scene, physics and game state to saves/<slot>.ksav: {\"slot\"} default \"quicksave\", {\"scene\"} optional.", 0, agent_cmd_save_game);
+		agent_command_register("load_game", "Loads saves/<slot>.ksav back into the scene: {\"slot\"} default \"quicksave\". Works across runs of the same scene.", 0, agent_cmd_load_game);
 		agent_command_register("world_hash", "Hashes the scene's entity transforms and the physics state, as hex strings.", 0, agent_cmd_world_hash);
 		agent_command_register("entity", "Returns one entity by name: {\"entity\": \"ball\"}.", 0, agent_cmd_entity);
 		agent_command_register("physics_impulse", "Applies an impulse to a physics body entity: {\"entity\", \"x\", \"y\", \"z\"}.", 0, agent_cmd_physics_impulse);

@@ -68,6 +68,7 @@ All options are described in [readme.md, Running headless](readme.md#running-hea
 - **Physics state hash**: at shutdown the testbed logs `Physics state hash: <16 hex digits>`. The same config and inputs give the same hash on every run and thread count. Jolt is built to be cross-platform deterministic, and CI checks the same hash on Linux and Windows. After 600 steps of the headless testbed it is `ec2e3122759e69de`.
 - **Smoke check**: `.github/scripts/headless-smoke.sh <expected-hash>` runs the headless testbed and fails unless it reaches 600 steps with that hash. CI runs it on every PR.
 - **Determinism check**: `python3 scripts/determinism_check.py` records a run with input, replays it twice, and fails unless the physics hashes and the re-recorded input match. CI runs it too.
+- **Save game check**: `python3 scripts/save_game_check.py` saves in one engine process, loads in another, and fails unless both end at the same hashes. Use `save_game` and `load_game` on the agent channel to do the same by hand.
 
 If your change alters the simulation on purpose, update `EXPECTED_PHYSICS_HASH` in `.github/workflows/ci.yml` in the same PR and say why.
 

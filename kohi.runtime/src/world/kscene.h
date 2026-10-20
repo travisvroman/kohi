@@ -103,6 +103,19 @@ KAPI b8 kscene_state_restore (struct kscene *scene, const void *data, u64 size);
 /** @brief A 64-bit hash of the scene's saved entity state, for comparing runs. 0 if not loaded. */
 KAPI u64 kscene_state_hash (struct kscene *scene);
 
+/**
+ * @brief Writes the scene's transforms, the physics state and the state of every ksave hook to a
+ * save file (see core/save_game.h). The file can be loaded in a later run of the same scene.
+ */
+KAPI b8 kscene_save_game (struct kscene *scene, const char *path);
+
+/**
+ * @brief Puts a save file back: scene, physics, then the ksave hooks. The file is checked in full
+ * first, and the scene is checked before anything changes, so a damaged or mismatched file
+ * leaves the world as it was.
+ */
+KAPI b8 kscene_load_game (struct kscene *scene, const char *path);
+
 KAPI kscene_flags kscene_get_flags (const struct kscene *scene);
 KAPI b8 kscene_get_flag (const struct kscene *scene, kscene_flag_bits flag);
 KAPI void kscene_set_flags (struct kscene *scene, kscene_flags flags);

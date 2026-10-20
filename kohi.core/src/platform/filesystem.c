@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <errno.h>
+#ifdef _WIN32
+#	include <direct.h>
+#endif
 
 b8 filesystem_exists (const char *path) {
 #ifdef _MSC_VER
@@ -16,6 +20,15 @@ b8 filesystem_exists (const char *path) {
 	struct stat buffer;
 	return stat(path, &buffer) == 0;
 #endif
+}
+
+b8 filesystem_directory_create (const char *path) {
+#ifdef _WIN32
+	int result = _mkdir(path);
+#else
+	int result = mkdir(path, 0755);
+#endif
+	return result == 0 || errno == EEXIST;
 }
 
 b8 filesystem_open (const char *path, file_modes mode, b8 binary, file_handle *out_handle) {
