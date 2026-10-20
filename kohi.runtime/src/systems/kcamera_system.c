@@ -219,6 +219,27 @@ void kcamera_destroy (kcamera camera) {
 	}
 }
 
+u8 kcamera_system_in_use_list (kcamera *out, u8 max) {
+	u8 count = 0;
+	if (!state_ptr || !out) {
+		return 0;
+	}
+	for (u8 i = 1; i < state_ptr->max_camera_count && count < max; ++i) {
+		if (!FLAG_GET(state_ptr->cameras[i].flags, KCAMERA_FLAG_IS_FREE_BIT)) {
+			out[count++] = i;
+		}
+	}
+	return count;
+}
+
+kcamera_type kcamera_get_type (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		return state_ptr->cameras[camera].type;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return KCAMERA_TYPE_3D;
+}
+
 kcamera kcamera_system_get_default (void) {
 	return DEFAULT_KCAMERA; // 0 is the defualt
 }

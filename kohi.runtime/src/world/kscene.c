@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdio.h>
 #include "kscene.h"
 
 #include <audio/audio_frontend.h>
@@ -4714,6 +4716,101 @@ static b8 agent_cmd_world_restore (const agent_request *request, agent_reply *re
 	return true;
 }
 
+static void agent_text_line (char **text, const char *format, ...) {
+	char line[512];
+	va_list args;
+	va_start(args, format);
+	vsnprintf(line, sizeof(line), format, args);
+	va_end(args);
+	agent_json_append(text, line);
+	agent_json_append(text, "\n");
+}
+
+static void agent_summary_entity_r (kscene *scene, kentity entity, u32 depth, u32 *remaining, char **text) {
+	if (*remaining == 0) {
+		return;
+	}
+	--*remaining;
+	base_entity *base = get_entity_base(scene, entity);
+	vec3 position = mat4_position(ktransform_world_get(base->transform));
+	char indent[32] = {0};
+	for (u32 i = 0; i < depth && i < sizeof(indent) - 1; ++i) {
+		indent[i] = ' ';
+	}
+	char physics[160] = {0};
+	struct kphysics_system_state *system = engine_systems_get()->physics_system;
+	kphysics_body body = kscene_physics_body_get(scene, entity);
+	if (system && body != KPHYSICS_BODY_INVALID) {
+		const kphysics_body_config *config = &scene->physics_bodies[kentity_unpack_type_index(entity)].config;
+		vec3 velocity = kphysics_body_linear_velocity_get(system, body);
+		snprintf(physics, sizeof(physics), ", %s body, speed %.2f m/s, %s", physics_motion_type_to_string(config->motion_type), vec3_length(velocity), kphysics_body_is_active(system, body) ? "awake" : "asleep");
+	}
+	agent_text_line(text, "%s- %s (%s) at (%.2f, %.2f, %.2f)%s", indent, kname_string_get(base->name), kentity_type_to_string(base->type), position.x, position.y, position.z, physics);
+
+	u32 child_count = base->children ? darray_length(base->children) : 0;
+	for (u32 i = 0; i < child_count; ++i) {
+		agent_summary_entity_r(scene, base->children[i], depth + 1, remaining, text);
+	}
+}
+
+static b8 agent_cmd_scene_summary (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	if (!scene) {
+		return false;
+	}
+	char *text = 0;
+	u32 root_count = darray_length(scene->root_entities);
+
+	// Count entities by type first, so a long scene still gets an overview.
+	u32 type_counts[KENTITY_TYPE_COUNT] = {0};
+	u32 total = 0;
+	kentity *all = darray_create(kentity);
+	for (u32 i = 0; i < root_count; ++i) {
+		scene_records_entities_r(scene, scene->root_entities[i], &all);
+	}
+	total = darray_length(all);
+	for (u32 i = 0; i < total; ++i) {
+		++type_counts[get_entity_base(scene, all[i])->type];
+	}
+	darray_destroy(all);
+
+	agent_text_line(&text, "Scene '%s' (%s): %u entities.", kscene_get_name(scene), agent_scene_state_name(scene->state), total);
+	char counts[256] = {0};
+	u32 used = 0;
+	for (u32 t = 0; t < KENTITY_TYPE_COUNT; ++t) {
+		if (type_counts[t] && used < sizeof(counts) - 40) {
+			used += (u32)snprintf(counts + used, sizeof(counts) - used, "%s%u %s", used ? ", " : "", type_counts[t], kentity_type_to_string((kentity_type)t));
+		}
+	}
+	if (used) {
+		agent_text_line(&text, "By type: %s.", counts);
+	}
+
+	kcamera cameras[16];
+	u8 camera_count = kcamera_system_in_use_list(cameras, 16);
+	for (u8 i = 0; i < camera_count; ++i) {
+		if (kcamera_get_type(cameras[i]) != KCAMERA_TYPE_3D) {
+			continue;
+		}
+		vec3 camera_position = kcamera_get_position(cameras[i]);
+		vec3 camera_euler = kcamera_get_euler_rotation(cameras[i]);
+		agent_text_line(&text, "Camera %u (3D) at (%.2f, %.2f, %.2f), euler rotation (%.2f, %.2f, %.2f) rad, fov %.2f rad.", cameras[i], camera_position.x, camera_position.y, camera_position.z, camera_euler.x, camera_euler.y, camera_euler.z, kcamera_get_fov(cameras[i]));
+	}
+
+	agent_text_line(&text, "Entities:");
+	u32 remaining = 200;
+	for (u32 i = 0; i < root_count; ++i) {
+		agent_summary_entity_r(scene, scene->root_entities[i], 0, &remaining, &text);
+	}
+	if (total > 200) {
+		agent_text_line(&text, "... %u more not listed. Use the \"entities\" command for all of them.", total - 200);
+	}
+
+	agent_reply_string_add(reply, "summary", text);
+	string_free(text);
+	return true;
+}
+
 static b8 agent_cmd_world_hash (const agent_request *request, agent_reply *reply, void *listener) {
 	kscene *scene = agent_scene_from_request(request, reply);
 	if (!scene) {
@@ -4869,6 +4966,7 @@ static void agent_scene_add (kscene *scene) {
 		agent_scenes = darray_create(kscene *);
 		agent_command_register("scenes", "Lists live scenes and whether they are loaded.", 0, agent_cmd_scenes);
 		agent_command_register("entities", "Lists every entity in a scene (\"scene\", default the newest loaded) with its world position, rotation, scale and physics state.", 0, agent_cmd_entities);
+		agent_command_register("scene_summary", "A plain-text description of a scene (\"scene\" optional): entity counts, the camera, and every entity with position and physics state.", 0, agent_cmd_scene_summary);
 		agent_command_register("world_save", "Saves the scene's entity transforms and the physics state (one slot): {\"scene\"} optional.", 0, agent_cmd_world_save);
 		agent_command_register("world_restore", "Restores what world_save saved. Fails if the scene's entities changed since.", 0, agent_cmd_world_restore);
 		agent_command_register("world_hash", "Hashes the scene's entity transforms and the physics state, as hex strings.", 0, agent_cmd_world_hash);
