@@ -90,7 +90,9 @@ int main (int argc, char **argv) {
 
 	// Initialization.
 	if (!engine_create(&app_inst, app_config_path, application_klib_name_get())) {
-		KFATAL("Engine failed to create!.");
+		// KERROR, not KFATAL: KFATAL raises a debug trap, so the process would die with SIGTRAP
+		// instead of exiting with this code.
+		KERROR("Engine failed to create. See the errors above.");
 		return 1;
 	}
 
