@@ -73,6 +73,13 @@ typedef struct kui_state {
 	kui_flow_control *flow_controls;
 	kui_progress_bar_control *progress_bar_controls;
 	kui_slider_control *slider_controls;
+
+	// The window size in pixels; 0 until the application reports it.
+	vec2 screen_size;
+	// The size the UI is designed for, or 0 for none. See kui_system_reference_size_set.
+	vec2 reference_size;
+	// Pixels per UI unit. Applied to the root control, so everything under it scales.
+	f32 scale;
 } kui_state;
 
 /**
@@ -157,6 +164,38 @@ KAPI void kui_control_set_on_key (kui_state *state, kui_control self, PFN_keyboa
  * @param position The position to be set.
  */
 KAPI void kui_control_position_set (kui_state *state, kui_control self, vec3 position);
+
+/**
+ * @brief Tells the UI the window size in pixels. Call it from the application's window resize
+ * handler. Controls with an anchor move to match.
+ */
+KAPI void kui_system_screen_size_set (kui_state *state, u32 width, u32 height);
+
+/**
+ * @brief Designs the UI for a fixed size, such as 1280 by 720. The whole UI is then scaled by the
+ * largest factor at which that size fits in the window, so layouts look the same at any
+ * resolution. Zero width or height turns scaling off (1 UI unit = 1 pixel).
+ */
+KAPI void kui_system_reference_size_set (kui_state *state, f32 width, f32 height);
+
+/** @brief Pixels per UI unit. */
+KAPI f32 kui_system_scale_get (kui_state *state);
+
+/** @brief The size of the screen in UI units: the window size divided by the scale. Anchors of top level controls use this. */
+KAPI vec2 kui_system_layout_size_get (kui_state *state);
+
+/**
+ * @brief Anchors a control to its parent and places it. For a control added to the root, the
+ * parent size is the layout size. Call it again if the control's size changes, so it is placed with
+ * the new size. Moving the control with kui_control_position_set does not remove the anchor.
+ */
+KAPI void kui_control_anchor_set (kui_state *state, kui_control self, kui_anchor anchor);
+
+/** @brief The anchor for a named point: the anchor and the pivot are that point, plus the offset. */
+KAPI kui_anchor kui_anchor_at (kui_anchor_point point, vec2 offset);
+
+/** @brief Stops a control following its parent's size; it stays where it is. */
+KAPI void kui_control_anchor_clear (kui_state *state, kui_control self);
 
 /**
  * @brief Gets the position on the given control.

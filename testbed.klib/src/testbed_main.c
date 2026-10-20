@@ -284,10 +284,10 @@ b8 application_initialize (struct application *app) {
 		struct kui_state *ui = app->state->kui_state;
 		demo_progress_bar = kui_progress_bar_create(ui, "demo_progress", (vec2){300, 20}, (vec4){0.15f, 0.15f, 0.18f, 1.0f}, (vec4){0.3f, 0.8f, 0.4f, 1.0f});
 		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_progress_bar));
-		kui_control_position_set(ui, demo_progress_bar, vec3_create(20, 110, 0));
+		kui_control_anchor_set(ui, demo_progress_bar, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 20}));
 		kui_control demo_slider = kui_slider_create(ui, "demo_slider", (vec2){300, 24}, 0.0f, 10.0f, 1.0f, 5.0f);
 		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_slider));
-		kui_control_position_set(ui, demo_slider, vec3_create(20, 140, 0));
+		kui_control_anchor_set(ui, demo_slider, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 50}));
 		kui_slider_set_on_value_changed(ui, demo_slider, demo_slider_changed);
 		kui_progress_bar_value_set(ui, demo_progress_bar, 0.5f);
 	}
@@ -631,6 +631,9 @@ void application_on_window_resize (struct application *app, const struct kwindow
 	// UI camera needs it too.
 	rect_2di ui_vp_rect = {0, 0, app->state->width, app->state->height};
 	kcamera_set_vp_rect(app->state->ui_camera, ui_vp_rect);
+
+	// Anchored controls follow the window size.
+	kui_system_screen_size_set(app->state->kui_state, window->width, window->height);
 
 	// Move debug text to new bottom of screen.
 	kui_control_position_set(app->state->kui_state, app->state->debug_text, vec3_create(20, app->state->height - 136, 0));
