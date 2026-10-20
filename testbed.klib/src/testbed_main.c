@@ -263,6 +263,13 @@ b8 application_initialize (struct application *app) {
 	return true;
 }
 
+// Fixed-step simulation. The testbed has no simulation logic yet; this counts steps so a run can
+// confirm they happen, and marks where frame-rate independent game logic belongs.
+b8 application_fixed_update (struct application *app, f64 step_seconds, struct frame_data *p_frame_data) {
+	app->state->fixed_update_count++;
+	return true;
+}
+
 b8 application_update (struct application *app, struct frame_data *p_frame_data) {
 	application_frame_data *app_frame_data = p_frame_data->app_frame_data;
 	if (!app_frame_data) {
@@ -791,6 +798,7 @@ void application_on_action (struct application *app_inst, u32 action_code) {
 
 void application_shutdown (struct application *app) {
 	app->state->running = false;
+	KINFO("Testbed ran %llu fixed simulation steps.", app->state->fixed_update_count);
 
 #if TESTBED_EDITOR
 	editor_shutdown(app->state->editor);

@@ -47,4 +47,13 @@ typedef struct frame_data {
 	struct kforward_renderer_render_data *render_data;
 
 	frame_metrics_data metrics;
+
+	/** @brief The number of fixed simulation steps run this frame. Always 0 with a variable time step. */
+	u32 sim_steps_this_frame;
+	/**
+	 * @brief How far simulation time is between the last fixed step and the next, from 0 to 1.
+	 * Use it to interpolate rendered positions between the previous and current simulation state.
+	 * Always 1 outside real-time fixed stepping.
+	 */
+	f32 sim_alpha;
 } frame_data;

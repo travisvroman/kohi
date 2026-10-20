@@ -162,3 +162,27 @@ KAPI khandle engine_external_system_register (u64 system_state_memory_requiremen
 KAPI void *engine_external_system_state_get (khandle system_handle);
 
 KAPI struct kwindow *engine_active_window_get (void);
+
+/**
+ * @brief Pauses or resumes the fixed-step simulation. Rendering and per-frame updates continue
+ * while paused. Has no effect with a variable time step (fixed_step_hz = 0).
+ */
+KAPI void engine_simulation_pause_set (b8 paused);
+
+/** @brief Returns true if the fixed-step simulation is paused. */
+KAPI b8 engine_simulation_paused (void);
+
+/**
+ * @brief While paused, runs count more fixed steps over the next frames, then stays paused.
+ * This is how an agent or tool advances the simulation step by step.
+ */
+KAPI void engine_simulation_steps_request (u32 count);
+
+/** @brief Returns the number of fixed simulation steps completed since startup. */
+KAPI u64 engine_simulation_step_count_get (void);
+
+/** @brief Returns simulated time in seconds since startup. */
+KAPI f64 engine_simulation_time_get (void);
+
+/** @brief Returns the length of one fixed step in seconds, or 0 with a variable time step. */
+KAPI f64 engine_simulation_step_seconds_get (void);

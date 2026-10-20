@@ -4,6 +4,7 @@
 #include "strings/kname.h"
 #include <defines.h>
 #include <math/math_types.h>
+#include "core/sim_clock.h"
 
 struct kwindow_config;
 
@@ -70,10 +71,26 @@ typedef struct application_config {
 	b8 headless;
 
 	/**
-	 * @brief When nonzero, every frame advances time by exactly 1/fixed_step_hz seconds instead
-	 * of by the measured wall-clock time, so a run is repeatable. Optional, defaults to 0 (off).
+	 * @brief When nonzero, the simulation advances in fixed steps of 1/fixed_step_hz seconds,
+	 * independent of the render frame rate (see simulation_mode). Optional, defaults to 0, which
+	 * keeps the legacy variable time step.
 	 */
 	u32 fixed_step_hz;
+
+	/**
+	 * @brief How fixed steps are scheduled. Config values: "realtime" (an accumulator releases
+	 * steps as wall-clock time passes) or "lockstep" (one step per frame, no wall clock).
+	 * Optional; defaults to lockstep when headless, real-time otherwise. Variable when
+	 * fixed_step_hz is 0.
+	 */
+	ksim_clock_mode simulation_mode;
+
+	/**
+	 * @brief Real-time mode only: the most fixed steps one frame may run. When a frame takes
+	 * longer, the extra time is dropped and the simulation runs slower than real time instead of
+	 * stalling. Optional, defaults to 8.
+	 */
+	u32 max_steps_per_frame;
 
 	/** @brief When nonzero, the engine shuts down after this many frames. Optional, defaults to 0 (unlimited). */
 	u64 max_frames;

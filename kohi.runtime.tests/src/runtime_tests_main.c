@@ -1,6 +1,7 @@
 #include <logger.h>
 
 #include "test_manager.h"
+#include "core/sim_clock_tests.h"
 #include "world/kscene_tests.h"
 
 int main (void) {
@@ -9,6 +10,7 @@ int main (void) {
 
 	// TODO: add test registrations here.
 	kscene_register_tests();
+	sim_clock_register_tests();
 
 	KDEBUG("Starting Kohi Runtime tests...");
 

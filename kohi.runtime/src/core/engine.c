@@ -27,6 +27,7 @@
 #include "core/input.h"
 #include "core/kvar.h"
 #include "core/metrics.h"
+#include "core/sim_clock.h"
 #include "frame_data.h"
 #include "plugins/plugin_types.h"
 #include "renderer/kmaterial_renderer.h"
@@ -64,6 +65,9 @@ typedef struct engine_state_t {
 	linear_allocator frame_allocator;
 
 	frame_data p_frame_data;
+
+	// Decides how many fixed simulation steps run each frame.
+	ksim_clock sim_clock;
 
 	// Platform console consumer.
 	u8 platform_consumer_id;
@@ -134,6 +138,34 @@ static void on_memory_dump (console_command_context context) {
 	char *mem_usage = get_memory_usage_str();
 	KINFO(mem_usage);
 	string_free(mem_usage);
+}
+
+static void on_sim_pause (console_command_context context) {
+	engine_simulation_pause_set(true);
+}
+
+static void on_sim_resume (console_command_context context) {
+	engine_simulation_pause_set(false);
+}
+
+static void on_sim_step (console_command_context context) {
+	u32 count = 1;
+	if (context.argument_count == 1 && !string_to_u32(context.arguments[0].value, &count)) {
+		KERROR("sim_step: '%s' is not a step count. Usage: sim_step [count]", context.arguments[0].value);
+		return;
+	}
+	if (!engine_simulation_paused()) {
+		KWARN("sim_step: the simulation is running. Use sim_pause first.");
+		return;
+	}
+	engine_simulation_steps_request(count);
+}
+
+static void on_sim_status (console_command_context context) {
+	const ksim_clock *sim = &engine_state->sim_clock;
+	KINFO("Simulation: %s mode, %s, step %llu, %.3f s simulated, step %.6f s, %u steps pending.",
+		  ksim_clock_mode_name(sim->mode), sim->paused ? "paused" : "running",
+		  sim->step_count, sim->sim_seconds, sim->step_seconds, sim->pending_steps);
 }
 
 b8 engine_create (application *app, const char *app_config_path, const char *game_lib_name) {
@@ -293,6 +325,12 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 	}
 
 	KASSERT(console_command_register("memory_dump", 0, 0, 0, on_memory_dump));
+
+	engine_state->sim_clock = ksim_clock_create(app->app_config.simulation_mode, app->app_config.fixed_step_hz, app->app_config.max_steps_per_frame);
+	KASSERT(console_command_register("sim_pause", 0, 0, 0, on_sim_pause));
+	KASSERT(console_command_register("sim_resume", 0, 0, 0, on_sim_resume));
+	KASSERT(console_command_register("sim_step", 0, 1, 0, on_sim_step));
+	KASSERT(console_command_register("sim_status", 0, 0, 0, on_sim_status));
 
 	// Report runtime version
 #if KOHI_RELEASE
@@ -802,6 +840,135 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 	return true;
 }
 
+typedef enum engine_render_result {
+	// The frame was rendered and presented.
+	ENGINE_RENDER_RESULT_DONE,
+	// Rendering was skipped this frame (renderer not ready, window resizing, swapchain recreated).
+	ENGINE_RENDER_RESULT_SKIPPED,
+	// An unrecoverable error occurred; the engine must shut down.
+	ENGINE_RENDER_RESULT_FATAL
+} engine_render_result;
+
+// Runs one fixed simulation step: systems that must advance at a fixed rate, then the application.
+static b8 engine_simulation_step (application *app, f64 step_seconds) {
+	kmodel_system_update(engine_state->systems.model_system, (f32)step_seconds, &engine_state->p_frame_data);
+
+	if (app->fixed_update && !app->fixed_update(app, step_seconds, &engine_state->p_frame_data)) {
+		KFATAL("Game fixed update failed, shutting down.");
+		return false;
+	}
+
+	ksim_clock_step_complete(&engine_state->sim_clock);
+	return true;
+}
+
+// Per-frame application update and rendering. Skipping this (for example while the window is
+// resizing) no longer skips simulation, which runs before it.
+static engine_render_result engine_frame_update_and_render (application *app, kwindow *w) {
+	frame_data *p_frame_data = &engine_state->p_frame_data;
+	struct renderer_system_state *renderer = engine_state->systems.renderer_system;
+
+	if (!renderer_frame_prepare(renderer, p_frame_data)) {
+		return ENGINE_RENDER_RESULT_SKIPPED;
+	}
+
+	// Make sure the window is not currently being resized by waiting a designated
+	// number of frames after the last resize operation before performing the backend updates.
+	if (w->resizing) {
+		w->frames_since_resize++;
+
+		// If the required number of frames have passed since the resize, go ahead and perform the actual updates.
+		// FIXME: Configurable delay here instead of magic 30 frames.
+		if (w->frames_since_resize >= 3) {
+			renderer_on_window_resized(renderer, w);
+
+			// NOTE: Don't bother checking the result of this, since this will likely
+			// recreate the swapchain and boot to the next frame anyway.
+			renderer_frame_prepare_window_surface(renderer, w, p_frame_data);
+
+			// Notify the application of the resize.
+			app->on_window_resize(app, w);
+
+			w->frames_since_resize = 0;
+			w->resizing = false;
+		} else {
+			// Skip rendering the frame and try again next time.
+			// NOTE: Simulate a frame being "drawn" at 60 FPS.
+			platform_sleep(16);
+		}
+
+		// Either way, don't render this frame while resizing. Try again next frame.
+		return ENGINE_RENDER_RESULT_SKIPPED;
+	}
+	if (!renderer_frame_prepare_window_surface(renderer, w, p_frame_data)) {
+		// This can also happen not just from a resize above, but also if a renderer flag
+		// (such as VSync) changed, which may also require resource recreation. To handle this,
+		// Notify the application of a resize event, which it can then pass on to its rendergraph(s)
+		// as needed.
+		app->on_window_resize(app, w);
+		return ENGINE_RENDER_RESULT_SKIPPED;
+	}
+
+	if (!app->update(app, p_frame_data)) {
+		KFATAL("Game update failed, shutting down.");
+		return ENGINE_RENDER_RESULT_FATAL;
+	}
+
+	// Update the transform system _after_ the application so we are sure all transform updates that
+	// need to occur have happened.
+	ktransform_system_update(engine_state->systems.ktransform_system, p_frame_data);
+	kmatrix_system_update(engine_state->systems.matrix_system, p_frame_data);
+	light_system_frame_prepare(engine_state->systems.light_system, p_frame_data);
+	kmodel_system_frame_prepare(engine_state->systems.model_system, p_frame_data);
+
+	// Start recording to the command list.
+	if (!renderer_frame_command_list_begin(renderer, p_frame_data)) {
+		KFATAL("Failed to begin renderer command list. Shutting down.");
+		return ENGINE_RENDER_RESULT_FATAL;
+	}
+
+	// Begin "prepare_frame" render event grouping.
+	renderer_begin_debug_label("prepare_frame", KCOLOUR4_YELLOW);
+
+	// TODO: frame prepare for systems that need it.
+	// NOTE: Frame preparation for plugins
+	plugin_system_frame_prepare_plugins(engine_state->systems.plugin_system, p_frame_data);
+
+	// Have the application generate the render packet.
+	b8 prepare_result = app->prepare_frame(app, p_frame_data);
+	// End "prepare_frame" render event grouping.
+	renderer_end_debug_label();
+
+	if (!prepare_result) {
+		return ENGINE_RENDER_RESULT_SKIPPED;
+	}
+
+	// Call the game's render routine.
+	if (!app->render_frame(app, p_frame_data)) {
+		KFATAL("Game render failed, shutting down.");
+		return ENGINE_RENDER_RESULT_FATAL;
+	}
+
+	// End the recording to the command list.
+	if (!renderer_frame_command_list_end(renderer, p_frame_data)) {
+		KFATAL("Failed to end renderer command list. Shutting down.");
+		return ENGINE_RENDER_RESULT_FATAL;
+	}
+
+	if (!renderer_frame_submit(renderer, p_frame_data)) {
+		KFATAL("Failed to submit work to the renderer for frame rendering.");
+		return ENGINE_RENDER_RESULT_FATAL;
+	}
+
+	// Present the frame.
+	if (!renderer_frame_present(renderer, w, p_frame_data)) {
+		KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
+		return ENGINE_RENDER_RESULT_FATAL;
+	}
+
+	return ENGINE_RENDER_RESULT_DONE;
+}
+
 b8 engine_run (application *app) {
 	app->stage = APPLICATION_STAGE_RUNNING;
 	engine_state->is_running = true;
@@ -814,21 +981,20 @@ b8 engine_run (application *app) {
 	kclock_start(&engine_state->clock);
 	kclock_update(&engine_state->clock);
 	engine_state->last_time = engine_state->clock.elapsed;
-	// f64 running_time = 0;
-	// TODO: frame rate lock
-	// u8 frame_count = 0;
-	f64 target_frame_seconds = 1.0f / 60;
 	f64 frame_elapsed_time = 0;
 
-	// With a fixed step, every frame advances time by the same amount regardless of how long it took.
-	const u32 fixed_step_hz = app->app_config.fixed_step_hz;
-	const f64 fixed_step_seconds = fixed_step_hz ? 1.0 / (f64)fixed_step_hz : 0.0;
+	ksim_clock *sim = &engine_state->sim_clock;
+	if (sim->mode == KSIM_CLOCK_MODE_VARIABLE) {
+		KINFO("Simulation uses a variable time step (set fixed_step_hz to enable fixed steps).");
+	} else {
+		KINFO("Simulation uses fixed steps of %.6f s (%u Hz), %s mode.", sim->step_seconds, app->app_config.fixed_step_hz, ksim_clock_mode_name(sim->mode));
+		if (!app->fixed_update) {
+			KINFO("The application has no application_fixed_update; only engine systems advance in fixed steps.");
+		}
+	}
+
 	const u64 max_frames = app->app_config.max_frames;
 	u64 frames_run = 0;
-	f64 simulated_seconds = 0;
-	if (fixed_step_hz) {
-		KINFO("Fixed-step simulation enabled: %u Hz (%.6f s per frame).", fixed_step_hz, fixed_step_seconds);
-	}
 	if (max_frames) {
 		KINFO("Engine will stop after %llu frames.", max_frames);
 	}
@@ -847,179 +1013,98 @@ b8 engine_run (application *app) {
 			engine_state->is_running = false;
 		}
 
-		if (!engine_state->is_suspended) {
-			// Update clock and get delta time.
-			kclock_update(&engine_state->clock);
-			f64 current_time = engine_state->clock.elapsed;
-			f64 delta = fixed_step_hz ? fixed_step_seconds : (current_time - engine_state->last_time);
-			f64 frame_start_time = platform_get_absolute_time();
-
-			// Reset the frame allocator
-			engine_state->p_frame_data.allocator.free_all();
-
-			// TODO: Update systems here that need them.
-			job_system_update(engine_state->systems.job_system, &engine_state->p_frame_data);
-			plugin_system_update_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
-			kaudio_system_update(engine_state->systems.audio_system, &engine_state->p_frame_data);
-
-			// Update timelines. Note that this is not done by the systems manager
-			// because we don't want or have timeline data in the frame_data struct any longer.
-			ktimeline_system_update(engine_state->systems.timeline_system, delta);
-
-			kmodel_system_update(engine_state->systems.model_system, delta, &engine_state->p_frame_data);
-
-			// update metrics
-			metrics_update(frame_elapsed_time);
-
-			if (!renderer_frame_prepare(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-				continue;
-			}
-
-			// Make sure the window is not currently being resized by waiting a designated
-			// number of frames after the last resize operation before performing the backend updates.
-			if (w->resizing) {
-				w->frames_since_resize++;
-
-				// If the required number of frames have passed since the resize, go ahead and perform the actual updates.
-				// FIXME: Configurable delay here instead of magic 30 frames.
-				if (w->frames_since_resize >= 3) {
-					renderer_on_window_resized(engine_state->systems.renderer_system, w);
-
-					// NOTE: Don't bother checking the result of this, since this will likely
-					// recreate the swapchain and boot to the next frame anyway.
-					renderer_frame_prepare_window_surface(engine_state->systems.renderer_system, w, &engine_state->p_frame_data);
-
-					// Notify the application of the resize.
-					app->on_window_resize(app, w);
-
-					w->frames_since_resize = 0;
-					w->resizing = false;
-				} else {
-					// Skip rendering the frame and try again next time.
-					// NOTE: Simulate a frame being "drawn" at 60 FPS.
-					platform_sleep(16);
-				}
-
-				// Either way, don't process this frame any further while resizing.
-				// Try again next frame.
-				continue;
-			}
-			if (!renderer_frame_prepare_window_surface(engine_state->systems.renderer_system, w, &engine_state->p_frame_data)) {
-				// This can also happen not just from a resize above, but also if a renderer flag
-				// (such as VSync) changed, which may also require resource recreation. To handle this,
-				// Notify the application of a resize event, which it can then pass on to its rendergraph(s)
-				// as needed.
-				app->on_window_resize(app, w);
-				continue;
-			}
-
-			if (!app->update(app, &engine_state->p_frame_data)) {
-				KFATAL("Game update failed, shutting down.");
-				engine_state->is_running = false;
-				break;
-			}
-
-			// Update the transform system _after_ the application so we are sure all transform updates that
-			// need to occur have happened.
-			ktransform_system_update(engine_state->systems.ktransform_system, &engine_state->p_frame_data);
-			kmatrix_system_update(engine_state->systems.matrix_system, &engine_state->p_frame_data);
-			light_system_frame_prepare(engine_state->systems.light_system, &engine_state->p_frame_data);
-			kmodel_system_frame_prepare(engine_state->systems.model_system, &engine_state->p_frame_data);
-
-			// Start recording to the command list.
-			if (!renderer_frame_command_list_begin(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-				KFATAL("Failed to begin renderer command list. Shutting down.");
-				engine_state->is_running = false;
-				break;
-			}
-
-			// Begin "prepare_frame" render event grouping.
-			renderer_begin_debug_label("prepare_frame", KCOLOUR4_YELLOW);
-
-			// TODO: frame prepare for systems that need it.
-			// NOTE: Frame preparation for plugins
-			plugin_system_frame_prepare_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
-
-			// Have the application generate the render packet.
-			b8 prepare_result = app->prepare_frame(app, &engine_state->p_frame_data);
-			// End "prepare_frame" render event grouping.
-			renderer_end_debug_label();
-
-			if (!prepare_result) {
-				continue;
-			}
-
-			// Call the game's render routine.
-			if (!app->render_frame(app, &engine_state->p_frame_data)) {
-				KFATAL("Game render failed, shutting down.");
-				engine_state->is_running = false;
-				break;
-			}
-
-			// End the recording to the command list.
-			if (!renderer_frame_command_list_end(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-				KFATAL("Failed to end renderer command list. Shutting down.");
-				engine_state->is_running = false;
-				break;
-			}
-
-			if (!renderer_frame_submit(engine_state->systems.renderer_system, &engine_state->p_frame_data)) {
-				KFATAL("Failed to submit work to the renderer for frame rendering.");
-				engine_state->is_running = false;
-				break;
-			}
-
-			// Present the frame.
-			if (!renderer_frame_present(engine_state->systems.renderer_system, w, &engine_state->p_frame_data)) {
-				KERROR("The call to renderer_present failed. This is likely unrecoverable. Shutting down.");
-				engine_state->is_running = false;
-				break;
-			}
-
-			// Figure out how long the frame took and, if below
-			f64 frame_end_time = platform_get_absolute_time();
-			frame_elapsed_time = frame_end_time - frame_start_time;
-			// running_time += frame_elapsed_time;
-			f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
-
-			if (remaining_seconds > 0) {
-				u64 remaining_ms = (remaining_seconds * 1000);
-
-				// If there is time left, give it back to the OS.
-				b8 limit_frames = false;
-				if (remaining_ms > 0 && limit_frames) {
-					platform_sleep(remaining_ms - 1);
-				}
-
-				// TODO: frame rate lock
-				// frame_count++;
-			}
-
-			// NOTE: Input update/state copying should always be handled
-			// after any input should be recorded; I.E. before this line.
-			// As a safety, input is the last thing to be updated before
-			// this frame ends.
-			input_update(&engine_state->p_frame_data);
-
-			// Update last time
-			engine_state->last_time = current_time;
-
-			frames_run++;
-			simulated_seconds += delta;
-			if (max_frames && frames_run >= max_frames) {
-				KINFO("Reached max_frames (%llu); shutting down.", max_frames);
-				engine_state->is_running = false;
-			}
-		} else {
+		if (engine_state->is_suspended) {
 			KDEBUG("suspended...");
+			continue;
 		}
+
+		// Wall-clock time since the last frame. Lockstep mode never uses it, so headless runs stay repeatable.
+		kclock_update(&engine_state->clock);
+		f64 current_time = engine_state->clock.elapsed;
+		f64 wall_delta = current_time - engine_state->last_time;
+		engine_state->last_time = current_time;
+		f64 frame_start_time = platform_get_absolute_time();
+
+		// Reset the frame allocator
+		engine_state->p_frame_data.allocator.free_all();
+
+		// TODO: Update systems here that need them.
+		job_system_update(engine_state->systems.job_system, &engine_state->p_frame_data);
+		plugin_system_update_plugins(engine_state->systems.plugin_system, &engine_state->p_frame_data);
+		kaudio_system_update(engine_state->systems.audio_system, &engine_state->p_frame_data);
+
+		// Simulation. Runs before, and independently of, rendering.
+		u32 steps = ksim_clock_frame_begin(sim, wall_delta);
+		for (u32 i = 0; i < steps && engine_state->is_running; ++i) {
+			if (!engine_simulation_step(app, sim->step_seconds)) {
+				engine_state->is_running = false;
+			}
+		}
+		if (!engine_state->is_running) {
+			break;
+		}
+
+		// Time that per-frame (non-simulation) code sees through the timelines. In lockstep mode it
+		// is simulated time, so frame-based code such as cameras is repeatable too.
+		f64 frame_delta;
+		if (sim->mode == KSIM_CLOCK_MODE_LOCKSTEP) {
+			frame_delta = (f64)steps * sim->step_seconds;
+		} else {
+			frame_delta = wall_delta;
+		}
+		if (sim->mode == KSIM_CLOCK_MODE_VARIABLE) {
+			// Legacy path: simulation systems advance once per frame by the frame time.
+			kmodel_system_update(engine_state->systems.model_system, (f32)frame_delta, &engine_state->p_frame_data);
+			ksim_clock_variable_advance(sim, frame_delta);
+		}
+
+		// Update timelines. Note that this is not done by the systems manager
+		// because we don't want or have timeline data in the frame_data struct any longer.
+		ktimeline_system_update(engine_state->systems.timeline_system, (f32)frame_delta);
+
+		engine_state->p_frame_data.sim_steps_this_frame = steps;
+		engine_state->p_frame_data.sim_alpha = ksim_clock_alpha(sim);
+
+		// update metrics
+		metrics_update(frame_elapsed_time);
+
+		engine_render_result render_result = engine_frame_update_and_render(app, w);
+		if (render_result == ENGINE_RENDER_RESULT_FATAL) {
+			engine_state->is_running = false;
+			break;
+		}
+
+		f64 frame_end_time = platform_get_absolute_time();
+		frame_elapsed_time = frame_end_time - frame_start_time;
+
+		// A paused headless run has nothing to do until a step is requested; don't spin a core.
+		if (sim->mode == KSIM_CLOCK_MODE_LOCKSTEP && steps == 0) {
+			platform_sleep(1);
+		}
+
+		// NOTE: Input update/state copying should always be handled
+		// after any input should be recorded; I.E. before this line.
+		// As a safety, input is the last thing to be updated before
+		// this frame ends. This also runs on frames that skipped rendering,
+		// so key presses are not seen twice.
+		input_update(&engine_state->p_frame_data);
+
+		frames_run++;
+		if (max_frames && frames_run >= max_frames) {
+			KINFO("Reached max_frames (%llu); shutting down.", max_frames);
+			engine_state->is_running = false;
+		}
+	}
+
+	kclock_update(&engine_state->clock);
+	KINFO("Ran %llu frames and %llu simulation steps: %.3f s simulated in %.3f s wall-clock.",
+		  frames_run, sim->step_count, sim->sim_seconds, engine_state->clock.elapsed);
+	if (sim->dropped_seconds > 0.0) {
+		KWARN("The simulation fell behind real time by %.3f s because some frames took longer than max_steps_per_frame steps.", sim->dropped_seconds);
 	}
 
 	engine_state->is_running = false;
 	app->stage = APPLICATION_STAGE_SHUTTING_DOWN;
-
-	kclock_update(&engine_state->clock);
-	KINFO("Ran %llu frames: %.3f s simulated in %.3f s wall-clock.", frames_run, simulated_seconds, engine_state->clock.elapsed);
 
 	// Shut down the game and unload the lib.
 	app->shutdown(app);
@@ -1097,6 +1182,36 @@ b8 engine_run (application *app) {
 void engine_on_event_system_initialized (void) {
 	// Register for engine-level events.
 	event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
+}
+
+void engine_simulation_pause_set (b8 paused) {
+	ksim_clock *sim = &engine_state->sim_clock;
+	if (sim->mode == KSIM_CLOCK_MODE_VARIABLE) {
+		KWARN("The simulation cannot be paused with a variable time step. Set fixed_step_hz in the app config.");
+		return;
+	}
+	ksim_clock_pause_set(sim, paused);
+	KINFO("Simulation %s at step %llu.", paused ? "paused" : "resumed", sim->step_count);
+}
+
+b8 engine_simulation_paused (void) {
+	return engine_state->sim_clock.paused;
+}
+
+void engine_simulation_steps_request (u32 count) {
+	ksim_clock_request_steps(&engine_state->sim_clock, count);
+}
+
+u64 engine_simulation_step_count_get (void) {
+	return engine_state->sim_clock.step_count;
+}
+
+f64 engine_simulation_time_get (void) {
+	return engine_state->sim_clock.sim_seconds;
+}
+
+f64 engine_simulation_step_seconds_get (void) {
+	return engine_state->sim_clock.step_seconds;
 }
 
 const struct frame_data *engine_frame_data_get (void) {
@@ -1233,6 +1348,9 @@ static b8 load_game_lib (application *app) {
 	if (!app->update) {
 		return false;
 	}
+	// Optional: only needed by applications that use fixed-step simulation.
+	app->fixed_update = platform_dynamic_library_load_function("application_fixed_update", &app->game_library);
+
 	app->prepare_frame = platform_dynamic_library_load_function("application_prepare_frame", &app->game_library);
 	if (!app->prepare_frame) {
 		return false;

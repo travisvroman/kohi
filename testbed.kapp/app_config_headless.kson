@@ -1,4 +1,5 @@
-// Headless application config: no display, no GPU, fixed-step time.
+// Headless application config: no display, no GPU, fixed-step simulation in lockstep
+// (one 1/60 s step per frame, as fast as the CPU allows).
 // Run with: ./testbed.kapp --config ../testbed.kapp/app_config_headless.kson
 // OpenAL still needs an output device; on machines without one, set ALSOFT_DRIVERS=null.
 app_name = "Kohi Engine Testbed Application (headless)"

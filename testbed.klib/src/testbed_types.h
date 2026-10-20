@@ -144,6 +144,8 @@ struct editor_state;
 
 typedef struct application_state {
 	b8 running;
+	// Number of fixed simulation steps the application has seen (see application_fixed_update).
+	u64 fixed_update_count;
 	// Used as the default for rendering the world.
 	kcamera world_camera;
 	kcamera ui_camera;
