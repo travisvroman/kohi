@@ -51,6 +51,7 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 ```
 
 - `--config <path>` picks the application config.
+- `--seed <n>` (or `random_seed` in the config) seeds every engine RNG. The seed in use is logged as `Random seed: <n>` at startup; pass it back to repeat a run.
 - `headless = true` needs no display or GPU. CI runs it on GNU/Linux and Windows. Pair it with the null renderer.
 - `fixed_step_hz = 60` and lockstep mode (the headless default) give exactly one 1/60 s step per frame, as fast as the CPU allows.
 - `max_frames = 600` ends the run after 600 frames.
