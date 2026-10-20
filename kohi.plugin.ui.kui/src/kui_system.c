@@ -27,6 +27,8 @@
 
 #include "assets/kasset_types.h"
 #include "controls/checkbox_control.h"
+#include "controls/kui_progress_bar.h"
+#include "controls/kui_slider.h"
 #include "controls/image_box_control.h"
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"
@@ -129,6 +131,8 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	state->frame_controls = darray_create(kui_frame_control);
 	state->window_controls = darray_create(kui_window_control);
 	state->flow_controls = darray_create(kui_flow_control);
+	state->progress_bar_controls = darray_create(kui_progress_bar_control);
+	state->slider_controls = darray_create(kui_slider_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
 	agent_commands_register(state);
@@ -269,6 +273,26 @@ void kui_system_shutdown (kui_state *state) {
 				}
 			}
 			darray_destroy(state->checkbox_controls);
+		}
+
+		{
+			u32 len = darray_length(state->progress_bar_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->progress_bar_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_progress_bar_destroy(state, &state->progress_bar_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->progress_bar_controls);
+		}
+
+		{
+			u32 len = darray_length(state->slider_controls);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->slider_controls[i].base.handle.val != INVALID_KUI_CONTROL.val) {
+					kui_slider_destroy(state, &state->slider_controls[i].base.handle);
+				}
+			}
+			darray_destroy(state->slider_controls);
 		}
 
 		darray_destroy(state->inactive_controls);
@@ -1475,6 +1499,14 @@ static kui_base_control *get_base (kui_state *state, kui_control control) {
 		len = darray_length(state->flow_controls);
 		base = type_index < len ? &state->flow_controls[type_index].base : KNULL;
 		break;
+	case KUI_CONTROL_TYPE_PROGRESS_BAR:
+		len = darray_length(state->progress_bar_controls);
+		base = type_index < len ? &state->progress_bar_controls[type_index].base : KNULL;
+		break;
+	case KUI_CONTROL_TYPE_SLIDER:
+		len = darray_length(state->slider_controls);
+		base = type_index < len ? &state->slider_controls[type_index].base : KNULL;
+		break;
 	// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1659,6 +1691,34 @@ static kui_control create_handle (kui_state *state, kui_control_type type) {
 		}
 		base = &state->flow_controls[type_index].base;
 		break;
+	case KUI_CONTROL_TYPE_PROGRESS_BAR:
+		len = darray_length(state->progress_bar_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->progress_bar_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->progress_bar_controls, &(kui_progress_bar_control){0});
+		}
+		base = &state->progress_bar_controls[type_index].base;
+		break;
+	case KUI_CONTROL_TYPE_SLIDER:
+		len = darray_length(state->slider_controls);
+		for (u32 i = 0; i < len; ++i) {
+			if (state->slider_controls[i].base.type == KUI_CONTROL_TYPE_NONE) {
+				type_index = i;
+				break;
+			}
+		}
+		if (type_index == INVALID_ID_U16) {
+			type_index = len;
+			darray_push(state->slider_controls, &(kui_slider_control){0});
+		}
+		base = &state->slider_controls[type_index].base;
+		break;
 		// TODO: user type support
 	case KUI_CONTROL_TYPE_MAX:
 	case KUI_CONTROL_TYPE_NONE:
@@ -1723,6 +1783,14 @@ static void release_handle (kui_state *state, kui_control *handle) {
 		case KUI_CONTROL_TYPE_FLOW:
 			kzero_memory(&state->flow_controls[type_index], sizeof(kui_flow_control));
 			base = &state->flow_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_PROGRESS_BAR:
+			kzero_memory(&state->progress_bar_controls[type_index], sizeof(kui_progress_bar_control));
+			base = &state->progress_bar_controls[type_index].base;
+			break;
+		case KUI_CONTROL_TYPE_SLIDER:
+			kzero_memory(&state->slider_controls[type_index], sizeof(kui_slider_control));
+			base = &state->slider_controls[type_index].base;
 			break;
 		case KUI_CONTROL_TYPE_MAX:
 		case KUI_CONTROL_TYPE_NONE:
@@ -1955,6 +2023,10 @@ static const char *agent_control_type_name (kui_control_type type) {
 		return "window";
 	case KUI_CONTROL_TYPE_FLOW:
 		return "flow";
+	case KUI_CONTROL_TYPE_PROGRESS_BAR:
+		return "progress_bar";
+	case KUI_CONTROL_TYPE_SLIDER:
+		return "slider";
 	default:
 		return "unknown";
 	}
@@ -2004,6 +2076,10 @@ static void agent_control_json_append (kui_state *state, kui_control control, ch
 	}
 	if (base->type == KUI_CONTROL_TYPE_CHECKBOX) {
 		agent_json_append(json, kui_checkbox_get_checked(state, control) ? ",\"checked\":true" : ",\"checked\":false");
+	}
+	if (base->type == KUI_CONTROL_TYPE_PROGRESS_BAR || base->type == KUI_CONTROL_TYPE_SLIDER) {
+		agent_json_append(json, ",\"value\":");
+		agent_json_append_f32(json, base->type == KUI_CONTROL_TYPE_SLIDER ? kui_slider_value_get(state, control) : kui_progress_bar_value_get(state, control));
 	}
 	if (base->parent.val != INVALID_KUI_CONTROL.val && base->parent.val != state->root.val) {
 		kui_base_control *parent = get_base(state, base->parent);
@@ -2136,8 +2212,34 @@ static b8 agent_cmd_ui_text_set (const agent_request *request, agent_reply *repl
 	return true;
 }
 
+static b8 agent_cmd_ui_value_set (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	kui_control control = agent_control_from_request(state, request, reply);
+	if (control.val == INVALID_KUI_CONTROL.val) {
+		return false;
+	}
+	f64 value = 0;
+	if (!agent_request_number_get(request, "value", &value)) {
+		agent_reply_error(reply, "needs \"value\"");
+		return false;
+	}
+	kui_base_control *base = get_base(state, control);
+	if (base->type == KUI_CONTROL_TYPE_SLIDER) {
+		kui_slider_value_set(state, control, (f32)value);
+		agent_reply_number_add(reply, "value", kui_slider_value_get(state, control));
+	} else if (base->type == KUI_CONTROL_TYPE_PROGRESS_BAR) {
+		kui_progress_bar_value_set(state, control, (f32)value);
+		agent_reply_number_add(reply, "value", kui_progress_bar_value_get(state, control));
+	} else {
+		agent_reply_error(reply, "only sliders and progress bars have a value");
+		return false;
+	}
+	return true;
+}
+
 static void agent_commands_register (kui_state *state) {
 	agent_command_register("ui_controls", "Lists UI controls with name, type, screen rect, visibility, focus and text. {\"visible_only\": true} skips hidden ones.", state, agent_cmd_ui_controls);
 	agent_command_register("ui_click", "Clicks a UI control by name: {\"control\": \"ok_button\"}.", state, agent_cmd_ui_click);
+	agent_command_register("ui_value_set", "Sets a slider's or progress bar's value (clamped, and snapped to a slider's step): {\"control\", \"value\"}. Replies with the value that took.", state, agent_cmd_ui_value_set);
 	agent_command_register("ui_text_set", "Sets a textbox's text: {\"control\", \"text\"}.", state, agent_cmd_ui_text_set);
 }

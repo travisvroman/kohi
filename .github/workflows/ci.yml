@@ -77,6 +77,9 @@ jobs:
       - name: Save game check (save in one process, load in another)
         run: python3 scripts/save_game_check.py
 
+      - name: UI widgets check (slider, progress bar)
+        run: python3 scripts/ui_widgets_check.py
+
       - name: Frame capture (Vulkan on lavapipe, no display)
         run: python3 scripts/frame_capture_demo.py
 
@@ -211,6 +214,9 @@ jobs:
 
       - name: Save game check (save in one process, load in another)
         run: python scripts/save_game_check.py
+
+      - name: UI widgets check (slider, progress bar)
+        run: python scripts/ui_widgets_check.py
 
       - name: Upload logs
         if: failure()

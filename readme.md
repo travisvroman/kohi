@@ -244,6 +244,7 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `physics_velocity_set` | `entity`, `x`, `y`, `z` | Sets a body's linear velocity. |
 | `ui_controls` | `visible_only` | UI controls with name, type, screen rect, visible, active, focused, and text or checked state where the control has one. |
 | `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
+| `ui_value_set` | `control`, `value` | Sets a slider or progress bar value. A slider clamps it to its range and snaps it to its step; the reply has the value that took. `ui_controls` lists `value` for these controls. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `scene_summary` | `scene` (optional) | A plain-text description for agents that cannot see images: entity counts by type, the 3D cameras in use, and every entity (up to 200) with world position and, for physics bodies, motion type, speed and whether it is awake. |
 | `screenshot` | `path` (optional, default `screenshot_<step>.png`) | Saves the last rendered frame as a PNG. Needs a renderer that can read frames back (Vulkan); the null renderer replies with an error. See [Capturing frames](#capturing-frames). |
