@@ -26,12 +26,38 @@ typedef struct kwindow_platform_state {
 } kwindow_platform_state;
 
 void vulkan_platform_get_required_extension_names (const char ***names_darray) {
-	const char *ext = "VK_KHR_xcb_surface";
+	// A headless run has no display server, so use the surface that needs none. Frames are
+	// rendered and can be read back, but nothing is shown.
+	const char *ext = platform_is_headless() ? "VK_EXT_headless_surface" : "VK_KHR_xcb_surface";
 	darray_push(*names_darray, &ext); // VK_KHR_xlib_surface?
+}
+
+static b8 create_headless_surface (vulkan_context *context, struct kwindow *window) {
+	VkHeadlessSurfaceCreateInfoEXT create_info = {VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT};
+
+	PFN_vkCreateHeadlessSurfaceEXT kvkCreateHeadlessSurfaceEXT = (PFN_vkCreateHeadlessSurfaceEXT)context->rhi.kvkGetInstanceProcAddr(context->instance, "vkCreateHeadlessSurfaceEXT");
+	if (!kvkCreateHeadlessSurfaceEXT) {
+		KFATAL("The Vulkan driver does not provide vkCreateHeadlessSurfaceEXT, so it cannot run headless.");
+		return false;
+	}
+	VkResult result = kvkCreateHeadlessSurfaceEXT(
+		context->instance,
+		&create_info,
+		context->allocator,
+		&window->renderer_state->backend_state->surface);
+	if (result != VK_SUCCESS) {
+		KFATAL("Vulkan headless surface creation failed.");
+		return false;
+	}
+	return true;
 }
 
 // Surface creation for Vulkan
 b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindow *window) {
+	if (platform_is_headless()) {
+		return create_headless_surface(context, window);
+	}
+
 	u64 size = 0;
 	platform_get_handle_info(&size, 0);
 	void *block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);
@@ -59,6 +85,11 @@ b8 vulkan_platform_create_vulkan_surface (vulkan_context *context, struct kwindo
 }
 
 b8 vulkan_platform_presentation_support (vulkan_context *context, VkPhysicalDevice physical_device, u32 queue_family_index) {
+	if (platform_is_headless()) {
+		// There is no display to present to; any queue will do.
+		return true;
+	}
+
 	u64 size = 0;
 	platform_get_handle_info(&size, 0);
 	void *block = kallocate_aligned(size, 16, MEMORY_TAG_RENDERER);

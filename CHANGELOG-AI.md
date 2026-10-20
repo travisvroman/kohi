@@ -24,9 +24,11 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - Lockstep mode runs jobs synchronously, so asset loads finish at the same step and in the same order on every run (#9).
 - `--record` and `--replay` save and play back keyboard and mouse input per simulation step; `scripts/determinism_check.py` (run in CI) checks that a recorded run replays to the same physics hash. In the testbed physics scene, the arrow keys push the ball (#10).
 - Agent command `scene_summary`: a plain-text description of a scene for agents that cannot see images (#12).
+- Frame capture: the Vulkan renderer runs headless on a `VK_EXT_headless_surface` (lavapipe works with no GPU), and the agent command `screenshot` saves the last frame as a PNG. `scripts/frame_capture_demo.py` runs in CI on Linux (#13).
 - Agent commands `world_save`, `world_restore` and `world_hash` snapshot and compare entity transforms together with the physics state (#11).
 
 ### Fixed
+- The Vulkan renderer failed on lavapipe with `VK_ERROR_OUT_OF_HOST_MEMORY`: the custom allocator returned null for zero-size requests, which Mesa makes for empty barrier arrays (#13).
 - OpenAL shutdown crash (#2).
 - Release builds from a clean tree (#3).
 - `kohi.core.tests` crashed after the first test; both test suites now pass and exit non-zero on failure (#4).

@@ -1,0 +1,169 @@
+// Headless application config that renders with Vulkan, so frames can be captured (the
+// "screenshot" agent command). It is app_config_headless.kson with the Vulkan renderer and a
+// small window. No display is needed: the Vulkan plugin draws to a headless surface.
+//
+// On a machine with no GPU, use Mesa's software Vulkan driver (lavapipe), for example
+// `apt install mesa-vulkan-drivers`, and run with VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json
+// Software rendering is slow, which is why the window is small.
+//
+// Run with: ./testbed.kapp --agent --config ../testbed.kapp/app_config_headless_vulkan.kson
+// OpenAL still needs an output device; on machines without one, set ALSOFT_DRIVERS=null.
+app_name = "Kohi Engine Testbed Application (headless, Vulkan)"
+headless = true
+fixed_step_hz = 60
+max_frames = 600
+frame_allocator_size = 128
+app_frame_data_size = 128
+manifest_file_path = "../testbed.kapp/asset_manifest.kson"
+default_package_name = "Testbed"
+windows = [
+   {
+	resolution = "640 360"
+	position="100 100"
+	name="main_window"
+	title = "Testbed Main Window (コーヒー)"
+   }
+]
+package_config = {
+	packages = [
+		"Kohi.Runtime"
+		"Kohi.Plugin.Ui.Kui"
+		"Testbed"
+	]
+	process_as_text [
+		"SomeUserAssetType"
+	]
+}
+systems = [
+	{
+		name="asset"
+		config = {
+			max_asset_count = 2049
+		}
+	}
+	{
+		name="audio"
+		config = {
+			backend_plugin_name = "kohi.plugin.audio.openal"
+			audio_channel_count = 8
+			max_resource_count = 64
+			frequency = 44100
+			chunk_size = 65536
+			categories = [
+				{
+					name = "world_sounds"
+					volume = 1.0
+					audio_space = "3D"
+					channel_ids = [
+						0
+						1
+						2
+						3
+						4
+						5
+					]
+				}
+				{
+					name = "ui_sounds"
+					volume = 0.9
+					audio_space = "2D"
+					channel_ids = [
+						6
+					]
+				}
+				{
+					name = "music"
+					volume = 0.8
+					audio_space = "2D"
+					channel_ids = [
+						7
+					]
+				}
+			]
+		}
+	}
+	{
+		name="renderer"
+		config = {
+			vsync=false
+			power_saving=true
+			enable_validation=false
+			backend_plugin_name = "kohi.plugin.renderer.vulkan"
+			triple_buffering_enabled = true
+			require_discrete_gpu = false
+		}
+	}
+	{
+		name = "font"
+		config = {
+			max_bitmap_font_count = 5
+			max_system_font_count = 25
+			bitmap_fonts = [
+				{
+					resource_name = "BitmapFont.NotoSans21px"
+					package_name = "Kohi.Runtime"
+				}
+				{
+					resource_name = "BitmapFont.UbuntuMono21px"
+					package_name = "Kohi.Runtime"
+				}
+			]
+			system_fonts = [
+				{
+					resource_name = "SystemFont.NotoSansCJK"
+					package_name = "Kohi.Runtime"
+					default_size = 20
+				}
+				{
+					resource_name = "SystemFont.NotoSansCJK-Bold"
+					package_name = "Kohi.Runtime"
+					default_size = 20
+				}
+				{
+					resource_name = "SystemFont.UbuntuMono"
+					package_name = "Kohi.Runtime"
+					default_size = 20
+				}
+			]
+		}
+	}
+	{
+		name = "physics"
+		config = {
+			backend_plugin_name = "kohi.plugin.physics.jolt"
+			gravity = "0 -9.81 0"
+			max_bodies = 1024
+			// Worker threads for the physics step; 0 runs it on the engine thread. Results are
+			// identical either way, because Jolt is built for deterministic simulation.
+			thread_count = 0
+		}
+	}
+	{
+	   name="plugin_system"
+	   config = {
+			plugins = [
+				{
+					 name = "kohi.plugin.ui.kui"
+				}
+				{
+					name = "kohi.plugin.utils"
+				}
+				{
+					name = "kohi.plugin.renderer.vulkan"
+					config = {
+						
+					}
+				}
+				{
+					name = "kohi.plugin.physics.jolt"
+				}
+				{
+					name = "kohi.plugin.audio.openal"
+					config = {
+						max_buffers = 256
+					}
+				}
+			]
+		}
+	}
+]

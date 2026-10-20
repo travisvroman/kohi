@@ -544,6 +544,19 @@ typedef struct renderer_backend_interface {
 	b8 (*texture_blit_2d)(struct renderer_backend_interface *backend, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size);
 
 	/**
+	 * @brief Reads back the last frame rendered to a window as tightly-packed RGBA8 pixels, row 0 at the top.
+	 * Must be called between frames. Backends that cannot read frames back leave this null.
+	 *
+	 * @param backend A pointer to the renderer backend interface.
+	 * @param window The window whose last frame is wanted.
+	 * @param out_width Receives the image width in pixels.
+	 * @param out_height Receives the image height in pixels.
+	 * @param out_rgba Receives a block of width * height * 4 bytes, which the caller frees with kfree.
+	 * @returns True on success; otherwise false.
+	 */
+	b8 (*window_capture)(struct renderer_backend_interface *backend, struct kwindow *window, u32 *out_width, u32 *out_height, u8 **out_rgba);
+
+	/**
 	 * @brief Creates internal shader resources using the provided parameters.
 	 *
 	 * @param backend A pointer to the renderer backend interface.

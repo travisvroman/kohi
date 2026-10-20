@@ -183,6 +183,24 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 
 Pair `headless` with the null renderer (`kohi.plugin.renderer.null`), which accepts every renderer call and draws nothing. Its buffers live in CPU memory, so engine systems that write to mapped buffers behave as usual. Textures hold no pixels and read back as zeroes. OpenAL still opens an audio device, so `ALSOFT_DRIVERS=null` is needed on machines without one.
 
+## Capturing frames
+
+An agent that can look at pictures can capture the frame the engine just rendered, with no display. The Vulkan renderer draws to a headless surface (`VK_EXT_headless_surface`) when `headless = true`, and the agent command `screenshot` reads the last frame back and writes it as a PNG. `testbed.kapp/app_config_headless_vulkan.kson` is the headless config with the Vulkan renderer and a small window:
+
+```sh
+cd bin
+VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json ALSOFT_DRIVERS=null \
+  ./testbed.kapp --agent --config ../testbed.kapp/app_config_headless_vulkan.kson
+{"id": 1, "cmd": "step", "count": 30}
+{"id": 2, "cmd": "screenshot", "path": "frame.png"}
+{"id":2,"ok":true,"path":"frame.png","width":640,"height":360,"step":30}
+```
+
+- With no GPU, use Mesa's software Vulkan driver, lavapipe (`apt install mesa-vulkan-drivers`). `VK_ICD_FILENAMES` points the Vulkan loader at it. Software rendering is slow (on a 4-core machine the testbed took about 40 seconds for 120 frames at 640x360, startup included), which is why the example window is small. Keep it small.
+- The capture is the frame as it was last rendered, so it matches the simulation step in the reply. While the simulation is paused no new frames are drawn.
+- Pixels depend on the driver and GPU, so do not compare them across machines or hash them. Use the physics and scene hashes for that. `scripts/frame_capture_demo.py` (run in CI on lavapipe) checks that the PNG decodes, has the window's size, and is not a single flat colour.
+- Only GNU/Linux runs the Vulkan renderer headless for now. On Windows, headless runs use the null renderer.
+
 ## Fixed-step simulation
 
 With `fixed_step_hz` set, the simulation advances in fixed steps that do not depend on the render frame rate. Each frame the engine works out how many steps to run, runs them, and then does the per-frame update and rendering. A frame that skips rendering (for example while the window is resizing) still runs its simulation steps.
@@ -228,6 +246,7 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `scene_summary` | `scene` (optional) | A plain-text description for agents that cannot see images: entity counts by type, the 3D cameras in use, and every entity (up to 200) with world position and, for physics bodies, motion type, speed and whether it is awake. |
+| `screenshot` | `path` (optional, default `screenshot_<step>.png`) | Saves the last rendered frame as a PNG. Needs a renderer that can read frames back (Vulkan); the null renderer replies with an error. See [Capturing frames](#capturing-frames). |
 | `world_save` | `scene` (optional) | Saves the scene's entity transforms (name, parent, local position, rotation, scale) and the physics state, in one slot. |
 | `world_restore` | | Puts the saved world back. Fails, changing nothing, if entities were added, removed or moved in the tree since. |
 | `world_hash` | `scene` (optional) | `scene_hash` and `physics_hash` as hex strings, for comparing runs. |

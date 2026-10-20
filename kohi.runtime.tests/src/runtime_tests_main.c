@@ -2,6 +2,7 @@
 #include <memory/kmemory.h>
 
 #include "core/sim_clock_tests.h"
+#include "renderer/png_writer_tests.h"
 #include "test_manager.h"
 #include "world/kscene_tests.h"
 
@@ -17,6 +18,7 @@ int main (void) {
 
 	kscene_register_tests();
 	sim_clock_register_tests();
+	png_writer_register_tests();
 
 	KDEBUG("Starting Kohi Runtime tests...");
 

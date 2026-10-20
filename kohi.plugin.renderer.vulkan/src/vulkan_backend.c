@@ -982,6 +982,8 @@ b8 vulkan_renderer_frame_command_list_end (renderer_backend_interface *backend, 
 	// Just end the command buffer.
 	vulkan_command_buffer_end(context, command_buffer);
 
+	window_backend->has_rendered_frame = true;
+
 	// Increment (and wrap) the colour buffer image index.
 	context->current_window->renderer_state->backend_state->image_index =
 		((context->current_window->renderer_state->backend_state->image_index + 1) % (context->triple_buffering_enabled ? 3 : 2));
@@ -2203,6 +2205,78 @@ b8 vulkan_renderer_texture_read_pixel (renderer_backend_interface *backend, ktex
 
 	vulkan_texture_handle_data *texture_data = &context->textures[t];
 	return texture_read_offset_range(backend, texture_data, 0, 0, x, y, 1, 1, out_rgba);
+}
+
+b8 vulkan_renderer_window_capture (renderer_backend_interface *backend, struct kwindow *window, u32 *out_width, u32 *out_height, u8 **out_rgba) {
+	vulkan_context *context = (vulkan_context *)backend->internal_context;
+	krhi_vulkan *rhi = &context->rhi;
+	kwindow_renderer_backend_state *window_backend = window->renderer_state->backend_state;
+	if (!window_backend->has_rendered_frame) {
+		KERROR("Cannot capture window '%s': no frame has been rendered yet.", window->name);
+		return false;
+	}
+
+	// The colour buffer is RGBA8 and has one image per frame; the one rendered last is the one before the current index.
+	vulkan_texture_handle_data *colourbuffer = &context->textures[window->renderer_state->colourbuffer];
+	u32 image_count = context->triple_buffering_enabled ? 3 : 2;
+	vulkan_image *image = &colourbuffer->images[(window_backend->image_index + image_count - 1) % image_count];
+
+	// Nothing may still be writing to the image.
+	VK_CHECK(rhi->kvkDeviceWaitIdle(context->device.logical_device));
+
+	u32 width = image->width;
+	u32 height = image->height;
+	u32 size = width * height * 4;
+	krenderbuffer staging = renderer_renderbuffer_create(backend->frontend_state, kname_create("renderbuffer_window_capture_staging"), RENDERBUFFER_TYPE_READ, size, RENDERBUFFER_TRACK_TYPE_NONE, RENDERBUFFER_FLAG_NONE);
+	if (staging == KRENDERBUFFER_INVALID) {
+		KERROR("Failed to create the staging buffer for a window capture.");
+		return false;
+	}
+
+	// The image rests in the colour attachment layout between frames. Borrow it for the copy, then give it back.
+	VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image->handle;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.layerCount = 1;
+
+	vulkan_command_buffer command_buffer;
+	VkCommandPool pool = context->device.graphics_command_pool;
+	VkQueue queue = context->device.graphics_queue;
+	vulkan_command_buffer_allocate_and_begin_single_use(context, pool, &command_buffer);
+
+	barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	rhi->kvkCmdPipelineBarrier(command_buffer.handle, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 0, 0, 1, &barrier);
+
+	vulkan_image_copy_region_to_buffer(context, image, context->renderbuffers[staging].infos[0].handle, 0, 0, width, height, &command_buffer);
+
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	rhi->kvkCmdPipelineBarrier(command_buffer.handle, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, 0, 0, 0, 1, &barrier);
+
+	vulkan_command_buffer_end_single_use(context, pool, &command_buffer, queue);
+
+	u8 *pixels = kallocate(size, MEMORY_TAG_RENDERER);
+	b8 read_ok = vulkan_buffer_read(backend, staging, 0, size, (void **)&pixels);
+	renderer_renderbuffer_unbind(backend->frontend_state, staging);
+	renderer_renderbuffer_destroy(backend->frontend_state, staging);
+	if (!read_ok) {
+		KERROR("Failed to read the window capture back from the GPU.");
+		kfree(pixels);
+		return false;
+	}
+
+	*out_width = width;
+	*out_height = height;
+	*out_rgba = pixels;
+	return true;
 }
 
 b8 vulkan_renderer_texture_blit_2d (renderer_backend_interface *backend, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size) {
@@ -4981,9 +5055,10 @@ static void *vulkan_alloc_allocation (
 	size_t alignment,
 	VkSystemAllocationScope allocation_scope) {
 
-	// Null MUST be returned if this fails.
+	// Null MUST be returned if this fails. Drivers do ask for zero-sized blocks (Mesa does it for empty
+	// barrier arrays) and treat a null return as out of memory, so hand back a minimal block instead.
 	if (size == 0) {
-		return 0;
+		size = 1;
 	}
 
 	// Size must be aligned also.

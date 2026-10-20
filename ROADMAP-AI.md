@@ -21,7 +21,7 @@ An agent needs one stable way to control a run and see what happened.
 - [x] Control channel: a socket or stdin/stdout protocol (JSON lines) for console commands, stepping, pausing and querying state, so an agent drives a running engine instead of editing config files.
 - [x] World queries: list entities with type, name, transform and physics state; find entities by name (by tag: not yet).
 - [x] Text observation: the `scene_summary` command describes a scene in plain text (#12).
-- [ ] Frame capture: capture frames to images in headless runs. Plan: Vulkan on lavapipe (software Vulkan) with an offscreen or headless surface and readback; needs the custom allocator fix and a surface path first.
+- [x] Frame capture: the `screenshot` agent command saves the last rendered frame as a PNG in headless runs, through Vulkan on a headless surface (lavapipe when there is no GPU).
 - [x] UI by name: list controls, read their text and state, activate them.
 - [x] Non-zero exit codes on failure (0 clean, 1 failed to start, 2 stopped on an error). Structured logs: not yet.
 
@@ -49,7 +49,7 @@ Agents run many instances at once (search, training, testing).
 - [x] Upstream #271: `u32_bst_delete`/`u64_bst_delete` copied the key but not the value, and callers ignored the returned root (left `scene->name_lookup` dangling).
 - [x] Upstream #281: missing assets. The engine now refuses to start when any manifest asset file is missing, lists each one, and says to run the importer.
 - [x] OpenAL buffers: `openal_backend_find_free_buffer`'s reclaim path indexed `sources[-1]` and handed out buffers still owned by loaded audio, and unloading never returned buffers. Buffers now go back to the free list on unload, and running out is a clear error.
-- [ ] Vulkan fails on lavapipe (software Vulkan) with `VK_ERROR_OUT_OF_HOST_MEMORY` from the custom allocator.
+- [x] Vulkan failed on lavapipe (software Vulkan) with `VK_ERROR_OUT_OF_HOST_MEMORY`: the custom allocator returned null for zero-size requests.
 - [ ] `prepare_frame` failure skips the frame without ending the open command list.
 
 ## 5. Release hygiene
