@@ -42,6 +42,7 @@ else ifeq ($(UNAME_S),Linux)
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	LDFLAGS += -Wl,-rpath='$$ORIGIN'
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
 	SRC_FILES := $(shell find src -type f \( -name "*.c" \))
