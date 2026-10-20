@@ -38,6 +38,7 @@
 #pragma once
 
 #include "application/application_types.h"
+#include "core/agent_channel.h"
 #include "core/engine.h"
 #include "logger.h"
 
@@ -77,10 +78,19 @@ static const char *command_line_value (int argc, char **argv, const char *flag) 
  *                    headless config.
  *   --log <path>     File to write the log to instead of the config's log_file (default
  *                    "console.log"). Give each instance its own file when running several.
+ *   --agent          Control the engine with JSON lines over stdin/stdout.
  */
 int main (int argc, char **argv) {
 
 	application app_inst = {0};
+
+	// --agent: control the engine with JSON lines over stdin/stdout (see core/agent_channel.h).
+	// Enabled before anything logs, so stdout only ever carries agent replies.
+	for (int i = 1; i < argc; ++i) {
+		if (strings_equal(argv[i], "--agent")) {
+			agent_channel_enable();
+		}
+	}
 
 	const char *app_config_path = command_line_value(argc, argv, "--config");
 	if (!app_config_path) {

@@ -16,8 +16,8 @@ The phases are in priority order. Each one builds on the one before it.
 
 An agent needs one stable way to control a run and see what happened.
 
-- [ ] Input injection: export `input_process_*` (or a new input queue) so agents can press keys and buttons, move the mouse and drive gamepads, tied to simulation steps.
-- [ ] Control channel: a socket or stdin/stdout protocol (JSON lines) for console commands, stepping, pausing and querying state, so an agent drives a running engine instead of editing config files.
+- [x] Input injection: export `input_process_*` (or a new input queue) so agents can press keys and buttons, move the mouse and drive gamepads, tied to simulation steps.
+- [x] Control channel: a socket or stdin/stdout protocol (JSON lines) for console commands, stepping, pausing and querying state, so an agent drives a running engine instead of editing config files.
 - [ ] World queries: list entities with type, name, transform and physics state; find entities by name or tag.
 - [ ] Observations: capture frames to images (Vulkan, or a software rasterizer for headless), plus a text summary of the scene for agents that can't see images.
 - [ ] UI by name: list controls, read their text and state, activate them.

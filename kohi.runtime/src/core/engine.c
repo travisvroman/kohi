@@ -28,6 +28,7 @@
 #include "core/kvar.h"
 #include "core/metrics.h"
 #include "core/sim_clock.h"
+#include "core/agent_channel.h"
 #include "physics/kphysics_system.h"
 #include "frame_data.h"
 #include "plugins/plugin_types.h"
@@ -1013,8 +1014,18 @@ b8 engine_run (application *app) {
 		}
 	}
 
-	const u64 max_frames = app->app_config.max_frames;
+	u64 max_frames = app->app_config.max_frames;
 	u64 frames_run = 0;
+	if (agent_channel_enabled()) {
+		if (!agent_channel_start()) {
+			return false;
+		}
+		if (max_frames) {
+			// In agent mode the agent decides when to stop.
+			KWARN("max_frames is ignored in agent mode.");
+			max_frames = 0;
+		}
+	}
 	if (max_frames) {
 		KINFO("Engine will stop after %llu frames.", max_frames);
 	}
@@ -1032,6 +1043,9 @@ b8 engine_run (application *app) {
 		if (!platform_pump_messages()) {
 			engine_state->is_running = false;
 		}
+
+		// Agent requests act like OS input: they run before the simulation steps of this frame.
+		agent_channel_update();
 
 		if (engine_state->is_suspended) {
 			KDEBUG("suspended...");
@@ -1128,6 +1142,7 @@ b8 engine_run (application *app) {
 
 	engine_state->is_running = false;
 	app->stage = APPLICATION_STAGE_SHUTTING_DOWN;
+	agent_channel_shutdown();
 
 	// Shut down the game and unload the lib.
 	app->shutdown(app);
@@ -1226,6 +1241,10 @@ b8 engine_simulation_paused (void) {
 
 void engine_simulation_steps_request (u32 count) {
 	ksim_clock_request_steps(&engine_state->sim_clock, count);
+}
+
+u32 engine_simulation_pending_steps_get (void) {
+	return engine_state->sim_clock.pending_steps;
 }
 
 u64 engine_simulation_step_count_get (void) {
