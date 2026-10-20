@@ -130,6 +130,7 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	state->checkbox_controls = darray_create(kui_checkbox_control);
 	state->frame_controls = darray_create(kui_frame_control);
 	state->window_controls = darray_create(kui_window_control);
+	state->scale = 1.0f;
 	state->flow_controls = darray_create(kui_flow_control);
 	state->progress_bar_controls = darray_create(kui_progress_bar_control);
 	state->slider_controls = darray_create(kui_slider_control);
@@ -737,6 +738,90 @@ void kui_control_set_on_click (kui_state *state, kui_control self, PFN_mouse_eve
 void kui_control_set_on_key (kui_state *state, kui_control self, PFN_keyboard_event_callback on_key_callback) {
 	kui_base_control *base = get_base(state, self);
 	base->on_key = on_key_callback;
+}
+
+static vec2 layout_parent_size (kui_state *state, const kui_base_control *base) {
+	if (base->parent.val == INVALID_KUI_CONTROL.val || base->parent.val == state->root.val) {
+		return kui_system_layout_size_get(state);
+	}
+	const kui_base_control *parent = get_base(state, base->parent);
+	return (vec2){parent->bounds.width, parent->bounds.height};
+}
+
+static void anchor_apply (kui_state *state, kui_base_control *base) {
+	if (!base->has_anchor) {
+		return;
+	}
+	vec2 parent_size = layout_parent_size(state, base);
+	if (parent_size.x <= 0.0f || parent_size.y <= 0.0f) {
+		return; // The screen size is not known yet; it is applied when it arrives.
+	}
+	const kui_anchor *a = &base->anchor;
+	vec3 position = ktransform_position_get(base->ktransform);
+	position.x = a->anchor.x * parent_size.x - a->pivot.x * base->bounds.width + a->offset.x;
+	position.y = a->anchor.y * parent_size.y - a->pivot.y * base->bounds.height + a->offset.y;
+	ktransform_position_set(base->ktransform, position);
+}
+
+static void anchors_apply_all (kui_state *state) {
+	u32 count = darray_length(state->active_controls);
+	for (u32 i = 0; i < count; ++i) {
+		anchor_apply(state, get_base(state, state->active_controls[i]));
+	}
+	count = darray_length(state->inactive_controls);
+	for (u32 i = 0; i < count; ++i) {
+		anchor_apply(state, get_base(state, state->inactive_controls[i]));
+	}
+}
+
+static void scale_update (kui_state *state) {
+	f32 scale = 1.0f;
+	if (state->reference_size.x > 0.0f && state->reference_size.y > 0.0f && state->screen_size.x > 0.0f && state->screen_size.y > 0.0f) {
+		scale = KMIN(state->screen_size.x / state->reference_size.x, state->screen_size.y / state->reference_size.y);
+	}
+	state->scale = scale;
+	kui_base_control *root = get_base(state, state->root);
+	ktransform_scale_set(root->ktransform, (vec3){scale, scale, 1.0f});
+	anchors_apply_all(state);
+}
+
+void kui_system_screen_size_set (kui_state *state, u32 width, u32 height) {
+	state->screen_size = (vec2){(f32)width, (f32)height};
+	scale_update(state);
+}
+
+void kui_system_reference_size_set (kui_state *state, f32 width, f32 height) {
+	state->reference_size = (vec2){width, height};
+	scale_update(state);
+}
+
+f32 kui_system_scale_get (kui_state *state) {
+	return state->scale;
+}
+
+vec2 kui_system_layout_size_get (kui_state *state) {
+	return (vec2){state->screen_size.x / state->scale, state->screen_size.y / state->scale};
+}
+
+void kui_control_anchor_set (kui_state *state, kui_control self, kui_anchor anchor) {
+	kui_base_control *base = get_base(state, self);
+	if (base) {
+		base->has_anchor = true;
+		base->anchor = anchor;
+		anchor_apply(state, base);
+	}
+}
+
+kui_anchor kui_anchor_at (kui_anchor_point point, vec2 offset) {
+	vec2 at = {(f32)((u32)point % 3) * 0.5f, (f32)((u32)point / 3) * 0.5f};
+	return (kui_anchor){.anchor = at, .pivot = at, .offset = offset};
+}
+
+void kui_control_anchor_clear (kui_state *state, kui_control self) {
+	kui_base_control *base = get_base(state, self);
+	if (base) {
+		base->has_anchor = false;
+	}
 }
 
 void kui_control_position_set (kui_state *state, kui_control self, vec3 position) {
@@ -2048,15 +2133,29 @@ static const char *agent_control_text (kui_state *state, kui_control control, ku
 	}
 }
 
+/**
+ * @brief Where a control's top left is on screen, in pixels, from the controls' local positions and
+ * the UI scale. World transforms are only brought up to date once per frame, so reading them right
+ * after a move or a resize would give the old place; this is current at once. It assumes the
+ * controls are only translated, which holds for KUI layouts.
+ */
+static vec3 agent_screen_position (kui_state *state, const kui_base_control *base) {
+	vec3 position = vec3_zero();
+	for (const kui_base_control *c = base; c && c->handle.val != state->root.val; c = c->parent.val == INVALID_KUI_CONTROL.val ? KNULL : get_base(state, c->parent)) {
+		position = vec3_add(position, ktransform_position_get(c->ktransform));
+	}
+	return vec3_mul_scalar(position, state->scale);
+}
+
 static void agent_control_json_append (kui_state *state, kui_control control, char **json) {
 	kui_base_control *base = get_base(state, control);
-	vec3 position = ktransform_world_position_get(base->ktransform);
+	vec3 position = agent_screen_position(state, base);
 
 	agent_json_append(json, "{\"name\":");
 	agent_json_append_string(json, base->name);
 	agent_json_append(json, ",\"type\":");
 	agent_json_append_string(json, agent_control_type_name(base->type));
-	f32 rect[4] = {position.x + base->bounds.x, position.y + base->bounds.y, base->bounds.width, base->bounds.height};
+	f32 rect[4] = {position.x + base->bounds.x * state->scale, position.y + base->bounds.y * state->scale, base->bounds.width * state->scale, base->bounds.height * state->scale};
 	agent_json_append(json, ",\"rect\":[");
 	for (u32 i = 0; i < 4; ++i) {
 		if (i) {
@@ -2159,6 +2258,7 @@ static b8 agent_cmd_ui_controls (const agent_request *request, agent_reply *repl
 		agent_controls_append_r(state, state->root, &json, &first);
 	}
 	agent_json_append(&json, "]");
+	agent_reply_number_add(reply, "scale", state->scale);
 	agent_reply_json_add(reply, "controls", json);
 	string_free(json);
 	return true;
@@ -2180,14 +2280,14 @@ static b8 agent_cmd_ui_click (const agent_request *request, agent_reply *reply, 
 		return false;
 	}
 	// Click the centre of the control, the same way a real click would reach it.
-	vec3 position = ktransform_world_position_get(base->ktransform);
+	vec3 position = agent_screen_position(state, base);
 	kui_mouse_event event = {
 		.mouse_button = MOUSE_BUTTON_LEFT,
 		.local_x = (i16)(base->bounds.x + base->bounds.width * 0.5f),
 		.local_y = (i16)(base->bounds.y + base->bounds.height * 0.5f),
 	};
-	event.x = (i16)(position.x + event.local_x);
-	event.y = (i16)(position.y + event.local_y);
+	event.x = (i16)(position.x + event.local_x * state->scale);
+	event.y = (i16)(position.y + event.local_y * state->scale);
 	base->internal_click(state, control, event);
 	return true;
 }
@@ -2237,9 +2337,35 @@ static b8 agent_cmd_ui_value_set (const agent_request *request, agent_reply *rep
 	return true;
 }
 
+static b8 agent_cmd_ui_screen_size (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	f64 width = 0, height = 0;
+	if (!agent_request_number_get(request, "width", &width) || !agent_request_number_get(request, "height", &height) || width < 1 || height < 1) {
+		agent_reply_error(reply, "needs \"width\" and \"height\" in pixels");
+		return false;
+	}
+	kui_system_screen_size_set(state, (u32)width, (u32)height);
+	agent_reply_number_add(reply, "scale", state->scale);
+	return true;
+}
+
+static b8 agent_cmd_ui_reference_size (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	f64 width = 0, height = 0;
+	if (!agent_request_number_get(request, "width", &width) || !agent_request_number_get(request, "height", &height) || width < 0 || height < 0) {
+		agent_reply_error(reply, "needs \"width\" and \"height\"; 0 and 0 turns scaling off");
+		return false;
+	}
+	kui_system_reference_size_set(state, (f32)width, (f32)height);
+	agent_reply_number_add(reply, "scale", state->scale);
+	return true;
+}
+
 static void agent_commands_register (kui_state *state) {
 	agent_command_register("ui_controls", "Lists UI controls with name, type, screen rect, visibility, focus and text. {\"visible_only\": true} skips hidden ones.", state, agent_cmd_ui_controls);
 	agent_command_register("ui_click", "Clicks a UI control by name: {\"control\": \"ok_button\"}.", state, agent_cmd_ui_click);
 	agent_command_register("ui_value_set", "Sets a slider's or progress bar's value (clamped, and snapped to a slider's step): {\"control\", \"value\"}. Replies with the value that took.", state, agent_cmd_ui_value_set);
+	agent_command_register("ui_screen_size", "Tells the UI the window size, as a resize would: {\"width\", \"height\"} in pixels. Anchored controls move. Replies with the UI scale.", state, agent_cmd_ui_screen_size);
+	agent_command_register("ui_reference_size", "Designs the UI for a size and scales it to fit the window: {\"width\", \"height\"}; 0 and 0 turns scaling off. Replies with the UI scale.", state, agent_cmd_ui_reference_size);
 	agent_command_register("ui_text_set", "Sets a textbox's text: {\"control\", \"text\"}.", state, agent_cmd_ui_text_set);
 }

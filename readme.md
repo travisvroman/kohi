@@ -244,6 +244,8 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `physics_velocity_set` | `entity`, `x`, `y`, `z` | Sets a body's linear velocity. |
 | `ui_controls` | `visible_only` | UI controls with name, type, screen rect, visible, active, focused, and text or checked state where the control has one. |
 | `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
+| `ui_screen_size` | `width`, `height` | Tells the UI the window size, as a resize would, so anchored controls move. Replies with the UI `scale`. |
+| `ui_reference_size` | `width`, `height` | Designs the UI for that size and scales it to fit the window; `0` and `0` turns scaling off. Replies with the `scale`. `ui_controls` rects are in pixels and include the scale. |
 | `ui_value_set` | `control`, `value` | Sets a slider or progress bar value. A slider clamps it to its range and snaps it to its step; the reply has the value that took. `ui_controls` lists `value` for these controls. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `scene_summary` | `scene` (optional) | A plain-text description for agents that cannot see images: entity counts by type, the 3D cameras in use, and every entity (up to 200) with world position and, for physics bodies, motion type, speed and whether it is awake. |
@@ -255,6 +257,12 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `world_hash` | `scene` (optional) | `scene_hash` and `physics_hash` as hex strings, for comparing runs. |
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
+
+### UI layout
+
+`kui_control_anchor_set(state, control, kui_anchor_at(KUI_ANCHOR_BOTTOM_RIGHT, (vec2){-20, -20}))` keeps a control 20 units from its parent's bottom right corner at any window size. For a control added to the root, the parent size is the screen size in UI units. A full `kui_anchor` has separate anchor and pivot fractions. Call it again after the control's size changes.
+
+`kui_system_screen_size_set` must be called from the application's window resize handler (the testbed does). `kui_system_reference_size_set(state, 1280, 720)` designs the UI for 1280 by 720 and scales it by the largest factor that fits the window, so a layout looks the same at 1280 by 720 and 2560 by 1440; the mouse and the agent `ui_click` go through the scale. The scale applies to the whole UI, including controls placed with plain positions; scissor-clipped controls such as scrollables are not checked at a scale other than 1 yet.
 
 ### Save games
 

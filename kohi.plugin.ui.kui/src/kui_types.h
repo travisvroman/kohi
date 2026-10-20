@@ -161,6 +161,31 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
 
+/**
+ * @brief Where a control sits inside its parent, independent of the screen size. The anchor and
+ * the pivot are fractions: (0, 0) is the top left and (1, 1) the bottom right, of the parent for
+ * the anchor and of the control for the pivot. The control's top left lands at
+ * anchor * parent size - pivot * control size + offset. A bottom right button with anchor and pivot
+ * (1, 1) and offset (-20, -20) stays 20 units from the corner at any window size.
+ */
+typedef struct kui_anchor {
+	vec2 anchor;
+	vec2 pivot;
+	vec2 offset;
+} kui_anchor;
+
+typedef enum kui_anchor_point {
+	KUI_ANCHOR_TOP_LEFT,
+	KUI_ANCHOR_TOP_CENTER,
+	KUI_ANCHOR_TOP_RIGHT,
+	KUI_ANCHOR_MIDDLE_LEFT,
+	KUI_ANCHOR_CENTER,
+	KUI_ANCHOR_MIDDLE_RIGHT,
+	KUI_ANCHOR_BOTTOM_LEFT,
+	KUI_ANCHOR_BOTTOM_CENTER,
+	KUI_ANCHOR_BOTTOM_RIGHT,
+} kui_anchor_point;
+
 typedef struct kui_base_control {
 	kui_control_type type;
 	// A copy of the handle for reverse lookups.
@@ -174,6 +199,10 @@ typedef struct kui_base_control {
 	u32 depth;
 
 	rect_2d bounds;
+
+	// When set, the position follows the parent's size; see kui_anchor.
+	b8 has_anchor;
+	kui_anchor anchor;
 
 	kui_clipping_area clipping_area;
 
