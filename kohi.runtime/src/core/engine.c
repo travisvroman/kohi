@@ -27,6 +27,7 @@
 #include "console.h"
 #include "core/event.h"
 #include "core/input.h"
+#include "core/input_recording.h"
 #include "core/kvar.h"
 #include "core/metrics.h"
 #include "core/sim_clock.h"
@@ -183,11 +184,17 @@ void engine_random_seed_override (u64 seed) {
 	random_seed_override = seed;
 }
 
-static void random_seed_apply (const application_config *config) {
+static void random_seed_apply (const application_config *config, b8 has_replay_seed, u64 replay_seed) {
 	const char *source = "default";
 	if (random_seed_overridden) {
 		krandom_seed_set(random_seed_override);
 		source = "--seed";
+		if (has_replay_seed && replay_seed != random_seed_override) {
+			KWARN("--seed %llu differs from the replayed recording's seed %llu; the replay will not match.", random_seed_override, replay_seed);
+		}
+	} else if (has_replay_seed) {
+		krandom_seed_set(replay_seed);
+		source = "input recording";
 	} else if (config->has_random_seed) {
 		krandom_seed_set(config->random_seed);
 		source = "app config";
@@ -257,7 +264,16 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 	}
 	string_free(app_file_content);
 
-	random_seed_apply(&app->app_config);
+	// A replay brings its recording's seed, so it is loaded before seeding.
+	b8 has_replay_seed = false;
+	u64 replay_seed = 0;
+	if (!input_recording_replay_load(&has_replay_seed, &replay_seed)) {
+		return false;
+	}
+	random_seed_apply(&app->app_config, has_replay_seed, replay_seed);
+	if (!input_recording_start(krandom_seed_get(), app->app_config.fixed_step_hz)) {
+		return false;
+	}
 
 	// Platform initialization first. NOTE: NOT window creation - that should happen much later.
 	{
@@ -1107,6 +1123,7 @@ b8 engine_run (application *app) {
 		// Simulation. Runs before, and independently of, rendering.
 		u32 steps = ksim_clock_frame_begin(sim, wall_delta);
 		for (u32 i = 0; i < steps && engine_state->is_running; ++i) {
+			input_recording_before_step(sim->step_count);
 			if (!engine_simulation_step(app, sim->step_seconds)) {
 				engine_state->is_running = false;
 				engine_state->failed = true;
@@ -1188,6 +1205,7 @@ b8 engine_run (application *app) {
 	engine_state->is_running = false;
 	app->stage = APPLICATION_STAGE_SHUTTING_DOWN;
 	agent_channel_shutdown();
+	input_recording_shutdown(engine_state->sim_clock.step_count);
 
 	// Shut down the game and unload the lib.
 	app->shutdown(app);

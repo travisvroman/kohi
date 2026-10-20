@@ -3,11 +3,13 @@
 #include "application/application_types.h"
 #include "containers/stack.h"
 #include "core/event.h"
+#include "core/input_recording.h"
 #include "core/keymap.h"
 #include "frame_data.h"
 #include "input_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "strings/kstring.h"
 
 typedef struct keyboard_state {
 	b8 keys[256];
@@ -139,9 +141,10 @@ static b8 check_modifiers (keymap_modifier modifiers) {
 }
 
 void input_process_key (keys key, b8 pressed, b8 is_repeat) {
-	if (!state_ptr) {
+	if (!state_ptr || !input_recording_live_input_allowed()) {
 		return;
 	}
+	input_recording_key(key, pressed, is_repeat);
 	// keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
 
 	// Only handle this if the state actually changed, or if repeats are allowed.
@@ -212,6 +215,11 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 }
 
 void input_process_button (mouse_buttons button, b8 pressed) {
+	if (!state_ptr || !input_recording_live_input_allowed()) {
+		return;
+	}
+	input_recording_button(button, pressed);
+
 	// If the state changed, fire an event.
 	if (state_ptr->mouse_current.buttons[button] != pressed) {
 		state_ptr->mouse_current.buttons[button] = pressed;
@@ -257,6 +265,11 @@ void input_process_button (mouse_buttons button, b8 pressed) {
 }
 
 void input_process_mouse_move (i16 x, i16 y) {
+	if (!state_ptr || !input_recording_live_input_allowed()) {
+		return;
+	}
+	input_recording_mouse_move(x, y);
+
 	// Only process if actually different
 	if (state_ptr->mouse_current.x != x || state_ptr->mouse_current.y != y) {
 		// NOTE: Enable this if debugging.
@@ -307,6 +320,11 @@ void input_process_mouse_move (i16 x, i16 y) {
 }
 
 void input_process_mouse_wheel (i8 z_delta) {
+	if (!state_ptr || !input_recording_live_input_allowed()) {
+		return;
+	}
+	input_recording_mouse_wheel(z_delta);
+
 	// NOTE: no internal state to update.
 
 	// Fire the event.
@@ -408,6 +426,17 @@ void input_get_previous_mouse_position (i32 *x, i32 *y) {
 	}
 	*x = state_ptr->mouse_previous.x;
 	*y = state_ptr->mouse_previous.y;
+}
+
+b8 input_key_from_name (const char *name, keys *out_key) {
+	for (u32 k = 0; k < KEYS_MAX_KEYS; ++k) {
+		const char *key_name = input_keycode_str((keys)k);
+		if (!strings_equal(key_name, "undefined") && strings_equali(key_name, name)) {
+			*out_key = (keys)k;
+			return true;
+		}
+	}
+	return false;
 }
 
 const char *input_keycode_str (keys key) {

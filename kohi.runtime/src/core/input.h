@@ -166,6 +166,9 @@ void input_process_mouse_wheel (i8 z_delta);
  */
 KAPI const char *input_keycode_str (keys key);
 
+/** @brief Finds a key by its input_keycode_str name, ignoring case. */
+KAPI b8 input_key_from_name (const char *name, keys *out_key);
+
 /**
  * @brief Pushes a new keymap onto the keymap stack, making it the active keymap.
  * A copy of the keymap is taken when pushing onto the stack.

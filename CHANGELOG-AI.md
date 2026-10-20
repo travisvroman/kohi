@@ -22,6 +22,7 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - Several engine processes can run at once: job semaphores are process-local, and `--log <path>` or `log_file` sets the log file (#7).
 - `random_seed` app config key and `--seed` flag seed every engine RNG; the seed is logged and returned by the agent `status` command (#8).
 - Lockstep mode runs jobs synchronously, so asset loads finish at the same step and in the same order on every run (#9).
+- `--record` and `--replay` save and play back keyboard and mouse input per simulation step; `scripts/determinism_check.py` (run in CI) checks that a recorded run replays to the same physics hash. In the testbed physics scene, the arrow keys push the ball (#10).
 
 ### Fixed
 - OpenAL shutdown crash (#2).
