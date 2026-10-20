@@ -44,7 +44,7 @@ Agents run many instances at once (search, training, testing).
 
 ## 4. Known bugs
 
-- [ ] Upstream #271: `u32_bst_delete`/`u64_bst_delete` copy the key instead of the value, and callers ignore the returned root (leaves `scene->name_lookup` dangling).
+- [x] Upstream #271: `u32_bst_delete`/`u64_bst_delete` copied the key but not the value, and callers ignored the returned root (left `scene->name_lookup` dangling).
 - [ ] Upstream #281: segfault when assets are missing; it should fail with an error.
 - [ ] OpenAL `openal_backend_find_free_buffer`: indexes `sources[i - 1]` starting at `i = 0`, loops over the buffer count instead of the source count, and unqueues several buffers into one `ALuint`. Only hit once all buffers are in use.
 - [ ] `kohi.core.tests` segfaults after the first test.

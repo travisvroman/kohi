@@ -179,10 +179,7 @@ u32 _asset_system_watch_for_reload (struct asset_system_state *state, kasset_typ
 		}
 		bt_node_value v = {
 			.u32 = index};
-		bt_node *new_node = u64_bst_insert(state->lookup_tree, file_watch_id, v);
-		if (!state->lookup_tree) {
-			state->lookup_tree = new_node;
-		}
+		state->lookup_tree = u64_bst_insert(state->lookup_tree, file_watch_id, v);
 
 		return file_watch_id;
 	}
