@@ -399,6 +399,15 @@ void platform_console_write (struct platform_state *platform, log_level level, c
 	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
 	HANDLE console_handle = GetStdHandle(is_error ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
 
+	// WriteConsoleW writes nothing when output is redirected to a pipe or file (CI, agents
+	// capturing output), so write the UTF-8 bytes directly in that case.
+	DWORD console_mode = 0;
+	if (!GetConsoleMode(console_handle, &console_mode)) {
+		DWORD bytes_written = 0;
+		WriteFile(console_handle, message, (DWORD)string_length(message), &bytes_written, 0);
+		return;
+	}
+
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	if (state_ptr) {
 		csbi = is_error ? state_ptr->err_output_csbi : state_ptr->std_output_csbi;
