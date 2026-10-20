@@ -29,6 +29,7 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - Save games: `kscene_save_game` and `kscene_load_game` (agent commands `save_game` and `load_game`) write the scene, the physics state and any game state registered with `ksave_hook_register` to a checksummed `.ksav` file that a later process can load; `scripts/save_game_check.py` runs in CI (#15).
 - KUI progress bar and slider controls (`kui_progress_bar_create`, `kui_slider_create`); the agent `ui_controls` lists their `value` and `ui_value_set` sets it; `scripts/ui_widgets_check.py` runs in CI (#16).
 - KUI anchoring and resolution-independent layout: `kui_control_anchor_set` places a control relative to its parent, `kui_system_screen_size_set` and `kui_system_reference_size_set` (agent commands `ui_screen_size`, `ui_reference_size`) scale the whole UI to fit the window; `scripts/ui_layout_check.py` runs in CI (#17).
+- KUI keyboard navigation: tab, arrows, enter/space and escape move focus and press controls (`kui_system_navigate`, which a gamepad layer can call too), with a focus highlight. Buttons with text, checkboxes and sliders are navigable; a slider uses left and right. Agent command `ui_navigate`; `scripts/ui_navigation_check.py` runs in CI (#18).
 
 ### Fixed
 - The Vulkan renderer failed on lavapipe with `VK_ERROR_OUT_OF_HOST_MEMORY`: the custom allocator returned null for zero-size requests, which Mesa makes for empty barrier arrays (#14).

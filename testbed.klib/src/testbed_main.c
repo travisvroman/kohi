@@ -45,6 +45,7 @@
 #include <physics/kphysics_system.h>
 
 // Standard UI.
+#include <controls/checkbox_control.h>
 #include <controls/kui_button.h>
 #include <controls/kui_label.h>
 #include <controls/kui_panel.h>
@@ -115,8 +116,14 @@ u64 application_state_size (void) {
 	return sizeof(application_state);
 }
 
-// Demo of the slider and progress bar for the headless physics run: the bar follows the slider.
+// Demo controls for the headless physics run: the bar follows the slider, and the button resets it.
 static kui_control demo_progress_bar;
+static kui_control demo_slider;
+
+static b8 demo_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	kui_slider_value_set(state, demo_slider, 5.0f);
+	return false;
+}
 
 static void demo_slider_changed (kui_state *state, kui_control self, kui_slider_event event) {
 	kui_progress_bar_value_set(state, demo_progress_bar, event.value / 10.0f);
@@ -285,11 +292,21 @@ b8 application_initialize (struct application *app) {
 		demo_progress_bar = kui_progress_bar_create(ui, "demo_progress", (vec2){300, 20}, (vec4){0.15f, 0.15f, 0.18f, 1.0f}, (vec4){0.3f, 0.8f, 0.4f, 1.0f});
 		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_progress_bar));
 		kui_control_anchor_set(ui, demo_progress_bar, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 20}));
-		kui_control demo_slider = kui_slider_create(ui, "demo_slider", (vec2){300, 24}, 0.0f, 10.0f, 1.0f, 5.0f);
+		demo_slider = kui_slider_create(ui, "demo_slider", (vec2){300, 24}, 0.0f, 10.0f, 1.0f, 5.0f);
 		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_slider));
 		kui_control_anchor_set(ui, demo_slider, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 50}));
 		kui_slider_set_on_value_changed(ui, demo_slider, demo_slider_changed);
 		kui_progress_bar_value_set(ui, demo_progress_bar, 0.5f);
+
+		kui_control demo_button = kui_button_control_create_with_text(ui, "demo_button", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "Reset");
+		kui_button_control_width_set(ui, demo_button, 100);
+		kui_button_control_height_set(ui, demo_button, 30);
+		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_button));
+		kui_control_set_on_click(ui, demo_button, demo_button_clicked);
+		kui_control_anchor_set(ui, demo_button, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 90}));
+		kui_control demo_checkbox = kui_checkbox_control_create(ui, "demo_checkbox", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "Sound");
+		KASSERT(kui_system_control_add_child(ui, INVALID_KUI_CONTROL, demo_checkbox));
+		kui_control_anchor_set(ui, demo_checkbox, kui_anchor_at(KUI_ANCHOR_TOP_RIGHT, (vec2){-20, 140}));
 	}
 
 	return true;
@@ -331,7 +348,10 @@ static void ball_push_from_input (struct kscene *scene, f64 step_seconds) {
 b8 application_fixed_update (struct application *app, f64 step_seconds, struct frame_data *p_frame_data) {
 	app->state->fixed_update_count++;
 	if (app->state->current_scene && kscene_asset_name_get(app->state->current_scene) == kname_create("physics_scene")) {
-		ball_push_from_input(app->state->current_scene, step_seconds);
+		// The arrow keys belong to the UI while a control is focused.
+		if (!kui_system_navigation_active(app->state->kui_state)) {
+			ball_push_from_input(app->state->current_scene, step_seconds);
+		}
 	}
 	return true;
 }
@@ -842,6 +862,10 @@ void application_on_action (struct application *app_inst, u32 action_code) {
 	} break;
 #endif
 	case GAME_ACTION_QUIT:
+		// Escape closes a focused UI control first; it quits only when nothing is focused.
+		if (kui_system_navigation_active(app_inst->state->kui_state)) {
+			break;
+		}
 		KDEBUG("GAME_ACTION_QUIT");
 		event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (event_context){});
 		break;

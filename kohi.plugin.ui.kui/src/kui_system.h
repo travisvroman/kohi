@@ -78,6 +78,9 @@ typedef struct kui_state {
 	vec2 screen_size;
 	// The size the UI is designed for, or 0 for none. See kui_system_reference_size_set.
 	vec2 reference_size;
+	// The highlight drawn over the control that keyboard or gamepad navigation focused. Created on first use.
+	kui_control focus_ring;
+
 	// Pixels per UI unit. Applied to the root control, so everything under it scales.
 	f32 scale;
 } kui_state;
@@ -192,6 +195,31 @@ KAPI vec2 kui_system_layout_size_get (kui_state *state);
 KAPI void kui_control_anchor_set (kui_state *state, kui_control self, kui_anchor anchor);
 
 /** @brief The anchor for a named point: the anchor and the pivot are that point, plus the offset. */
+/**
+ * @brief Moves focus or presses the focused control, for keyboards, gamepads and the agent
+ * channel. Controls with the KUI_CONTROL_FLAG_NAVIGABLE_BIT (or FOCUSABLE) flag can be reached;
+ * buttons with text, checkboxes and sliders have it. Up, down, left and right go to the nearest
+ * control in that direction, next and previous follow reading order, accept presses the focused
+ * control and cancel drops focus.
+ *
+ * The keyboard is wired up already: tab and shift-tab start navigation, and while a control is
+ * focused the arrows, enter, space and escape are used by the UI and do not reach the game. With
+ * nothing focused, arrow keys are left alone. A gamepad layer calls this with its own mapping.
+ * @returns True if the UI used the action.
+ */
+KAPI b8 kui_system_navigate (kui_state *state, kui_nav_action action);
+
+/**
+ * @brief True while a control has focus, so the UI is using the keyboard. The engine's keymaps
+ * and polled input (input_is_key_down) still see those keys; a game that binds the arrows, enter
+ * or escape should ignore them while this is true, so escape closes the focus and does not also
+ * quit.
+ */
+KAPI b8 kui_system_navigation_active (const kui_state *state);
+
+/** @brief Gives a control the first say on navigation actions while it is focused (return true if used). */
+KAPI void kui_control_set_on_navigate (kui_state *state, kui_control self, PFN_navigate_callback callback);
+
 KAPI kui_anchor kui_anchor_at (kui_anchor_point point, vec2 offset);
 
 /** @brief Stops a control following its parent's size; it stays where it is. */
