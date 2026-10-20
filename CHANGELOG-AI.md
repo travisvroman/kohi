@@ -21,6 +21,7 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - Agent commands for scenes, entities and physics bodies, and for UI controls by name (#6).
 - Several engine processes can run at once: job semaphores are process-local, and `--log <path>` or `log_file` sets the log file (#7).
 - `random_seed` app config key and `--seed` flag seed every engine RNG; the seed is logged and returned by the agent `status` command (#8).
+- Lockstep mode runs jobs synchronously, so asset loads finish at the same step and in the same order on every run (#9).
 
 ### Fixed
 - OpenAL shutdown crash (#2).
