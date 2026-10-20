@@ -57,6 +57,8 @@ struct kwindow;
 typedef struct engine_state_t {
 	application *app;
 	b8 is_running;
+	/** @brief Set when the run stopped because something failed, so engine_run returns false. */
+	b8 failed;
 	b8 is_suspended;
 	kclock clock;
 	f64 last_time;
@@ -1072,6 +1074,7 @@ b8 engine_run (application *app) {
 		for (u32 i = 0; i < steps && engine_state->is_running; ++i) {
 			if (!engine_simulation_step(app, sim->step_seconds)) {
 				engine_state->is_running = false;
+				engine_state->failed = true;
 			}
 		}
 		if (!engine_state->is_running) {
@@ -1108,6 +1111,7 @@ b8 engine_run (application *app) {
 		engine_render_result render_result = engine_frame_update_and_render(app, w);
 		if (render_result == ENGINE_RENDER_RESULT_FATAL) {
 			engine_state->is_running = false;
+			engine_state->failed = true;
 			break;
 		}
 
@@ -1138,6 +1142,12 @@ b8 engine_run (application *app) {
 		  frames_run, sim->step_count, sim->sim_seconds, engine_state->clock.elapsed);
 	if (sim->dropped_seconds > 0.0) {
 		KWARN("The simulation fell behind real time by %.3f s because some frames took longer than max_steps_per_frame steps.", sim->dropped_seconds);
+	}
+
+	// Read now: engine_state is freed with the memory system below.
+	b8 failed = engine_state->failed;
+	if (failed) {
+		KERROR("The engine stopped because of an error; see the log above.");
 	}
 
 	engine_state->is_running = false;
@@ -1217,7 +1227,7 @@ b8 engine_run (application *app) {
 
 	app->stage = APPLICATION_STAGE_UNINITIALIZED;
 
-	return true;
+	return !failed;
 }
 
 void engine_on_event_system_initialized (void) {

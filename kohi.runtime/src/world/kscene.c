@@ -37,6 +37,7 @@
 #include "assets/kasset_types.h"
 #include "core/event.h"
 #include "physics/kphysics_system.h"
+#include "core/agent_channel.h"
 #include "serializers/kasset_hf_terrain_serializer.h"
 #include "systems/asset_system.h"
 #include "systems/kmatrix_system.h"
@@ -410,6 +411,9 @@ static kscene_debug_data_type debug_type_from_shape_type (kshape_type type);
 #	define debug_type_from_shape_type(type)
 #endif
 
+static void agent_scene_add (kscene *scene);
+static void agent_scene_remove (kscene *scene);
+
 struct kscene *kscene_create (kname scene_asset_name, const char *config, kscene_callbacks *callbacks, void *load_context, b8 is_editor) {
 
 	kscene *scene = KALLOC_TYPE(kscene, MEMORY_TAG_SCENE);
@@ -548,6 +552,7 @@ struct kscene *kscene_create (kname scene_asset_name, const char *config, kscene
 	ctx.data.u64[0] = (u64)(&scene->hf);
 	event_fire(EVENT_CODE_HF_TERRAIN_LOADED, scene, ctx);
 
+	agent_scene_add(scene);
 	return scene;
 }
 
@@ -580,6 +585,7 @@ void kscene_destroy (struct kscene *scene) {
 	if (!scene) {
 		return;
 	}
+	agent_scene_remove(scene);
 
 	scene->state = KSCENE_STATE_UNINITIALIZED;
 
@@ -4434,3 +4440,257 @@ static kscene_debug_data_type debug_type_from_shape_type (kshape_type type) {
 }
 
 #endif
+
+// Agent commands: let an agent list scenes and entities and push physics bodies.
+// See core/agent_channel.h.
+
+/** @brief Live scenes in creation order. The newest loaded one is the default for queries. */
+static kscene **agent_scenes = 0;
+
+static void agent_json_vec (char **json, const f32 *values, u32 count) {
+	agent_json_append(json, "[");
+	for (u32 i = 0; i < count; ++i) {
+		if (i) {
+			agent_json_append(json, ",");
+		}
+		agent_json_append_f32(json, values[i]);
+	}
+	agent_json_append(json, "]");
+}
+
+static const char *agent_scene_state_name (kscene_state state) {
+	switch (state) {
+	case KSCENE_STATE_LOADED:
+		return "loaded";
+	case KSCENE_STATE_PRE_LOADED:
+	case KSCENE_STATE_LOADING:
+	case KSCENE_STATE_PARSING_CONFIG:
+		return "loading";
+	default:
+		return "unloaded";
+	}
+}
+
+/** @brief The scene named in the request's "scene" field, or the newest loaded scene. */
+static kscene *agent_scene_from_request (const agent_request *request, agent_reply *reply) {
+	u32 count = agent_scenes ? darray_length(agent_scenes) : 0;
+	const char *name = 0;
+	if (agent_request_string_get(request, "scene", &name)) {
+		for (u32 i = 0; i < count; ++i) {
+			if (strings_equal(kscene_get_name(agent_scenes[i]), name)) {
+				return agent_scenes[i];
+			}
+		}
+		agent_reply_error(reply, "no scene with that name; see the \"scenes\" command");
+		return 0;
+	}
+	for (u32 i = count; i > 0; --i) {
+		if (agent_scenes[i - 1]->state == KSCENE_STATE_LOADED) {
+			return agent_scenes[i - 1];
+		}
+	}
+	agent_reply_error(reply, "no scene is loaded");
+	return 0;
+}
+
+static void agent_entity_json_append (kscene *scene, kentity entity, char **json) {
+	base_entity *base = get_entity_base(scene, entity);
+	mat4 world = ktransform_world_get(base->transform);
+	vec3 position = mat4_position(world);
+	quat rotation = ktransform_rotation_get(base->transform);
+	vec3 scale = ktransform_scale_get(base->transform);
+
+	agent_json_append(json, "{\"name\":");
+	agent_json_append_string(json, kname_string_get(base->name));
+	agent_json_append(json, ",\"type\":");
+	agent_json_append_string(json, kentity_type_to_string(base->type));
+	agent_json_append(json, ",\"parent\":");
+	if (base->parent != KENTITY_INVALID) {
+		base_entity *parent = get_entity_base(scene, base->parent);
+		agent_json_append_string(json, parent ? kname_string_get(parent->name) : "");
+	} else {
+		agent_json_append(json, "null");
+	}
+	agent_json_append(json, ",\"position\":");
+	agent_json_vec(json, position.elements, 3);
+	agent_json_append(json, ",\"rotation\":");
+	agent_json_vec(json, rotation.elements, 4);
+	agent_json_append(json, ",\"scale\":");
+	agent_json_vec(json, scale.elements, 3);
+
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	kphysics_body body = kscene_physics_body_get(scene, entity);
+	if (physics && body != KPHYSICS_BODY_INVALID) {
+		vec3 velocity = kphysics_body_linear_velocity_get(physics, body);
+		vec3 angular = kphysics_body_angular_velocity_get(physics, body);
+		const kphysics_body_config *config = &scene->physics_bodies[kentity_unpack_type_index(entity)].config;
+		agent_json_append(json, ",\"physics\":{\"motion\":");
+		agent_json_append_string(json, physics_motion_type_to_string(config->motion_type));
+		agent_json_append(json, ",\"velocity\":");
+		agent_json_vec(json, velocity.elements, 3);
+		agent_json_append(json, ",\"angular_velocity\":");
+		agent_json_vec(json, angular.elements, 3);
+		agent_json_append(json, kphysics_body_is_active(physics, body) ? ",\"awake\":true}" : ",\"awake\":false}");
+	}
+	agent_json_append(json, "}");
+}
+
+static void agent_entities_append_r (kscene *scene, kentity entity, char **json, b8 *first) {
+	if (!*first) {
+		agent_json_append(json, ",");
+	}
+	*first = false;
+	agent_entity_json_append(scene, entity, json);
+
+	base_entity *base = get_entity_base(scene, entity);
+	u32 child_count = base->children ? darray_length(base->children) : 0;
+	for (u32 i = 0; i < child_count; ++i) {
+		agent_entities_append_r(scene, base->children[i], json, first);
+	}
+}
+
+static b8 agent_cmd_scenes (const agent_request *request, agent_reply *reply, void *listener) {
+	char *json = 0;
+	agent_json_append(&json, "[");
+	u32 count = agent_scenes ? darray_length(agent_scenes) : 0;
+	for (u32 i = 0; i < count; ++i) {
+		kscene *scene = agent_scenes[i];
+		agent_json_append(&json, i ? ",{\"name\":" : "{\"name\":");
+		agent_json_append_string(&json, kscene_get_name(scene));
+		agent_json_append(&json, ",\"state\":");
+		agent_json_append_string(&json, agent_scene_state_name(scene->state));
+		agent_json_append(&json, "}");
+	}
+	agent_json_append(&json, "]");
+	agent_reply_json_add(reply, "scenes", json);
+	string_free(json);
+	return true;
+}
+
+static b8 agent_cmd_entities (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	if (!scene) {
+		return false;
+	}
+	char *json = 0;
+	agent_json_append(&json, "[");
+	b8 first = true;
+	u32 root_count = darray_length(scene->root_entities);
+	for (u32 i = 0; i < root_count; ++i) {
+		agent_entities_append_r(scene, scene->root_entities[i], &json, &first);
+	}
+	agent_json_append(&json, "]");
+	agent_reply_string_add(reply, "scene", kscene_get_name(scene));
+	agent_reply_json_add(reply, "entities", json);
+	string_free(json);
+	return true;
+}
+
+/** @brief The entity named in the request's "entity" field. */
+static kentity agent_entity_from_request (kscene *scene, const agent_request *request, agent_reply *reply) {
+	const char *name = 0;
+	if (!agent_request_string_get(request, "entity", &name)) {
+		agent_reply_error(reply, "needs \"entity\", an entity name");
+		return KENTITY_INVALID;
+	}
+	kentity entity = kscene_get_entity_by_name(scene, kname_create(name));
+	if (entity == KENTITY_INVALID) {
+		agent_reply_error(reply, "no entity with that name in the scene");
+	}
+	return entity;
+}
+
+static b8 agent_cmd_entity (const agent_request *request, agent_reply *reply, void *listener) {
+	kscene *scene = agent_scene_from_request(request, reply);
+	if (!scene) {
+		return false;
+	}
+	kentity entity = agent_entity_from_request(scene, request, reply);
+	if (entity == KENTITY_INVALID) {
+		return false;
+	}
+	char *json = 0;
+	agent_entity_json_append(scene, entity, &json);
+	agent_reply_json_add(reply, "entity", json);
+	string_free(json);
+	return true;
+}
+
+/** @brief Shared by the physics commands: finds the body and reads the "x", "y", "z" vector. */
+static b8 agent_body_and_vector (const agent_request *request, agent_reply *reply, kphysics_body *out_body, vec3 *out_vector) {
+	if (!engine_systems_get()->physics_system) {
+		agent_reply_error(reply, "the physics system is not running");
+		return false;
+	}
+	kscene *scene = agent_scene_from_request(request, reply);
+	if (!scene) {
+		return false;
+	}
+	kentity entity = agent_entity_from_request(scene, request, reply);
+	if (entity == KENTITY_INVALID) {
+		return false;
+	}
+	*out_body = kscene_physics_body_get(scene, entity);
+	if (*out_body == KPHYSICS_BODY_INVALID) {
+		agent_reply_error(reply, "that entity is not a physics body");
+		return false;
+	}
+	if (scene->physics_bodies[kentity_unpack_type_index(entity)].config.motion_type == KPHYSICS_MOTION_TYPE_STATIC) {
+		agent_reply_error(reply, "that body is static and cannot move");
+		return false;
+	}
+	f64 x = 0, y = 0, z = 0;
+	if (!agent_request_number_get(request, "x", &x) || !agent_request_number_get(request, "y", &y) || !agent_request_number_get(request, "z", &z)) {
+		agent_reply_error(reply, "needs \"x\", \"y\" and \"z\"");
+		return false;
+	}
+	*out_vector = (vec3){(f32)x, (f32)y, (f32)z};
+	return true;
+}
+
+static b8 agent_cmd_physics_impulse (const agent_request *request, agent_reply *reply, void *listener) {
+	kphysics_body body;
+	vec3 impulse;
+	if (!agent_body_and_vector(request, reply, &body, &impulse)) {
+		return false;
+	}
+	kphysics_body_impulse_add(engine_systems_get()->physics_system, body, impulse);
+	return true;
+}
+
+static b8 agent_cmd_physics_velocity_set (const agent_request *request, agent_reply *reply, void *listener) {
+	kphysics_body body;
+	vec3 velocity;
+	if (!agent_body_and_vector(request, reply, &body, &velocity)) {
+		return false;
+	}
+	kphysics_body_linear_velocity_set(engine_systems_get()->physics_system, body, velocity);
+	return true;
+}
+
+static void agent_scene_add (kscene *scene) {
+	if (!agent_scenes) {
+		agent_scenes = darray_create(kscene *);
+		agent_command_register("scenes", "Lists live scenes and whether they are loaded.", 0, agent_cmd_scenes);
+		agent_command_register("entities", "Lists every entity in a scene (\"scene\", default the newest loaded) with its world position, rotation, scale and physics state.", 0, agent_cmd_entities);
+		agent_command_register("entity", "Returns one entity by name: {\"entity\": \"ball\"}.", 0, agent_cmd_entity);
+		agent_command_register("physics_impulse", "Applies an impulse to a physics body entity: {\"entity\", \"x\", \"y\", \"z\"}.", 0, agent_cmd_physics_impulse);
+		agent_command_register("physics_velocity_set", "Sets a physics body entity's linear velocity: {\"entity\", \"x\", \"y\", \"z\"}.", 0, agent_cmd_physics_velocity_set);
+	}
+	darray_push(agent_scenes, &scene);
+}
+
+static void agent_scene_remove (kscene *scene) {
+	u32 count = agent_scenes ? darray_length(agent_scenes) : 0;
+	for (u32 i = 0; i < count; ++i) {
+		if (agent_scenes[i] == scene) {
+			kscene *removed;
+			darray_pop_at(agent_scenes, i, &removed);
+			break;
+		}
+	}
+	if (agent_scenes && darray_length(agent_scenes) == 0) {
+		darray_destroy(agent_scenes);
+		agent_scenes = 0;
+	}
+}

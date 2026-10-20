@@ -1,6 +1,7 @@
 #include "kui_system.h"
 
 #include <containers/darray.h>
+#include <core/agent_channel.h>
 #include <core/engine.h>
 #include <core/event.h>
 #include <core/input.h>
@@ -69,6 +70,7 @@ static void unregister_control (kui_state *state, kui_control control);
 static kui_control encode_handle (kui_control_type type, u16 type_index);
 static b8 decode_handle (kui_control handle, kui_control_type *out_type, u16 *out_type_index);
 static kui_base_control *get_base (kui_state *state, kui_control control);
+static void agent_commands_register (kui_state *state);
 
 static kui_control create_handle (kui_state *state, kui_control_type type);
 static void release_handle (kui_state *state, kui_control *handle);
@@ -129,6 +131,7 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	state->flow_controls = darray_create(kui_flow_control);
 
 	state->root = kui_base_control_create(state, "__ROOT__", KUI_CONTROL_TYPE_BASE);
+	agent_commands_register(state);
 
 	// Atlas texture.
 	state->atlas_texture = texture_acquire_from_package_sync(
@@ -1921,4 +1924,220 @@ parse_atlas_config_cleanup:
 	kson_tree_cleanup(&tree);
 
 	return success;
+}
+
+// Agent commands: let an agent read the UI and click or type into it by control name.
+// See core/agent_channel.h.
+
+static const char *agent_control_type_name (kui_control_type type) {
+	switch (type) {
+	case KUI_CONTROL_TYPE_BASE:
+		return "base";
+	case KUI_CONTROL_TYPE_PANEL:
+		return "panel";
+	case KUI_CONTROL_TYPE_LABEL:
+		return "label";
+	case KUI_CONTROL_TYPE_BUTTON:
+		return "button";
+	case KUI_CONTROL_TYPE_TEXTBOX:
+		return "textbox";
+	case KUI_CONTROL_TYPE_TREE_ITEM:
+		return "tree_item";
+	case KUI_CONTROL_TYPE_SCROLLABLE:
+		return "scrollable";
+	case KUI_CONTROL_TYPE_IMAGE_BOX:
+		return "image_box";
+	case KUI_CONTROL_TYPE_CHECKBOX:
+		return "checkbox";
+	case KUI_CONTROL_TYPE_FRAME:
+		return "frame";
+	case KUI_CONTROL_TYPE_WINDOW:
+		return "window";
+	case KUI_CONTROL_TYPE_FLOW:
+		return "flow";
+	default:
+		return "unknown";
+	}
+}
+
+/** @brief The control's text, for the control types that have one; otherwise 0. */
+static const char *agent_control_text (kui_state *state, kui_control control, kui_control_type type) {
+	switch (type) {
+	case KUI_CONTROL_TYPE_LABEL:
+		return kui_label_text_get(state, control);
+	case KUI_CONTROL_TYPE_BUTTON:
+		return kui_button_control_text_get(state, control);
+	case KUI_CONTROL_TYPE_TEXTBOX:
+		return kui_textbox_text_get(state, control);
+	case KUI_CONTROL_TYPE_TREE_ITEM:
+		return kui_tree_item_text_get(state, control);
+	default:
+		return 0;
+	}
+}
+
+static void agent_control_json_append (kui_state *state, kui_control control, char **json) {
+	kui_base_control *base = get_base(state, control);
+	vec3 position = ktransform_world_position_get(base->ktransform);
+
+	agent_json_append(json, "{\"name\":");
+	agent_json_append_string(json, base->name);
+	agent_json_append(json, ",\"type\":");
+	agent_json_append_string(json, agent_control_type_name(base->type));
+	f32 rect[4] = {position.x + base->bounds.x, position.y + base->bounds.y, base->bounds.width, base->bounds.height};
+	agent_json_append(json, ",\"rect\":[");
+	for (u32 i = 0; i < 4; ++i) {
+		if (i) {
+			agent_json_append(json, ",");
+		}
+		agent_json_append_f32(json, rect[i]);
+	}
+	agent_json_append(json, "]");
+	agent_json_append(json, kui_control_is_visible(state, control) ? ",\"visible\":true" : ",\"visible\":false");
+	agent_json_append(json, FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT) ? ",\"active\":true" : ",\"active\":false");
+	agent_json_append(json, state->focused.val == control.val ? ",\"focused\":true" : ",\"focused\":false");
+
+	const char *text = agent_control_text(state, control, base->type);
+	if (text) {
+		agent_json_append(json, ",\"text\":");
+		agent_json_append_string(json, text);
+	}
+	if (base->type == KUI_CONTROL_TYPE_CHECKBOX) {
+		agent_json_append(json, kui_checkbox_get_checked(state, control) ? ",\"checked\":true" : ",\"checked\":false");
+	}
+	if (base->parent.val != INVALID_KUI_CONTROL.val && base->parent.val != state->root.val) {
+		kui_base_control *parent = get_base(state, base->parent);
+		agent_json_append(json, ",\"parent\":");
+		agent_json_append_string(json, parent ? parent->name : "");
+	}
+	agent_json_append(json, "}");
+}
+
+static void agent_controls_append_r (kui_state *state, kui_control control, char **json, b8 *first) {
+	kui_base_control *base = get_base(state, control);
+	if (control.val != state->root.val) {
+		if (!*first) {
+			agent_json_append(json, ",");
+		}
+		*first = false;
+		agent_control_json_append(state, control, json);
+	}
+	u32 child_count = base->children ? darray_length(base->children) : 0;
+	for (u32 i = 0; i < child_count; ++i) {
+		agent_controls_append_r(state, base->children[i], json, first);
+	}
+}
+
+/** @brief Finds a control by name under root, depth first. Returns INVALID_KUI_CONTROL if missing. */
+static kui_control agent_control_find_r (kui_state *state, kui_control control, const char *name) {
+	kui_base_control *base = get_base(state, control);
+	if (control.val != state->root.val && strings_equal(base->name, name)) {
+		return control;
+	}
+	u32 child_count = base->children ? darray_length(base->children) : 0;
+	for (u32 i = 0; i < child_count; ++i) {
+		kui_control found = agent_control_find_r(state, base->children[i], name);
+		if (found.val != INVALID_KUI_CONTROL.val) {
+			return found;
+		}
+	}
+	return INVALID_KUI_CONTROL;
+}
+
+static kui_control agent_control_from_request (kui_state *state, const agent_request *request, agent_reply *reply) {
+	const char *name = 0;
+	if (!agent_request_string_get(request, "control", &name)) {
+		agent_reply_error(reply, "needs \"control\", a control name from \"ui_controls\"");
+		return INVALID_KUI_CONTROL;
+	}
+	kui_control control = agent_control_find_r(state, state->root, name);
+	if (control.val == INVALID_KUI_CONTROL.val) {
+		agent_reply_error(reply, "no control with that name");
+	}
+	return control;
+}
+
+static b8 agent_cmd_ui_controls (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	b8 visible_only = false;
+	agent_request_bool_get(request, "visible_only", &visible_only);
+
+	char *json = 0;
+	agent_json_append(&json, "[");
+	b8 first = true;
+	if (visible_only) {
+		// Walk the tree but keep only visible controls.
+		u32 count = darray_length(state->active_controls);
+		for (u32 i = 0; i < count; ++i) {
+			kui_control control = state->active_controls[i];
+			if (control.val == state->root.val || !kui_control_is_visible(state, control)) {
+				continue;
+			}
+			if (!first) {
+				agent_json_append(&json, ",");
+			}
+			first = false;
+			agent_control_json_append(state, control, &json);
+		}
+	} else {
+		agent_controls_append_r(state, state->root, &json, &first);
+	}
+	agent_json_append(&json, "]");
+	agent_reply_json_add(reply, "controls", json);
+	string_free(json);
+	return true;
+}
+
+static b8 agent_cmd_ui_click (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	kui_control control = agent_control_from_request(state, request, reply);
+	if (control.val == INVALID_KUI_CONTROL.val) {
+		return false;
+	}
+	kui_base_control *base = get_base(state, control);
+	if (!kui_control_is_visible(state, control) || !FLAG_GET(base->flags, KUI_CONTROL_FLAG_ACTIVE_BIT)) {
+		agent_reply_error(reply, "that control is hidden or inactive");
+		return false;
+	}
+	if (!base->internal_click) {
+		agent_reply_error(reply, "that control does not take clicks");
+		return false;
+	}
+	// Click the centre of the control, the same way a real click would reach it.
+	vec3 position = ktransform_world_position_get(base->ktransform);
+	kui_mouse_event event = {
+		.mouse_button = MOUSE_BUTTON_LEFT,
+		.local_x = (i16)(base->bounds.x + base->bounds.width * 0.5f),
+		.local_y = (i16)(base->bounds.y + base->bounds.height * 0.5f),
+	};
+	event.x = (i16)(position.x + event.local_x);
+	event.y = (i16)(position.y + event.local_y);
+	base->internal_click(state, control, event);
+	return true;
+}
+
+static b8 agent_cmd_ui_text_set (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	kui_control control = agent_control_from_request(state, request, reply);
+	if (control.val == INVALID_KUI_CONTROL.val) {
+		return false;
+	}
+	const char *text = 0;
+	if (!agent_request_string_get(request, "text", &text)) {
+		agent_reply_error(reply, "needs \"text\"");
+		return false;
+	}
+	kui_base_control *base = get_base(state, control);
+	if (base->type != KUI_CONTROL_TYPE_TEXTBOX) {
+		agent_reply_error(reply, "only textboxes take text; type into other controls with \"key\"");
+		return false;
+	}
+	kui_textbox_text_set(state, control, text);
+	return true;
+}
+
+static void agent_commands_register (kui_state *state) {
+	agent_command_register("ui_controls", "Lists UI controls with name, type, screen rect, visibility, focus and text. {\"visible_only\": true} skips hidden ones.", state, agent_cmd_ui_controls);
+	agent_command_register("ui_click", "Clicks a UI control by name: {\"control\": \"ok_button\"}.", state, agent_cmd_ui_click);
+	agent_command_register("ui_text_set", "Sets a textbox's text: {\"control\", \"text\"}.", state, agent_cmd_ui_text_set);
 }
