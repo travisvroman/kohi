@@ -20,6 +20,7 @@ static u32 rand_state = 2463534242u;
 #endif
 
 static b8 rand_seeded = false;
+static u64 rand_seed = 0;
 static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
 
 static void seed_randoms (void);
@@ -344,26 +345,30 @@ f32 vec3_angle (vec3 v_0, vec3 v_1) {
 }
 
 static void seed_randoms (void) {
-	u32 ptime_u32;
-	u32 ptime_u64;
 #if KOHI_DEBUG
 	// NOTE: Use a predetermined seed for debug builds for testing purposes.
-	ptime_u32 = 42;
-	ptime_u64 = 42;
+	krandom_seed_set(42);
 #else
-	// TODO: Might need to use current date/time for this in case this
-	// as using the absolute time is the application _run_ time, which
-	// might not be random _enough_ for this to be truly useful.
-	ptime_u32 = (u32)platform_get_absolute_time();
-	ptime_u64 = (u64)platform_get_absolute_time();
+	// No seed was set, so take one from the clock. krandom_seed_get() reports it, so a run can
+	// still be repeated by setting that seed.
+	krandom_seed_set((u64)(platform_get_absolute_time() * 1000000.0));
 #endif
+}
 
-	// Seed standard random number generator.
-	ksrand(ptime_u32);
-	// 64-bit RNG
-	rng_u64 = mtrand_create(ptime_u64);
-
+void krandom_seed_set (u64 seed) {
+	rand_seed = seed;
+	// xorshift32 must not start at 0.
+	u32 seed_u32 = (u32)(seed ^ (seed >> 32));
+	ksrand(seed_u32 ? seed_u32 : 2463534242u);
+	rng_u64 = mtrand_create(seed);
 	rand_seeded = true;
+}
+
+u64 krandom_seed_get (void) {
+	if (!rand_seeded) {
+		seed_randoms();
+	}
+	return rand_seed;
 }
 
 ray ray_transformed (const ray *r, mat4 transform) {

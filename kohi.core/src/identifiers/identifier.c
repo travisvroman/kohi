@@ -9,6 +9,11 @@
 static b8 generator_created = false;
 static mtrand_state generator;
 
+void identifier_seed (u64 seed) {
+	generator = mtrand_create(seed);
+	generator_created = true;
+}
+
 identifier identifier_create (void) {
 	if (!generator_created) {
 		generator = mtrand_create(time(0));

@@ -168,6 +168,12 @@ KAPI void *engine_external_system_state_get (khandle system_handle);
 KAPI struct kwindow *engine_active_window_get (void);
 
 /**
+ * @brief Seeds every engine RNG with seed instead of the config's random_seed. Call before
+ * engine_create; main() calls it for --seed.
+ */
+KAPI void engine_random_seed_override (u64 seed);
+
+/**
  * @brief Pauses or resumes the fixed-step simulation. Rendering and per-frame updates continue
  * while paused. Has no effect with a variable time step (fixed_step_hz = 0).
  */

@@ -57,6 +57,9 @@ extern const char *application_klib_name_get (void);
  */
 #include "strings/kstring.h"
 
+#include <errno.h>
+#include <stdlib.h>
+
 /**
  * @brief Returns the value following '--config' on the command line, or the application's
  * default config path if the flag is not given. Lets one binary run different configurations,
@@ -74,6 +77,21 @@ static const char *app_config_path_from_args (int argc, char **argv) {
 	return application_config_path_get();
 }
 
+/** @brief Parses a whole decimal string as a u64, rejecting signs, junk and overflow. */
+static b8 seed_parse (const char *text, u64 *out_seed) {
+	if (!text || *text < '0' || *text > '9') {
+		return false;
+	}
+	errno = 0;
+	char *end = 0;
+	unsigned long long value = strtoull(text, &end, 10);
+	if (errno || *end) {
+		return false;
+	}
+	*out_seed = (u64)value;
+	return true;
+}
+
 int main (int argc, char **argv) {
 
 	application app_inst = {0};
@@ -83,6 +101,19 @@ int main (int argc, char **argv) {
 	for (int i = 1; i < argc; ++i) {
 		if (strings_equal(argv[i], "--agent")) {
 			agent_channel_enable();
+		}
+	}
+
+	// --seed <n>: seed every engine RNG, overriding the config's random_seed.
+	for (int i = 1; i < argc; ++i) {
+		if (strings_equal(argv[i], "--seed")) {
+			u64 seed = 0;
+			if (i + 1 < argc && seed_parse(argv[i + 1], &seed)) {
+				engine_random_seed_override(seed);
+			} else {
+				KERROR("'--seed' needs a non-negative integer.");
+				return 1;
+			}
 		}
 	}
 

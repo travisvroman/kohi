@@ -329,6 +329,16 @@ KINLINE b8 kis_finite (f32 x) {
 i32 hex_value (char c);
 
 /**
+ * @brief Seeds every engine random number generator (krandom*, kfrandom*). The same seed gives
+ * the same sequence on every platform. Without a call, debug builds use 42 and release builds a
+ * seed taken from the clock.
+ */
+KAPI void krandom_seed_set (u64 seed);
+
+/** @brief Returns the seed in use, so a run with a clock-based seed can be repeated. */
+KAPI u64 krandom_seed_get (void);
+
+/**
  * @brief Returns a random integer.
  *
  * @return A random integer.
