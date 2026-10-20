@@ -1238,9 +1238,9 @@ b8 platform_system_info_collect (ksystem_info *out_info) {
 	// OS info
 	OSVERSIONINFOEXA v = {sizeof(v)};
 	RtlGetVersion((PRTL_OSVERSIONINFOW)&v);
-	sprintf(out_info->os_version, "%lu.%lu", v.dwMajorVersion, v.dwMinorVersion);
-	sprintf(out_info->os_build, "%lu", v.dwBuildNumber);
-	sprintf(out_info->kernel_version, "NT %lu.%lu.%lu", v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber);
+	string_nformat(out_info->os_version, sizeof(out_info->os_version), "%lu.%lu", v.dwMajorVersion, v.dwMinorVersion);
+	string_nformat(out_info->os_build, sizeof(out_info->os_build), "%lu", v.dwBuildNumber);
+	string_nformat(out_info->kernel_version, sizeof(out_info->kernel_version), "NT %lu.%lu.%lu", v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber);
 
 	DWORD product = 0;
 	GetProductInfo(v.dwMajorVersion, v.dwMinorVersion, 0, 0, &product);
@@ -1467,7 +1467,7 @@ static wchar_t *build_filter_string (const wchar_t *input) {
 
 platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
 	platform_open_file_dialog_result result = {
-		.success = false,
+		.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE,
 		.file_count = 0,
 		.file_paths = KNULL,
 	};
@@ -1498,9 +1498,12 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 		for (u32 i = 0; i < fl.count; ++i) {
 			KDEBUG("Selected: '%s'", fl.items[i]);
 		}
-		result.success = true;
+		result.result = PLATFORM_OFD_OP_RESULT_SUCCESS;
 		result.file_count = fl.count;
 		result.file_paths = fl.items;
+	} else if (CommDlgExtendedError() == 0) {
+		// No error code means the user closed the dialog.
+		result.result = PLATFORM_OFD_OP_RESULT_USER_CANCELLED;
 	}
 
 	if (options.title) {
@@ -1720,7 +1723,6 @@ static LPCWSTR cstr_to_wcstr (const char *str) {
 
 static void wcstr_free (LPCWSTR wstr) {
 	if (wstr) {
-		u32 len = lstrlen(wstr); // Note that lstrlen doesn't account for the null terminator.
 		kfree((WCHAR *)wstr);
 	}
 }
