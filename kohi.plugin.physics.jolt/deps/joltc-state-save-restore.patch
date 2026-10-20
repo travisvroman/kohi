@@ -1,0 +1,60 @@
+diff --git a/include/joltc.h b/include/joltc.h
+index 5143246..9067a52 100644
+--- a/include/joltc.h
++++ b/include/joltc.h
+@@ -1131,6 +1131,14 @@ JPH_CAPI void JPH_PhysicsSystem_SetPhysicsSettings(JPH_PhysicsSystem* system, JP
+ JPH_CAPI void JPH_PhysicsSystem_GetPhysicsSettings(JPH_PhysicsSystem* system, JPH_PhysicsSettings* result);
+ 
+ JPH_CAPI void JPH_PhysicsSystem_OptimizeBroadPhase(JPH_PhysicsSystem* system);
++
++/* State save/restore (Kohi patch). The saved state covers bodies, contacts and constraints but not
++ * which bodies exist: restore into a system with the same bodies, added in the same order. */
++/* Writes the system's full state into buffer if it fits. Returns the number of bytes the state needs;
++ * call with buffer = NULL, capacity = 0 to query the size. */
++JPH_CAPI size_t JPH_PhysicsSystem_SaveState(const JPH_PhysicsSystem* system, void* buffer, size_t capacity);
++/* Restores state previously written by JPH_PhysicsSystem_SaveState. Returns false if the data does not match the system. */
++JPH_CAPI bool JPH_PhysicsSystem_RestoreState(JPH_PhysicsSystem* system, const void* data, size_t size);
+ JPH_CAPI JPH_PhysicsUpdateError JPH_PhysicsSystem_Update(JPH_PhysicsSystem* system, float deltaTime, int collisionSteps, JPH_JobSystem* jobSystem);
+ 
+ JPH_CAPI JPH_BodyInterface* JPH_PhysicsSystem_GetBodyInterface(JPH_PhysicsSystem* system);
+diff --git a/src/joltc.cpp b/src/joltc.cpp
+index 6d4f76c..5e3919a 100644
+--- a/src/joltc.cpp
++++ b/src/joltc.cpp
+@@ -25,6 +25,7 @@ JPH_SUPPRESS_WARNINGS
+ #include "Jolt/Physics/Collision/CollidePointResult.h"
+ #include "Jolt/Physics/Collision/CollideShape.h"
+ #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
++#include <Jolt/Physics/StateRecorderImpl.h>
+ #include <Jolt/Physics/Collision/CollisionDispatch.h>
+ #include <Jolt/Physics/Collision/EstimateCollisionResponse.h>
+ #include <Jolt/Physics/Collision/ShapeCast.h>
+@@ -1120,6 +1121,28 @@ void JPH_PhysicsSystem_OptimizeBroadPhase(JPH_PhysicsSystem* system)
+ 	system->physicsSystem->OptimizeBroadPhase();
+ }
+ 
++size_t JPH_PhysicsSystem_SaveState(const JPH_PhysicsSystem* system, void* buffer, size_t capacity)
++{
++	JPH_ASSERT(system);
++
++	JPH::StateRecorderImpl recorder;
++	system->physicsSystem->SaveState(recorder, JPH::EStateRecorderState::All);
++	std::string data = recorder.GetData();
++	if (buffer && capacity >= data.size())
++		memcpy(buffer, data.data(), data.size());
++	return data.size();
++}
++
++bool JPH_PhysicsSystem_RestoreState(JPH_PhysicsSystem* system, const void* data, size_t size)
++{
++	JPH_ASSERT(system && data);
++
++	JPH::StateRecorderImpl recorder;
++	recorder.WriteBytes(data, size);
++	recorder.Rewind();
++	return system->physicsSystem->RestoreState(recorder);
++}
++
+ JPH_PhysicsUpdateError JPH_PhysicsSystem_Update(JPH_PhysicsSystem* system, float deltaTime, int collisionSteps, JPH_JobSystem* jobSystem)
+ {
+ 	JPH::JobSystem* joltJobSystem = reinterpret_cast<JPH::JobSystem*>(jobSystem);

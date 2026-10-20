@@ -24,6 +24,8 @@ kentity_type kentity_type_from_string (const char *str) {
 		return KENTITY_TYPE_POINT_LIGHT;
 	} else if (strings_equali(str, "spawn_point")) {
 		return KENTITY_TYPE_SPAWN_POINT;
+	} else if (strings_equali(str, "physics_body")) {
+		return KENTITY_TYPE_PHYSICS_BODY;
 	} else {
 		return KENTITY_TYPE_NONE;
 	}
@@ -49,6 +51,8 @@ const char *kentity_type_to_string (kentity_type type) {
 		return "point_light";
 	case KENTITY_TYPE_SPAWN_POINT:
 		return "spawn_point";
+	case KENTITY_TYPE_PHYSICS_BODY:
+		return "physics_body";
 	case KENTITY_TYPE_COUNT:
 	case KENTITY_TYPE_INVALID:
 		KERROR("%s - tried to convert invalid or count to string, ya dingus!");
@@ -69,6 +73,7 @@ b8 kentity_type_ignores_scale (kentity_type type) {
 	case KENTITY_TYPE_HIT_SHAPE:
 	case KENTITY_TYPE_POINT_LIGHT:
 	case KENTITY_TYPE_SPAWN_POINT:
+	case KENTITY_TYPE_PHYSICS_BODY:
 		return true;
 	}
 }
@@ -109,4 +114,52 @@ const char *scene_volume_type_to_string (kscene_volume_type type) {
 	case KSCENE_VOLUME_TYPE_TRIGGER:
 		return "trigger";
 	}
+}
+
+kphysics_shape_type physics_shape_type_from_string (const char *str) {
+	if (strings_equali(str, "sphere")) {
+		return KPHYSICS_SHAPE_TYPE_SPHERE;
+	} else if (strings_equali(str, "box")) {
+		return KPHYSICS_SHAPE_TYPE_BOX;
+	} else if (strings_equali(str, "capsule")) {
+		return KPHYSICS_SHAPE_TYPE_CAPSULE;
+	}
+	KERROR("Unknown physics shape_type '%s', defaulting to sphere.", str);
+	return KPHYSICS_SHAPE_TYPE_SPHERE;
+}
+
+const char *physics_shape_type_to_string (kphysics_shape_type type) {
+	switch (type) {
+	case KPHYSICS_SHAPE_TYPE_SPHERE:
+		return "sphere";
+	case KPHYSICS_SHAPE_TYPE_BOX:
+		return "box";
+	case KPHYSICS_SHAPE_TYPE_CAPSULE:
+		return "capsule";
+	}
+	return "sphere";
+}
+
+kphysics_motion_type physics_motion_type_from_string (const char *str) {
+	if (strings_equali(str, "static")) {
+		return KPHYSICS_MOTION_TYPE_STATIC;
+	} else if (strings_equali(str, "kinematic")) {
+		return KPHYSICS_MOTION_TYPE_KINEMATIC;
+	} else if (strings_equali(str, "dynamic")) {
+		return KPHYSICS_MOTION_TYPE_DYNAMIC;
+	}
+	KERROR("Unknown physics motion '%s', defaulting to dynamic.", str);
+	return KPHYSICS_MOTION_TYPE_DYNAMIC;
+}
+
+const char *physics_motion_type_to_string (kphysics_motion_type type) {
+	switch (type) {
+	case KPHYSICS_MOTION_TYPE_STATIC:
+		return "static";
+	case KPHYSICS_MOTION_TYPE_KINEMATIC:
+		return "kinematic";
+	case KPHYSICS_MOTION_TYPE_DYNAMIC:
+		return "dynamic";
+	}
+	return "dynamic";
 }

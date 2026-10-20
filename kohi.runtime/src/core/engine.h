@@ -78,6 +78,10 @@ typedef struct engine_system_states {
 	u64 kaudio_system_memory_requirement;
 	struct kaudio_system_state *audio_system;
 
+	u64 physics_system_memory_requirement;
+	/** @brief Null unless the app config has a "physics" system entry. */
+	struct kphysics_system_state *physics_system;
+
 	u64 ktransform_system_memory_requirement;
 	struct ktransform_system_state *ktransform_system;
 

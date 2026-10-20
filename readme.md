@@ -113,6 +113,10 @@ The audio plugin requires an installatiion of OpenAL.
 - macOS: use a homebrew to install OpenAL-Soft, if not already installed via `make setup`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
 - Windows: If not already installed via `make setup`, Install the SDK from here: https://www.openal.org/downloads/
 
+## Physics Plugin Prerequisites
+
+`kohi.plugin.physics.jolt` uses [Jolt Physics](https://github.com/jrouwe/JoltPhysics) through its C wrapper [joltc](https://github.com/amerkoleci/joltc). `make setup` (or `make getdeps-jolt`) runs `kohi.plugin.physics.jolt/deps/build_jolt.sh`, which needs git, CMake and clang. It fetches pinned versions of both, patches joltc to expose state save/restore, and builds them into `vendor/jolt`. The script is bash, so on Windows it needs Git Bash or WSL; the Windows build of the plugin is untested.
+
 # Start
 
 To get started, get all of the prerequisites for your current platform (see above).
@@ -189,6 +193,52 @@ Applications put frame-rate independent logic in an optional exported `applicati
 
 The simulation can be paused and stepped from code (`engine_simulation_pause_set`, `engine_simulation_steps_request`, `engine_simulation_step_count_get`, `engine_simulation_time_get` in `core/engine.h`) or from the console with `sim_pause`, `sim_resume`, `sim_step [count]` and `sim_status`.
 
+## Physics
+
+The physics system is optional and starts only when the app config has a `physics` system entry, with its backend plugin loaded:
+
+```
+systems = [
+	{
+		name = "physics"
+		config = {
+			backend_plugin_name = "kohi.plugin.physics.jolt"
+			gravity = "0 -9.81 0"   // default
+			max_bodies = 4096       // default
+			thread_count = 0        // worker threads for the physics step; 0 runs it on the engine thread
+		}
+	}
+	{
+		name = "plugin_system"
+		config = { plugins = [ { name = "kohi.plugin.physics.jolt" } ... ] }
+	}
+]
+```
+
+Physics advances once per fixed simulation step, right after `application_fixed_update`, so it never depends on the render frame rate. Set `fixed_step_hz`; without it physics steps with the frame time and results vary with frame rate.
+
+Rigid bodies are scene entities of type `physics_body`. The entity follows its body on every scene update. Bodies always sit at the scene root, and their scale is ignored.
+
+```
+{
+	name = "crate"
+	type = "physics_body"
+	transform = "0 2 0 0 0 0 1 1 1 1"
+	shape_type = "box"            // sphere (radius), box (half_extents) or capsule (radius, half_height, along Y)
+	half_extents = "0.5 0.5 0.5"
+	motion = "dynamic"            // static, kinematic or dynamic
+	mass = 0                      // 0 computes mass from the shape
+	friction = 0.2
+	restitution = 0
+	linear_damping = 0.05
+	angular_damping = 0.05
+}
+```
+
+From code, `kscene_add_physics_body` adds one and `kscene_physics_body_get` returns the body behind an entity for the `kphysics_*` functions in `physics/kphysics_system.h` (velocities, forces, impulses, raycasts).
+
+The simulation is deterministic: Jolt is built with `CROSS_PLATFORM_DETERMINISTIC`, so the same inputs give the same results on every run, thread count and platform. `kphysics_state_save`/`kphysics_state_restore` snapshot and roll back the whole simulation (bodies must be the same, created in the same order), and `kphysics_state_hash` gives a 64-bit hash of it for comparing runs. The console commands `physics_state_hash`, `physics_state_save` and `physics_state_restore` do the same. The headless testbed config loads `physics_scene` and logs the hash at shutdown, so two runs can be compared directly.
+
 # Project Structure
 
 This structure breakdown is based on the root folder of the repository. Some files/folders are omitted from this description as they aren't important to the overall picture.
@@ -200,6 +250,7 @@ This structure breakdown is based on the root folder of the repository. Some fil
 - `kohi.plugin.audio.openal` - Shared library/.dll/.so/.dylib. Contains the audio plugin which uses OpenAL as the audio backend.
 - `kohi.plugin.renderer.vulkan` - Shared library/.dll/.so/.dylib. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
 - `kohi.plugin.renderer.null` - Shared library/.dll/.so/.dylib. A renderer backend that draws nothing and needs no GPU, for headless runs.
+- `kohi.plugin.physics.jolt` - Shared library/.dll/.so/.dylib. The physics backend, using Jolt Physics. Its dependencies build into `vendor/jolt`.
 - `kohi.plugin.ui.kui` - Shared library/.dll/.so/.dylib. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
 - `testbed.klib` = Shared library/.dll/.so/.dylib. Contains the application code (or "game code") specific to the application. Hot-reloadable.

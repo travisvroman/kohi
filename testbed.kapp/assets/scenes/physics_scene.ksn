@@ -1,0 +1,63 @@
+version = 1
+name = "physics_scene"
+description = "Rigid bodies for the physics system: a stack of boxes that a falling ball knocks over."
+entities = [
+	{
+		name = "ground"
+		type = "physics_body"
+		transform = "0 -0.5 0 0 0 0 1 1 1 1"
+		shape_type = "box"
+		half_extents = "20 0.5 20"
+		motion = "static"
+		friction = 0.6
+	}
+	{
+		name = "box_0"
+		type = "physics_body"
+		transform = "0 0.5 0 0 0 0 1 1 1 1"
+		shape_type = "box"
+		half_extents = "0.5 0.5 0.5"
+		friction = 0.6
+	}
+	{
+		name = "box_1"
+		type = "physics_body"
+		transform = "0.05 1.5 0 0 0 0 1 1 1 1"
+		shape_type = "box"
+		half_extents = "0.5 0.5 0.5"
+		friction = 0.6
+	}
+	{
+		name = "box_2"
+		type = "physics_body"
+		transform = "-0.05 2.5 0.05 0 0 0 1 1 1 1"
+		shape_type = "box"
+		half_extents = "0.5 0.5 0.5"
+		friction = 0.6
+	}
+	{
+		name = "box_3"
+		type = "physics_body"
+		transform = "0 3.5 -0.05 0 0 0 1 1 1 1"
+		shape_type = "box"
+		half_extents = "0.5 0.5 0.5"
+		friction = 0.6
+	}
+	{
+		name = "capsule"
+		type = "physics_body"
+		transform = "3 1 0 0 0 0.3826834 0.9238795 1 1 1"
+		shape_type = "capsule"
+		radius = 0.3
+		half_height = 0.5
+	}
+	{
+		name = "ball"
+		type = "physics_body"
+		transform = "0.4 9 0.1 0 0 0 1 1 1 1"
+		shape_type = "sphere"
+		radius = 0.5
+		mass = 20
+		restitution = 0.3
+	}
+]

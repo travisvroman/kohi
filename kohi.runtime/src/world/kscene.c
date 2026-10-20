@@ -36,6 +36,7 @@
 
 #include "assets/kasset_types.h"
 #include "core/event.h"
+#include "physics/kphysics_system.h"
 #include "serializers/kasset_hf_terrain_serializer.h"
 #include "systems/asset_system.h"
 #include "systems/kmatrix_system.h"
@@ -114,6 +115,14 @@ typedef struct spawn_point_entity {
 	base_entity base;
 	f32 radius;
 } spawn_point_entity;
+
+/** @brief A rigid body simulated by the physics system. Its transform follows the body every update. */
+typedef struct physics_body_entity {
+	base_entity base;
+	kphysics_body body;
+	/** @brief The config the body was created from, kept for serialization. */
+	kphysics_body_config config;
+} physics_body_entity;
 
 typedef struct volume_entity {
 	base_entity base;
@@ -333,6 +342,7 @@ typedef struct kscene {
 	point_light_entity *point_lights;
 
 	spawn_point_entity *spawn_points;
+	physics_body_entity *physics_bodies;
 
 	// darray of volume type entities.
 	volume_entity *volumes;
@@ -385,6 +395,7 @@ static void base_entity_destroy (kscene *scene, base_entity *base, kentity entit
 static void model_entity_destroy (kscene *scene, model_entity *typed_entity, kentity entity_handle);
 static void point_light_entity_destroy (kscene *scene, point_light_entity *typed_entity, kentity entity_handle);
 static void spawn_point_entity_destroy (kscene *scene, spawn_point_entity *typed_entity, kentity entity_handle);
+static void physics_body_entity_destroy (kscene *scene, physics_body_entity *typed_entity, kentity entity_handle);
 static void volume_entity_destroy (kscene *scene, volume_entity *typed_entity, kentity entity_handle);
 static void hit_shape_entity_destroy (kscene *scene, hit_shape_entity *typed_entity, kentity entity_handle);
 static void water_plane_entity_destroy (kscene *scene, water_plane_entity *typed_entity, kentity entity_handle);
@@ -491,6 +502,7 @@ struct kscene *kscene_create (kname scene_asset_name, const char *config, kscene
 
 	scene->point_lights = darray_create(point_light_entity);
 	scene->spawn_points = darray_create(spawn_point_entity);
+	scene->physics_bodies = darray_create(physics_body_entity);
 
 	scene->volumes = darray_create(volume_entity);
 	scene->hit_shapes = darray_create(hit_shape_entity);
@@ -624,6 +636,15 @@ void kscene_destroy (struct kscene *scene) {
 
 	CLEANUP_ENTITY_TYPE(point_light);
 	CLEANUP_ENTITY_TYPE(spawn_point);
+	// Not CLEANUP_ENTITY_TYPE: the plural of "body" isn't "bodys".
+	if (scene->physics_bodies) {
+		u32 count = darray_length(scene->physics_bodies);
+		for (u32 i = 0; i < count; ++i) {
+			physics_body_entity_destroy(scene, &scene->physics_bodies[i], KENTITY_INVALID);
+		}
+		darray_destroy(scene->physics_bodies);
+		scene->physics_bodies = KNULL;
+	}
 	CLEANUP_ENTITY_TYPE(volume);
 	CLEANUP_ENTITY_TYPE(hit_shape);
 	CLEANUP_ENTITY_TYPE(audio_emitter);
@@ -866,6 +887,22 @@ b8 kscene_update (struct kscene *scene, struct frame_data *p_frame_data) {
 
 		// Actual update logic.
 		if (scene->state == KSCENE_STATE_LOADED) {
+
+			// Move physics bodies' entities to where the simulation put them. Bodies live at the
+			// scene root, so the body transform is the entity's local transform.
+			struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+			u16 physics_body_count = physics ? darray_length(scene->physics_bodies) : 0;
+			for (u16 i = 0; i < physics_body_count; ++i) {
+				physics_body_entity *body_entity = &scene->physics_bodies[i];
+				if (body_entity->body == KPHYSICS_BODY_INVALID || body_entity->config.motion_type == KPHYSICS_MOTION_TYPE_STATIC) {
+					continue;
+				}
+				vec3 position;
+				quat rotation;
+				kphysics_body_transform_get(physics, body_entity->body, &position, &rotation);
+				ktransform_position_set(body_entity->base.transform, position);
+				ktransform_rotation_set(body_entity->base.transform, rotation);
+			}
 
 			// Update all transforms from the top (roots) down.
 			u16 root_count = darray_length(scene->root_entities);
@@ -1783,6 +1820,10 @@ static b8 on_raycast_hit (bvh_userdata user, bvh_id id, const ray *r, f32 min, f
 
 		return raycast_hits_sphere("spawn point", base->transform, typed_entity->radius, r, out_hit);
 	} break;
+	case KENTITY_TYPE_PHYSICS_BODY:
+		// The BVH AABB hit is close enough for picking. Use kphysics_raycast for exact hits.
+		out_hit->type = RAYCAST_HIT_TYPE_BVH_AABB_BASE_NODE;
+		return true;
 	default:
 	case KENTITY_TYPE_NONE:
 		/* KINFO("Base node found. No further tests needed."); */
@@ -2052,6 +2093,11 @@ void kscene_remove_entity (struct kscene *scene, kentity *entity) {
 		case KENTITY_TYPE_SPAWN_POINT: {
 			KASSERT_DEBUG(typed_index < darray_length(scene->spawn_points));
 			spawn_point_entity_destroy(scene, &scene->spawn_points[typed_index], *entity);
+		} break;
+
+		case KENTITY_TYPE_PHYSICS_BODY: {
+			KASSERT_DEBUG(typed_index < darray_length(scene->physics_bodies));
+			physics_body_entity_destroy(scene, &scene->physics_bodies[typed_index], *entity);
 		} break;
 
 		case KENTITY_TYPE_VOLUME: {
@@ -2382,6 +2428,91 @@ static void spawn_point_entity_destroy (kscene *scene, spawn_point_entity *typed
 	// NOTE: Nothing here needing destruction aside from the base.
 
 	base_entity_destroy(scene, &typed_entity->base, entity_handle);
+}
+
+static extents_3d physics_shape_extents (const kphysics_shape *shape) {
+	switch (shape->type) {
+	case KPHYSICS_SHAPE_TYPE_BOX:
+		return (extents_3d){vec3_mul_scalar(shape->half_extents, -1.0f), shape->half_extents};
+	case KPHYSICS_SHAPE_TYPE_CAPSULE: {
+		vec3 half = {shape->radius, shape->half_height + shape->radius, shape->radius};
+		return (extents_3d){vec3_mul_scalar(half, -1.0f), half};
+	}
+	case KPHYSICS_SHAPE_TYPE_SPHERE:
+	default:
+		return extents_3d_from_scalar(shape->radius);
+	}
+}
+
+kentity kscene_add_physics_body (struct kscene *scene, kname name, ktransform transform, kentity parent, const kphysics_body_config *config) {
+	KASSERT_DEBUG(scene && config);
+
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	if (!physics) {
+		KERROR("%s - the physics system is not running. Add a 'physics' system to the app config.", __FUNCTION__);
+		return KENTITY_INVALID;
+	}
+	if (parent != KENTITY_INVALID) {
+		// The body's transform is in world space, so a parent would move the entity away from the body.
+		KWARN("%s - physics body '%s' has a parent, which is not supported. Adding it to the scene root instead.", __FUNCTION__, kname_string_get(name));
+		parent = KENTITY_INVALID;
+	}
+
+	// Get a typed entity index.
+	u16 body_count = darray_length(scene->physics_bodies);
+	u16 entity_index = INVALID_ID_U16;
+	for (u16 i = 0; i < body_count; ++i) {
+		if (FLAG_GET(scene->physics_bodies[i].base.flags, KENTITY_FLAG_FREE_BIT)) {
+			entity_index = i;
+			break;
+		}
+	}
+	if (entity_index == INVALID_ID_U16) {
+		entity_index = body_count;
+		darray_push(scene->physics_bodies, &(physics_body_entity){0});
+	}
+
+	physics_body_entity *new_ent = &scene->physics_bodies[entity_index];
+	extents_3d ex = physics_shape_extents(&config->shape);
+	kentity entity = init_base_entity_with_extents(scene, &new_ent->base, entity_index, name, KENTITY_TYPE_PHYSICS_BODY, transform, parent, ex);
+
+	new_ent->config = *config;
+	kphysics_body_config body_config = *config;
+	body_config.position = ktransform_position_get(transform);
+	body_config.rotation = ktransform_rotation_get(transform);
+	body_config.user_data = entity;
+	new_ent->body = kphysics_body_create(physics, &body_config);
+	if (new_ent->body == KPHYSICS_BODY_INVALID) {
+		KERROR("%s - failed to create physics body '%s'.", __FUNCTION__, kname_string_get(name));
+	}
+
+	create_debug_data(
+		scene, extents_3d_half(ex), vec3_zero(), entity,
+		config->shape.type == KPHYSICS_SHAPE_TYPE_BOX ? KSCENE_DEBUG_DATA_TYPE_RECTANGLE : KSCENE_DEBUG_DATA_TYPE_SPHERE,
+		((colour4){1, 0.5f, 0, 1}), true, &new_ent->base.debug_data_index);
+
+	return entity;
+}
+
+static void physics_body_entity_destroy (kscene *scene, physics_body_entity *typed_entity, kentity entity_handle) {
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	if (physics && typed_entity->body != KPHYSICS_BODY_INVALID) {
+		kphysics_body_destroy(physics, typed_entity->body);
+	}
+	typed_entity->body = KPHYSICS_BODY_INVALID;
+
+	base_entity_destroy(scene, &typed_entity->base, entity_handle);
+}
+
+kphysics_body kscene_physics_body_get (struct kscene *scene, kentity entity) {
+	if (!scene || kentity_unpack_type(entity) != KENTITY_TYPE_PHYSICS_BODY) {
+		return KPHYSICS_BODY_INVALID;
+	}
+	u16 typed_index = kentity_unpack_type_index(entity);
+	if (typed_index >= darray_length(scene->physics_bodies)) {
+		return KPHYSICS_BODY_INVALID;
+	}
+	return scene->physics_bodies[typed_index].body;
 }
 
 kentity kscene_add_volume (
@@ -3689,6 +3820,38 @@ static b8 deserialize_entity (kson_object *obj, kentity parent, kscene *out_scen
 		new_entity = kscene_add_spawn_point(out_scene, entity_name, t, parent, radius);
 	} break;
 
+	case KENTITY_TYPE_PHYSICS_BODY: {
+		kphysics_shape shape = {.type = KPHYSICS_SHAPE_TYPE_SPHERE, .radius = 0.5f, .half_height = 0.5f, .half_extents = vec3_from_scalar(0.5f)};
+		const char *shape_type = KNULL;
+		if (kson_object_property_value_get_string(obj, "shape_type", &shape_type)) {
+			shape.type = physics_shape_type_from_string(shape_type);
+			string_free(shape_type);
+		}
+		kson_object_property_value_get_float(obj, "radius", &shape.radius);
+		kson_object_property_value_get_float(obj, "half_height", &shape.half_height);
+		kson_object_property_value_get_vec3(obj, "half_extents", &shape.half_extents);
+
+		kphysics_motion_type motion = KPHYSICS_MOTION_TYPE_DYNAMIC;
+		const char *motion_str = KNULL;
+		if (kson_object_property_value_get_string(obj, "motion", &motion_str)) {
+			motion = physics_motion_type_from_string(motion_str);
+			string_free(motion_str);
+		}
+
+		kphysics_body_config config = kphysics_body_config_default(shape, motion);
+		kson_object_property_value_get_float(obj, "mass", &config.mass);
+		kson_object_property_value_get_float(obj, "friction", &config.friction);
+		kson_object_property_value_get_float(obj, "restitution", &config.restitution);
+		kson_object_property_value_get_float(obj, "linear_damping", &config.linear_damping);
+		kson_object_property_value_get_float(obj, "angular_damping", &config.angular_damping);
+
+		new_entity = kscene_add_physics_body(out_scene, entity_name, t, parent, &config);
+		if (new_entity == KENTITY_INVALID) {
+			// Without a physics system the body can't exist. Keep the scene loadable with a plain node.
+			new_entity = kscene_add_entity(out_scene, entity_name, t, parent);
+		}
+	} break;
+
 	case KENTITY_TYPE_COUNT:
 	case KENTITY_TYPE_INVALID:
 		KWARN("Invalid entity type found, no type-specific properties will be loaded.");
@@ -3939,6 +4102,28 @@ static b8 entity_serialize_r (const kscene *scene, kentity entity, kson_object *
 		spawn_point_entity *typed = &scene->spawn_points[type_index];
 		kson_object_value_add_float(s_obj, "radius", typed->radius);
 	} break;
+	case KENTITY_TYPE_PHYSICS_BODY: {
+		const kphysics_body_config *config = &scene->physics_bodies[type_index].config;
+		kson_object_value_add_string(s_obj, "shape_type", physics_shape_type_to_string(config->shape.type));
+		switch (config->shape.type) {
+		case KPHYSICS_SHAPE_TYPE_SPHERE:
+			kson_object_value_add_float(s_obj, "radius", config->shape.radius);
+			break;
+		case KPHYSICS_SHAPE_TYPE_CAPSULE:
+			kson_object_value_add_float(s_obj, "radius", config->shape.radius);
+			kson_object_value_add_float(s_obj, "half_height", config->shape.half_height);
+			break;
+		case KPHYSICS_SHAPE_TYPE_BOX:
+			kson_object_value_add_vec3(s_obj, "half_extents", config->shape.half_extents);
+			break;
+		}
+		kson_object_value_add_string(s_obj, "motion", physics_motion_type_to_string(config->motion_type));
+		kson_object_value_add_float(s_obj, "mass", config->mass);
+		kson_object_value_add_float(s_obj, "friction", config->friction);
+		kson_object_value_add_float(s_obj, "restitution", config->restitution);
+		kson_object_value_add_float(s_obj, "linear_damping", config->linear_damping);
+		kson_object_value_add_float(s_obj, "angular_damping", config->angular_damping);
+	} break;
 	case KENTITY_TYPE_COUNT:
 	case KENTITY_TYPE_INVALID:
 		// NOTE: these don't do anything. Perhaps should error here.
@@ -4180,6 +4365,8 @@ static base_entity *get_entity_base (kscene *scene, kentity entity) {
 		return &scene->audio_emitters[typed_index].base;
 	case KENTITY_TYPE_SPAWN_POINT:
 		return &scene->spawn_points[typed_index].base;
+	case KENTITY_TYPE_PHYSICS_BODY:
+		return &scene->physics_bodies[typed_index].base;
 	case KENTITY_TYPE_HEIGHTMAP_TERRAIN:
 		KERROR("%s - heightmap_terrain not yet implemented");
 		return KNULL;

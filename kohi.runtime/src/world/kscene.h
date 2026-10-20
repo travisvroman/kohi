@@ -8,6 +8,7 @@
 #include "renderer/kforward_renderer.h"
 #include "systems/kcamera_system.h"
 #include "systems/kmodel_system.h"
+#include "physics/kphysics_types.h"
 #include "systems/light_system.h"
 #include "world/heightfield_terrain.h"
 #include "world/world_types.h"
@@ -203,6 +204,17 @@ KAPI kentity kscene_add_audio_emitter (
 	kname package_name);
 
 KAPI kentity kscene_add_spawn_point (struct kscene *scene, kname name, ktransform transform, kentity parent, f32 radius);
+
+/**
+ * @brief Adds an entity backed by a physics body. Needs the physics system to be running.
+ * The body starts at the transform's position and rotation (scale is ignored), and the entity
+ * follows the body on every scene update. Physics bodies always live at the scene root.
+ * @returns The new entity, or KENTITY_INVALID if there is no physics system.
+ */
+KAPI kentity kscene_add_physics_body (struct kscene *scene, kname name, ktransform transform, kentity parent, const kphysics_body_config *config);
+
+/** @brief The physics body behind an entity, for use with the kphysics_* functions. KPHYSICS_BODY_INVALID if it has none. */
+KAPI kphysics_body kscene_physics_body_get (struct kscene *scene, kentity entity);
 
 KAPI kmodel_instance kscene_model_entity_get_instance (struct kscene *scene, kentity entity);
 
