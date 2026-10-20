@@ -26,6 +26,7 @@ kui_control kui_checkbox_control_create (kui_state *state, const char *name, fon
 	kui_checkbox_control *typed_data = (kui_checkbox_control *)base;
 
 	base->on_click = on_click;
+	FLAG_SET(base->flags, KUI_CONTROL_FLAG_NAVIGABLE_BIT, true);
 
 	typed_data->state = KUI_CHECKBOX_STATE_ENABLED_UNCHECKED;
 

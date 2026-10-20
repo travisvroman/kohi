@@ -246,6 +246,7 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
 | `ui_screen_size` | `width`, `height` | Tells the UI the window size, as a resize would, so anchored controls move. Replies with the UI `scale`. |
 | `ui_reference_size` | `width`, `height` | Designs the UI for that size and scales it to fit the window; `0` and `0` turns scaling off. Replies with the `scale`. `ui_controls` rects are in pixels and include the scale. |
+| `ui_navigate` | `action` (`up`, `down`, `left`, `right`, `next`, `prev`, `accept`, `cancel`) | Presses a navigation key in the UI. Replies with `used` and the `focused` control. See [UI navigation](#ui-navigation). |
 | `ui_value_set` | `control`, `value` | Sets a slider or progress bar value. A slider clamps it to its range and snaps it to its step; the reply has the value that took. `ui_controls` lists `value` for these controls. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `scene_summary` | `scene` (optional) | A plain-text description for agents that cannot see images: entity counts by type, the 3D cameras in use, and every entity (up to 200) with world position and, for physics bodies, motion type, speed and whether it is awake. |
@@ -263,6 +264,14 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 `kui_control_anchor_set(state, control, kui_anchor_at(KUI_ANCHOR_BOTTOM_RIGHT, (vec2){-20, -20}))` keeps a control 20 units from its parent's bottom right corner at any window size. For a control added to the root, the parent size is the screen size in UI units. A full `kui_anchor` has separate anchor and pivot fractions. Call it again after the control's size changes.
 
 `kui_system_screen_size_set` must be called from the application's window resize handler (the testbed does). `kui_system_reference_size_set(state, 1280, 720)` designs the UI for 1280 by 720 and scales it by the largest factor that fits the window, so a layout looks the same at 1280 by 720 and 2560 by 1440; the mouse and the agent `ui_click` go through the scale. The scale applies to the whole UI, including controls placed with plain positions; scissor-clipped controls such as scrollables are not checked at a scale other than 1 yet.
+
+### UI navigation
+
+Tab and shift-tab focus the next or previous control in reading order. While a control is focused, the arrow keys move to the nearest control in that direction, enter or space presses it, and escape drops focus. A focused slider uses left and right to change its value. A highlight is drawn over the focused control. Controls take part when they have `KUI_CONTROL_FLAG_NAVIGABLE_BIT` (set on buttons with text, checkboxes and sliders; `kui_control_set_flag` sets it on others) or are focusable, like textboxes. Clicking with the mouse does not focus them, so a click never leaves the keyboard captured.
+
+`kui_system_navigate(state, KUI_NAV_UP ...)` is the same logic without the keyboard. The engine has no gamepad input yet; when it does, map the d-pad to the four directions, A to accept and B to cancel. A control can take an action first with `kui_control_set_on_navigate`.
+
+KUI sees keys only after the engine's keymaps and polled input have, so it cannot keep them from the game. While `kui_system_navigation_active` is true, the game should ignore the arrows, enter, space and escape; the testbed does, so escape drops focus before it quits and the arrows do not push the ball.
 
 ### Save games
 

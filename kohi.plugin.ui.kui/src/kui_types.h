@@ -123,7 +123,10 @@ typedef enum kui_control_flag_bits {
 	KUI_CONTROL_FLAG_USER_DATA_FREE_ON_DESTROY_BIT = 1 << 7,
 	// Control clips children
 	KUI_CONTROL_FLAG_CLIPS_CHILDREN_BIT = 1 << 8,
-	KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT = 1 << 9
+	KUI_CONTROL_FLAG_CLIPPED_BY_PARENT_BIT = 1 << 9,
+	// Keyboard and gamepad navigation can move focus to this control. Unlike FOCUSABLE, a mouse
+	// click does not focus it, so clicking a button never leaves the keyboard captured.
+	KUI_CONTROL_FLAG_NAVIGABLE_BIT = 1 << 10
 } kui_control_flag_bits;
 
 typedef u32 kui_control_flags;
@@ -185,6 +188,25 @@ typedef enum kui_anchor_point {
 	KUI_ANCHOR_BOTTOM_CENTER,
 	KUI_ANCHOR_BOTTOM_RIGHT,
 } kui_anchor_point;
+
+/** @brief What a keyboard, a gamepad or the agent channel asks the UI to do. */
+typedef enum kui_nav_action {
+	KUI_NAV_UP,
+	KUI_NAV_DOWN,
+	KUI_NAV_LEFT,
+	KUI_NAV_RIGHT,
+	// Reading order: left to right, top to bottom. Tab and shift-tab.
+	KUI_NAV_NEXT,
+	KUI_NAV_PREV,
+	// Press the focused control: the enter key, a gamepad's A button.
+	KUI_NAV_ACCEPT,
+	// Drop focus: the escape key, a gamepad's B button.
+	KUI_NAV_CANCEL,
+	KUI_NAV_ACTION_COUNT
+} kui_nav_action;
+
+/** @brief Called on the focused control first. Return true if it used the action (a slider takes left and right). */
+typedef b8 (*PFN_navigate_callback)(struct kui_state *state, kui_control self, kui_nav_action action);
 
 typedef struct kui_base_control {
 	kui_control_type type;
@@ -253,6 +275,7 @@ typedef struct kui_base_control {
 	PFN_mouse_event_callback internal_mouse_wheel;
 
 	PFN_keyboard_event_callback on_key;
+	PFN_navigate_callback on_navigate;
 
 } kui_base_control;
 

@@ -63,6 +63,8 @@ static b8 kui_system_mouse_down (u16 code, void *sender, void *listener_inst, ev
 static b8 kui_system_mouse_up (u16 code, void *sender, void *listener_inst, event_context context);
 static b8 kui_system_click (u16 code, void *sender, void *listener_inst, event_context context);
 static b8 kui_system_mouse_move (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 kui_system_key_pressed (u16 code, void *sender, void *listener_inst, event_context context);
+static void clear_focus (kui_state *state);
 static b8 kui_system_mouse_wheel (u16 code, void *sender, void *listener_inst, event_context context);
 static b8 kui_system_drag (u16 code, void *sender, void *listener_inst, event_context context);
 
@@ -151,6 +153,7 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	// Listen for input events.
 	event_register(EVENT_CODE_BUTTON_CLICKED, state, kui_system_click);
 	event_register(EVENT_CODE_MOUSE_MOVED, state, kui_system_mouse_move);
+	event_register(EVENT_CODE_KEY_PRESSED, state, kui_system_key_pressed);
 	event_register(EVENT_CODE_MOUSE_DRAG_BEGIN, state, kui_system_drag);
 	event_register(EVENT_CODE_MOUSE_DRAGGED, state, kui_system_drag);
 	event_register(EVENT_CODE_MOUSE_DRAG_END, state, kui_system_drag);
@@ -162,6 +165,7 @@ b8 kui_system_initialize (u64 *memory_requirement, kui_state *state, kui_system_
 	state->index_buffer = renderer_renderbuffer_get(state->renderer, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
 	state->focused = INVALID_KUI_CONTROL;
+	state->focus_ring = INVALID_KUI_CONTROL;
 
 	state->running = true;
 
@@ -178,6 +182,7 @@ void kui_system_shutdown (kui_state *state) {
 		// Stop listening for input events.
 		event_unregister(EVENT_CODE_BUTTON_CLICKED, state, kui_system_click);
 		event_unregister(EVENT_CODE_MOUSE_MOVED, state, kui_system_mouse_move);
+		event_unregister(EVENT_CODE_KEY_PRESSED, state, kui_system_key_pressed);
 		event_unregister(EVENT_CODE_MOUSE_DRAG_BEGIN, state, kui_system_drag);
 		event_unregister(EVENT_CODE_MOUSE_DRAGGED, state, kui_system_drag);
 		event_unregister(EVENT_CODE_MOUSE_DRAG_END, state, kui_system_drag);
@@ -311,6 +316,278 @@ void kui_system_shutdown (kui_state *state) {
 	}
 }
 
+// Keyboard, gamepad and agent navigation
+
+/** @brief Where a control's top left is in UI units, from the controls' local positions. Only translation counts, which holds for KUI layouts. */
+static vec2 control_layout_position (kui_state *state, const kui_base_control *base) {
+	vec2 position = {0, 0};
+	for (const kui_base_control *c = base; c && c->handle.val != state->root.val; c = c->parent.val == INVALID_KUI_CONTROL.val ? KNULL : get_base(state, c->parent)) {
+		vec3 local = ktransform_position_get(c->ktransform);
+		position.x += local.x;
+		position.y += local.y;
+	}
+	return position;
+}
+
+static b8 is_navigation_target (kui_state *state, kui_control control) {
+	if (control.val == state->root.val) {
+		return false;
+	}
+	kui_base_control *base = get_base(state, control);
+	return (FLAG_GET(base->flags, KUI_CONTROL_FLAG_NAVIGABLE_BIT) || FLAG_GET(base->flags, KUI_CONTROL_FLAG_FOCUSABLE_BIT)) && kui_control_is_visible(state, control) && kui_control_is_active(state, control);
+}
+
+static vec2 control_centre (kui_state *state, kui_control control) {
+	kui_base_control *base = get_base(state, control);
+	vec2 position = control_layout_position(state, base);
+	return (vec2){position.x + base->bounds.x + base->bounds.width * 0.5f, position.y + base->bounds.y + base->bounds.height * 0.5f};
+}
+
+/** @brief Moves focus without the FOCUSABLE check that a mouse click needs. */
+static void navigation_focus (kui_state *state, kui_control control) {
+	clear_focus(state);
+	state->focused = control;
+	kui_base_control *base = get_base(state, control);
+	if (base->on_focus) {
+		base->on_focus(state, control);
+	}
+}
+
+/** @brief True if a comes before b in reading order. Controls whose centres are within half a control height of each other count as one row. */
+static b8 reading_order_before (kui_state *state, kui_control a, kui_control b) {
+	vec2 ca = control_centre(state, a);
+	vec2 cb = control_centre(state, b);
+	f32 row_tolerance = KMIN(get_base(state, a)->bounds.height, get_base(state, b)->bounds.height) * 0.5f;
+	f32 dy = ca.y - cb.y;
+	if (dy > row_tolerance || dy < -row_tolerance) {
+		return ca.y < cb.y;
+	}
+	return ca.x < cb.x;
+}
+
+/** @brief The first control in reading order, or the last when `last` is set, among the targets. */
+static kui_control navigation_extreme (kui_state *state, b8 last) {
+	kui_control best = INVALID_KUI_CONTROL;
+	u32 count = darray_length(state->active_controls);
+	for (u32 i = 0; i < count; ++i) {
+		kui_control c = state->active_controls[i];
+		if (is_navigation_target(state, c) && (best.val == INVALID_KUI_CONTROL.val || reading_order_before(state, c, best) != last)) {
+			best = c;
+		}
+	}
+	return best;
+}
+
+/** @brief The next or previous target in reading order from the focused control, wrapping around. */
+static kui_control navigation_sequence (kui_state *state, b8 forward) {
+	kui_control best = INVALID_KUI_CONTROL;
+	u32 count = darray_length(state->active_controls);
+	for (u32 i = 0; i < count; ++i) {
+		kui_control c = state->active_controls[i];
+		if (c.val == state->focused.val || !is_navigation_target(state, c)) {
+			continue;
+		}
+		// Only controls on the wanted side of the focused one.
+		if (reading_order_before(state, c, state->focused) == forward) {
+			continue;
+		}
+		// The nearest of those: the one that is earliest going forward, latest going back.
+		if (best.val == INVALID_KUI_CONTROL.val || reading_order_before(state, c, best) == forward) {
+			best = c;
+		}
+	}
+	if (best.val == INVALID_KUI_CONTROL.val) {
+		best = navigation_extreme(state, !forward);
+	}
+	return best;
+}
+
+/** @brief The closest target in a direction. The distance across counts double, so a control straight ahead beats one off to the side. */
+static kui_control navigation_direction (kui_state *state, kui_nav_action action) {
+	vec2 from = control_centre(state, state->focused);
+	kui_control best = INVALID_KUI_CONTROL;
+	f32 best_score = 0.0f;
+	u32 count = darray_length(state->active_controls);
+	for (u32 i = 0; i < count; ++i) {
+		kui_control c = state->active_controls[i];
+		if (c.val == state->focused.val || !is_navigation_target(state, c)) {
+			continue;
+		}
+		vec2 to = control_centre(state, c);
+		f32 dx = to.x - from.x;
+		f32 dy = to.y - from.y;
+		f32 ahead = 0.0f;
+		f32 across = 0.0f;
+		switch (action) {
+		case KUI_NAV_UP:
+			ahead = -dy;
+			across = dx;
+			break;
+		case KUI_NAV_DOWN:
+			ahead = dy;
+			across = dx;
+			break;
+		case KUI_NAV_LEFT:
+			ahead = -dx;
+			across = dy;
+			break;
+		default:
+			ahead = dx;
+			across = dy;
+			break;
+		}
+		if (ahead <= 0.0f) {
+			continue;
+		}
+		f32 score = ahead + 2.0f * (across < 0 ? -across : across);
+		if (best.val == INVALID_KUI_CONTROL.val || score < best_score) {
+			best = c;
+			best_score = score;
+		}
+	}
+	return best;
+}
+
+b8 kui_system_navigate (kui_state *state, kui_nav_action action) {
+	b8 has_focus = state->focused.val != INVALID_KUI_CONTROL.val;
+	kui_base_control *focused = has_focus ? get_base(state, state->focused) : KNULL;
+
+	// A focused control gets the first say: a slider uses left and right itself.
+	if (focused && focused->on_navigate && focused->on_navigate(state, state->focused, action)) {
+		return true;
+	}
+
+	// A textbox keeps the arrows, enter and escape for typing; only moving on is left to the UI.
+	b8 typing = focused && focused->type == KUI_CONTROL_TYPE_TEXTBOX;
+
+	switch (action) {
+	case KUI_NAV_ACCEPT: {
+		if (!has_focus || typing || !focused->internal_click) {
+			return false;
+		}
+		// Press the centre, the same way a click would reach the control.
+		vec2 centre = control_centre(state, state->focused);
+		kui_mouse_event event = {
+			.mouse_button = MOUSE_BUTTON_LEFT,
+			.local_x = (i16)(focused->bounds.x + focused->bounds.width * 0.5f),
+			.local_y = (i16)(focused->bounds.y + focused->bounds.height * 0.5f),
+			.x = (i16)(centre.x * state->scale),
+			.y = (i16)(centre.y * state->scale),
+		};
+		kui_control target = state->focused;
+		focused->internal_click(state, target, event);
+		// A click elsewhere in the UI drops focus; keep it on the control that was pressed.
+		if (state->focused.val != target.val && is_navigation_target(state, target)) {
+			navigation_focus(state, target);
+		}
+		return true;
+	}
+	case KUI_NAV_CANCEL:
+		if (!has_focus || typing) {
+			return false;
+		}
+		clear_focus(state);
+		return true;
+	case KUI_NAV_NEXT:
+	case KUI_NAV_PREV: {
+		kui_control target = has_focus ? navigation_sequence(state, action == KUI_NAV_NEXT) : navigation_extreme(state, action == KUI_NAV_PREV);
+		if (target.val != INVALID_KUI_CONTROL.val) {
+			navigation_focus(state, target);
+		}
+		return target.val != INVALID_KUI_CONTROL.val;
+	}
+	default: {
+		if (typing) {
+			return false;
+		}
+		kui_control target = has_focus ? navigation_direction(state, action) : navigation_extreme(state, action == KUI_NAV_UP || action == KUI_NAV_LEFT);
+		if (target.val != INVALID_KUI_CONTROL.val) {
+			navigation_focus(state, target);
+		}
+		// With focus, the action is used up even at the edge, so an arrow key does not also move the game.
+		return has_focus || target.val != INVALID_KUI_CONTROL.val;
+	}
+	}
+}
+
+b8 kui_system_navigation_active (const kui_state *state) {
+	return state->focused.val != INVALID_KUI_CONTROL.val;
+}
+
+void kui_control_set_on_navigate (kui_state *state, kui_control self, PFN_navigate_callback callback) {
+	kui_base_control *base = get_base(state, self);
+	if (base) {
+		base->on_navigate = callback;
+	}
+}
+
+/** @brief The keyboard's way in. Arrow keys belong to the game until a control is focused; tab starts navigation. */
+static b8 kui_system_key_pressed (u16 code, void *sender, void *listener_inst, event_context context) {
+	kui_state *state = listener_inst;
+	u16 key = context.data.u16[0];
+	b8 shift = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
+
+	kui_nav_action action;
+	switch (key) {
+	case KEY_TAB:
+		action = shift ? KUI_NAV_PREV : KUI_NAV_NEXT;
+		break;
+	case KEY_UP:
+		action = KUI_NAV_UP;
+		break;
+	case KEY_DOWN:
+		action = KUI_NAV_DOWN;
+		break;
+	case KEY_LEFT:
+		action = KUI_NAV_LEFT;
+		break;
+	case KEY_RIGHT:
+		action = KUI_NAV_RIGHT;
+		break;
+	case KEY_ENTER:
+	case KEY_SPACE:
+		action = KUI_NAV_ACCEPT;
+		break;
+	case KEY_ESCAPE:
+		action = KUI_NAV_CANCEL;
+		break;
+	default:
+		return false;
+	}
+
+	if (state->focused.val == INVALID_KUI_CONTROL.val && action != KUI_NAV_NEXT && action != KUI_NAV_PREV) {
+		return false;
+	}
+	// Returning true keeps the key from also reaching the game.
+	return kui_system_navigate(state, action);
+}
+
+/** @brief Keeps the focus highlight over the control that navigation focused. */
+static void focus_ring_update (kui_state *state) {
+	b8 show = false;
+	kui_base_control *focused = 0;
+	if (state->focused.val != INVALID_KUI_CONTROL.val) {
+		focused = get_base(state, state->focused);
+		// A textbox draws its own focus.
+		show = focused->type != KUI_CONTROL_TYPE_TEXTBOX && FLAG_GET(focused->flags, KUI_CONTROL_FLAG_NAVIGABLE_BIT) && kui_control_is_visible(state, state->focused);
+	}
+	if (!show && state->focus_ring.val == INVALID_KUI_CONTROL.val) {
+		return;
+	}
+	if (state->focus_ring.val == INVALID_KUI_CONTROL.val) {
+		state->focus_ring = kui_panel_control_create(state, "__focus_ring__", (vec2){1, 1}, (vec4){1.0f, 0.8f, 0.2f, 0.35f});
+		kui_system_control_add_child(state, INVALID_KUI_CONTROL, state->focus_ring);
+		kui_control_set_flag(state, state->focus_ring, KUI_CONTROL_FLAG_CAN_MOUSE_INTERACT_BIT, false);
+	}
+	kui_control_set_is_visible(state, state->focus_ring, show);
+	if (show) {
+		const f32 margin = 3.0f;
+		vec2 position = control_layout_position(state, focused);
+		kui_control_position_set(state, state->focus_ring, (vec3){position.x + focused->bounds.x - margin, position.y + focused->bounds.y - margin, 0.0f});
+		kui_panel_control_resize(state, state->focus_ring, (vec2){focused->bounds.width + 2.0f * margin, focused->bounds.height + 2.0f * margin});
+	}
+}
+
 b8 kui_system_update (kui_state *state, struct frame_data *p_frame_data) {
 	if (!state || !state->running) {
 		return false;
@@ -322,6 +599,9 @@ b8 kui_system_update (kui_state *state, struct frame_data *p_frame_data) {
 		kui_base_control *c = get_base(state, handle);
 		c->update(state, handle, p_frame_data);
 	}
+
+	// After the loop: the first highlight creates a control.
+	focus_ring_update(state);
 
 	return true;
 }
@@ -613,6 +893,14 @@ void kui_base_control_destroy (kui_state *state, kui_control *self) {
 	if (!base) {
 		KWARN("base not found for release");
 		return;
+	}
+
+	// Nothing may keep pointing at a control that is going away.
+	if (state->focused.val == self->val) {
+		state->focused = INVALID_KUI_CONTROL;
+	}
+	if (state->focus_ring.val == self->val) {
+		state->focus_ring = INVALID_KUI_CONTROL;
 	}
 
 	if (base->name) {
@@ -2361,11 +2649,33 @@ static b8 agent_cmd_ui_reference_size (const agent_request *request, agent_reply
 	return true;
 }
 
+static b8 agent_cmd_ui_navigate (const agent_request *request, agent_reply *reply, void *listener) {
+	kui_state *state = listener;
+	static const char *names[KUI_NAV_ACTION_COUNT] = {"up", "down", "left", "right", "next", "prev", "accept", "cancel"};
+	const char *action_name = 0;
+	if (!agent_request_string_get(request, "action", &action_name)) {
+		agent_reply_error(reply, "needs \"action\": up, down, left, right, next, prev, accept or cancel");
+		return false;
+	}
+	for (u32 i = 0; i < KUI_NAV_ACTION_COUNT; ++i) {
+		if (strings_equal(action_name, names[i])) {
+			agent_reply_bool_add(reply, "used", kui_system_navigate(state, (kui_nav_action)i));
+			if (state->focused.val != INVALID_KUI_CONTROL.val) {
+				agent_reply_string_add(reply, "focused", get_base(state, state->focused)->name);
+			}
+			return true;
+		}
+	}
+	agent_reply_error(reply, "unknown action; use up, down, left, right, next, prev, accept or cancel");
+	return false;
+}
+
 static void agent_commands_register (kui_state *state) {
 	agent_command_register("ui_controls", "Lists UI controls with name, type, screen rect, visibility, focus and text. {\"visible_only\": true} skips hidden ones.", state, agent_cmd_ui_controls);
 	agent_command_register("ui_click", "Clicks a UI control by name: {\"control\": \"ok_button\"}.", state, agent_cmd_ui_click);
 	agent_command_register("ui_value_set", "Sets a slider's or progress bar's value (clamped, and snapped to a slider's step): {\"control\", \"value\"}. Replies with the value that took.", state, agent_cmd_ui_value_set);
 	agent_command_register("ui_screen_size", "Tells the UI the window size, as a resize would: {\"width\", \"height\"} in pixels. Anchored controls move. Replies with the UI scale.", state, agent_cmd_ui_screen_size);
 	agent_command_register("ui_reference_size", "Designs the UI for a size and scales it to fit the window: {\"width\", \"height\"}; 0 and 0 turns scaling off. Replies with the UI scale.", state, agent_cmd_ui_reference_size);
+	agent_command_register("ui_navigate", "Presses a navigation key in the UI: {\"action\": \"up\"|\"down\"|\"left\"|\"right\"|\"next\"|\"prev\"|\"accept\"|\"cancel\"}. Replies with whether the UI used it and the focused control.", state, agent_cmd_ui_navigate);
 	agent_command_register("ui_text_set", "Sets a textbox's text: {\"control\", \"text\"}.", state, agent_cmd_ui_text_set);
 }

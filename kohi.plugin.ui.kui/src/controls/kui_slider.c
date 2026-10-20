@@ -13,6 +13,7 @@
 
 static b8 on_mouse_down (struct kui_state *state, kui_control self, struct kui_mouse_event event);
 static b8 on_mouse_drag (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 on_navigate (struct kui_state *state, kui_control self, kui_nav_action action);
 static void value_from_local_x (kui_state *state, kui_control self, i16 local_x);
 static void layout (kui_state *state, kui_slider_control *typed_data);
 static f32 snap (const kui_slider_control *typed_data, f32 value);
@@ -41,6 +42,8 @@ kui_control kui_slider_create (kui_state *state, const char *name, vec2 size, f3
 	base->on_mouse_down = on_mouse_down;
 	base->on_click = on_mouse_down; // A click that never reached mouse down, such as the agent's, still sets the value.
 	base->on_mouse_drag = on_mouse_drag;
+	base->on_navigate = on_navigate;
+	FLAG_SET(base->flags, KUI_CONTROL_FLAG_NAVIGABLE_BIT, true);
 
 	typed_data->min = min;
 	typed_data->max = max;
@@ -140,5 +143,14 @@ static b8 on_mouse_down (struct kui_state *state, kui_control self, struct kui_m
 
 static b8 on_mouse_drag (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	value_from_local_x(state, self, event.local_x);
+	return false;
+}
+
+// Left and right move the value; up and down are left to move focus.
+static b8 on_navigate (struct kui_state *state, kui_control self, kui_nav_action action) {
+	if (action == KUI_NAV_LEFT || action == KUI_NAV_RIGHT) {
+		kui_slider_value_adjust(state, self, action == KUI_NAV_LEFT ? -1 : 1);
+		return true;
+	}
 	return false;
 }

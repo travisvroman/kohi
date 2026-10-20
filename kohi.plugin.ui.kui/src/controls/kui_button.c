@@ -124,6 +124,7 @@ kui_control kui_button_control_create_with_text (kui_state *state, const char *n
 	kui_button_control *typed_data = (kui_button_control *)base;
 
 	typed_data->button_type = KUI_BUTTON_TYPE_TEXT;
+	FLAG_SET(base->flags, KUI_CONTROL_FLAG_NAVIGABLE_BIT, true);
 
 	// Add a label control.
 	char *buffer = string_format("%s_text_label", name);
