@@ -262,9 +262,6 @@ void openal_backend_shutdown (kaudio_backend_interface *backend) {
 				openal_backend_channel_destroy(backend, &backend->internal_state->sources[i]);
 			}
 
-			// Give the threads a bit to stop.
-			platform_sleep(100);
-
 			kfree(backend->internal_state->sources);
 			backend->internal_state->sources = KNULL;
 
@@ -933,16 +930,26 @@ static b8 openal_backend_channel_create (kaudio_backend_interface *backend, kaud
 	ksource_work_thread_params *params = kallocate(sizeof(ksource_work_thread_params), MEMORY_TAG_AUDIO);
 	params->source = out_source;
 	params->backend = backend;
-	kthread_create(source_work_thread, params, true, &out_source->thread);
+	// Not auto-detached, so channel destruction can wait for the thread to exit.
+	kthread_create(source_work_thread, params, false, &out_source->thread);
 
 	return true;
 }
 
 static void openal_backend_channel_destroy (kaudio_backend_interface *backend, kaudio_plugin_source *source) {
 	if (backend && source) {
+		// Ask the worker thread to exit and wait for it before destroying the mutex it uses.
+		// Destroying the mutex first (the old order) let the thread lock freed memory and crash
+		// roughly one shutdown in eight.
+		if (source->data_mutex.internal_data) {
+			kmutex_lock(&source->data_mutex);
+			source->trigger_exit = true;
+			kmutex_unlock(&source->data_mutex);
+		}
+		kthread_wait(&source->thread);
+
 		alDeleteSources(1, &source->id);
 		kmutex_destroy(&source->data_mutex);
-		kthread_destroy(&source->thread);
 		kzero_memory(source, sizeof(kaudio_plugin_source));
 		source->id = INVALID_ID;
 	}
