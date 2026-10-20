@@ -69,3 +69,13 @@ Agents run many instances at once (search, training, testing).
 - [ ] Navigation: navmesh generation and pathfinding (for example Recast/Detour).
 - [ ] Save/load of game state, built on the snapshot work in phase 2.
 - [ ] Gameplay scripting that agents can write and hot-reload safely.
+- [ ] Immediate-mode 2D layer: rects, rounded rects, lines, circles, textured quads, nine-slice, text with measure, and scissor clipping, drawn each frame beside KUI (KUI stays as it is). Needs a draw order between the two, a shared "pointer is over a control" answer for input, and one font atlas. Ascended Tower draws all its screens this way.
+
+## 7. Reference game: Ascended Tower
+
+Ascended Tower (Odin, raylib) is the reference game for proving the engine. Its simulation is engine-independent and stays in Odin behind a thin C shim with a flat API. Order of work:
+
+- [ ] Slice 0, headless: the engine calls the Odin `game.step` from `application_fixed_update`; game commands on the agent channel (load zone, move, cast, state); a simulation state hash checked next to the physics hash in CI determinism.
+- [ ] Slice 1, Lowfield seen: asset manifest generator, coloured primitives with per-instance tint, tilted orthographic camera with shadows (spike first), frame capture so an agent can look at it.
+- [ ] Slice 2, one fight with a HUD: the immediate-mode 2D layer above.
+- [ ] Later: pose-set API for skinned models (bone limit is 64), custom shader hook and water, fullscreen/borderless/monitor window state, SSAO/FXAA as general post-processing.
