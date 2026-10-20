@@ -11,6 +11,7 @@ The phases are in priority order. Each one builds on the one before it.
 - [x] OpenAL shutdown crash fixed (#2).
 - [x] Physics system with a Jolt backend: rigid bodies, scene entities, raycasts, deterministic state save/restore/hash (#3).
 - [x] Release builds work again from a clean tree (#3).
+- [x] CI on Linux and Windows, passing test suites, fork versioning and an agent guide (#4).
 
 ## 1. Agent API
 
@@ -47,18 +48,18 @@ Agents run many instances at once (search, training, testing).
 - [ ] Upstream #271: `u32_bst_delete`/`u64_bst_delete` copy the key instead of the value, and callers ignore the returned root (leaves `scene->name_lookup` dangling).
 - [ ] Upstream #281: segfault when assets are missing; it should fail with an error.
 - [ ] OpenAL `openal_backend_find_free_buffer`: indexes `sources[i - 1]` starting at `i = 0`, loops over the buffer count instead of the source count, and unqueues several buffers into one `ALuint`. Only hit once all buffers are in use.
-- [ ] `kohi.core.tests` segfaults after the first test.
 - [ ] Vulkan fails on lavapipe (software Vulkan) with `VK_ERROR_OUT_OF_HOST_MEMORY` from the custom allocator.
 - [ ] `prepare_frame` failure skips the frame without ending the open command list.
 
 ## 5. Release hygiene
 
-- [ ] CI on Linux and Windows: build debug and release from clean, run unit tests, run the headless demo and check its physics hash.
-- [ ] Make the existing test suites pass and add tests for new systems (sim clock, physics).
-- [ ] Windows: port `build_jolt.sh` (or use CMake directly) and test the Jolt plugin build.
+- [x] CI on Linux and Windows: build debug and release from clean, run unit tests, run the headless demo and check its physics hash.
+- [x] Make the existing test suites pass.
+- [ ] Add tests for new systems (physics; the sim clock has some).
+- [x] Windows: port `build_jolt.sh` and build the Jolt plugin in CI.
 - [ ] Build: rebuild when the build type changes (debug and release objects currently mix unless you run `make clean`).
-- [ ] Versioning and changelog for the fork.
-- [ ] Docs for agents: a single page on how to run headless, control a run, and read results.
+- [x] Versioning and changelog for the fork ([CHANGELOG-AI.md](CHANGELOG-AI.md)).
+- [x] Docs for agents ([AGENTS.md](AGENTS.md)); extend it as the agent API lands.
 
 ## 6. Game features
 
