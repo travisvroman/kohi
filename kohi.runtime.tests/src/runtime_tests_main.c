@@ -6,6 +6,7 @@
 #include "renderer/png_writer_tests.h"
 #include "test_manager.h"
 #include "world/kscene_tests.h"
+#include "world/nav_grid_tests.h"
 
 int main (void) {
 	// Anything under test may allocate through kallocate, so the memory system must exist first.
@@ -18,6 +19,7 @@ int main (void) {
 	test_manager_init();
 
 	kscene_register_tests();
+	nav_grid_register_tests();
 	sim_clock_register_tests();
 	save_game_register_tests();
 	png_writer_register_tests();

@@ -31,6 +31,7 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - KUI anchoring and resolution-independent layout: `kui_control_anchor_set` places a control relative to its parent, `kui_system_screen_size_set` and `kui_system_reference_size_set` (agent commands `ui_screen_size`, `ui_reference_size`) scale the whole UI to fit the window; `scripts/ui_layout_check.py` runs in CI (#17).
 - KUI keyboard navigation: tab, arrows, enter/space and escape move focus and press controls (`kui_system_navigate`, which a gamepad layer can call too), with a focus highlight. Buttons with text, checkboxes and sliders are navigable; a slider uses left and right. Agent command `ui_navigate`; `scripts/ui_navigation_check.py` runs in CI (#18).
 - KUI list and dropdown controls (`kui_list_create`, `kui_dropdown_create`) that work with the mouse, the wheel and keyboard navigation; the agent command `ui_select` picks an item and `ui_controls` lists `selected`, `items` and `open`; `scripts/ui_select_check.py` runs in CI
+- Grid pathfinding: `nav_grid` with deterministic A* (`world/nav_grid.h`), unit tests, agent commands `nav_path` and `nav_block` for the grid the application registers (the testbed has a demo grid), and `scripts/nav_path_check.py` in CI
 
 ### Fixed
 - The Vulkan renderer failed on lavapipe with `VK_ERROR_OUT_OF_HOST_MEMORY`: the custom allocator returned null for zero-size requests, which Mesa makes for empty barrier arrays (#14).

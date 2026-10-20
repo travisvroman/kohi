@@ -42,6 +42,7 @@
 #include <time/kclock.h>
 #include <time/time_utils.h>
 #include <world/kscene.h>
+#include <world/nav_grid.h>
 #include <physics/kphysics_system.h>
 
 // Standard UI.
@@ -130,6 +131,9 @@ static b8 demo_button_clicked (struct kui_state *state, kui_control self, struct
 static void demo_slider_changed (kui_state *state, kui_control self, kui_slider_event event) {
 	kui_progress_bar_value_set(state, demo_progress_bar, event.value / 10.0f);
 }
+
+// A 20 x 20 navigation grid for agents to path over: a wall down the middle with a gap at the bottom.
+static nav_grid *demo_nav_grid;
 
 // Choosing a level sets the slider to 0, 5 or 10, which in turn moves the bar.
 static void demo_level_selected (kui_state *state, kui_control self, kui_list_event event) {
@@ -333,6 +337,10 @@ b8 application_initialize (struct application *app) {
 		}
 		kui_dropdown_set_on_selected(ui, demo_dropdown, demo_level_selected);
 		kui_dropdown_selected_set(ui, demo_dropdown, 1);
+
+		demo_nav_grid = nav_grid_create(20, 20, 1.0f, -10.0f, -10.0f);
+		nav_grid_blocked_rect_set(demo_nav_grid, 10, 0, 1, 18, true);
+		nav_grid_agent_commands_register(demo_nav_grid);
 	}
 
 	return true;
@@ -917,6 +925,8 @@ void application_on_action (struct application *app_inst, u32 action_code) {
 
 void application_shutdown (struct application *app) {
 	app->state->running = false;
+	nav_grid_destroy(demo_nav_grid);
+	demo_nav_grid = 0;
 	KINFO("Testbed ran %llu fixed simulation steps.", app->state->fixed_update_count);
 	if (engine_systems_get()->physics_system) {
 		// Two runs with the same config should print the same hash.
