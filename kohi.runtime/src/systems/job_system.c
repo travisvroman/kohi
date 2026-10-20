@@ -251,16 +251,16 @@ void job_system_shutdown (void *state) {
 
 		u64 thread_count = state_ptr->thread_count;
 
-		// Check for a free thread first.
+		// Wake every thread so it sees running == false, then wait for it to exit. Joining
+		// (instead of cancelling) lets each thread finish its current job and destroy its own
+		// semaphore before the job system's memory goes away.
 		for (u8 i = 0; i < thread_count; ++i) {
 			ksemaphore_signal(&state_ptr->job_threads[i].semaphore);
-			kthread_destroy(&state_ptr->job_threads[i].thread);
-			// Give it a bit.
-			/* kthread_sleep(&state_ptr->job_threads[i].thread, 100); */
 		}
-
-		// Wait for the threads to finish.
-		platform_sleep(100);
+		for (u8 i = 0; i < thread_count; ++i) {
+			kthread_wait(&state_ptr->job_threads[i].thread);
+			kthread_destroy(&state_ptr->job_threads[i].thread);
+		}
 		ring_queue_destroy(&state_ptr->low_priority_queue);
 		ring_queue_destroy(&state_ptr->normal_priority_queue);
 		ring_queue_destroy(&state_ptr->high_priority_queue);

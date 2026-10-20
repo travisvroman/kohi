@@ -34,17 +34,20 @@ typedef struct bt_node {
  * @param root A pointer to the root node.
  * @param key The key to be inserted.
  * @param value The value to be inserted. NOTE: The BST does NOT take its own copy of this data.
- * @returns A pointer to the inserted node. This should be saved off if creating the root node.
+ * If the key already exists, the tree is left unchanged.
+ * @returns The root of the tree, which is the new node when root was null. Store it back:
+ * root = insert(root, key, value).
  */
 KAPI bt_node *u64_bst_insert (bt_node *root, u64 key, bt_node_value value);
 
 /**
- * Attempts to delete a node with the given key from the tree.
- * This should be cleaned up by the caller.
+ * Deletes the node with the given key from the tree, if there is one, and frees it.
+ * Values are not freed; free any owned value (such as a string) before deleting.
  *
- * @param root A pointer to the node to begin the search from.
+ * @param root A pointer to the root node.
  * @param key The key to be deleted.
- * @returns A pointer to the deleted key, if found; otherwise 0.
+ * @returns The new root of the tree, which changes when the root node is deleted and is null
+ * once the tree is empty. Always store it back: root = delete(root, key).
  */
 KAPI bt_node *u64_bst_delete (bt_node *root, u64 key);
 

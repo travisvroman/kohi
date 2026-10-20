@@ -3,6 +3,7 @@
 
 #include "containers/array_tests.h"
 #include "containers/binary_string_table_tests.h"
+#include "containers/bst_tests.h"
 #include "containers/darray_tests.h"
 #include "containers/freelist_tests.h"
 #include "containers/hashtable_tests.h"
@@ -33,6 +34,7 @@ int main (void) {
 	linear_allocator_register_tests();
 	hashtable_register_tests();
 	freelist_register_tests();
+	bst_register_tests();
 	dynamic_allocator_register_tests();
 
 	KDEBUG("Starting tests...");

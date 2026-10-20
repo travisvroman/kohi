@@ -40,7 +40,7 @@ kname kname_create (const char *str) {
 		value.str = string_duplicate(str);
 		bt_node *inserted = u64_bst_insert(string_lookup, name, value);
 		if (!inserted) {
-			KERROR("Failed to save kname string '%s' to global lookup table.");
+			KERROR("Failed to save kname string '%s' to global lookup table.", str);
 		} else if (!string_lookup) {
 			string_lookup = inserted;
 		}

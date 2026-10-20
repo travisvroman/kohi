@@ -17,6 +17,7 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - Physics system with a Jolt backend: rigid bodies, raycasts, deterministic state save, restore and hash (#3).
 - CI on Linux and Windows: debug and release builds, unit tests, and a headless run checked against a known physics hash (#4).
 - `AGENTS.md`: how agents build, run and read results (#4).
+- Several engine processes can run at once: job semaphores are process-local, and `--log <path>` or `log_file` sets the log file (#7).
 
 ### Fixed
 - OpenAL shutdown crash (#2).
@@ -26,3 +27,4 @@ Changes in this fork (Raudlauk/Claude-kohi, branch `ai/main`) on top of upstream
 - `dynamic_allocator_header_size` ignored the debug memory guards (#4).
 - Windows builds again: `platform_win32.c` compile errors, a parallel-make link race, a dangling pointer in `kthread_create` that crashed on startup, and log output lost when stdout is redirected (#4).
 - The headless testbed gives the same physics hash on GNU/Linux and Windows (#4).
+- BST delete lost values and left lookup roots dangling (upstream #271); the engine refuses to start when assets are missing, and exits 1 instead of SIGTRAP when start fails (upstream #281); OpenAL buffers are returned on unload and no longer handed to two owners (#7).

@@ -388,12 +388,6 @@ assets = [
 		source_path = "./assets/music/source/Woodland Fantasy.mp3"
 	}
 	{
-		name = "Woodland Fantasy mono"
-		type = "audio"
-		path = "./assets/music/Woodland Fantasy mono.kaf"
-		source_path = "./assets/music/source/Woodland Fantasy mono.mp3"
-	}
-	{
 		name = "FireLoop"
 		type = "audio"
 		path = "./assets/music/FireLoop.kaf"
@@ -418,12 +412,6 @@ assets = [
 		source_path = "./assets/sounds/source/Test.ogg"
 	}
 	{
-		name = "Unlock"
-		type = "audio"
-		path = "./assets/sounds/Unlock.kaf"
-		source_path = "./assets/sounds/source/Unlock.ogg"
-	}
-	{
 		name = "test_scene"
 		type = "scene"
 		path = "./assets/scenes/test_scene.ksn"
@@ -436,7 +424,7 @@ assets = [
 	{
 		name = "test_terrain"
 		type = "hm_terrain"
-		path = "./assets/terrains/test_terrain.ktn"
+		path = "./assets/terrains/test_terrain.kht"
 	}
 	{
 		name = "background"

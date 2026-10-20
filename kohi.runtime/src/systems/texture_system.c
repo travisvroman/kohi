@@ -1146,10 +1146,7 @@ static ktexture texture_get_new (kname name) {
 
 			// Insert into the lookup tree.
 			bt_node_value val = {.u16 = i};
-			bt_node *new_node = u64_bst_insert(state_ptr->texture_name_lookup, name, val);
-			if (!state_ptr->texture_name_lookup) {
-				state_ptr->texture_name_lookup = new_node;
-			}
+			state_ptr->texture_name_lookup = u64_bst_insert(state_ptr->texture_name_lookup, name, val);
 
 			// Start reference count at 1.
 			state_ptr->texture_reference_counts[i] = 1;
@@ -1186,7 +1183,7 @@ static void texture_cleanup (ktexture t, b8 clear_references) {
 		}
 
 		// remove name from the lookup.
-		u64_bst_delete(state_ptr->texture_name_lookup, state_ptr->names[t]);
+		state_ptr->texture_name_lookup = u64_bst_delete(state_ptr->texture_name_lookup, state_ptr->names[t]);
 
 		state_ptr->types[t] = 0;
 		state_ptr->widths[t] = 0;

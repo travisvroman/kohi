@@ -55,7 +55,9 @@ u32_bst_node *u32_bst_delete (u32_bst_node *root, u32 key) {
 			return temp;
 		} else {
 			u32_bst_node *temp = find_min(root->right);
+			// Move the successor's key and value into this node, then delete the successor.
 			root->key = temp->key;
+			root->value = temp->value;
 			root->right = u32_bst_delete(root->right, temp->key);
 		}
 	}

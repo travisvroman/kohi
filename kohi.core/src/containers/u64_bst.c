@@ -55,7 +55,9 @@ bt_node *u64_bst_delete (bt_node *root, u64 key) {
 			return temp;
 		} else {
 			bt_node *temp = find_min(root->right);
+			// Move the successor's key and value into this node, then delete the successor.
 			root->key = temp->key;
+			root->value = temp->value;
 			root->right = u64_bst_delete(root->right, temp->key);
 		}
 	}

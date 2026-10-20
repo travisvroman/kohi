@@ -56,6 +56,20 @@ b8 vfs_initialize (u64 *memory_requirement, vfs_state *state, const vfs_config *
 
 	kpackage_manifest_destroy(&manifest);
 
+	// Fail at startup when asset files are missing, instead of running with broken assets.
+	u32 missing_count = 0;
+	u32 package_count = darray_length(state->packages);
+	for (u32 i = 0; i < package_count; ++i) {
+		missing_count += kpackage_missing_asset_count(&state->packages[i]);
+	}
+	if (missing_count) {
+		KERROR("%u asset file(s) are missing; see the errors above. If assets have not been imported, run "
+			   "import-updated-assets.sh (Linux/macOS) or import-updated-assets.bat (Windows) from the "
+			   "repository root, then start again.",
+			   missing_count);
+		return false;
+	}
+
 	return true;
 }
 
@@ -508,14 +522,16 @@ static b8 process_manifest_refs (vfs_state *state, const asset_manifest *manifes
 			asset_manifest new_manifest = {0};
 			const char *manifest_file_path = string_format("%sasset_manifest.kson", ref->path);
 			b8 manifest_result = kpackage_parse_manifest_file_content(manifest_file_path, &new_manifest);
-			string_free(manifest_file_path);
 			if (!manifest_result) {
-				KERROR("Failed to parse asset manifest. See logs for details.");
+				KERROR("Failed to parse asset manifest '%s'. See logs for details.", manifest_file_path);
+				string_free(manifest_file_path);
 				return false;
 			}
 
 			kpackage package = {0};
-			if (!kpackage_create_from_manifest(manifest_file_path, &new_manifest, &package)) {
+			b8 package_result = kpackage_create_from_manifest(manifest_file_path, &new_manifest, &package);
+			string_free(manifest_file_path);
+			if (!package_result) {
 				KERROR("Failed to create package from asset manifest. See logs for details.");
 				return false;
 			}
