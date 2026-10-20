@@ -483,8 +483,10 @@ typedef struct kthread_work_info {
 } kthread_work_info;
 
 static DWORD kthread_do_work (void *params) {
-	kthread_work_info *info = params;
-	if (!info->start(info->params)) {
+	// Copy and free the heap-allocated info from kthread_create before running the thread.
+	kthread_work_info info = *(kthread_work_info *)params;
+	kfree(params);
+	if (!info.start(info.params)) {
 		KERROR("Failed to start kthread due to failure in user callback. Check logs for details");
 		// Nonzero exit code indicates failure.
 		return 1;
@@ -500,18 +502,21 @@ b8 kthread_create (pfn_thread_start start_function_ptr, void *params, b8 auto_de
 		return false;
 	}
 
-	kthread_work_info info = {
-		.params = params,
-		.start = start_function_ptr};
+	// Heap-allocated because the new thread can start after this function returns; it is
+	// freed by kthread_do_work.
+	kthread_work_info *info = KALLOC_TYPE(kthread_work_info, MEMORY_TAG_PLATFORM);
+	info->params = params;
+	info->start = start_function_ptr;
 	out_thread->internal_data = CreateThread(
 		0,
 		0,										 // Default stack size
 		(LPTHREAD_START_ROUTINE)kthread_do_work, // function ptr
-		&info,									 // param to pass to thread
+		info,									 // param to pass to thread
 		0,
 		(DWORD *)&out_thread->thread_id);
 	/* KDEBUG("Starting process on thread id: %#x", out_thread->thread_id); */
 	if (!out_thread->internal_data) {
+		kfree(info);
 		return false;
 	}
 	if (auto_detach) {
