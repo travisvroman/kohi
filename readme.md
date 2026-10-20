@@ -247,6 +247,7 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `ui_screen_size` | `width`, `height` | Tells the UI the window size, as a resize would, so anchored controls move. Replies with the UI `scale`. |
 | `ui_reference_size` | `width`, `height` | Designs the UI for that size and scales it to fit the window; `0` and `0` turns scaling off. Replies with the `scale`. `ui_controls` rects are in pixels and include the scale. |
 | `ui_navigate` | `action` (`up`, `down`, `left`, `right`, `next`, `prev`, `accept`, `cancel`) | Presses a navigation key in the UI. Replies with `used` and the `focused` control. See [UI navigation](#ui-navigation). |
+| `ui_select` | `control`, `index` | Selects an item in a list or dropdown (`-1` for none). A dropdown also closes and fires its callback. `ui_controls` lists `selected` and `items` for these controls, and `open` for a dropdown. |
 | `ui_value_set` | `control`, `value` | Sets a slider or progress bar value. A slider clamps it to its range and snaps it to its step; the reply has the value that took. `ui_controls` lists `value` for these controls. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `scene_summary` | `scene` (optional) | A plain-text description for agents that cannot see images: entity counts by type, the 3D cameras in use, and every entity (up to 200) with world position and, for physics bodies, motion type, speed and whether it is awake. |
@@ -272,6 +273,12 @@ Tab and shift-tab focus the next or previous control in reading order. While a c
 `kui_system_navigate(state, KUI_NAV_UP ...)` is the same logic without the keyboard. The engine has no gamepad input yet; when it does, map the d-pad to the four directions, A to accept and B to cancel. A control can take an action first with `kui_control_set_on_navigate`.
 
 KUI sees keys only after the engine's keymaps and polled input have, so it cannot keep them from the game. While `kui_system_navigation_active` is true, the game should ignore the arrows, enter, space and escape; the testbed does, so escape drops focus before it quits and the arrows do not push the ball.
+
+### Lists and dropdowns
+
+`kui_list_create(state, name, width, visible_rows, font_type, font_name, font_size)` is a list of text items. Click one to select it, or focus the list by navigation and use up and down (the list gives focus back at either end) and accept to activate. The wheel scrolls a list with more items than rows. `kui_list_item_add`, `kui_list_selected_set` and the `selected` and `activated` callbacks are in `kui_list.h`.
+
+`kui_dropdown_create` is a header that shows the chosen item and opens a list below it. Clicking an item, or accept on the highlighted one, chooses it, closes the list and calls the `selected` callback; escape or a click elsewhere closes it unchosen. The open list is drawn over the controls behind it, but KUI draws text after all panels, so text of a control underneath still shows through: keep the area below a dropdown free.
 
 ### Save games
 

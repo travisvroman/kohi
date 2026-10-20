@@ -50,20 +50,24 @@ def main():
         expect("cancel with no focus", navigate("cancel")["used"], False)
         expect("accept with no focus", navigate("accept")["used"], False)
 
-        # Tab order is reading order: slider, button, checkbox, then around again.
-        order = [navigate("next")["focused"] for _ in range(4)]
-        expect("next order", order, ["demo_slider", "demo_button", "demo_checkbox", "demo_slider"])
-        expect("prev wraps", navigate("prev")["focused"], "demo_checkbox")
+        # Tab order is reading order: slider, button, checkbox, dropdown, list, then around again.
+        order = [navigate("next")["focused"] for _ in range(6)]
+        expect("next order", order, ["demo_slider", "demo_button", "demo_checkbox", "demo_dropdown", "demo_list", "demo_slider"])
+        expect("prev wraps", navigate("prev")["focused"], "demo_list")
+        navigate("prev")
+        expect("back to checkbox", navigate("prev")["focused"], "demo_checkbox")
 
         # Directions go to the nearest control that way and stop at the edge.
         expect("up", navigate("up")["focused"], "demo_button")
         expect("up again", navigate("up")["focused"], "demo_slider")
         expect("up at the edge is used up", navigate("up")["used"], True)
         expect("still on slider", navigate("up")["focused"], "demo_slider")
-        expect("down", navigate("down")["focused"], "demo_button")
+        # Down goes to the nearest control in line with it: the dropdown sits under the slider, the narrower button does not.
+        expect("down", navigate("down")["focused"], "demo_dropdown")
 
         # Left and right on a focused slider change its value instead of moving focus.
-        navigate("up")
+        for _ in range(3):
+            navigate("prev")
         navigate("right")
         navigate("right")
         expect("slider after two rights", control("demo_slider")["value"], 7)
@@ -71,11 +75,11 @@ def main():
         expect("slider after a left", control("demo_slider")["value"], 6)
 
         # Accept presses the focused control: the button resets the slider, the checkbox toggles.
-        navigate("down")
+        navigate("next")
         navigate("accept")
         expect("reset by accept", control("demo_slider")["value"], 5)
         expect("focus kept after accept", control("demo_button")["focused"], True)
-        navigate("down")
+        navigate("next")
         before = control("demo_checkbox")["checked"]
         navigate("accept")
         expect("checkbox toggled", control("demo_checkbox")["checked"], not before)
@@ -90,10 +94,13 @@ def main():
         press("tab")
         expect("tab focuses the first control", focused(), ["demo_slider"])
         press("down")
-        expect("down arrow", focused(), ["demo_button"])
-        press("tab")
-        press("tab")
+        expect("down arrow", focused(), ["demo_dropdown"])
+        for _ in range(2):
+            press("tab")
         expect("tab wraps", focused(), ["demo_slider"])
+        press("tab", shift=True)
+        expect("shift-tab wraps backwards", focused(), ["demo_list"])
+        press("tab", shift=True)
         press("tab", shift=True)
         expect("shift-tab goes back", focused(), ["demo_checkbox"])
         press("space")
