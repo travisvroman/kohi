@@ -1,0 +1,206 @@
+name: CI
+
+on:
+  push:
+    branches: [ai/main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Physics state hash after 600 headless steps of the testbed scene. Update it in the
+  # same PR when a change to the scene or the simulation changes it on purpose.
+  EXPECTED_PHYSICS_HASH: ec2e3122759e69de
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.config }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [debug, release]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-19 cmake libx11-dev libx11-xcb-dev libxkbcommon-x11-dev \
+            libdbus-1-dev libopenal-dev libassimp-dev libvulkan-dev libshaderc-dev libstdc++-14-dev
+          # The Makefiles call plain `clang` and need clang >= 19.
+          mkdir -p "$HOME/clang-bin"
+          ln -sf /usr/bin/clang-19 "$HOME/clang-bin/clang"
+          ln -sf /usr/bin/clang++-19 "$HOME/clang-bin/clang++"
+          echo "$HOME/clang-bin" >> "$GITHUB_PATH"
+
+      - name: Vulkan SDK stand-in
+        run: |
+          source .github/scripts/linux-vulkan-shim.sh
+          echo "VULKAN_SDK=$VULKAN_SDK" >> "$GITHUB_ENV"
+
+      - name: Cache Jolt
+        uses: actions/cache@v6
+        with:
+          path: vendor/jolt
+          key: jolt-linux-${{ hashFiles('kohi.plugin.physics.jolt/deps/**') }}
+
+      - name: Build Jolt
+        run: |
+          if [ ! -f vendor/jolt/lib/libjoltc.so ]; then make getdeps-jolt; fi
+
+      - name: Build (${{ matrix.config }})
+        run: |
+          make scaffold utils-${{ matrix.config }} copy-utils
+          make build-${{ matrix.config }} -j"$(nproc)"
+
+      - name: Unit tests
+        working-directory: bin
+        run: |
+          ./kohi.core.tests
+          ./kohi.runtime.tests
+
+      - name: Import assets
+        run: ./import-updated-assets.sh
+
+      - name: Headless smoke run
+        run: .github/scripts/headless-smoke.sh "$EXPECTED_PHYSICS_HASH"
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-${{ matrix.config }}-logs
+          path: |
+            bin/*.log
+            vendor/jolt/src/*.log
+          if-no-files-found: ignore
+
+  windows:
+    name: Windows (${{ matrix.config }})
+    runs-on: windows-2025
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [debug, release]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install tools
+        run: |
+          choco install make ninja --no-progress -y
+          clang --version
+
+      - name: Install Vulkan SDK
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          install_runtime: false
+          cache: true
+
+      - name: Install OpenAL Soft
+        # The Makefiles expect the OpenAL 1.1 SDK layout; OpenAL Soft fits it and has a null backend.
+        run: |
+          $version = "1.25.2"
+          Invoke-WebRequest "https://github.com/kcat/openal-soft/releases/download/$version/openal-soft-$version-bin.zip" -OutFile openal.zip
+          Expand-Archive openal.zip -DestinationPath $env:RUNNER_TEMP
+          $src = "$env:RUNNER_TEMP\openal-soft-$version-bin"
+          $sdk = "C:\Program Files (x86)\OpenAL 1.1 SDK"
+          New-Item -ItemType Directory -Force "$sdk\include", "$sdk\libs\Win64", "$env:RUNNER_TEMP\openal-bin" | Out-Null
+          Copy-Item "$src\include\AL\*" "$sdk\include"
+          Copy-Item "$src\libs\Win64\OpenAL32.lib" "$sdk\libs\Win64"
+          Copy-Item "$src\bin\Win64\soft_oal.dll" "$env:RUNNER_TEMP\openal-bin\OpenAL32.dll"
+
+      # Restore and save are split so a later failing step does not throw away a slow build.
+      - name: Restore assimp
+        id: assimp-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: C:\assimp
+          key: assimp-vcpkg-windows-2025-v1
+
+      - name: Build assimp (vcpkg)
+        if: steps.assimp-cache.outputs.cache-hit != 'true'
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install assimp:x64-windows-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installed = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-release"
+          New-Item -ItemType Directory -Force C:\assimp\lib\x64, C:\assimp\bin\x64 | Out-Null
+          Copy-Item -Recurse "$installed\include" C:\assimp\include
+          # kohi.plugin.utils links -lassimp-vc143-mt; the import library still names the real DLL.
+          $lib = Get-ChildItem "$installed\lib\assimp-vc*-mt.lib" | Select-Object -First 1
+          Copy-Item $lib.FullName C:\assimp\lib\x64\assimp-vc143-mt.lib
+          Copy-Item "$installed\bin\*.dll" C:\assimp\bin\x64
+
+      - name: Save assimp
+        if: steps.assimp-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: C:\assimp
+          key: assimp-vcpkg-windows-2025-v1
+
+      - name: Restore Jolt
+        id: jolt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: vendor/jolt
+          key: jolt-windows-${{ hashFiles('kohi.plugin.physics.jolt/deps/**') }}
+
+      - name: Build Jolt
+        if: steps.jolt-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: ./kohi.plugin.physics.jolt/deps/build_jolt.sh || { cat vendor/jolt/src/*.log; exit 1; }
+
+      - name: Save Jolt
+        if: steps.jolt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: vendor/jolt
+          key: jolt-windows-${{ hashFiles('kohi.plugin.physics.jolt/deps/**') }}
+
+      - name: Build (${{ matrix.config }})
+        run: |
+          # The Makefiles use cmd syntax, so make must not find Git's sh.exe on PATH.
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch '\\Git\\(usr\\)?bin' }) -join ';'
+          $env:ASSIMP = "C:\assimp"
+          make scaffold utils-${{ matrix.config }} copy-utils
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          make build-${{ matrix.config }} -j $env:NUMBER_OF_PROCESSORS
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item "$env:RUNNER_TEMP\openal-bin\OpenAL32.dll" bin
+          # The Makefile copies only the assimp DLL; vcpkg's build also needs its dependencies (zlib etc.).
+          Copy-Item C:\assimp\bin\x64\*.dll bin
+          Copy-Item "$env:VULKAN_SDK\Bin\shaderc_shared.dll" bin -ErrorAction SilentlyContinue
+
+      - name: Unit tests
+        working-directory: bin
+        run: |
+          ./kohi.core.tests.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./kohi.runtime.tests.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Import assets
+        shell: cmd
+        run: import-updated-assets.bat
+
+      - name: Headless smoke run
+        shell: bash
+        run: .github/scripts/headless-smoke.sh "$EXPECTED_PHYSICS_HASH"
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.config }}-logs
+          path: |
+            bin/*.log
+            vendor/jolt/src/*.log
+          if-no-files-found: ignore
