@@ -2133,9 +2133,23 @@ static const char *agent_control_text (kui_state *state, kui_control control, ku
 	}
 }
 
+/**
+ * @brief Where a control's top left is on screen, in pixels, from the controls' local positions and
+ * the UI scale. World transforms are only brought up to date once per frame, so reading them right
+ * after a move or a resize would give the old place; this is current at once. It assumes the
+ * controls are only translated, which holds for KUI layouts.
+ */
+static vec3 agent_screen_position (kui_state *state, const kui_base_control *base) {
+	vec3 position = vec3_zero();
+	for (const kui_base_control *c = base; c && c->handle.val != state->root.val; c = c->parent.val == INVALID_KUI_CONTROL.val ? KNULL : get_base(state, c->parent)) {
+		position = vec3_add(position, ktransform_position_get(c->ktransform));
+	}
+	return vec3_mul_scalar(position, state->scale);
+}
+
 static void agent_control_json_append (kui_state *state, kui_control control, char **json) {
 	kui_base_control *base = get_base(state, control);
-	vec3 position = ktransform_world_position_get(base->ktransform);
+	vec3 position = agent_screen_position(state, base);
 
 	agent_json_append(json, "{\"name\":");
 	agent_json_append_string(json, base->name);
@@ -2266,7 +2280,7 @@ static b8 agent_cmd_ui_click (const agent_request *request, agent_reply *reply, 
 		return false;
 	}
 	// Click the centre of the control, the same way a real click would reach it.
-	vec3 position = ktransform_world_position_get(base->ktransform);
+	vec3 position = agent_screen_position(state, base);
 	kui_mouse_event event = {
 		.mouse_button = MOUSE_BUTTON_LEFT,
 		.local_x = (i16)(base->bounds.x + base->bounds.width * 0.5f),
