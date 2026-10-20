@@ -22,6 +22,12 @@ typedef u64 kunix_time_ns;
 typedef struct platform_system_config {
 	/** @brief application_name The name of the application. */
 	const char *application_name;
+	/**
+	 * @brief When true, no connection to a display server is made and no OS windows can be
+	 * created. Used for running without a display (CI, servers, AI agents).
+	 * NOTE: Only honoured on GNU/Linux for now; other platforms ignore it.
+	 */
+	b8 headless;
 } platform_system_config;
 
 typedef struct dynamic_library_function {

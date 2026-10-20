@@ -157,6 +157,25 @@ There is also a task available in the VSCode config for this called "Import ALL 
 
 At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in and GNU/Linux and macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for GNU/Linux and macOS.
 
+## Running headless
+
+Kohi can run without a display or GPU, which is useful for CI, servers and AI agents that drive the engine through its state rather than its pixels. `testbed.kapp/app_config_headless.kson` is a ready-made example:
+
+```sh
+cd bin
+ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.kson
+```
+
+`--config <path>` picks the application config to load. The headless options are top-level application config properties:
+
+| Property | Default | Effect |
+| --- | --- | --- |
+| `headless` | `false` | Skip the display server. Windows become virtual: they have a size for render targets, but no OS window and no input events. GNU/Linux only for now. |
+| `fixed_step_hz` | `0` (off) | Advance time by exactly `1 / fixed_step_hz` seconds per frame instead of by wall-clock time. Frames run as fast as the CPU allows. |
+| `max_frames` | `0` (unlimited) | Shut down cleanly after this many frames. |
+
+Pair `headless` with the null renderer (`kohi.plugin.renderer.null`), which accepts every renderer call and draws nothing. Its buffers live in CPU memory, so engine systems that write to mapped buffers behave as usual. Textures hold no pixels and read back as zeroes. OpenAL still opens an audio device, so `ALSOFT_DRIVERS=null` is needed on machines without one.
+
 # Project Structure
 
 This structure breakdown is based on the root folder of the repository. Some files/folders are omitted from this description as they aren't important to the overall picture.
@@ -167,6 +186,7 @@ This structure breakdown is based on the root folder of the repository. Some fil
 - `kohi.runtime.tests` - A small collection of unit tests for the runtime library. Needs to be expanded.
 - `kohi.plugin.audio.openal` - Shared library/.dll/.so/.dylib. Contains the audio plugin which uses OpenAL as the audio backend.
 - `kohi.plugin.renderer.vulkan` - Shared library/.dll/.so/.dylib. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
+- `kohi.plugin.renderer.null` - Shared library/.dll/.so/.dylib. A renderer backend that draws nothing and needs no GPU, for headless runs.
 - `kohi.plugin.ui.kui` - Shared library/.dll/.so/.dylib. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
 - `testbed.klib` = Shared library/.dll/.so/.dylib. Contains the application code (or "game code") specific to the application. Hot-reloadable.

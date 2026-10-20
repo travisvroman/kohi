@@ -53,12 +53,31 @@ extern const char *application_klib_name_get (void);
  * @brief The main entry point of the application.
  * @returns 0 on successful execution; nonzero on error.
  */
-int main (void) {
+#include "strings/kstring.h"
+
+/**
+ * @brief Returns the value following '--config' on the command line, or the application's
+ * default config path if the flag is not given. Lets one binary run different configurations,
+ * for example a headless one.
+ */
+static const char *app_config_path_from_args (int argc, char **argv) {
+	for (int i = 1; i < argc; ++i) {
+		if (strings_equal(argv[i], "--config")) {
+			if (i + 1 < argc) {
+				return argv[i + 1];
+			}
+			KWARN("'--config' was given without a path; using the default application config.");
+		}
+	}
+	return application_config_path_get();
+}
+
+int main (int argc, char **argv) {
 
 	application app_inst = {0};
 
 	// Initialization.
-	if (!engine_create(&app_inst, application_config_path_get(), application_klib_name_get())) {
+	if (!engine_create(&app_inst, app_config_path_from_args(argc, argv), application_klib_name_get())) {
 		KFATAL("Engine failed to create!.");
 		return 1;
 	}

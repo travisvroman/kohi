@@ -61,6 +61,22 @@ typedef struct application_config {
 
 	/** @brief The name of the default package to be used when loading assets, if one is not provided. */
 	kname default_package_name;
+
+	/**
+	 * @brief Run without a display server. Windows become virtual (sized, but never shown), and
+	 * no OS windowing or input events are processed. Pair with a renderer that needs no display,
+	 * such as kohi.plugin.renderer.null. Optional, defaults to false.
+	 */
+	b8 headless;
+
+	/**
+	 * @brief When nonzero, every frame advances time by exactly 1/fixed_step_hz seconds instead
+	 * of by the measured wall-clock time, so a run is repeatable. Optional, defaults to 0 (off).
+	 */
+	u32 fixed_step_hz;
+
+	/** @brief When nonzero, the engine shuts down after this many frames. Optional, defaults to 0 (unlimited). */
+	u64 max_frames;
 } application_config;
 
 /**
