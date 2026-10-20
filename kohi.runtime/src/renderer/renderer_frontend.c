@@ -19,13 +19,19 @@
 #include <strings/kname.h>
 #include <strings/kstring.h>
 
+#include <stdio.h>
+
+#include "core/agent_channel.h"
 #include "core/engine.h"
 #include "core/event.h"
 #include "core/frame_data.h"
 #include "core/kvar.h"
+#include "renderer/png_writer.h"
 #include "renderer/renderer_types.h"
 #include "systems/plugin_system.h"
 #include "systems/texture_system.h"
+
+static b8 agent_cmd_screenshot (const agent_request *request, agent_reply *reply, void *listener);
 
 /**
  * @brief Represents a queued renderbuffer deletion.
@@ -243,6 +249,8 @@ b8 renderer_system_initialize (u64 *memory_requirement, renderer_system_state *s
 		KERROR("Renderer backend failed to initialize. Shutting down.");
 		return false;
 	}
+
+	agent_command_register("screenshot", "Saves the last rendered frame as a PNG: {\"path\": \"frame.png\"} optional. Needs a renderer that can read frames back, such as Vulkan.", state, agent_cmd_screenshot);
 
 	// Create "generic" samplers for reuse WITH anisotropy.
 	// NOTE: This should probably be configurable instead of just maxing out anisotropy
@@ -719,6 +727,41 @@ b8 renderer_texture_read_pixel (struct renderer_system_state *state, ktexture t,
 		return state->backend->texture_read_pixel(state->backend, t, x, y, out_rgba);
 	}
 	return false;
+}
+
+static b8 agent_cmd_screenshot (const agent_request *request, agent_reply *reply, void *listener) {
+	renderer_system_state *state = listener;
+	kwindow *window = engine_active_window_get();
+
+	char default_path[64];
+	snprintf(default_path, sizeof(default_path), "screenshot_%llu.png", (unsigned long long)engine_simulation_step_count_get());
+	const char *path = default_path;
+	agent_request_string_get(request, "path", &path);
+
+	u32 width = 0, height = 0;
+	u8 *rgba = 0;
+	if (!renderer_window_capture(state, window, &width, &height, &rgba)) {
+		agent_reply_error(reply, "cannot capture a frame: the renderer cannot read frames back (the null renderer cannot), or no frame has been rendered yet");
+		return false;
+	}
+	b8 written = png_write_rgba8(path, width, height, rgba);
+	kfree(rgba);
+	if (!written) {
+		agent_reply_error(reply, "cannot write the PNG file");
+		return false;
+	}
+	agent_reply_string_add(reply, "path", path);
+	agent_reply_int_add(reply, "width", width);
+	agent_reply_int_add(reply, "height", height);
+	agent_reply_int_add(reply, "step", (i64)engine_simulation_step_count_get());
+	return true;
+}
+
+b8 renderer_window_capture (struct renderer_system_state *state, struct kwindow *window, u32 *out_width, u32 *out_height, u8 **out_rgba) {
+	if (!state || !window || !state->backend->window_capture) {
+		return false;
+	}
+	return state->backend->window_capture(state->backend, window, out_width, out_height, out_rgba);
 }
 
 b8 renderer_texture_blit_2d (struct renderer_system_state *state, ktexture source, ktexture target, vec2 source_offset, vec2 source_size, vec2 target_offset, vec2 target_size) {

@@ -616,6 +616,9 @@ typedef struct kwindow_renderer_backend_state {
 	/** @brief The current frame index ( % by max_frames_in_flight). */
 	u32 current_frame;
 
+	/** @brief True once a frame has been recorded for this window, so its colour buffer holds a picture. */
+	b8 has_rendered_frame;
+
 	/** @brief Indicates the max number of frames in flight. 1 for double-buffering, 2 for triple-buffering. */
 	u8 max_frames_in_flight;
 

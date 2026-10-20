@@ -1099,6 +1099,10 @@ i32 platform_get_processor_count (void) {
 	return processors_available;
 }
 
+b8 platform_is_headless (void) {
+	return state_ptr && state_ptr->headless;
+}
+
 void platform_get_handle_info (u64 *out_size, void *memory) {
 	*out_size = sizeof(linux_handle_info);
 	if (!memory) {

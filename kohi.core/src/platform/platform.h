@@ -363,6 +363,12 @@ KAPI i32 platform_get_processor_count (void);
 KAPI void platform_get_handle_info (u64 *out_size, void *memory);
 
 /**
+ * @brief Indicates if the platform was started headless: no display server and no OS windows.
+ * Renderer backends that can draw without a display use this to pick an offscreen surface.
+ */
+KAPI b8 platform_is_headless (void);
+
+/**
  * @brief Returns the device pixel ratio of the supplied window.
  * @param window A constant pointer to the window to retrieve device pixel ratio for.
  * @return The device pixel ratio.

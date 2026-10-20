@@ -470,6 +470,11 @@ i32 platform_get_processor_count (void) {
 	return sysinfo.dwNumberOfProcessors;
 }
 
+b8 platform_is_headless (void) {
+	// Headless runs are only supported on GNU/Linux for now.
+	return false;
+}
+
 void platform_get_handle_info (u64 *out_size, void *memory) {
 	*out_size = sizeof(win32_handle_info);
 	if (!memory) {

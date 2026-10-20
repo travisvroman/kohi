@@ -756,6 +756,11 @@ i32 platform_get_processor_count (void) {
 	return [[NSProcessInfo processInfo] processorCount];
 }
 
+b8 platform_is_headless (void) {
+	// Headless runs are only supported on GNU/Linux for now.
+	return false;
+}
+
 void platform_get_handle_info (u64 *out_size, void *memory) {
 
 	*out_size = sizeof(macos_handle_info);

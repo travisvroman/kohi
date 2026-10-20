@@ -73,9 +73,12 @@ If your change alters the simulation on purpose, update `EXPECTED_PHYSICS_HASH` 
 
 ## Control a run
 
-There is no live control channel yet; today a run is controlled through its config file and the console commands it executes. Input injection, a JSON-lines control channel and world queries are phase 1 of [ROADMAP-AI.md](ROADMAP-AI.md), and this section will cover them when they land.
+Start the engine with `--agent` and talk to it in JSON lines on stdin and stdout: step the simulation, press keys, query and save the world, read a text summary of the scene, run console commands. `scripts/agent_demo.py` is a working example, and the command list is in [readme.md, Agent channel](readme.md#agent-channel).
+
+To see a frame, run with `testbed.kapp/app_config_headless_vulkan.kson` and send `screenshot`. It needs a Vulkan driver; on a machine with no GPU use lavapipe (`sudo apt-get install -y mesa-vulkan-drivers`). See [Capturing frames](readme.md#capturing-frames) and `scripts/frame_capture_demo.py`.
 
 ## Known limits
 
 - Several engine processes can run at once on one machine; give each its own `--log` file.
-- The Vulkan renderer fails on lavapipe (software Vulkan). Use the null renderer for headless runs.
+- Use the null renderer for headless runs that do not need pictures; it is much faster. Lavapipe (software Vulkan) is slow (about 40 seconds for 120 frames at 640x360 on 4 cores), so keep windows small when capturing frames.
+- Headless Vulkan is GNU/Linux only. Pixels differ between drivers, so compare hashes, not images.

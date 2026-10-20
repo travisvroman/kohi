@@ -31,7 +31,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq clang-19 cmake libx11-dev libx11-xcb-dev libxkbcommon-x11-dev \
-            libdbus-1-dev libopenal-dev libassimp-dev libvulkan-dev libshaderc-dev libstdc++-14-dev
+            libdbus-1-dev libopenal-dev libassimp-dev libvulkan-dev libshaderc-dev libstdc++-14-dev \
+            mesa-vulkan-drivers
           # The Makefiles call plain `clang` and need clang >= 19.
           mkdir -p "$HOME/clang-bin"
           ln -sf /usr/bin/clang-19 "$HOME/clang-bin/clang"
@@ -73,6 +74,9 @@ jobs:
       - name: Determinism check (record and replay input)
         run: python3 scripts/determinism_check.py
 
+      - name: Frame capture (Vulkan on lavapipe, no display)
+        run: python3 scripts/frame_capture_demo.py
+
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v7
@@ -80,6 +84,7 @@ jobs:
           name: linux-${{ matrix.config }}-logs
           path: |
             bin/*.log
+            bin/*.png
             vendor/jolt/src/*.log
           if-no-files-found: ignore
 

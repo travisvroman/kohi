@@ -24,7 +24,7 @@ EXE = os.path.join(BIN, "testbed.kapp.exe" if os.name == "nt" else "testbed.kapp
 class Engine:
     """A running engine with the agent channel on stdin/stdout. Logs go to log_path."""
 
-    def __init__(self, config, log_path, extra_args=()):
+    def __init__(self, config, log_path, extra_args=(), env=None):
         self.log = open(log_path, "w")
         self.process = subprocess.Popen(
             [EXE, "--agent", "--config", config, *extra_args],
@@ -34,7 +34,7 @@ class Engine:
             stderr=self.log,
             text=True,
             # OpenAL needs an output device; the null driver works without one.
-            env=dict(os.environ, ALSOFT_DRIVERS="null"),
+            env=dict(os.environ, ALSOFT_DRIVERS="null", **(env or {})),
         )
         self.next_id = 1
 
