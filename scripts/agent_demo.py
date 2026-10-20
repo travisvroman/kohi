@@ -66,6 +66,7 @@ def main():
         engine.call("step", count=30)
         engine.call("world_save")  # entity transforms and physics state
         engine.call("step", count=30)
+        summary = engine.call("scene_summary")["summary"]
         first = engine.call("physics_hash")
         first_world = engine.call("world_hash")
         engine.call("world_restore")
@@ -77,6 +78,9 @@ def main():
 
     print(f"step {first['step']}: {first['hash']} (scene {first_world['scene_hash']})")
     print(f"step {replay['step']} (after restore and replay): {replay['hash']} (scene {replay_world['scene_hash']})")
+    if "- ball (physics_body)" not in summary:
+        print("FAIL: scene_summary does not list the ball")
+        return 1
     if first["hash"] != replay["hash"] or first_world["scene_hash"] != replay_world["scene_hash"] or code != 0:
         print("FAIL")
         return 1

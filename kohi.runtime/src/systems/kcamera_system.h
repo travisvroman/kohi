@@ -89,6 +89,16 @@ KAPI void kcamera_destroy (kcamera camera);
  */
 KAPI kcamera kcamera_system_get_default (void);
 
+/**
+ * @brief Lists the cameras in use, except the default one, which getters do not accept.
+ * @param out Receives up to max camera handles.
+ * @returns How many were written.
+ */
+KAPI u8 kcamera_system_in_use_list (kcamera *out, u8 max);
+
+/** @brief Returns the type (2D or 3D) of a camera. */
+KAPI kcamera_type kcamera_get_type (kcamera camera);
+
 KAPI vec3 kcamera_get_position (kcamera camera);
 KAPI void kcamera_set_position (kcamera camera, vec3 position);
 KAPI vec3 kcamera_get_euler_rotation (kcamera camera);
