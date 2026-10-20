@@ -21,22 +21,10 @@
 
 #	include "threads/ksemaphore.h"
 #	include <dlfcn.h>
-#	include <fcntl.h> // For O_* constants
-#	include <sys/stat.h>
-
-// NOTE: Apple's include is on a different path.
-#	if defined(KPLATFORM_APPLE)
-#		include <sys/semaphore.h>
-#	endif
-
-// NOTE: Linux has its own path, plus needs a few more headers.
-#	if defined(KPLATFORM_LINUX)
-#		include <semaphore.h> // sudo apt install linux-headers
-/* #include <sys/stat.h>   // For mode constants */
-#	endif
 
 #	include <errno.h> // For error reporting
 #	include <pthread.h>
+#	include <time.h>
 #	include <sys/shm.h>
 
 #	include "containers/darray.h"
@@ -46,15 +34,15 @@
 #	include "threads/kmutex.h"
 #	include "threads/kthread.h"
 
+// A process-local counting semaphore built on a mutex and a condition variable.
+// POSIX named semaphores (sem_open) are system-wide, so two engine processes
+// would share them, and unnamed ones (sem_init) are not supported on macOS.
 typedef struct nix_semaphore_internal {
-	sem_t *semaphore;
-	char *name;
+	pthread_mutex_t mutex;
+	pthread_cond_t condition;
+	u32 count;
+	u32 max_count;
 } nix_semaphore_internal;
-
-static u32 semaphore_id = 0;
-// Statically initialized so concurrent first calls to ksemaphore_create (e.g. job threads
-// starting at the same time) can't race on creating it.
-static pthread_mutex_t semaphore_id_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // NOTE: Begin threads.
 
@@ -141,7 +129,7 @@ void kthread_destroy (kthread *thread) {
 
 void kthread_detach (kthread *thread) {
 	if (thread->thread_id) {
-		i32 result = pthread_detach(*(pthread_t *)thread->thread_id);
+		i32 result = pthread_detach((pthread_t)thread->thread_id);
 		if (result != 0) {
 			switch (result) {
 			case EINVAL:
@@ -162,7 +150,7 @@ void kthread_detach (kthread *thread) {
 
 void kthread_cancel (kthread *thread) {
 	if (thread->thread_id) {
-		i32 result = pthread_cancel(*(pthread_t *)thread->thread_id);
+		i32 result = pthread_cancel((pthread_t)thread->thread_id);
 		if (result != 0) {
 			switch (result) {
 			case ESRCH:
@@ -189,7 +177,7 @@ void kthread_sleep (kthread *thread, u64 ms) {
 
 b8 kthread_wait (kthread *thread) {
 	if (thread && thread->thread_id) {
-		i32 result = pthread_join(*(pthread_t *)thread->thread_id, 0);
+		i32 result = pthread_join((pthread_t)thread->thread_id, 0);
 		thread->internal_data = KNULL;
 		thread->thread_id = 0;
 		if (result == 0) {
@@ -203,7 +191,7 @@ b8 kthread_wait_timeout (kthread *thread, u64 wait_ms) {
 	if (thread && thread->thread_id) {
 		KWARN("kthread_wait_timeout - timeout not supported on this platform.");
 		// TODO: Need a wait/notify loop to support timeout.
-		i32 result = pthread_join(*(pthread_t *)thread->thread_id, 0);
+		i32 result = pthread_join((pthread_t)thread->thread_id, 0);
 		thread->internal_data = KNULL;
 		thread->thread_id = 0;
 		if (result == 0) {
@@ -325,43 +313,40 @@ b8 kmutex_unlock (kmutex *mutex) {
 // NOTE: End mutexes
 
 b8 ksemaphore_create (ksemaphore *out_semaphore, u32 max_count, u32 start_count) {
-	if (!out_semaphore) {
+	if (!out_semaphore || max_count == 0) {
 		return false;
 	}
 
-	pthread_mutex_lock(&semaphore_id_mutex);
-	char *name_buf = string_format("/kohi_job_sem_%u", semaphore_id);
-	semaphore_id++;
-	pthread_mutex_unlock(&semaphore_id_mutex);
-
-	out_semaphore->internal_data = kallocate(sizeof(nix_semaphore_internal), MEMORY_TAG_ENGINE);
-	nix_semaphore_internal *internal = out_semaphore->internal_data;
-
-	if ((internal->semaphore = sem_open(name_buf, O_CREAT, 0664, 1)) == SEM_FAILED) {
-		KERROR("Failed to open semaphore");
+	// Allocated from the host, not kallocate: futex-backed pthread objects need natural
+	// alignment, and kallocate blocks are not guaranteed to be aligned.
+	nix_semaphore_internal *internal = platform_allocate(sizeof(nix_semaphore_internal), false);
+	if (pthread_mutex_init(&internal->mutex, 0) != 0) {
+		KERROR("Failed to create semaphore mutex.");
+		platform_free(internal, false, sizeof(nix_semaphore_internal));
 		return false;
 	}
-	internal->name = name_buf;
+	if (pthread_cond_init(&internal->condition, 0) != 0) {
+		KERROR("Failed to create semaphore condition variable.");
+		pthread_mutex_destroy(&internal->mutex);
+		platform_free(internal, false, sizeof(nix_semaphore_internal));
+		return false;
+	}
+	internal->max_count = max_count;
+	internal->count = KMIN(start_count, max_count);
 
+	out_semaphore->internal_data = internal;
 	return true;
 }
 
 void ksemaphore_destroy (ksemaphore *semaphore) {
-	if (!semaphore) {
+	if (!semaphore || !semaphore->internal_data) {
 		return;
 	}
 
 	nix_semaphore_internal *internal = semaphore->internal_data;
-	if (sem_close(internal->semaphore) == -1) {
-		KERROR("Failed to close semaphore.");
-	}
-
-	if (sem_unlink(internal->name) == -1) {
-		KERROR("Failed to unlink semaphore");
-	}
-
-	string_free(internal->name);
-	kfree(semaphore->internal_data);
+	pthread_cond_destroy(&internal->condition);
+	pthread_mutex_destroy(&internal->mutex);
+	platform_free(internal, false, sizeof(nix_semaphore_internal));
 	semaphore->internal_data = 0;
 }
 
@@ -371,10 +356,12 @@ b8 ksemaphore_signal (ksemaphore *semaphore) {
 	}
 
 	nix_semaphore_internal *internal = semaphore->internal_data;
-	if (sem_post(internal->semaphore) != 0) {
-		KERROR("Semaphore failed to post!");
-		return false;
+	pthread_mutex_lock(&internal->mutex);
+	if (internal->count < internal->max_count) {
+		internal->count++;
 	}
+	pthread_cond_signal(&internal->condition);
+	pthread_mutex_unlock(&internal->mutex);
 
 	return true;
 }
@@ -382,7 +369,8 @@ b8 ksemaphore_signal (ksemaphore *semaphore) {
 /**
  * Decreases the semaphore count by 1. If the count reaches 0, the
  * semaphore is considered unsignaled and this call blocks until the
- * semaphore is signaled by ksemaphore_signal.
+ * semaphore is signaled by ksemaphore_signal, or until timeout_ms passes.
+ * A timeout of 0xFFFFFFFF or more waits forever, matching INFINITE on Windows.
  */
 b8 ksemaphore_wait (ksemaphore *semaphore, u64 timeout_ms) {
 	if (!semaphore || !semaphore->internal_data) {
@@ -390,11 +378,30 @@ b8 ksemaphore_wait (ksemaphore *semaphore, u64 timeout_ms) {
 	}
 
 	nix_semaphore_internal *internal = semaphore->internal_data;
-	// TODO: handle timeout value using sem_timedwait()
-	if (sem_wait(internal->semaphore) != 0) {
-		KERROR("Semaphore failed to wait!");
-		return false;
+	b8 wait_forever = timeout_ms >= 0xFFFFFFFF;
+
+	struct timespec deadline = {0};
+	if (!wait_forever) {
+		clock_gettime(CLOCK_REALTIME, &deadline);
+		deadline.tv_sec += (time_t)(timeout_ms / 1000);
+		deadline.tv_nsec += (long)((timeout_ms % 1000) * 1000000);
+		if (deadline.tv_nsec >= 1000000000L) {
+			deadline.tv_sec += 1;
+			deadline.tv_nsec -= 1000000000L;
+		}
 	}
+
+	pthread_mutex_lock(&internal->mutex);
+	while (internal->count == 0) {
+		if (wait_forever) {
+			pthread_cond_wait(&internal->condition, &internal->mutex);
+		} else if (pthread_cond_timedwait(&internal->condition, &internal->mutex, &deadline) == ETIMEDOUT) {
+			pthread_mutex_unlock(&internal->mutex);
+			return false;
+		}
+	}
+	internal->count--;
+	pthread_mutex_unlock(&internal->mutex);
 
 	return true;
 }

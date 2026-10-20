@@ -102,6 +102,10 @@ b8 application_config_parse_file_content (const char *file_content, application_
 	}
 	out_config->max_steps_per_frame = (u32)max_steps_per_frame;
 
+	if (!kson_object_property_value_get_string(&app_config_tree.root, "log_file", &out_config->log_file_path)) {
+		out_config->log_file_path = string_duplicate("console.log");
+	}
+
 	i64 max_frames = 0;
 	kson_object_property_value_get_int(&app_config_tree.root, "max_frames", &max_frames);
 	if (max_frames < 0) {
@@ -251,6 +255,7 @@ void application_config_destroy (application_config *config) {
 	string_free(config->name);
 	string_free(config->audio_plugin_name);
 	string_free(config->manifest_file_path);
+	string_free(config->log_file_path);
 
 	{
 		u32 len = darray_length(config->systems);

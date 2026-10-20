@@ -37,9 +37,9 @@ The same inputs and seed must give the same run, every time, so agent experiment
 
 Agents run many instances at once (search, training, testing).
 
-- [ ] Replace named `sem_open` semaphores with unnamed ones; parallel processes collide today.
-- [ ] Per-instance paths for `console.log` and other output files (CLI flag or config).
-- [ ] Prove two or more headless instances run side by side with identical results.
+- [x] Replace named `sem_open` semaphores with process-local ones; parallel processes collided before.
+- [x] Per-instance log path: `--log <path>` on the command line or `log_file` in the app config.
+- [x] Prove two or more headless instances run side by side with identical results (six at once, same physics hash).
 - [ ] Longer term: move singleton engine systems into a context, so several worlds can share one process.
 
 ## 4. Known bugs
