@@ -52,6 +52,7 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 
 - `--config <path>` picks the application config.
 - `--log <path>` picks the log file (default `console.log`, or `log_file` in the config). Give each instance its own when running several.
+- `--record <path>` saves keyboard and mouse input per simulation step; `--replay <path>` plays it back with the recorded seed and reaches the same state. The format is plain text (see [readme.md](readme.md#input-recording-and-replay)), so a repro can be written by hand.
 - `--seed <n>` (or `random_seed` in the config) seeds every engine RNG. The seed in use is logged as `Random seed: <n>` at startup; pass it back to repeat a run.
 - `headless = true` needs no display or GPU. CI runs it on GNU/Linux and Windows. Pair it with the null renderer.
 - `fixed_step_hz = 60` and lockstep mode (the headless default) give exactly one 1/60 s step per frame, as fast as the CPU allows.
@@ -66,6 +67,7 @@ All options are described in [readme.md, Running headless](readme.md#running-hea
 - **Log**: everything goes to stdout and to `console.log` in the working directory (or the `--log` path). Lines are `[LEVEL]: message` with ANSI colors; strip them with `sed 's/\x1b\[[0-9;]*m//g'`.
 - **Physics state hash**: at shutdown the testbed logs `Physics state hash: <16 hex digits>`. The same config and inputs give the same hash on every run and thread count. Jolt is built to be cross-platform deterministic, and CI checks the same hash on Linux and Windows. After 600 steps of the headless testbed it is `ec2e3122759e69de`.
 - **Smoke check**: `.github/scripts/headless-smoke.sh <expected-hash>` runs the headless testbed and fails unless it reaches 600 steps with that hash. CI runs it on every PR.
+- **Determinism check**: `python3 scripts/determinism_check.py` records a run with input, replays it twice, and fails unless the physics hashes and the re-recorded input match. CI runs it too.
 
 If your change alters the simulation on purpose, update `EXPECTED_PHYSICS_HASH` in `.github/workflows/ci.yml` in the same PR and say why.
 

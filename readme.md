@@ -170,7 +170,7 @@ cd bin
 ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.kson
 ```
 
-`--config <path>` picks the application config to load, and `--seed <n>` sets the random seed. The headless options are top-level application config properties:
+`--config <path>` picks the application config to load, `--seed <n>` sets the random seed, and `--record`/`--replay <path>` record and replay input (see [Input recording and replay](#input-recording-and-replay)). The headless options are top-level application config properties:
 
 | Property | Default | Effect |
 | --- | --- | --- |
@@ -231,6 +231,26 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `quit` | | Shuts the engine down. |
 
 The process exits with 0 on a clean shutdown, 1 if the engine failed to start, and 2 if it stopped because of an error, so a harness can tell a crash-free run from a failed one without parsing logs. `id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
+
+## Input recording and replay
+
+`--record <path>` writes every keyboard and mouse event, live or injected through the agent channel, to a text file with the simulation step it arrived before. `--replay <path>` feeds a recording back before the same steps, ignores live input, and uses the recording's seed. A replay of a lockstep run reaches the same state as the original, and recording a replay gives an identical file. Both need `fixed_step_hz`.
+
+```
+kohi_input_recording 1
+seed 42
+fixed_step_hz 60
+100 key right down     # runs before step 100 (0 is before the first step)
+140 move 100 50
+165 key right up
+165 button left down
+165 wheel -1
+end 600                # steps the recorded run made
+```
+
+Keys use the names from `input_keycode_str` (`a`, `space`, `left`), or a key code number; buttons are `left`, `right` or `middle`. Lines starting with `#` are comments, so a recording can also be written by hand. Events that fall between the same two steps replay within one frame, so in real-time mode per-frame queries such as `input_was_key_down` can differ from the original; game logic in `application_fixed_update` that reads `input_is_key_down` replays exactly. Agent commands other than `key` and `mouse_*` (for example `physics_impulse` or `ui_click`) are not recorded.
+
+In the headless testbed's physics scene, the arrow keys push the ball, so input changes the physics hash.
 
 ## Physics
 

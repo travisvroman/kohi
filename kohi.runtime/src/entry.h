@@ -40,6 +40,7 @@
 #include "application/application_types.h"
 #include "core/agent_channel.h"
 #include "core/engine.h"
+#include "core/input_recording.h"
 #include "logger.h"
 
 /**
@@ -98,6 +99,8 @@ static b8 seed_parse (const char *text, u64 *out_seed) {
  *   --log <path>     File to write the log to instead of the config's log_file (default
  *                    "console.log"). Give each instance its own file when running several.
  *   --seed <n>       Seed every engine RNG, overriding the config's random_seed.
+ *   --record <path>  Record keyboard and mouse input per simulation step (core/input_recording.h).
+ *   --replay <path>  Replay a recording instead of live input, with the recording's seed.
  *   --agent          Control the engine with JSON lines over stdin/stdout.
  */
 int main (int argc, char **argv) {
@@ -117,6 +120,15 @@ int main (int argc, char **argv) {
 		app_config_path = application_config_path_get();
 	}
 	app_inst.log_file_path_override = command_line_value(argc, argv, "--log");
+
+	const char *record_path = command_line_value(argc, argv, "--record");
+	if (record_path) {
+		input_recording_record_path_set(record_path);
+	}
+	const char *replay_path = command_line_value(argc, argv, "--replay");
+	if (replay_path) {
+		input_recording_replay_path_set(replay_path);
+	}
 
 	const char *seed_text = command_line_value(argc, argv, "--seed");
 	if (seed_text) {

@@ -278,8 +278,42 @@ b8 application_initialize (struct application *app) {
 
 // Fixed-step simulation. The testbed has no simulation logic yet; this counts steps so a run can
 // confirm they happen, and marks where frame-rate independent game logic belongs.
+// Physics scene: the arrow keys push the ball. Input is read in the fixed step, so a recorded
+// run (--record) replays to the same physics state (--replay).
+static void ball_push_from_input (struct kscene *scene, f64 step_seconds) {
+	vec3 direction = vec3_zero();
+	if (input_is_key_down(KEY_LEFT)) {
+		direction.x -= 1.0f;
+	}
+	if (input_is_key_down(KEY_RIGHT)) {
+		direction.x += 1.0f;
+	}
+	if (input_is_key_down(KEY_UP)) {
+		direction.z -= 1.0f;
+	}
+	if (input_is_key_down(KEY_DOWN)) {
+		direction.z += 1.0f;
+	}
+	if (direction.x == 0.0f && direction.z == 0.0f) {
+		return;
+	}
+
+	kentity ball = kscene_get_entity_by_name(scene, kname_create("ball"));
+	kphysics_body body = kscene_physics_body_get(scene, ball);
+	struct kphysics_system_state *physics = engine_systems_get()->physics_system;
+	if (body == KPHYSICS_BODY_INVALID || !physics) {
+		return;
+	}
+	// 120 N on the 20 kg ball: 6 m/s^2.
+	const f32 push_newtons = 120.0f;
+	kphysics_body_impulse_add(physics, body, vec3_mul_scalar(direction, push_newtons * (f32)step_seconds));
+}
+
 b8 application_fixed_update (struct application *app, f64 step_seconds, struct frame_data *p_frame_data) {
 	app->state->fixed_update_count++;
+	if (app->state->current_scene && kscene_asset_name_get(app->state->current_scene) == kname_create("physics_scene")) {
+		ball_push_from_input(app->state->current_scene, step_seconds);
+	}
 	return true;
 }
 

@@ -15,15 +15,18 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(REPO, "bin")
 CONFIG = os.path.join(REPO, "testbed.kapp", "app_config_headless.kson")
+# An absolute path: Windows resolves a relative one against this script's working directory, not
+# cwd, and does not add .exe to a name that already has an extension.
+EXE = os.path.join(BIN, "testbed.kapp.exe" if os.name == "nt" else "testbed.kapp")
 
 
 class Engine:
     """A running engine with the agent channel on stdin/stdout. Logs go to log_path."""
 
-    def __init__(self, config, log_path):
+    def __init__(self, config, log_path, extra_args=()):
         self.log = open(log_path, "w")
         self.process = subprocess.Popen(
-            ["./testbed.kapp", "--agent", "--config", config],
+            [EXE, "--agent", "--config", config, *extra_args],
             cwd=BIN,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

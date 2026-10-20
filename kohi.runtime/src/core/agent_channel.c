@@ -526,17 +526,6 @@ static b8 cmd_resume (const agent_request *request, agent_reply *reply, void *li
 	return true;
 }
 
-static b8 key_from_name (const char *name, keys *out_key) {
-	for (u32 k = 0; k < KEYS_MAX_KEYS; ++k) {
-		const char *key_name = input_keycode_str((keys)k);
-		if (!strings_equal(key_name, "undefined") && strings_equali(key_name, name)) {
-			*out_key = (keys)k;
-			return true;
-		}
-	}
-	return false;
-}
-
 static b8 cmd_key (const agent_request *request, agent_reply *reply, void *listener) {
 	const char *name = 0;
 	b8 pressed = false;
@@ -545,7 +534,7 @@ static b8 cmd_key (const agent_request *request, agent_reply *reply, void *liste
 		return false;
 	}
 	keys key;
-	if (!key_from_name(name, &key)) {
+	if (!input_key_from_name(name, &key)) {
 		char *message = string_format("unknown key '%s'", name);
 		agent_reply_error(reply, message);
 		string_free(message);

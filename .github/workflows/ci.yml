@@ -70,6 +70,9 @@ jobs:
       - name: Headless smoke run
         run: .github/scripts/headless-smoke.sh "$EXPECTED_PHYSICS_HASH"
 
+      - name: Determinism check (record and replay input)
+        run: python3 scripts/determinism_check.py
+
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v7
@@ -194,6 +197,9 @@ jobs:
       - name: Headless smoke run
         shell: bash
         run: .github/scripts/headless-smoke.sh "$EXPECTED_PHYSICS_HASH"
+
+      - name: Determinism check (record and replay input)
+        run: python scripts/determinism_check.py
 
       - name: Upload logs
         if: failure()

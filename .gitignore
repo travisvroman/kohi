@@ -19,3 +19,4 @@ vendor/
 *.k3d
 
 llvm.sh*
+__pycache__/
