@@ -75,6 +75,33 @@ b8 application_config_parse_file_content (const char *file_content, application_
 	}
 	out_config->fixed_step_hz = (u32)fixed_step_hz;
 
+	// How fixed steps are scheduled. Headless runs default to lockstep (one step per frame, no
+	// wall clock); windowed runs default to real time. Ignored when fixed_step_hz is 0.
+	out_config->simulation_mode = out_config->headless ? KSIM_CLOCK_MODE_LOCKSTEP : KSIM_CLOCK_MODE_REALTIME;
+	const char *simulation_mode = 0;
+	if (kson_object_property_value_get_string(&app_config_tree.root, "simulation_mode", &simulation_mode)) {
+		if (strings_equali(simulation_mode, "realtime")) {
+			out_config->simulation_mode = KSIM_CLOCK_MODE_REALTIME;
+		} else if (strings_equali(simulation_mode, "lockstep")) {
+			out_config->simulation_mode = KSIM_CLOCK_MODE_LOCKSTEP;
+		} else {
+			KERROR("Unknown 'simulation_mode' '%s'. Expected 'realtime' or 'lockstep'. Using the default.", simulation_mode);
+		}
+		string_free(simulation_mode);
+	}
+	if (out_config->fixed_step_hz == 0) {
+		out_config->simulation_mode = KSIM_CLOCK_MODE_VARIABLE;
+	}
+
+	i64 max_steps_per_frame = 8;
+	if (!kson_object_property_value_get_int(&app_config_tree.root, "max_steps_per_frame", &max_steps_per_frame)) {
+		max_steps_per_frame = 8;
+	} else if (max_steps_per_frame < 1) {
+		KERROR("'max_steps_per_frame' must be at least 1. Using 1.");
+		max_steps_per_frame = 1;
+	}
+	out_config->max_steps_per_frame = (u32)max_steps_per_frame;
+
 	i64 max_frames = 0;
 	kson_object_property_value_get_int(&app_config_tree.root, "max_frames", &max_frames);
 	if (max_frames < 0) {

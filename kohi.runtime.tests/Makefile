@@ -11,7 +11,7 @@ CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
 LDFLAGS = -Lbin -Llib -L../kohi.core/bin -lkohi.core 
-LDFLAGS += -L../kohi.runtime/bin -lkohi.core
+LDFLAGS += -L../kohi.runtime/bin -lkohi.runtime
 
 # Base include flags
 INCLUDE_FLAGS = -Isrc -I../kohi.core/src 

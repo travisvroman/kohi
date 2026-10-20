@@ -171,10 +171,23 @@ ALSOFT_DRIVERS=null ./testbed.kapp --config ../testbed.kapp/app_config_headless.
 | Property | Default | Effect |
 | --- | --- | --- |
 | `headless` | `false` | Skip the display server. Windows become virtual: they have a size for render targets, but no OS window and no input events. GNU/Linux only for now. |
-| `fixed_step_hz` | `0` (off) | Advance time by exactly `1 / fixed_step_hz` seconds per frame instead of by wall-clock time. Frames run as fast as the CPU allows. |
+| `fixed_step_hz` | `0` (off) | Run the simulation in fixed steps of `1 / fixed_step_hz` seconds. See [Fixed-step simulation](#fixed-step-simulation). |
+| `simulation_mode` | `"lockstep"` when headless, else `"realtime"` | How fixed steps are scheduled. |
+| `max_steps_per_frame` | `8` | Real-time mode only: the most fixed steps one frame may run. |
 | `max_frames` | `0` (unlimited) | Shut down cleanly after this many frames. |
 
 Pair `headless` with the null renderer (`kohi.plugin.renderer.null`), which accepts every renderer call and draws nothing. Its buffers live in CPU memory, so engine systems that write to mapped buffers behave as usual. Textures hold no pixels and read back as zeroes. OpenAL still opens an audio device, so `ALSOFT_DRIVERS=null` is needed on machines without one.
+
+## Fixed-step simulation
+
+With `fixed_step_hz` set, the simulation advances in fixed steps that do not depend on the render frame rate. Each frame the engine works out how many steps to run, runs them, and then does the per-frame update and rendering. A frame that skips rendering (for example while the window is resizing) still runs its simulation steps.
+
+- **`realtime`**: wall-clock time collects in an accumulator and is released in whole steps, so the simulation keeps real-time speed at any frame rate. `frame_data.sim_alpha` is the leftover fraction of a step, for interpolating rendered positions. If a frame takes longer than `max_steps_per_frame` steps, the extra time is dropped and the simulation falls behind instead of stalling.
+- **`lockstep`**: exactly one step per frame and no wall-clock reads, so headless runs go as fast as the CPU allows and repeat exactly. Per-frame timelines also advance by the step length in this mode.
+
+Applications put frame-rate independent logic in an optional exported `application_fixed_update(app, step_seconds, frame_data)`. It runs before `application_update`, once per step. Skeletal animation also advances in fixed steps.
+
+The simulation can be paused and stepped from code (`engine_simulation_pause_set`, `engine_simulation_steps_request`, `engine_simulation_step_count_get`, `engine_simulation_time_get` in `core/engine.h`) or from the console with `sim_pause`, `sim_resume`, `sim_step [count]` and `sim_status`.
 
 # Project Structure
 

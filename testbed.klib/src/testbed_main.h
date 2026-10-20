@@ -19,6 +19,8 @@ KAPI b8 application_initialize (struct application *game_inst);
 
 KAPI b8 application_update (struct application *game_inst, struct frame_data *p_frame_data);
 
+KAPI b8 application_fixed_update (struct application *game_inst, f64 step_seconds, struct frame_data *p_frame_data);
+
 KAPI b8 application_prepare_frame (struct application *app_inst, struct frame_data *p_frame_data);
 
 KAPI b8 application_render_frame (struct application *game_inst, struct frame_data *p_frame_data);

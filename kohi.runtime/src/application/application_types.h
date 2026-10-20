@@ -71,6 +71,18 @@ typedef struct application {
 	b8 (*update)(struct application *app_inst, struct frame_data *p_frame_data);
 
 	/**
+	 * @brief Optional. Function pointer to the application's fixed-step simulation update, exported
+	 * as "application_fixed_update". Called zero or more times per frame, before update, each time
+	 * with the same step length, when the app config sets fixed_step_hz. Put game logic that must be
+	 * frame-rate independent or repeatable here (and later, physics-facing logic).
+	 * @param app_inst A pointer to the application instance.
+	 * @param step_seconds The length of the fixed step in seconds.
+	 * @param p_frame_data A pointer to the current frame's data.
+	 * @returns True on success; otherwise false, which shuts the engine down.
+	 */
+	b8 (*fixed_update)(struct application *app_inst, f64 step_seconds, struct frame_data *p_frame_data);
+
+	/**
 	 * @brief Function pointer to application's prepare_frame function.
 	 * @param app_inst A pointer to the application instance.
 	 * @param p_frame_data A pointer to the current frame's data.
