@@ -947,6 +947,8 @@ static void openal_backend_channel_destroy (kaudio_backend_interface *backend, k
 			kmutex_unlock(&source->data_mutex);
 		}
 		kthread_wait(&source->thread);
+		// Releases the thread handle on Windows; a no-op once a pthread has been joined.
+		kthread_destroy(&source->thread);
 
 		alDeleteSources(1, &source->id);
 		kmutex_destroy(&source->data_mutex);
