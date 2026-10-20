@@ -229,7 +229,7 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
 
-`id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
+The process exits with 0 on a clean shutdown, 1 if the engine failed to start, and 2 if it stopped because of an error, so a harness can tell a crash-free run from a failed one without parsing logs. `id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
 
 ## Physics
 

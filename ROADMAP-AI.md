@@ -21,7 +21,7 @@ An agent needs one stable way to control a run and see what happened.
 - [x] World queries: list entities with type, name, transform and physics state; find entities by name (by tag: not yet).
 - [ ] Observations: capture frames to images (Vulkan, or a software rasterizer for headless), plus a text summary of the scene for agents that can't see images.
 - [x] UI by name: list controls, read their text and state, activate them.
-- [ ] Machine-readable logs and errors (structured output, non-zero exit codes on failure).
+- [x] Non-zero exit codes on failure (0 clean, 1 failed to start, 2 stopped on an error). Structured logs: not yet.
 
 ## 2. Full determinism
 
