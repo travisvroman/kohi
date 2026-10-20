@@ -140,7 +140,8 @@ copy-top-level-lib-linux copy-top-level-lib-macos:
 
 # Debug builds
 all-debug: setup build-debug
-build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
+build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug
+	$(MAKE) copy-top-level
 kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
 kohi-plugins-debug: kohi-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-null-debug plugin-physics-jolt-debug plugin-ui-kui-debug plugin-utils-debug
@@ -191,7 +192,8 @@ testbed-kapp-debug:
 
 # Release builds 
 all-release: setup build-release
-build-release: kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
+build-release: kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release
+	$(MAKE) copy-top-level
 kohi-release: core-release runtime-release 
 kohi-tests-release: kohi-release core-tests-release runtime-tests-release
 kohi-plugins-release: kohi-release plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-null-release plugin-physics-jolt-release plugin-renderer-ui-kui-release plugin-renderer-utils-release
@@ -238,6 +240,24 @@ testbed-klib-release:
 
 testbed-kapp-release:
 	$(MAKE) -C testbed.kapp all-release
+
+# Link order. Each module links against the libraries built before it, so these keep
+# parallel builds (make -j) from linking a module before its dependencies exist.
+runtime-debug: core-debug
+core-tests-debug: core-debug
+runtime-tests-debug: runtime-debug
+plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-null-debug plugin-physics-jolt-debug plugin-ui-kui-debug: runtime-debug
+plugin-utils-debug: plugin-ui-kui-debug
+kohi-tools-debug testbed-klib-debug: plugin-utils-debug
+testbed-kapp-debug: testbed-klib-debug
+
+runtime-release: core-release
+core-tests-release: core-release
+runtime-tests-release: runtime-release
+plugin-audio-openal-release plugin-renderer-vulkan-release plugin-renderer-null-release plugin-physics-jolt-release plugin-renderer-ui-kui-release: runtime-release
+plugin-renderer-utils-release: plugin-renderer-ui-kui-release
+kohi-tools-release testbed-klib-release: plugin-renderer-utils-release
+testbed-kapp-release: testbed-klib-release
 
 # Clean "builds"
 clean: utils-clean kohi-clean kohi-tests-clean kohi-plugins-clean tools-clean testbed-clean clean-top-level

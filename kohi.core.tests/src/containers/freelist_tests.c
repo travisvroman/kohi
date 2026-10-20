@@ -329,7 +329,9 @@ u8 freelist_multiple_alloc_and_free_random (void) {
 
 	// Pick random sizes.
 	const u32 alloc_data_count = 65556;
-	alloc_data alloc_datas[65556] = {0};
+	// Static: ~1 MiB would overflow the default 1 MiB main-thread stack on Windows.
+	static alloc_data alloc_datas[65556];
+	kzero_memory(alloc_datas, sizeof(alloc_datas));
 	for (u32 i = 0; i < alloc_data_count; ++i) {
 		alloc_datas[i].size = (u64)krandom_in_range(1, 65536);
 		// INVALID_ID means the data isn't allocated.

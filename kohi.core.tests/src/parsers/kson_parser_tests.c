@@ -43,7 +43,8 @@ u8 kson_parser_should_tokenize_file_content (void) {
 		return false;
 	}
 
-	char *test_file_content = kallocate(sizeof(char) * file_size, MEMORY_TAG_ARRAY);
+	// One extra byte keeps the text null-terminated (kallocate zeroes memory); the tokenizer reads until '\0'.
+	char *test_file_content = kallocate(sizeof(char) * file_size + 1, MEMORY_TAG_ARRAY);
 	u64 read_size = 0;
 	if (!filesystem_read_all_text(&f, test_file_content, &read_size)) {
 		KERROR("Unable to text read file: %s.", full_file_path);
@@ -71,8 +72,12 @@ u8 kson_parser_should_tokenize_file_content (void) {
 	kson_parser_destroy(&parser);
 
 	const char *str = kson_tree_to_string(&tree);
-	KINFO(str);
+	expect_should_not_be(0, str);
+	KTRACE("%s", str);
 
+	string_free(str);
+	kson_tree_cleanup(&tree);
+	kfree(test_file_content);
 	return true;
 }
 

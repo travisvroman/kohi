@@ -236,6 +236,7 @@ void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, memory_tag
 	u16 oalignment = 0;
 	u8 otag = MEMORY_TAG_UNKNOWN;
 	if (block) {
+		KASSERT_MSG(state_ptr, "kreallocate called before memory_system_initialize; the original block size is unknown.");
 		dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment, &otag);
 		// Ensure alignment is the same. Original alignment of 0 means there was no previous allocation
 		// and this check can be skipped.
