@@ -193,6 +193,36 @@ Applications put frame-rate independent logic in an optional exported `applicati
 
 The simulation can be paused and stepped from code (`engine_simulation_pause_set`, `engine_simulation_steps_request`, `engine_simulation_step_count_get`, `engine_simulation_time_get` in `core/engine.h`) or from the console with `sim_pause`, `sim_resume`, `sim_step [count]` and `sim_status`.
 
+## Agent channel
+
+Start the engine with `--agent` to control it from another program, such as an AI agent or a test harness. Each line on stdin is a JSON request and gets exactly one JSON reply line on stdout, in order. Logs move to stderr, so stdout carries only replies. The simulation starts paused and advances only when asked, so this needs `fixed_step_hz`. Closing stdin shuts the engine down.
+
+```
+$ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/app_config_headless.kson
+{"id": 1, "cmd": "step", "count": 60}
+{"id":1,"ok":true,"step":60,"time":1,"step_seconds":0.016666666666666666,"paused":true}
+{"id": 2, "cmd": "key", "key": "w", "pressed": true}
+{"id":2,"ok":true}
+{"id": 3, "cmd": "jump"}
+{"id":3,"ok":false,"error":"unknown command 'jump'; send {\"cmd\": \"commands\"} for the list"}
+```
+
+| Command | Arguments | Does |
+| --- | --- | --- |
+| `step` | `count` (default 1) | Runs that many simulation steps, then replies with the status. Later requests wait until the steps have run. |
+| `status` | | Step count, simulated time, step length, paused. |
+| `pause`, `resume` | | Stops, or restarts, the simulation's own clock. |
+| `key` | `key` (name such as `"a"`, `"space"`, `"esc"`), `pressed` | Presses or releases a key, exactly as OS input would. |
+| `mouse_button` | `button` (`left`, `right`, `middle`), `pressed` | Presses or releases a mouse button. |
+| `mouse_move` | `x`, `y` (window pixels) | Moves the mouse. |
+| `mouse_wheel` | `delta` | Scrolls. |
+| `console` | `line` | Runs a console command, such as `physics_state_save`. |
+| `physics_hash` | | Hash of the full physics state. |
+| `commands` | | Lists every command with a short description. |
+| `quit` | | Shuts the engine down. |
+
+`id` is optional and is echoed back as sent. Requests are flat JSON objects. Applications and plugins add their own commands with `agent_command_register` (`core/agent_channel.h`). `scripts/agent_demo.py` is a small Python client that saves, restores and replays the physics state and checks that the hash matches.
+
 ## Physics
 
 The physics system is optional and starts only when the app config has a `physics` system entry, with its backend plugin loaded:

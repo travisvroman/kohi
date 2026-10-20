@@ -1056,8 +1056,14 @@ void platform_free (void *block, b8 aligned, u64 size) {
 	}
 }
 
+static b8 console_stderr_only = false;
+
+void platform_console_stderr_only_set (b8 enabled) {
+	console_stderr_only = enabled;
+}
+
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
-	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
+	b8 is_error = console_stderr_only || (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
 	const char *colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
 	const char *output = string_format("\033[%sm%s\033[0m", colour_strings[level], message);
 	i32 fd = is_error ? FD_STDERR : FD_STDOUT;

@@ -710,10 +710,16 @@ void platform_free (void *block, b8 aligned, u64 size) {
 	}
 }
 
+static b8 console_stderr_only = false;
+
+void platform_console_stderr_only_set (b8 enabled) {
+	console_stderr_only = enabled;
+}
+
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
 	// FATAL,ERROR,WARN,INFO,DEBUG,TRACE
 	const char *colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
-	printf("\033[%sm%s\033[0m", colour_strings[level], message);
+	fprintf(console_stderr_only ? stderr : stdout, "\033[%sm%s\033[0m", colour_strings[level], message);
 }
 
 /*void platform_console_write_error(const char* message, u8 colour) {

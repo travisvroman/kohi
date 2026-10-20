@@ -38,6 +38,7 @@
 #pragma once
 
 #include "application/application_types.h"
+#include "core/agent_channel.h"
 #include "core/engine.h"
 #include "logger.h"
 
@@ -75,6 +76,14 @@ static const char *app_config_path_from_args (int argc, char **argv) {
 int main (int argc, char **argv) {
 
 	application app_inst = {0};
+
+	// --agent: control the engine with JSON lines over stdin/stdout (see core/agent_channel.h).
+	// Enabled before anything logs, so stdout only ever carries agent replies.
+	for (int i = 1; i < argc; ++i) {
+		if (strings_equal(argv[i], "--agent")) {
+			agent_channel_enable();
+		}
+	}
 
 	// Initialization.
 	if (!engine_create(&app_inst, app_config_path_from_args(argc, argv), application_klib_name_get())) {

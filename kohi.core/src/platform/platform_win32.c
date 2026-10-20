@@ -395,8 +395,14 @@ void platform_free (void *block, b8 aligned, u64 size) {
 	HeapFree(GetProcessHeap(), 0, block);
 }
 
+static b8 console_stderr_only = false;
+
+void platform_console_stderr_only_set (b8 enabled) {
+	console_stderr_only = enabled;
+}
+
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
-	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
+	b8 is_error = console_stderr_only || (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
 	HANDLE console_handle = GetStdHandle(is_error ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
 
 	CONSOLE_SCREEN_BUFFER_INFO csbi;

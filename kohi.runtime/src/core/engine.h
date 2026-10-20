@@ -183,6 +183,9 @@ KAPI b8 engine_simulation_paused (void);
 KAPI void engine_simulation_steps_request (u32 count);
 
 /** @brief Returns the number of fixed simulation steps completed since startup. */
+/** @brief Returns how many requested steps have not run yet. */
+KAPI u32 engine_simulation_pending_steps_get (void);
+
 KAPI u64 engine_simulation_step_count_get (void);
 
 /** @brief Returns simulated time in seconds since startup. */

@@ -329,6 +329,7 @@ b8 console_command_execute (const char *command) {
 				context.listener = cmd->listener;
 
 				cmd->func(context);
+				has_error = false;
 
 				if (context.arguments) {
 					kfree(context.arguments);
