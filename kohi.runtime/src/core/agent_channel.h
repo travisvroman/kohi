@@ -60,6 +60,10 @@ KAPI void agent_reply_error (agent_reply *reply, const char *message);
 KAPI void agent_json_append_string (char **buffer, const char *value);
 /** @brief Appends raw text to a JSON string buffer (see agent_json_append_string). */
 KAPI void agent_json_append (char **buffer, const char *text);
+/** @brief Appends an f64 that round-trips exactly. NaN and infinity become null, since JSON has neither. */
+KAPI void agent_json_append_f64 (char **buffer, f64 value);
+/** @brief Appends an f32 with just enough digits to round-trip. NaN and infinity become null. */
+KAPI void agent_json_append_f32 (char **buffer, f32 value);
 
 // Engine-only.
 

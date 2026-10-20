@@ -20,7 +20,7 @@ An agent needs one stable way to control a run and see what happened.
 - [x] Control channel: a socket or stdin/stdout protocol (JSON lines) for console commands, stepping, pausing and querying state, so an agent drives a running engine instead of editing config files.
 - [x] World queries: list entities with type, name, transform and physics state; find entities by name (by tag: not yet).
 - [ ] Observations: capture frames to images (Vulkan, or a software rasterizer for headless), plus a text summary of the scene for agents that can't see images.
-- [ ] UI by name: list controls, read their text and state, activate them.
+- [x] UI by name: list controls, read their text and state, activate them.
 - [ ] Machine-readable logs and errors (structured output, non-zero exit codes on failure).
 
 ## 2. Full determinism

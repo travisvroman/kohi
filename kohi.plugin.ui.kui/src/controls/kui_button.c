@@ -200,6 +200,10 @@ const char *kui_button_control_text_get (kui_state *state, const kui_control sel
 	kui_base_control *base = kui_system_get_base(state, self);
 	KASSERT(base);
 	kui_button_control *typed_data = (kui_button_control *)base;
+	// Only text buttons have a label.
+	if (typed_data->button_type != KUI_BUTTON_TYPE_TEXT) {
+		return KNULL;
+	}
 	return kui_label_text_get(state, typed_data->label);
 }
 

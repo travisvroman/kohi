@@ -4450,10 +4450,10 @@ static kscene **agent_scenes = 0;
 static void agent_json_vec (char **json, const f32 *values, u32 count) {
 	agent_json_append(json, "[");
 	for (u32 i = 0; i < count; ++i) {
-		char number[32];
-		// 9 significant digits round-trip any f32 exactly.
-		string_nformat(number, sizeof(number), "%s%.9g", i ? "," : "", (f64)values[i]);
-		agent_json_append(json, number);
+		if (i) {
+			agent_json_append(json, ",");
+		}
+		agent_json_append_f32(json, values[i]);
 	}
 	agent_json_append(json, "]");
 }

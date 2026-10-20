@@ -223,6 +223,9 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `entity` | `entity` (name), `scene` | One entity, same fields. |
 | `physics_impulse` | `entity`, `x`, `y`, `z` | Applies an impulse to a dynamic or kinematic body. |
 | `physics_velocity_set` | `entity`, `x`, `y`, `z` | Sets a body's linear velocity. |
+| `ui_controls` | `visible_only` | UI controls with name, type, screen rect, visible, active, focused, and text or checked state where the control has one. |
+| `ui_click` | `control` (name) | Clicks a visible, active control at its centre, through the same handler a mouse click uses. |
+| `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `commands` | | Lists every command with a short description. |
 | `quit` | | Shuts the engine down. |
 
