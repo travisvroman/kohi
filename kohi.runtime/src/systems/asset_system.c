@@ -854,7 +854,6 @@ kasset_hf_terrain *asset_system_request_hf_terrain_from_package_sync (struct ass
 		return 0;
 	}
 
-	kasset_hf_terrain *out_asset = KALLOC_TYPE(kasset_hf_terrain, MEMORY_TAG_ASSET);
 	vfs_request_info info = {
 		.asset_name = kname_create(name),
 		.package_name = kname_create(package_name),
@@ -862,6 +861,15 @@ kasset_hf_terrain *asset_system_request_hf_terrain_from_package_sync (struct ass
 	};
 	vfs_asset_data data = vfs_request_asset_sync(state->vfs, info);
 
+	// Scenes ask for an optional "<scene>_terrain" asset, so a missing one is not an error. The
+	// package reports an asset that is not in it as a missing file.
+	if (data.result == VFS_REQUEST_RESULT_FILE_DOES_NOT_EXIST) {
+		KTRACE("No hf_terrain asset named '%s'.", name);
+		vfs_asset_data_cleanup(&data);
+		return KNULL;
+	}
+
+	kasset_hf_terrain *out_asset = KALLOC_TYPE(kasset_hf_terrain, MEMORY_TAG_ASSET);
 	b8 result = kasset_hf_terrain_deserialize(data.size, data.bytes, out_asset);
 	vfs_asset_data_cleanup(&data);
 	if (!result) {
