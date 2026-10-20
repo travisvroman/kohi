@@ -248,6 +248,8 @@ $ cd bin && ALSOFT_DRIVERS=null ./testbed.kapp --agent --config ../testbed.kapp/
 | `ui_reference_size` | `width`, `height` | Designs the UI for that size and scales it to fit the window; `0` and `0` turns scaling off. Replies with the `scale`. `ui_controls` rects are in pixels and include the scale. |
 | `ui_navigate` | `action` (`up`, `down`, `left`, `right`, `next`, `prev`, `accept`, `cancel`) | Presses a navigation key in the UI. Replies with `used` and the `focused` control. See [UI navigation](#ui-navigation). |
 | `ui_select` | `control`, `index` | Selects an item in a list or dropdown (`-1` for none). A dropdown also closes and fires its callback. `ui_controls` lists `selected` and `items` for these controls, and `open` for a dropdown. |
+| `nav_path` | `from_x`, `from_y`, `to_x`, `to_y` (cells), `diagonal` (default true) | Finds the cheapest path over the application's navigation grid. Replies with `length` and `cells` as `[[x, y], ...]`, or an error if an end is blocked or the goal can't be reached. Present when the application registered a grid (the testbed does). See [Pathfinding](#pathfinding). |
+| `nav_block` | `x`, `y`, `w`, `h` (default 1), `blocked` (default true) | Blocks or clears a rectangle of cells of that grid. |
 | `ui_value_set` | `control`, `value` | Sets a slider or progress bar value. A slider clamps it to its range and snaps it to its step; the reply has the value that took. `ui_controls` lists `value` for these controls. |
 | `ui_text_set` | `control`, `text` | Sets a textbox's text. |
 | `scene_summary` | `scene` (optional) | A plain-text description for agents that cannot see images: entity counts by type, the 3D cameras in use, and every entity (up to 200) with world position and, for physics bodies, motion type, speed and whether it is awake. |
@@ -279,6 +281,12 @@ KUI sees keys only after the engine's keymaps and polled input have, so it canno
 `kui_list_create(state, name, width, visible_rows, font_type, font_name, font_size)` is a list of text items. Click one to select it, or focus the list by navigation and use up and down (the list gives focus back at either end) and accept to activate. The wheel scrolls a list with more items than rows. `kui_list_item_add`, `kui_list_selected_set` and the `selected` and `activated` callbacks are in `kui_list.h`.
 
 `kui_dropdown_create` is a header that shows the chosen item and opens a list below it. Clicking an item, or accept on the highlighted one, chooses it, closes the list and calls the `selected` callback; escape or a click elsewhere closes it unchosen. The open list is drawn over the controls behind it, but KUI draws text after all panels, so text of a control underneath still shows through: keep the area below a dropdown free.
+
+### Pathfinding
+
+`nav_grid` (`world/nav_grid.h`) is a flat grid of walkable and blocked cells with A* over it. `nav_grid_find_path(grid, from, to, diagonal, &count)` returns the cells from start to goal, or nothing if an end is blocked or the goal is unreachable. It is deterministic: costs are integers (10 straight, 14 diagonal), neighbours are tried in a fixed order, and ties between equal-cost entries break by cell index, so the same grid gives the same path on every machine. A diagonal step is not taken past a blocked corner. `nav_grid_cell_from_world` and `nav_grid_cell_centre` convert to and from world x and z.
+
+This is the cheap, exact choice for tile and grid games and for flat arenas. It does not path over uneven terrain or between floors; for that the roadmap still lists a navmesh (Recast and Detour). A game fills the grid itself (or from its own map data) and calls `nav_grid_agent_commands_register(grid)` to let an agent edit it and ask for paths.
 
 ### Save games
 
