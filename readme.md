@@ -12,24 +12,45 @@ The original YouTube series is located here: https://www.youtube.com/watch?v=dHP
 
 The Twitch stream happens here: https://twitch.tv/travisvroman.
 
+# <span style="color:#ff6600">IMPORTANT UPDATE FOR SOURCE CONTROL!</span>
+<span style="color:#ff6600">**The repository for Kohi is being migrated away from GitHub (and Git) to a new Subversion/SVN server.**</span>
+
+<ins>From this point forward, the GitHub repo will simply act as a mirror of the SVN repo, and will only
+be updated periodically.</ins> Therefore, the SVN repo will now be the _single source of truth_. 
+
+**If you are looking for the bleeding-edge code, look at the SVN repo, in `trunk`.**
+
+I've written an article with the why and how [here](https://travisvroman.com/articles/svn.html).
+
+Note that this repo _isn't going anywhere_, and will be updated, It's just not the primary anymore.
+
+See [Project Links](#project-links) below.
+
+Also See [Contributions](#contributions) below.
+
+
 ![Screenshot of Kohi](/images/kohi_screenshot_2.png?raw=true "Screenshot of Kohi")
 ![Screenshot of Kohi](/images/kohi_screenshot.png?raw=true "Screenshot of Kohi")
 
 ## Important Links
 
+<a name="project-links"></a>
+### Project Links
+- [![Subversion](https://img.shields.io/badge/Kohi%20on%20SVN--green.svg?style=social&logo=subversion)](https://svn.kohiengine.com/svn/kohi) The bleeding edge code is now here! See `trunk`.
+- [![GitHub](https://img.shields.io/badge/Kohi%20on%20GitHub--green.svg?style=social&logo=Github)](https://github.com/travisvroman/kohi) GitHub is now treated as a mirror and is updated from SVN every so often.
+- [![Website](https://img.shields.io/badge/Website-0066ff)](https://kohiengine.com) Additional info about the engine.
+- [![Forum](https://img.shields.io/badge/Forum-ff6600)](https://forum.kohiengine.com) Report issues or bugs with the engine here.
+- [![Bugtracking](https://img.shields.io/badge/Bug%20Tracking-ff0066)](https://forum.kohiengine.com) Discussions about the engine.
+- [![API Documentation](https://img.shields.io/badge/API%20Documentation-00ff66)](https://kohiengine.com/docs/) Auto-generated code documentation.
+
 ### Socials
 
-[![Twitch](/images/media_icon_twitch_name.png?raw=true)](https://twitch.tv/travisvroman)
-[![YouTube](/images/media_icon_yt_name.png?raw=true)](https://youtube.com/travisvroman)
-[![Patreon](/images/media_icon_patreon_name.png?raw=true)](https://patreon.com/travisvroman)
-[![Twitter](/images/media_icon_tw_name.png?raw=true)](https://twitter.com/travisvroman)
+[![Twitter](https://img.shields.io/badge/%40travisvroman--blue.svg?style=social&logo=x)](https://twitter.com/travisvroman)
+[![Instagram](https://img.shields.io/badge/travisvroman--red.svg?style=social&logo=Instagram)](https://www.instagram.com/travisvroman)
+[![Youtube](https://img.shields.io/badge/TravisVroman--red.svg?style=social&logo=youtube)](https://www.youtube.com/travisvroman)
+[![Discord](https://img.shields.io/badge/TravisVroman%20Server--blue.svg?style=social&logo=Discord)](https://discord.gg/YBMH9Em)
+[![Patreon](https://img.shields.io/badge/travisvroman--green.svg?style=social&logo=Patreon)](https://patreon.com/travisvroman)
 
-- Discord: https://discord.com/invite/YBMH9Em
-
-### Project Links
-
-- Website: https://kohiengine.com
-- API Documentation: https://kohiengine.com/docs/
 
 ## Goal
 
@@ -178,19 +199,27 @@ This structure breakdown is based on the root folder of the repository. Some fil
 
 See [here](TODO.md).
 
+<a name="contributions"></a>
 ## Contributions
 
-As the project progresses, community contributions are welcome via
-[Pull Requests](https://github.com/travisvroman/kohi/pulls) on GitHub.
+<span style="color:#ff6600;">**IMPORTANT UPDATE!**</span>
 
-Features should be contributed via a branch name in the format of `feature/<feature name>` where `<feature name>` is replaced with either the name of a feature or, ideally, the number of a reported feature issue (ex: `feature/80` or `feature/terrain`).
+**Issues and Pull Requests will no longer be accepted or reviewed via GitHub.** 
 
-Bug fixes _must_ be contributed via a branch name in the format of `bugfix/<issue#>` where `<issue#>` is replaced with the number of a reported feature issue (ex: `bugfix/80`). Bug fixes therefore _must_ have an associated issue created on GitHub.
+Instead, they must be submitted [here](https://bugs.kohiengine.com/) instead. All prior issues 
+located on the GitHub repo were moved and are now tracked there.
 
-Code should match the general style of the code in the repo. A code style guide will
+To contribute a fix or enhancement, submit a patch file as an attachment to a new issue [here](https://bugs.kohiengine.com/). It will be reviewed at some point whereafter it will either be:
+- Accepted as-is
+- Changes are requested before it is accepted
+- Declined with a reason.
+
+Code submitted must match the general style of the code in the repo. A code style guide will
 be published here at some point in the near future.
 
-All contributions are subject to review and may or may not be accepted, or have change requests made before being accepted.
+NOTE: that it will not be possible any longer for GitHub users to be associated with "contributors"
+on that repo. However, I'm more than happy to include you in a file that stays along with the code
+if you specify how you'd like to appear.
 
 ## Support Me
 
@@ -205,3 +234,4 @@ I am developing Kohi in my spare time. I don't have any sponsors at the moment. 
 I would also greatly appreciate follows/subscriptions on YouTube and Twitch. Please spread the word!
 
 Your support is greatly appreciated and will be re-invested back into the project.
+
