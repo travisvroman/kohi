@@ -36,11 +36,11 @@ typedef struct debug_grid {
 	kgeometry geometry;
 } debug_grid;
 
-KAPI b8 debug_grid_create(const debug_grid_config* config, debug_grid* out_grid);
-KAPI void debug_grid_destroy(debug_grid* grid);
+KAPI b8 debug_grid_create (const debug_grid_config *config, debug_grid *out_grid);
+KAPI void debug_grid_destroy (debug_grid *grid);
 
-KAPI b8 debug_grid_initialize(debug_grid* grid);
-KAPI b8 debug_grid_load(debug_grid* grid);
-KAPI b8 debug_grid_unload(debug_grid* grid);
+KAPI b8 debug_grid_initialize (debug_grid *grid);
+KAPI b8 debug_grid_load (debug_grid *grid);
+KAPI b8 debug_grid_unload (debug_grid *grid);
 
-KAPI b8 debug_grid_update(debug_grid* grid);
+KAPI b8 debug_grid_update (debug_grid *grid);

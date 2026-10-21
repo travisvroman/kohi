@@ -6,7 +6,7 @@
 #include "math/kmath.h"
 #include "renderer/renderer_frontend.h"
 
-b8 debug_grid_create(const debug_grid_config* config, debug_grid* out_grid) {
+b8 debug_grid_create (const debug_grid_config *config, debug_grid *out_grid) {
 	if (!config || !out_grid) {
 		return false;
 	}
@@ -26,13 +26,13 @@ b8 debug_grid_create(const debug_grid_config* config, debug_grid* out_grid) {
 	return true;
 }
 
-void debug_grid_destroy(debug_grid* grid) {
+void debug_grid_destroy (debug_grid *grid) {
 	debug_grid_unload(grid);
 
 	geometry_destroy(&grid->geometry);
 }
 
-b8 debug_grid_initialize(debug_grid* grid) {
+b8 debug_grid_initialize (debug_grid *grid) {
 	if (!grid) {
 		return false;
 	}
@@ -48,7 +48,7 @@ b8 debug_grid_initialize(debug_grid* grid) {
 	return true;
 }
 
-b8 debug_grid_load(debug_grid* grid) {
+b8 debug_grid_load (debug_grid *grid) {
 	// Send the geometry off to the renderer to be uploaded to the GPU.
 	if (!renderer_geometry_upload(&grid->geometry)) {
 		return false;
@@ -56,7 +56,7 @@ b8 debug_grid_load(debug_grid* grid) {
 	return true;
 }
 
-b8 debug_grid_unload(debug_grid* grid) {
+b8 debug_grid_unload (debug_grid *grid) {
 	renderer_geometry_destroy(&grid->geometry);
 
 	grid->id.uniqueid = INVALID_ID_U64;
@@ -64,6 +64,6 @@ b8 debug_grid_unload(debug_grid* grid) {
 	return true;
 }
 
-b8 debug_grid_update(debug_grid* grid) {
+b8 debug_grid_update (debug_grid *grid) {
 	return true;
 }

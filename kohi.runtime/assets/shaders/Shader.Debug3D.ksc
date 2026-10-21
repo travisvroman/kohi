@@ -5,8 +5,8 @@ depth_write=true
 max_draw_ids = 256
 
 topology_types = [
-    "line_list"
-    "triangle_list"
+	"line_list"
+	"triangle_list"
 ]
 
 attachments = {
@@ -51,16 +51,15 @@ pipelines = [
 ]
 
 binding_sets = [
-    {
-        name = "Debug3D global binding set"
-        max_instance_count = 256
-        bindings = [
-            {
-                name = "Debug3D global UBO"
-                type = "UBO"
-                data_size = 128
-            }
-        ]
-    }
+	{
+		name = "Debug3D global binding set"
+		max_instance_count = 256
+		bindings = [
+			{
+				name = "Kohi.StorageBuffer.MatrixGlobal"
+				type = "storage"
+			}
+		]
+	}
 ]
 

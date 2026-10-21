@@ -409,6 +409,10 @@ typedef union mat4_u {
 	f32 data[16];
 } mat4;
 
+typedef u32 ktransform;
+
+#define KTRANSFORM_INVALID INVALID_ID_U32
+
 /**
  * @brief Represents the extents of a 2d object.
  */
@@ -683,7 +687,7 @@ typedef struct raycast_hit {
 
 typedef struct raycast_result {
 	/** @brief Darray of hits. Not set if there are no hits. */
-	raycast_hit* hits;
+	raycast_hit *hits;
 } raycast_result;
 
 typedef struct ksphere {

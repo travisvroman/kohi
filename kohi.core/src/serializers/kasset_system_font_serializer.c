@@ -9,14 +9,14 @@
 
 #define SYSTEM_FONT_FORMAT_VERSION 1
 
-const char* kasset_system_font_serialize(const kasset* asset) {
+const char *kasset_system_font_serialize (const kasset *asset) {
 	if (!asset) {
 		KERROR("kasset_system_font_serialize requires an asset to serialize, ya dingus!");
 		return 0;
 	}
 
-	kasset_system_font* typed_asset = (kasset_system_font*)asset;
-	const char* out_str = 0;
+	kasset_system_font *typed_asset = (kasset_system_font *)asset;
+	const char *out_str = 0;
 
 	// Setup the KSON tree to serialize below.
 	kson_tree tree = {0};
@@ -64,7 +64,7 @@ cleanup_kson:
 	return out_str;
 }
 
-b8 kasset_system_font_deserialize(const char* file_text, kasset_system_font* out_asset) {
+b8 kasset_system_font_deserialize (const char *file_text, kasset_system_font *out_asset) {
 	if (out_asset) {
 		b8 success = false;
 
@@ -102,7 +102,7 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset_system_font* out
 		}
 
 		// Get the number of elements.
-		if (!kson_array_element_count_get(&face_array, (u32*)(&out_asset->face_count))) {
+		if (!kson_array_element_count_get(&face_array, (u32 *)(&out_asset->face_count))) {
 			KERROR("Failed to parse face count. Invalid format?");
 			goto cleanup_kson;
 		}
@@ -121,7 +121,7 @@ b8 kasset_system_font_deserialize(const char* file_text, kasset_system_font* out
 		kson_tree_cleanup(&tree);
 		if (!success) {
 			if (out_asset->face_count && out_asset->faces) {
-				kfree(out_asset->faces, sizeof(kasset_system_font_face) * out_asset->face_count, MEMORY_TAG_ARRAY);
+				kfree(out_asset->faces);
 				out_asset->faces = 0;
 				out_asset->face_count = 0;
 			}

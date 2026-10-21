@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core_render_types.h"
-#include <core_resource_types.h>
 #include <defines.h>
 #include <input_types.h>
 #include <math/geometry.h>
@@ -47,7 +46,7 @@ typedef struct kui_render_data {
 	u32 shader_set0_binding_instance_id;
 
 	u32 renderable_count;
-	kui_renderable* renderables;
+	kui_renderable *renderables;
 } kui_render_data;
 
 // Global UBO data for the KUI shader.
@@ -133,9 +132,9 @@ typedef u32 kui_control_flags;
  * The mouse event handler callback for a control.
  * @returns True if the event should be allowed to propagate to other controls; otherwise false.
  */
-typedef b8 (*PFN_mouse_event_callback)(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-typedef void (*PFN_keyboard_event_callback)(struct kui_state* state, kui_control self, struct kui_keyboard_event event);
-typedef void (*PFN_checkbox_event_callback)(struct kui_state* state, kui_control self, kui_checkbox_event event);
+typedef b8 (*PFN_mouse_event_callback)(struct kui_state *state, kui_control self, struct kui_mouse_event event);
+typedef void (*PFN_keyboard_event_callback)(struct kui_state *state, kui_control self, struct kui_keyboard_event event);
+typedef void (*PFN_checkbox_event_callback)(struct kui_state *state, kui_control self, kui_checkbox_event event);
 
 typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_NONE, // indicates a "free" slot in the internal arrays
@@ -149,6 +148,8 @@ typedef enum kui_control_type {
 	KUI_CONTROL_TYPE_IMAGE_BOX,
 	KUI_CONTROL_TYPE_CHECKBOX,
 	KUI_CONTROL_TYPE_FRAME,
+	KUI_CONTROL_TYPE_WINDOW,
+	KUI_CONTROL_TYPE_FLOW,
 
 	KUI_CONTROL_TYPE_MAX = 64
 } kui_control_type;
@@ -158,7 +159,7 @@ typedef struct kui_base_control {
 	// A copy of the handle for reverse lookups.
 	kui_control handle;
 	ktransform ktransform;
-	char* name;
+	char *name;
 
 	kui_control_flags flags;
 
@@ -171,18 +172,18 @@ typedef struct kui_base_control {
 
 	kui_control parent;
 	// darray
-	kui_control* children;
+	kui_control *children;
 
 	memory_tag user_data_memory_tag;
-	void* user_data;
+	void *user_data;
 	u64 user_data_size;
 
-	void (*destroy)(struct kui_state* state, kui_control* self);
+	void (*destroy)(struct kui_state *state, kui_control *self);
 
-	b8 (*update)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data);
-	b8 (*render)(struct kui_state* state, kui_control self, struct frame_data* p_frame_data, struct kui_render_data* reneder_data);
+	b8 (*update)(struct kui_state *state, kui_control self, struct frame_data *p_frame_data);
+	b8 (*render)(struct kui_state *state, kui_control self, struct frame_data *p_frame_data, struct kui_render_data *reneder_data);
 
-	void (*active_changed)(struct kui_state* state, kui_control self, b8 is_active);
+	void (*active_changed)(struct kui_state *state, kui_control self, b8 is_active);
 
 	/**
 	 * The click handler for a control.
@@ -201,8 +202,8 @@ typedef struct kui_base_control {
 	PFN_mouse_event_callback on_mouse_drag_end;
 	PFN_mouse_event_callback on_mouse_wheel;
 
-	void (*on_focus)(struct kui_state* state, kui_control self);
-	void (*on_unfocus)(struct kui_state* state, kui_control self);
+	void (*on_focus)(struct kui_state *state, kui_control self);
+	void (*on_unfocus)(struct kui_state *state, kui_control self);
 
 	PFN_mouse_event_callback internal_click;
 	PFN_mouse_event_callback internal_mouse_over;
@@ -254,7 +255,7 @@ typedef struct kui_label_control {
 	u64 index_buffer_offset;
 	u64 vertex_buffer_size;
 	u64 index_buffer_size;
-	char* text;
+	char *text;
 	u32 max_text_length;
 	u32 quad_count;
 	u32 max_quad_count;
@@ -288,7 +289,7 @@ typedef enum kui_textbox_type {
 } kui_textbox_type;
 
 typedef struct kui_textbox_event_listener {
-	struct kui_state* state;
+	struct kui_state *state;
 	kui_control control;
 } kui_textbox_event_listener;
 
@@ -310,7 +311,7 @@ typedef struct kui_textbox_control {
 	// Cached copy of the internal label's line height (taken in turn from its font.)
 	f32 label_line_height;
 
-	struct kui_textbox_event_listener* listener;
+	struct kui_textbox_event_listener *listener;
 } kui_textbox_control;
 
 typedef struct kui_frame_control {
@@ -342,7 +343,7 @@ typedef struct kui_tree_item_control {
 struct kui_scrollable_control;
 
 typedef struct kui_scrollbar {
-	struct kui_scrollable_control* owner;
+	struct kui_scrollable_control *owner;
 
 	f32 drag_button_offset_start;
 	f32 drag_button_mouse_offset;
@@ -376,7 +377,7 @@ typedef struct kui_scrollable_control {
 	vec2 min_offset;
 
 	// HACK: Use proper kui events so we don't have to do this
-	struct kui_state* kui_state;
+	struct kui_state *kui_state;
 } kui_scrollable_control;
 
 typedef struct kui_image_box_control {
@@ -404,6 +405,90 @@ typedef struct kui_checkbox_control {
 
 	kui_checkbox_state state;
 } kui_checkbox_control;
+
+typedef enum kui_window_flag_bits {
+	KUI_WINDOW_FLAG_NONE = 0,
+	KUI_WINDOW_FLAG_IS_DIALOG_BIT = 1 << 0,
+	KUI_WINDOW_FLAG_HAS_CLOSE_BUTTON_BIT = 1 << 1,
+	KUI_WINDOW_FLAG_IS_OK_CANCEL_BIT = 1 << 2,
+	KUI_WINDOW_FLAG_HAS_TITLE = 1 << 3
+} kui_window_flags_bits;
+
+typedef u32 kui_window_flags;
+
+typedef struct kui_font_data {
+	font_type type;
+	kname font_name;
+	u16 font_size;
+} kui_font_data;
+
+#define KUI_WINDOW_RESULT_OK 0
+#define KUI_WINDOW_RESULT_CANCELLED 1
+#define KUI_WINDOW_RESULT_CLOSED 2
+#define KUI_WINDOW_RESULT_ERROR 3
+
+typedef struct kui_window_control {
+	kui_base_control base;
+
+	kui_window_flags flags;
+
+	nine_slice nslice;
+	u32 binding_instance_id;
+
+	kui_control title_bar;
+	kui_control title_text;
+	kui_control close_button;
+} kui_window_control;
+
+typedef enum kui_flow_mode {
+	KUI_FLOW_STATIC = 0,	 // All controls are manually defined, no flow logic takes place.
+	KUI_FLOW_DIRECTIONAL = 1 // controls are checked if they fit horizontally, if so are placed inline, if not moved to next line at max height of control on current line.
+} kui_flow_mode;
+
+typedef enum kui_flow_vertical {
+	KUI_FLOW_VERTICAL_TOP_TO_BOTTOM,
+	KUI_FLOW_VERTICAL_BOTTOM_TO_TOP,
+	// Aligns all rows of controls to the middle of the vertical spacing of the flow container.
+	KUI_FLOW_VERTICAL_MIDDLE,
+	// Spreads all rows of controls to occupy the entire vertical spacing of the flow container,
+	// with even spacing in between.
+	KUI_FLOW_VERTICAL_SPREAD
+} kui_flow_vertical;
+
+typedef enum kui_flow_horizontal {
+	KUI_FLOW_HORIZONTAL_LEFT_TO_RIGHT,
+	KUI_FLOW_HORIZONTAL_RIGHT_TO_LEFT,
+	// Centers controls fitting in a single row together.
+	KUI_FLOW_HORIZONTAL_CENTER,
+	// Spreads controls fitting in a single row to occupy the entire row,
+	// with even spacing in between. No spacing before first and after last.
+	// In the event of one control only, it is left-aligned.
+	KUI_FLOW_HORIZONTAL_SPREAD,
+	// Spreads controls fitting in a single row to occupy the entire row,
+	// with even spacing in between and before the first control as well as
+	// after the last.
+	KUI_FLOW_HORIZONTAL_EVEN_SPACED,
+} kui_flow_horizontal;
+
+typedef enum kui_flow_overflow {
+	KUI_FLOW_OVERFLOW_EXPAND,
+	KUI_FLOW_OVERFLOW_NONE,
+} kui_flow_overflow;
+
+// NOTE: Enabling this shows debug displays for this control.
+#define KUI_FLOW_DEBUG_DISPLAY 1
+
+typedef struct kui_flow_control {
+	kui_base_control base;
+
+	kui_flow_horizontal horizontal;
+	kui_flow_vertical vertical;
+	kui_flow_overflow overflow;
+
+#if KUI_FLOW_DEBUG_DISPLAY
+	kui_control debug_panel;
+#endif
+} kui_flow_control;
 
 // Atlas configuration
 

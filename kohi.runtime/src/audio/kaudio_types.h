@@ -49,17 +49,17 @@ typedef struct kaudio_backend_config {
 } kaudio_backend_config;
 
 typedef struct kaudio_backend_interface {
-	struct kaudio_backend_state* internal_state;
+	struct kaudio_backend_state *internal_state;
 
-	b8 (*initialize)(struct kaudio_backend_interface* backend, const kaudio_backend_config* config);
+	b8 (*initialize)(struct kaudio_backend_interface *backend, const kaudio_backend_config *config);
 
-	void (*shutdown)(struct kaudio_backend_interface* backend);
+	void (*shutdown)(struct kaudio_backend_interface *backend);
 
-	b8 (*update)(struct kaudio_backend_interface* backend, struct frame_data* p_frame_data);
+	b8 (*update)(struct kaudio_backend_interface *backend, struct frame_data *p_frame_data);
 
-	b8 (*listener_position_set)(struct kaudio_backend_interface* backend, vec3 position);
+	b8 (*listener_position_set)(struct kaudio_backend_interface *backend, vec3 position);
 
-	b8 (*listener_orientation_set)(struct kaudio_backend_interface* backend, vec3 forward, vec3 up);
+	b8 (*listener_orientation_set)(struct kaudio_backend_interface *backend, vec3 forward, vec3 up);
 
 	/**
 	 * @param backend A pointer to the backend interface.
@@ -71,7 +71,7 @@ typedef struct kaudio_backend_interface {
 	 *  interpreted as zero volume - the channel is effectively disabled.
 	 * @returns True on success; otherwise false.
 	 */
-	b8 (*channel_gain_set)(struct kaudio_backend_interface* backend, u8 channel_id, f32 gain);
+	b8 (*channel_gain_set)(struct kaudio_backend_interface *backend, u8 channel_id, f32 gain);
 
 	/**
 	 * @param backend A pointer to the backend interface.
@@ -79,25 +79,25 @@ typedef struct kaudio_backend_interface {
 	 * @param Specify the pitch to be applied at source. Range: [0.5f - 2.0f] Default: 1.0f
 	 * @returns True on success; otherwise false.
 	 */
-	b8 (*channel_pitch_set)(struct kaudio_backend_interface* backend, u8 channel_id, f32 pitch);
+	b8 (*channel_pitch_set)(struct kaudio_backend_interface *backend, u8 channel_id, f32 pitch);
 
-	b8 (*channel_position_set)(struct kaudio_backend_interface* backend, u8 channel_id, vec3 position);
+	b8 (*channel_position_set)(struct kaudio_backend_interface *backend, u8 channel_id, vec3 position);
 
-	b8 (*channel_looping_set)(struct kaudio_backend_interface* backend, u8 channel_id, b8 looping);
+	b8 (*channel_looping_set)(struct kaudio_backend_interface *backend, u8 channel_id, b8 looping);
 
-	b8 (*load)(struct kaudio_backend_interface* backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16* pcm_data, b8 is_stream, kaudio audio);
-	void (*unload)(struct kaudio_backend_interface* backend, kaudio audio);
+	b8 (*load)(struct kaudio_backend_interface *backend, i32 channels, u32 sample_rate, u32 total_sample_count, u64 pcm_data_size, i16 *pcm_data, b8 is_stream, kaudio audio);
+	void (*unload)(struct kaudio_backend_interface *backend, kaudio audio);
 
 	// Play whatever is currently bound to the channel.
-	b8 (*channel_play)(struct kaudio_backend_interface* backend, u8 channel_id);
-	b8 (*channel_play_resource)(struct kaudio_backend_interface* backend, kaudio audio, u16 instance_id, kaudio_space audio_space, u8 channel_id);
+	b8 (*channel_play)(struct kaudio_backend_interface *backend, u8 channel_id);
+	b8 (*channel_play_resource)(struct kaudio_backend_interface *backend, kaudio audio, u16 instance_id, kaudio_space audio_space, u8 channel_id);
 
-	b8 (*channel_stop)(struct kaudio_backend_interface* backend, u8 channel_id);
-	b8 (*channel_pause)(struct kaudio_backend_interface* backend, u8 channel_id);
-	b8 (*channel_resume)(struct kaudio_backend_interface* backend, u8 channel_id);
+	b8 (*channel_stop)(struct kaudio_backend_interface *backend, u8 channel_id);
+	b8 (*channel_pause)(struct kaudio_backend_interface *backend, u8 channel_id);
+	b8 (*channel_resume)(struct kaudio_backend_interface *backend, u8 channel_id);
 
-	b8 (*channel_is_playing)(struct kaudio_backend_interface* backend, u8 channel_id);
-	b8 (*channel_is_paused)(struct kaudio_backend_interface* backend, u8 channel_id);
-	b8 (*channel_is_stopped)(struct kaudio_backend_interface* backend, u8 channel_id);
+	b8 (*channel_is_playing)(struct kaudio_backend_interface *backend, u8 channel_id);
+	b8 (*channel_is_paused)(struct kaudio_backend_interface *backend, u8 channel_id);
+	b8 (*channel_is_stopped)(struct kaudio_backend_interface *backend, u8 channel_id);
 
 } kaudio_backend_interface;

@@ -28,22 +28,18 @@ typedef enum ktimeline_flags {
 typedef u32 ktimeline_flag_bits;
 
 typedef struct ktimeline_system_state {
-	ktimeline_data* timelines;
-	ktimeline_flag_bits* flags;
+	ktimeline_data *timelines;
+	ktimeline_flag_bits *flags;
 	u32 entry_count;
 } ktimeline_system_state;
 
-static void ensure_allocated(ktimeline_system_state* state, u32 entry_count) {
+static void ensure_allocated (ktimeline_system_state *state, u32 entry_count) {
 	if (state->entry_count < entry_count) {
 		{
-			u64 old_size = sizeof(ktimeline_data) * state->entry_count;
-			u64 new_size = sizeof(ktimeline_data) * entry_count;
-			state->timelines = kreallocate(state->timelines, old_size, new_size, MEMORY_TAG_ARRAY);
+			state->timelines = KREALLOC_TYPE_CARRAY(state->timelines, ktimeline_data, entry_count);
 		}
 		{
-			u64 old_size = sizeof(ktimeline_flag_bits) * state->entry_count;
-			u64 new_size = sizeof(ktimeline_flag_bits) * entry_count;
-			state->flags = kreallocate(state->flags, old_size, new_size, MEMORY_TAG_ARRAY);
+			state->flags = KREALLOC_TYPE_CARRAY(state->flags, ktimeline_flag_bits, entry_count);
 		}
 		// Set all new "slots" to "free".
 		for (u32 i = state->entry_count; i < entry_count; ++i) {
@@ -54,7 +50,7 @@ static void ensure_allocated(ktimeline_system_state* state, u32 entry_count) {
 	}
 }
 
-b8 ktimeline_system_initialize(u64* memory_requirement, void* memory, void* config) {
+b8 ktimeline_system_initialize (u64 *memory_requirement, void *memory, void *config) {
 	if (!memory_requirement) {
 		KERROR("timeline_system_initialize requires a valid pointer to memory_requirement.");
 		return false;
@@ -65,7 +61,7 @@ b8 ktimeline_system_initialize(u64* memory_requirement, void* memory, void* conf
 		return true;
 	}
 
-	ktimeline_system_state* state = memory;
+	ktimeline_system_state *state = memory;
 	// TODO: Maybe read this from config?
 	const u32 start_entry_count = 4;
 	ensure_allocated(state, start_entry_count); // Prevent lots of early reallocs.
@@ -78,23 +74,23 @@ b8 ktimeline_system_initialize(u64* memory_requirement, void* memory, void* conf
 	return true;
 }
 
-void ktimeline_system_shutdown(void* state) {
-	ktimeline_system_state* typed_state = state;
+void ktimeline_system_shutdown (void *state) {
+	ktimeline_system_state *typed_state = state;
 	if (typed_state->timelines) {
-		kfree(typed_state->timelines, sizeof(ktimeline_data) * typed_state->entry_count, MEMORY_TAG_ARRAY);
+		kfree(typed_state->timelines);
 		typed_state->timelines = 0;
 	}
 
 	if (typed_state->flags) {
-		kfree(typed_state->flags, sizeof(ktimeline_flag_bits) * typed_state->entry_count, MEMORY_TAG_ARRAY);
+		kfree(typed_state->flags);
 		typed_state->flags = 0;
 	}
 
 	typed_state->entry_count = 0;
 }
 
-b8 ktimeline_system_update(void* state, f32 engine_delta_time) {
-	ktimeline_system_state* typed_state = state;
+b8 ktimeline_system_update (void *state, f32 engine_delta_time) {
+	ktimeline_system_state *typed_state = state;
 	if (typed_state->timelines && typed_state->flags) {
 		for (u32 i = 0; i < typed_state->entry_count; ++i) {
 			// Only update slots that contain active timelines.
@@ -109,9 +105,9 @@ b8 ktimeline_system_update(void* state, f32 engine_delta_time) {
 	return true;
 }
 
-ktimeline ktimeline_system_create(f32 scale) {
+ktimeline ktimeline_system_create (f32 scale) {
 	ktimeline new_handle;
-	ktimeline_system_state* state = engine_systems_get()->timeline_system;
+	ktimeline_system_state *state = engine_systems_get()->timeline_system;
 	for (u32 i = 0; i < state->entry_count; ++i) {
 		if (FLAG_GET(state->flags[i], KTIMELINE_FLAG_FREE_BIT)) {
 			// Found a free slot. Use it.
@@ -142,7 +138,7 @@ ktimeline ktimeline_system_create(f32 scale) {
 	return new_handle;
 }
 
-void ktimeline_system_destroy(ktimeline timeline) {
+void ktimeline_system_destroy (ktimeline timeline) {
 	if (timeline < 2) {
 		KERROR("timeline_system_destroy cannot be called for default engine or game timelines.");
 		return;
@@ -150,7 +146,7 @@ void ktimeline_system_destroy(ktimeline timeline) {
 	if (timeline == KTIMELINE_INVALID) {
 		return;
 	}
-	ktimeline_system_state* state = engine_systems_get()->timeline_system;
+	ktimeline_system_state *state = engine_systems_get()->timeline_system;
 
 	// Clear the data and Invalidate the handle.
 	kzero_memory(&state->timelines[timeline], sizeof(ktimeline_data));
@@ -158,59 +154,59 @@ void ktimeline_system_destroy(ktimeline timeline) {
 	state->flags[timeline] = FLAG_SET(state->flags[timeline], KTIMELINE_FLAG_FREE_BIT, true);
 }
 
-static ktimeline_data* timeline_get_at(ktimeline timeline) {
+static ktimeline_data *timeline_get_at (ktimeline timeline) {
 	if (timeline == KTIMELINE_INVALID) {
 		KWARN("Cannot get timeline for invalid handle.");
 		return 0;
 	}
 
-	ktimeline_system_state* state = engine_systems_get()->timeline_system;
+	ktimeline_system_state *state = engine_systems_get()->timeline_system;
 	KASSERT_MSG(timeline < state->entry_count, "Provided handle index is out of range.");
 
 	return &state->timelines[timeline];
 }
 
-f32 ktimeline_system_scale_get(ktimeline timeline) {
-	ktimeline_data* data = timeline_get_at(timeline);
+f32 ktimeline_system_scale_get (ktimeline timeline) {
+	ktimeline_data *data = timeline_get_at(timeline);
 	if (!data) {
 		return 0;
 	}
 	return data->time_scale;
 }
-void ktimeline_system_scale_set(ktimeline timeline, f32 scale) {
+void ktimeline_system_scale_set (ktimeline timeline, f32 scale) {
 	if (timeline < 2) {
 		// NOTE: 0 is always the engine scale, which should never be modified!
 		KWARN("timeline_system_scale_set cannot be used against the default engine timeline");
 		return;
 	}
-	ktimeline_data* data = timeline_get_at(timeline);
+	ktimeline_data *data = timeline_get_at(timeline);
 	if (data) {
 		data->time_scale = scale;
 	}
 }
 
-f32 ktimeline_system_total_get(ktimeline timeline) {
-	ktimeline_data* data = timeline_get_at(timeline);
+f32 ktimeline_system_total_get (ktimeline timeline) {
+	ktimeline_data *data = timeline_get_at(timeline);
 	if (!data) {
 		return 0;
 	}
 	return data->total_time;
 }
 
-f32 ktimeline_system_delta_get(ktimeline timeline) {
-	ktimeline_data* data = timeline_get_at(timeline);
+f32 ktimeline_system_delta_get (ktimeline timeline) {
+	ktimeline_data *data = timeline_get_at(timeline);
 	if (!data) {
 		return 0;
 	}
 	return data->delta_time;
 }
 
-ktimeline ktimeline_system_get_engine(void) {
+ktimeline ktimeline_system_get_engine (void) {
 	// 0 is the engine timeline
 	return 0;
 }
 
-ktimeline ktimeline_system_get_game(void) {
+ktimeline ktimeline_system_get_game (void) {
 	// 1 is the game timeline
 	return 1;
 }

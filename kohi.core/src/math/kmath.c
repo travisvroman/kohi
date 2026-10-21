@@ -1,27 +1,32 @@
 #include "kmath.h"
 
-#include <math.h>
-#include <stdlib.h>
+#include <math.h> // for sinf, cosf, etc.
 
 #include "debug/kassert.h"
 #include "defines.h"
-#include "logger.h"
 #include "math/math_types.h"
 #include "math/mtwister.h" // for 64-bit RNG
 
-#if !KOHI_DEBUG
-#	include "platform/platform.h"
+#define KMATH_USE_CUSTOM_RAND 1
+#if KMATH_USE_CUSTOM_RAND
+#	define krand _krand
+#	define ksrand _ksrand
+static u32 rand_state = 2463534242u;
+#else
+#	include <stdlib.h> // (s)rand
+#	define krand rand
+#	define ksrand srand
 #endif
 
 static b8 rand_seeded = false;
 static mtrand_state rng_u64 = {0}; // State for unsigned 64-bit RNG
 
-static void seed_randoms(void);
+static void seed_randoms (void);
 
 #define VEC3_CHECK_NAN(v) \
-	KASSERT(isfinite(v.x) && isfinite(v.y) && isfinite(v.z))
+	KASSERT(kis_finite(v.x) && kis_finite(v.y) && kis_finite(v.z))
 
-b8 quat_is_identity(quat q) {
+b8 quat_is_identity (quat q) {
 	for (u8 i = 0; i < 3; ++i) {
 		if (!kfloat_compare(q.elements[i], 0.0f)) {
 			return false;
@@ -34,64 +39,92 @@ b8 quat_is_identity(quat q) {
  * Note that these are here in order to prevent having to import the
  * entire <math.h> everywhere.
  */
-f32 ksin(f32 x) { return sinf(x); }
+f32 ksin (f32 x) { return sinf(x); }
 
-f32 kcos(f32 x) { return cosf(x); }
+f32 kcos (f32 x) { return cosf(x); }
 
-f32 ktan(f32 x) { return tanf(x); }
+f32 ktan (f32 x) { return tanf(x); }
 
-f32 katan(f32 x) { return atanf(x); }
+f32 katan (f32 x) { return atanf(x); }
 
-f32 katan2(f32 x, f32 y) { return atan2(x, y); }
+f32 katan2 (f32 x, f32 y) { return atan2(x, y); }
 
-f32 kasin(f32 x) { return asinf(x); }
+f32 kasin (f32 x) { return asinf(x); }
 
-f32 kacos(f32 x) { return acosf(x); }
+f32 kacos (f32 x) { return acosf(x); }
 
-f32 ksqrt(f32 x) { return sqrtf(x); }
+f32 ksqrt (f32 x) { return sqrtf(x); }
 
-f32 kabs(f32 x) { return fabsf(x); }
+f32 klog (f32 x) { return logf(x); }
 
-f32 kfloor(f32 x) { return floorf(x); }
+f32 klog2 (f32 x) { return log2f(x); }
 
-f32 kceil(f32 x) { return ceilf(x); }
+f32 kpow (f32 x, f32 y) { return powf(x, y); }
 
-f32 klog(f32 x) { return logf(x); }
+// Decode a hexadecimal digit.
+i32 hex_value (char c) {
+	if (c >= '0' && c <= '9') {
+		return c - '0';
+	}
 
-f32 klog2(f32 x) { return log2f(x); }
+	if (c >= 'a' && c <= 'f') {
+		return c - 'a' + 10;
+	}
 
-f32 kpow(f32 x, f32 y) { return powf(x, y); }
+	if (c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	}
 
-f32 kmod(f32 x, f32 y) { return fmodf(x, y); }
+	return -1;
+}
 
-i32 krandom(void) {
+void _ksrand (u32 seed) {
+	if (seed != 0) {
+		rand_state = seed;
+	}
+}
+
+int _krand (void) {
+	u32 x = rand_state;
+
+	// xorshift32
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+
+	rand_state = x;
+
+	return (int)(x & 0x7fffffff);
+}
+
+i32 krandom (void) {
 	if (!rand_seeded) {
 		seed_randoms();
 	}
-	return rand();
+	return krand();
 }
 
-i32 krandom_in_range(i32 min, i32 max) {
+i32 krandom_in_range (i32 min, i32 max) {
 	if (!rand_seeded) {
 		seed_randoms();
 	}
-	return (rand() % (max - min + 1)) + min;
+	return (krand() % (max - min + 1)) + min;
 }
 
-u64 krandom_u64(void) {
+u64 krandom_u64 (void) {
 	if (!rand_seeded) {
 		seed_randoms();
 	}
 	return mtrand_generate(&rng_u64);
 }
 
-f32 kfrandom(void) { return (float)krandom() / (f32)RAND_MAX; }
+f32 kfrandom (void) { return (float)krandom() / (f32)KRAND_MAX; }
 
-f32 kfrandom_in_range(f32 min, f32 max) {
-	return min + ((float)krandom() / ((f32)RAND_MAX / (max - min)));
+f32 kfrandom_in_range (f32 min, f32 max) {
+	return min + ((float)krandom() / ((f32)KRAND_MAX / (max - min)));
 }
 
-f32 kattenuation_min_max(f32 min, f32 max, f32 x) {
+f32 kattenuation_min_max (f32 min, f32 max, f32 x) {
 	// TODO: Maybe a good function here would be one with a min/max and falloff value...
 	// so if the range was 0.4 to 0.8 with a falloff of 1.0, weight for x between
 	// 0.5 and 0.7 would be 1.0, with it dwindling to 0 as it approaches 0.4 or 0.8.
@@ -103,19 +136,51 @@ f32 kattenuation_min_max(f32 min, f32 max, f32 x) {
 	return att;
 }
 
-plane_3d plane_3d_create(vec3 p1, vec3 norm) {
+f32 vec2_hypot (vec2 v) {
+	f32 ax = kabs(v.x);
+	f32 ay = kabs(v.y);
+
+	f32 m = KMAX(ax, ay);
+	if (m == 0.0f) {
+		return 0.0f;
+	}
+
+	ax /= m;
+	ay /= m;
+
+	return m * ksqrt(ax * ax + ay * ay);
+}
+
+f32 vec3_hypot (vec3 v) {
+	f32 ax = kabs(v.x);
+	f32 ay = kabs(v.y);
+	f32 az = kabs(v.z);
+
+	f32 m = KMAX(ax, KMAX(ay, az));
+	if (m == 0.0f) {
+		return 0.0f;
+	}
+
+	ax /= m;
+	ay /= m;
+	az /= m;
+
+	return m * ksqrt(ax * ax + ay * ay + az * az);
+}
+
+plane_3d plane_3d_create (vec3 p1, vec3 norm) {
 	plane_3d p;
 	p.normal = vec3_normalized(norm);
 	p.distance = vec3_dot(p.normal, p1);
 	return p;
 }
 
-kfrustum kfrustum_from_view_projection(mat4 view_projection) {
+kfrustum kfrustum_from_view_projection (mat4 view_projection) {
 	kfrustum f;
 
 	// Get the inverse of the view_projection matrix.
 	mat4 inv = mat4_inverse(view_projection);
-	f32* md = inv.data;
+	f32 *md = inv.data;
 
 	// Extract the rows.
 	vec4 mat0 = {md[0], md[1], md[2], md[3]};
@@ -141,7 +206,7 @@ kfrustum kfrustum_from_view_projection(mat4 view_projection) {
 	return f;
 }
 
-kfrustum kfrustum_create(vec3 position, vec3 target, vec3 up, f32 aspect, f32 fov, f32 near, f32 far) {
+kfrustum kfrustum_create (vec3 position, vec3 target, vec3 up, f32 aspect, f32 fov, f32 near, f32 far) {
 	kfrustum f;
 
 	// Calculate the forward vector (negative Z direction for right-handed systems)
@@ -151,7 +216,7 @@ kfrustum kfrustum_create(vec3 position, vec3 target, vec3 up, f32 aspect, f32 fo
 	vec3 right = vec3_normalized(vec3_cross(forward, up));
 
 	// Recalculate the true up vector (Y-axis) to ensure orthogonality
-	vec3 adjusted_up = vec3_cross(right, forward);
+	vec3 adjusted_up = vec3_normalized(vec3_cross(right, forward));
 
 	// Half dimensions at the far plane
 	f32 half_v = far * tanf(fov * 0.5f); // Vertical half
@@ -162,50 +227,42 @@ kfrustum kfrustum_create(vec3 position, vec3 target, vec3 up, f32 aspect, f32 fo
 	vec3 right_half_h = vec3_mul_scalar(right, half_h);
 	vec3 up_half_v = vec3_mul_scalar(adjusted_up, half_v);
 
-	// Top plane
-	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(right, vec3_sub(forward_far, up_half_v)));
+	vec3 pos_forward_far = vec3_add(position, forward_far);
 
-	// Bottom plane
-	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(vec3_add(forward_far, up_half_v), right));
+	vec3 top_dir = vec3_normalized(vec3_sub(forward_far, up_half_v));
+	vec3 bot_dir = vec3_normalized(vec3_add(forward_far, up_half_v));
+	vec3 left_dir = vec3_normalized(vec3_sub(forward_far, right_half_h));
+	vec3 right_dir = vec3_normalized(vec3_add(forward_far, right_half_h));
 
-	// Right plane
-	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(adjusted_up, vec3_sub(forward_far, right_half_h)));
+	vec3 top_norm = vec3_normalized(vec3_cross(right, top_dir));
+	vec3 bot_norm = vec3_normalized(vec3_cross(bot_dir, right));
+	vec3 left_norm = vec3_normalized(vec3_cross(left_dir, adjusted_up));
+	vec3 right_norm = vec3_normalized(vec3_cross(adjusted_up, right_dir));
 
-	// Left plane
-	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_cross(vec3_add(forward_far, right_half_h), adjusted_up));
+	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(pos_forward_far, top_norm);
+	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(pos_forward_far, bot_norm);
+	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(pos_forward_far, right_norm);
+	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(pos_forward_far, left_norm);
 
-	// Far plane
-	f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(
-		vec3_add(position, forward_far),
-		vec3_mul_scalar(forward, -1.0f) // Normal points back toward the camera
-	);
-
-	// Near plane
-	f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(
-		vec3_add(position, forward_near),
-		forward // Normal points away from the camera
-	);
+	f.sides[KFRUSTUM_SIDE_TOP] = plane_3d_create(position, top_norm);
+	f.sides[KFRUSTUM_SIDE_BOTTOM] = plane_3d_create(position, bot_norm);
+	f.sides[KFRUSTUM_SIDE_RIGHT] = plane_3d_create(position, right_norm);
+	f.sides[KFRUSTUM_SIDE_LEFT] = plane_3d_create(position, left_norm);
+	f.sides[KFRUSTUM_SIDE_NEAR] = plane_3d_create(vec3_add(position, forward_near), forward);
+	f.sides[KFRUSTUM_SIDE_FAR] = plane_3d_create(vec3_add(position, forward_far), vec3_mul_scalar(forward, -1.0f));
 
 	return f;
 }
 
-f32 plane_signed_distance(const plane_3d* p, const vec3* position) {
+f32 plane_signed_distance (const plane_3d *p, const vec3 *position) {
 	return vec3_dot(p->normal, *position) - p->distance;
 }
 
-b8 plane_intersects_sphere(const plane_3d* p, const vec3* center, f32 radius) {
+b8 plane_intersects_sphere (const plane_3d *p, const vec3 *center, f32 radius) {
 	return plane_signed_distance(p, center) > -radius;
 }
 
-b8 kfrustum_intersects_sphere(const kfrustum* f, const vec3* center, f32 radius) {
+b8 kfrustum_intersects_sphere (const kfrustum *f, const vec3 *center, f32 radius) {
 	for (u8 i = 0; i < 6; ++i) {
 		if (!plane_intersects_sphere(&f->sides[i], center, radius)) {
 			return false;
@@ -214,7 +271,7 @@ b8 kfrustum_intersects_sphere(const kfrustum* f, const vec3* center, f32 radius)
 	return true;
 }
 
-b8 kfrustum_intersects_ksphere(const kfrustum* f, const ksphere* sphere) {
+b8 kfrustum_intersects_ksphere (const kfrustum *f, const ksphere *sphere) {
 	for (u8 i = 0; i < 6; ++i) {
 		if (!plane_intersects_sphere(&f->sides[i], &sphere->position, sphere->radius)) {
 			return false;
@@ -223,7 +280,7 @@ b8 kfrustum_intersects_ksphere(const kfrustum* f, const ksphere* sphere) {
 	return true;
 }
 
-b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* extents) {
+b8 plane_intersects_aabb (const plane_3d *p, const vec3 *center, const vec3 *extents) {
 	f32 r = extents->x * kabs(p->normal.x) +
 			extents->y * kabs(p->normal.y) +
 			extents->z * kabs(p->normal.z);
@@ -237,7 +294,7 @@ b8 plane_intersects_aabb(const plane_3d* p, const vec3* center, const vec3* exte
 	return true;
 }
 
-b8 kfrustum_intersects_aabb(const kfrustum* f, const vec3* center, const vec3* extents) {
+b8 kfrustum_intersects_aabb (const kfrustum *f, const vec3 *center, const vec3 *extents) {
 	for (u8 i = 0; i < 6; ++i) {
 		if (!plane_intersects_aabb(&f->sides[i], center, extents)) {
 			return false;
@@ -246,7 +303,7 @@ b8 kfrustum_intersects_aabb(const kfrustum* f, const vec3* center, const vec3* e
 	return true;
 }
 
-void frustum_corner_points_world_space(mat4 projection_view, vec4* corners) {
+void frustum_corner_points_world_space (mat4 projection_view, vec4 *corners) {
 	mat4 inverse_view_proj = mat4_inverse(projection_view);
 
 	corners[0] = (vec4){-1.0f, -1.0f, 0.0f, 1.0f};
@@ -265,12 +322,12 @@ void frustum_corner_points_world_space(mat4 projection_view, vec4* corners) {
 	}
 }
 
-f32 vec3_distance_to_line(vec3 point, vec3 line_start, vec3 line_direction) {
+f32 vec3_distance_to_line (vec3 point, vec3 line_start, vec3 line_direction) {
 	f32 magnitude = vec3_length(vec3_cross(vec3_sub(point, line_start), line_direction));
 	return magnitude / vec3_length(line_direction);
 }
 
-f32 vec3_angle(vec3 v_0, vec3 v_1) {
+f32 vec3_angle (vec3 v_0, vec3 v_1) {
 	f32 mag_0 = vec3_length(v_0);
 	f32 mag_1 = vec3_length(v_1);
 
@@ -285,7 +342,7 @@ f32 vec3_angle(vec3 v_0, vec3 v_1) {
 	return radians * K_RAD2DEG_MULTIPLIER;
 }
 
-static void seed_randoms(void) {
+static void seed_randoms (void) {
 	u32 ptime_u32;
 	u32 ptime_u64;
 #if KOHI_DEBUG
@@ -301,14 +358,14 @@ static void seed_randoms(void) {
 #endif
 
 	// Seed standard random number generator.
-	srand(ptime_u32);
+	ksrand(ptime_u32);
 	// 64-bit RNG
 	rng_u64 = mtrand_create(ptime_u64);
 
 	rand_seeded = true;
 }
 
-ray ray_transformed(const ray* r, mat4 transform) {
+ray ray_transformed (const ray *r, mat4 transform) {
 	ray out = {
 		.origin = vec3_transform(r->origin, 1.0f, transform),
 		.direction = vec3_normalized(vec3_transform(r->direction, 0.0f, transform)),
@@ -318,7 +375,7 @@ ray ray_transformed(const ray* r, mat4 transform) {
 	return out;
 }
 
-ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection) {
+ray ray_from_screen (vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 view, mat4 projection) {
 	ray r = {0};
 	r.origin = origin;
 
@@ -346,7 +403,7 @@ ray ray_from_screen(vec2i screen_pos, rect_2di viewport_rect, vec3 origin, mat4 
 	return r;
 }
 
-b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_min, f32* out_max) {
+b8 ray_intersects_aabb (aabb box, vec3 origin, vec3 direction, f32 max, f32 *out_min, f32 *out_max) {
 	// Slab method with divide by zero handling.
 	f32 min = 0.0f;
 	f32 maxi = max;
@@ -386,7 +443,7 @@ b8 ray_intersects_aabb(aabb box, vec3 origin, vec3 direction, f32 max, f32* out_
 	return true;
 }
 
-b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_distance) {
+b8 raycast_plane_3d (const ray *r, const plane_3d *p, vec3 *out_point, f32 *out_distance) {
 	f32 normal_dir = vec3_dot(r->direction, p->normal);
 	f32 point_normal = vec3_dot(r->origin, p->normal);
 
@@ -409,7 +466,7 @@ b8 raycast_plane_3d(const ray* r, const plane_3d* p, vec3* out_point, f32* out_d
 	return false;
 }
 
-b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3* out_point, f32* out_distance) {
+b8 raycast_disc_3d (const ray *r, vec3 center, vec3 normal, f32 outer_radius, f32 inner_radius, vec3 *out_point, f32 *out_distance) {
 	if (!r) {
 		return false;
 	}
@@ -432,7 +489,7 @@ b8 raycast_disc_3d(const ray* r, vec3 center, vec3 normal, f32 outer_radius, f32
 	return false;
 }
 
-static b8 ray_intersects_triangle_internal(const ray* r, const triangle* t, b8 backface_cull, f32* out_t, vec3* out_pos, vec3* out_normal) {
+static b8 ray_intersects_triangle_internal (const ray *r, const triangle *t, b8 backface_cull, f32 *out_t, vec3 *out_pos, vec3 *out_normal) {
 	vec3 edge_1 = vec3_sub(t->verts[1], t->verts[0]);
 	vec3 edge_2 = vec3_sub(t->verts[2], t->verts[0]);
 	vec3 p = vec3_cross(r->direction, edge_2);
@@ -480,16 +537,16 @@ static b8 ray_intersects_triangle_internal(const ray* r, const triangle* t, b8 b
 	return true;
 }
 
-b8 ray_intersects_triangle(const ray* r, const triangle* t) {
+b8 ray_intersects_triangle (const ray *r, const triangle *t) {
 	return ray_intersects_triangle_internal(r, t, false, KNULL, KNULL, KNULL);
 }
 
-vec3 get_pos_from_vector_at(u32 vertex_count, u32 vertex_element_size, const void* vertices, u32 index) {
-	vec3* v = (vec3*)(((u64)vertices) + (vertex_element_size * index));
+vec3 get_pos_from_vector_at (u32 vertex_count, u32 vertex_element_size, const void *vertices, u32 index) {
+	vec3 *v = (vec3 *)(((u64)vertices) + (vertex_element_size * index));
 	return *v;
 }
 
-b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, const void* vertices, u32 index_count, const u32* indices, triangle* out_triangle, vec3* out_hit_pos, vec3* out_hit_normal) {
+b8 ray_pick_triangle (const ray *r, b8 backface_cull, u32 vertex_count, u32 vertex_element_size, const void *vertices, u32 index_count, const u32 *indices, triangle *out_triangle, vec3 *out_hit_pos, vec3 *out_hit_normal) {
 	b8 hit_any = false;
 	f32 closest_dist = r->max_distance;
 
@@ -503,6 +560,7 @@ b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 verte
 		vec3 hit_pos, hit_normal;
 		if (ray_intersects_triangle_internal(r, &t, backface_cull, &t_hit, &hit_pos, &hit_normal)) {
 			if (t_hit < closest_dist) {
+				closest_dist = t_hit;
 				hit_any = true;
 
 				if (out_triangle) {
@@ -523,7 +581,7 @@ b8 ray_pick_triangle(const ray* r, b8 backface_cull, u32 vertex_count, u32 verte
 	return hit_any;
 }
 
-b8 ray_intersects_sphere(const ray* r, vec3 center, f32 radius, vec3* out_point, f32* out_distance) {
+b8 ray_intersects_sphere (const ray *r, vec3 center, f32 radius, vec3 *out_point, f32 *out_distance) {
 	vec3 center_to_origin = vec3_sub(r->origin, center);
 
 	f32 b = vec3_dot(center_to_origin, r->direction);
@@ -562,7 +620,7 @@ b8 ray_intersects_sphere(const ray* r, vec3 center, f32 radius, vec3* out_point,
 	return true;
 }
 
-vec3 normal_from_triangle(const triangle* tri) {
+vec3 normal_from_triangle (const triangle *tri) {
 	vec3 edge_0 = vec3_sub(tri->verts[1], tri->verts[0]);
 	vec3 edge_1 = vec3_sub(tri->verts[2], tri->verts[0]);
 
@@ -573,18 +631,18 @@ vec3 normal_from_triangle(const triangle* tri) {
 			edge_0.x * edge_1.y - edge_0.y * edge_1.x));
 }
 
-vec3 closest_point_on_segment(vec3 a, vec3 b, vec3 pos) {
+vec3 closest_point_on_segment (vec3 a, vec3 b, vec3 pos) {
 	vec3 line_ab = vec3_sub(b, a);
 	f32 t = vec3_dot(vec3_sub(pos, a), line_ab) / vec3_dot(line_ab, line_ab);
 	t = KCLAMP(t, 0.0f, 1.0f);
 	return vec3_add(a, vec3_mul_scalar(line_ab, t));
 }
 
-vec3 vec3_project_on_plane(vec3 pos, vec3 normal) {
+vec3 vec3_project_on_plane (vec3 pos, vec3 normal) {
 	return vec3_sub(pos, vec3_mul_scalar(normal, vec3_dot(pos, normal)));
 }
 
-vec3 closest_point_on_triangle(vec3 pos, const triangle* t) {
+vec3 closest_point_on_triangle (vec3 pos, const triangle *t) {
 	vec3 edge_0 = vec3_sub(t->verts[1], t->verts[0]);
 	vec3 edge_1 = vec3_sub(t->verts[2], t->verts[0]);
 	vec3 ap = vec3_sub(pos, t->verts[0]);
@@ -630,7 +688,7 @@ vec3 closest_point_on_triangle(vec3 pos, const triangle* t) {
 }
 
 // Return whether point P is contained inside 3D region delimited by triangle T0,T1,T2 edges.
-b8 point_inside_triangle(vec3 p, const triangle* tri) {
+b8 point_inside_triangle (vec3 p, const triangle *tri) {
 	// Real-Time Collision Detection: 3.4: Barycentric Coordinates (pages 46-52).
 	//
 	// The book also has a subsection dedicated to point inside triangle tests:
@@ -656,7 +714,7 @@ b8 point_inside_triangle(vec3 p, const triangle* tri) {
 }
 
 // Return whether point P is contained inside 3D region delimited by parallelogram P0,P1,P2 edges.
-b8 point_inside_parallelogram(vec3 p, vec3 p0, vec3 p1, vec3 p2) {
+b8 point_inside_parallelogram (vec3 p, vec3 p0, vec3 p1, vec3 p2) {
 	// There may be a better way.
 	// https://math.stackexchange.com/questions/4381852/point-in-parallelogram-in-3d-space
 	vec3 p3 = vec3_add(p2, vec3_sub(p1, p0));
@@ -672,7 +730,7 @@ b8 point_inside_parallelogram(vec3 p, vec3 p0, vec3 p1, vec3 p2) {
 }
 
 // Return whether point P is contained inside a triangular prism A0,A1,A2-B0,B1,B2.
-b8 point_inside_triangular_prism(vec3 p, vec3 a0, vec3 a1, vec3 a2, vec3 b0, vec3 b1, vec3 b2) {
+b8 point_inside_triangular_prism (vec3 p, vec3 a0, vec3 a1, vec3 a2, vec3 b0, vec3 b1, vec3 b2) {
 	vec3 faces[5][3] = {{a0, a1, a2}, {b0, b2, b1}, {a0, b0, a1}, {a1, b1, a2}, {a2, b2, a0}};
 	f32 sgn = 0;
 	for (u32 i = 0; i < 5; i++) {
@@ -697,7 +755,7 @@ b8 point_inside_triangular_prism(vec3 p, vec3 a0, vec3 a1, vec3 a2, vec3 b0, vec
 }
 
 // Sweep sphere C,r with velocity Sv against plane N of triangle T0,T1,T2, ignoring edges.
-b8 sweep_sphere_triangle_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2, vec3 n) {
+b8 sweep_sphere_triangle_plane (sweep_result *sweep, vec3 c, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2, vec3 n) {
 	// Real-Time Collision Detection 5.5.3: Intersecting Moving Sphere Against Plane (pages 219-223).
 	f32 t;
 	f32 d = vec3_dot(n, vec3_sub(c, t0));
@@ -744,7 +802,7 @@ b8 sweep_sphere_triangle_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 
 }
 
 // Sweep sphere C,r with velocity V against plane N of parallelogram P0,P1,P2 ignoring edges.
-b8 sweep_sphere_parallelogram_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, vec3 p0, vec3 p1, vec3 p2, vec3 n) {
+b8 sweep_sphere_parallelogram_plane (sweep_result *sweep, vec3 c, f32 r, vec3 v, vec3 p0, vec3 p1, vec3 p2, vec3 n) {
 	// Real-Time Collision Detection 5.5.3: Intersecting Moving Sphere Against Plane (pages 219-223).
 	f32 t;
 	/* f32 d = vec3_dot(c, vec3_sub(n, p0)); */
@@ -788,7 +846,7 @@ b8 sweep_sphere_parallelogram_plane(sweep_result* sweep, vec3 c, f32 r, vec3 v, 
 }
 
 // Sweep point P with velocity V against sphere S,r.
-b8 sweep_point_sphere(sweep_result* sweep, vec3 p, vec3 v, vec3 s, f32 r, vec3 fallback_normal) {
+b8 sweep_point_sphere (sweep_result *sweep, vec3 p, vec3 v, vec3 s, f32 r, vec3 fallback_normal) {
 	// Real-Time Collision Detection 5.3.2: Intersecting Ray or Segment Against Sphere (pages 177-179).
 
 	// Set up quadratic equation.
@@ -825,7 +883,7 @@ b8 sweep_point_sphere(sweep_result* sweep, vec3 p, vec3 v, vec3 s, f32 r, vec3 f
 }
 
 // Sweep point P with velocity V against cylinder C0,C1,r, ignoring the endcaps.
-b8 sweep_point_uncapped_cylinder(sweep_result* sweep, vec3 p, vec3 v, vec3 c0, vec3 c1, f32 r, vec3 fallback_normal) {
+b8 sweep_point_uncapped_cylinder (sweep_result *sweep, vec3 p, vec3 v, vec3 c0, vec3 c1, f32 r, vec3 fallback_normal) {
 	// Real-Time Collision Detection 5.3.7: Intersecting Ray or Segment Against Cylinder (pages 194-198).
 
 	// Test if swept point is fully outside of either endcap.
@@ -904,7 +962,7 @@ b8 sweep_point_uncapped_cylinder(sweep_result* sweep, vec3 p, vec3 v, vec3 c0, v
 //   v          capsule velocity
 //   t0,t1,t2   3 triangle vertices
 //   returns    whether the capsule and triangle intersect
-b8 sweep_capsule_triangle(sweep_result* s, vec3 c0, vec3 c1, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2) {
+b8 sweep_capsule_triangle (sweep_result *s, vec3 c0, vec3 c1, f32 r, vec3 v, vec3 t0, vec3 t1, vec3 t2) {
 	// Compute triangle plane equation.
 	vec3 t01 = vec3_sub(t1, t0);
 	vec3 t02 = vec3_sub(t2, t0);

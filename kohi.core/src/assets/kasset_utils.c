@@ -6,7 +6,7 @@
 #include "strings/kstring.h"
 
 // Static lookup table for kasset type strings.
-static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
+static const char *kasset_type_strs[KASSET_TYPE_MAX] = {
 	"unknown",		 // KASSET_TYPE_UNKNOWN,
 	"image",		 // KASSET_TYPE_IMAGE,
 	"material",		 // KASSET_TYPE_MATERIAL,
@@ -28,7 +28,7 @@ static const char* kasset_type_strs[KASSET_TYPE_MAX] = {
 // Ensure changes to asset types break this if it isn't also updated.
 STATIC_ASSERT(KASSET_TYPE_MAX == (sizeof(kasset_type_strs) / sizeof(*kasset_type_strs)), "Asset type count does not match string lookup table count.");
 
-kasset_type kasset_type_from_string(const char* type_str) {
+kasset_type kasset_type_from_string (const char *type_str) {
 	for (u32 i = 0; i < KASSET_TYPE_MAX; ++i) {
 		if (strings_equali(type_str, kasset_type_strs[i])) {
 			return (kasset_type)i;
@@ -38,12 +38,12 @@ kasset_type kasset_type_from_string(const char* type_str) {
 	return KASSET_TYPE_UNKNOWN;
 }
 
-const char* kasset_type_to_string(kasset_type type) {
+const char *kasset_type_to_string (kasset_type type) {
 	KASSERT_MSG(type < KASSET_TYPE_MAX, "Provided kasset_type is not valid.");
 	return string_duplicate(kasset_type_strs[type]);
 }
 
-b8 kasset_type_is_binary(kasset_type type) {
+b8 kasset_type_is_binary (kasset_type type) {
 	switch (type) {
 	default:
 	case KASSET_TYPE_UNKNOWN:

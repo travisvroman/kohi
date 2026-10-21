@@ -19,7 +19,7 @@
  */
 typedef struct freelist {
 	/** @brief The internal state of the freelist. */
-	void* memory;
+	void *memory;
 } freelist;
 
 /**
@@ -32,14 +32,14 @@ typedef struct freelist {
  * @param memory 0, or a pre-allocated block of memory for the free list to use.
  * @param out_list A pointer to hold the created free list.
  */
-KAPI void freelist_create(u64 total_size, u64* memory_requirement, void* memory, freelist* out_list);
+KAPI void freelist_create (u64 total_size, u64 *memory_requirement, void *memory, freelist *out_list);
 
 /**
  * @brief Destroys the provided list.
  *
  * @param list The list to be destroyed.
  */
-KAPI void freelist_destroy(freelist* list);
+KAPI void freelist_destroy (freelist *list);
 
 /**
  * @brief Attempts to find a free block of memory of the given size.
@@ -49,7 +49,7 @@ KAPI void freelist_destroy(freelist* list);
  * @param out_offset A pointer to hold the offset to the allocated memory.
  * @return b8 True if a block of memory was found and allocated; otherwise false.
  */
-KAPI b8 freelist_allocate_block(freelist* list, u64 size, u64* out_offset);
+KAPI b8 freelist_allocate_block (freelist *list, u64 size, u64 *out_offset);
 
 /**
  * @brief Attempts to free a block of memory at the given offset, and of the given
@@ -60,7 +60,7 @@ KAPI b8 freelist_allocate_block(freelist* list, u64 size, u64* out_offset);
  * @param offset The offset to free at.
  * @return b8 True if successful; otherwise false. False should be treated as an error.
  */
-KAPI b8 freelist_free_block(freelist* list, u64 size, u64 offset);
+KAPI b8 freelist_free_block (freelist *list, u64 size, u64 offset);
 
 /**
  * @brief Attempts to resize the provided freelist to the given size. Internal data is copied to the new
@@ -76,14 +76,14 @@ KAPI b8 freelist_free_block(freelist* list, u64 size, u64 offset);
  * @param out_old_memory A pointer to hold the old block of memory so that it may be freed after this call.
  * @return True on success; otherwise false.
  */
-KAPI b8 freelist_resize(freelist* list, u64* memory_requirement, void* new_memory, u64 new_size, void** out_old_memory);
+KAPI b8 freelist_resize (freelist *list, u64 *memory_requirement, void *new_memory, u64 new_size, void **out_old_memory);
 
 /**
  * @brief Clears the free list.
  *
  * @param list The list to be cleared.
  */
-KAPI void freelist_clear(freelist* list);
+KAPI void freelist_clear (freelist *list);
 
 /**
  * @brief Returns the amount of free space in this list. NOTE: Since this has
@@ -93,4 +93,4 @@ KAPI void freelist_clear(freelist* list);
  * @param list A pointer to the list to obtain from.
  * @return The amount of free space in bytes.
  */
-KAPI u64 freelist_free_space(freelist* list);
+KAPI u64 freelist_free_space (freelist *list);

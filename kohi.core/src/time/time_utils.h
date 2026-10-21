@@ -9,4 +9,4 @@
  * @param total_seconds The total amount of seconds to extract the string from.
  * @return const char* The string formatted time stamp "hh:mm:ss.xx"
  */
-KAPI const char* time_as_string_from_seconds(f32 total_seconds);
+KAPI const char *time_as_string_from_seconds (f32 total_seconds);

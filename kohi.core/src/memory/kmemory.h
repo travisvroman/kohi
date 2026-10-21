@@ -23,8 +23,8 @@
 
 // Interface for a frame allocator.
 typedef struct frame_allocator_int {
-	void* (*allocate)(u64 size);
-	void (*free)(void* block, u64 size);
+	void *(*allocate)(u64 size);
+	void (*free)(void *block, u64 size);
 	void (*free_all)(void);
 	u64 (*total_space)(void);
 	u64 (*allocated)(void);
@@ -42,6 +42,7 @@ typedef enum memory_tag {
 	MEMORY_TAG_RING_QUEUE,
 	MEMORY_TAG_BST,
 	MEMORY_TAG_STRING,
+	MEMORY_TAG_KSTRING,
 	MEMORY_TAG_ENGINE,
 	MEMORY_TAG_JOB,
 	MEMORY_TAG_TEXTURE,
@@ -86,12 +87,12 @@ typedef struct memory_system_configuration {
  * @brief Initializes the memory system.
  * @param config The configuration for this system.
  */
-KAPI b8 memory_system_initialize(memory_system_configuration config);
+KAPI b8 memory_system_initialize (memory_system_configuration config);
 
 /**
  * @brief Shuts down the memory system.
  */
-KAPI void memory_system_shutdown(void);
+KAPI void memory_system_shutdown (void);
 
 /**
  * @brief Performs a memory allocation from the host of the given size. The allocation
@@ -100,7 +101,7 @@ KAPI void memory_system_shutdown(void);
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line);
+KAPI void *_kallocate (u64 size, memory_tag tag, const char *file, u32 line);
 
 #define kallocate(size, tag) _kallocate(size, tag, __FILE__, __LINE__)
 
@@ -110,17 +111,7 @@ KAPI void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line);
  * @param type The type to be used when determining allocation size.
  * @param mem_tag The memory tag to be used for the allocation.
  */
-#define KALLOC_TYPE(type, mem_tag) (type*)kallocate(sizeof(type), mem_tag)
-
-/**
- * @brief Frees the given dynamically-allocated memory of the provided type,
- * using the given tag.
- *
- * @param block The block of memory to be freed.
- * @param type The type to be used when determining allocation size.
- * @param mem_tag The memory tag to be used for the deallocation.
- */
-#define KFREE_TYPE(block, type, mem_tag) kfree(block, sizeof(type), mem_tag)
+#define KALLOC_TYPE(type, mem_tag) (type *)kallocate(sizeof(type), mem_tag)
 
 /**
  * @brief Dynamically allocates memory for a standard C array of the given type.
@@ -129,20 +120,7 @@ KAPI void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line);
  * @param type The type to be used when determining allocation size.
  * @param count The number of elements existing in the array.
  */
-#define KALLOC_TYPE_CARRAY(type, count) (type*)kallocate(sizeof(type) * count, MEMORY_TAG_ARRAY)
-
-/**
- * @brief Frees the given dynamically-allocated array of the provided type,
- * using MEMORY_TAG_ARRAY.
- *
- * @param block The block of memory to be freed.
- * @param type The type to be used when determining allocation size.
- * @param count The number of elements in the array to be freed.
- */
-#define KFREE_TYPE_CARRAY(block, type, count)                 \
-	if (block) {                                              \
-		kfree(block, sizeof(type) * count, MEMORY_TAG_ARRAY); \
-	}
+#define KALLOC_TYPE_CARRAY(type, count) (type *)kallocate(sizeof(type) * count, MEMORY_TAG_ARRAY)
 
 /**
  * @brief Resizes the given array of the provided type, also copying the contents of the old
@@ -151,10 +129,10 @@ KAPI void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line);
  */
 #define KRESIZE_ARRAY(array, type, old_count, new_count)     \
 	{                                                        \
-		type* temp = KALLOC_TYPE_CARRAY(type, new_count);    \
+		type *temp = KALLOC_TYPE_CARRAY(type, new_count);    \
 		if (old_count && array) {                            \
 			KCOPY_TYPE_CARRAY(temp, array, type, old_count); \
-			KFREE_TYPE_CARRAY(array, type, old_count);       \
+			kfree(array);                                    \
 		}                                                    \
 		array = temp;                                        \
 	}
@@ -168,7 +146,7 @@ KAPI void* _kallocate(u64 size, memory_tag tag, const char* file, u32 line);
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const char* filename, u32 line);
+KAPI void *_kallocate_aligned (u64 size, u16 alignment, memory_tag tag, const char *filename, u32 line);
 
 #define kallocate_aligned(size, alignment, tag) _kallocate_aligned(size, alignment, tag, __FILE__, __LINE__)
 
@@ -180,20 +158,19 @@ KAPI void* _kallocate_aligned(u64 size, u16 alignment, memory_tag tag, const cha
  * @param size The size of the allocation.
  * @param tag Indicates the use of the allocated block.
  */
-KAPI void kallocate_report(u64 size, memory_tag tag);
+KAPI void kallocate_report (u64 size, memory_tag tag);
 
 /**
  * @brief Performs a memory reallocation from the host of the given size, and also frees the
  * block of memory given. The reallocation is tracked for the provided tag.
  * @param block The block of memory to reallocate.
- * @param old_size The size of the old allocation (that gets freed).
  * @param new_size The size of the new allocation (that get allocated).
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void* _kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag, const char* filename, u32 line);
+KAPI void *_kreallocate (void *block, u64 new_size, memory_tag tag, const char *filename, u32 line);
 
-#define kreallocate(block, old_size, new_size, tag) _kreallocate(block, old_size, new_size, tag, __FILE__, __LINE__)
+#define kreallocate(block, new_size, tag) _kreallocate(block, new_size, tag, __FILE__, __LINE__)
 
 /**
  * @brief Dynamically reallocates memory for a standard C array of the given type.
@@ -201,10 +178,9 @@ KAPI void* _kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag,
  *
  * @param block The block of memory to reallocate.
  * @param type The type to be used when determining allocation size.
- * @param old_count The number of elements existing in the array.
  * @param new_count The number of elements in the resized array.
  */
-#define KREALLOC_TYPE_CARRAY(block, type, old_count, new_count) (type*)kreallocate(block, sizeof(type) * (old_count), sizeof(type) * (new_count), MEMORY_TAG_ARRAY)
+#define KREALLOC_TYPE_CARRAY(block, type, new_count) (type *)kreallocate(block, sizeof(type) * (new_count), MEMORY_TAG_ARRAY)
 
 /**
  * @brief Performs a memory reallocation from the host of the given size and alignment, and also frees the
@@ -212,15 +188,14 @@ KAPI void* _kreallocate(void* block, u64 old_size, u64 new_size, memory_tag tag,
  * NOTE: Memory allocated this way must be freed using kfree_aligned.
 
  * @param block The block of memory to reallocate.
- * @param old_size The size of the old allocation (that gets freed).
  * @param new_size The size of the new allocation (that get allocated).
  * @param alignment The byte alignment to be used for the reallocation.
  * @param tag Indicates the use of the allocated block.
  * @returns If successful, a pointer to a block of allocated memory; otherwise 0.
  */
-KAPI void* _kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment, memory_tag tag, const char* filename, u32 line);
+KAPI void *_kreallocate_aligned (void *block, u64 new_size, u16 alignment, memory_tag tag, const char *filename, u32 line);
 
-#define kreallocate_aligned(block, old_size, new_size, alignment, tag) _kreallocate_aligned(block, old_size, new_size, alignment, tag, __FILE__, __LINE__)
+#define kreallocate_aligned(block, alignment, new_size, tag) _kreallocate_aligned(block, new_size, alignment, tag, __FILE__, __LINE__)
 
 /**
  * @brief Reports an allocation associated with the application, but made externally.
@@ -231,23 +206,18 @@ KAPI void* _kreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 ali
  * @param new_size The size of the new allocation.
  * @param tag Indicates the use of the allocated block.
  */
-KAPI void kreallocate_report(u64 old_size, u64 new_size, memory_tag tag);
+KAPI void kreallocate_report (u64 old_size, u64 new_size, memory_tag tag);
 
 /**
- * @brief Frees the given block, and untracks its size from the given tag.
+ * @brief Frees the given block, and internally untracks its size from the given tag.
  * @param block A pointer to the block of memory to be freed.
- * @param size The size of the block to be freed.
- * @param tag The tag indicating the block's use.
  */
-KAPI void kfree(void* block, u64 size, memory_tag tag);
+KAPI void kfree (void *block);
 
 /**
- * @brief Frees the given block, and untracks its size from the given tag.
- * @param block A pointer to the block of memory to be freed.
- * @param size The size of the block to be freed.
- * @param tag The tag indicating the block's use.
+ * @brief Frees the given block, and internally untracks its size from the given tag.
  */
-KAPI void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag);
+KAPI void kfree_aligned (void *block);
 
 /**
  * @brief Reports a free associated with the application, but made externally.
@@ -257,7 +227,7 @@ KAPI void kfree_aligned(void* block, u64 size, u16 alignment, memory_tag tag);
  * @param size The size in bytes.
  * @param tag The tag indicating the block's use.
  */
-KAPI void kfree_report(u64 size, memory_tag tag);
+KAPI void kfree_report (u64 size, memory_tag tag);
 
 /**
  * @brief Returns the size and alignment of the given block of memory.
@@ -268,7 +238,7 @@ KAPI void kfree_report(u64 size, memory_tag tag);
  * @param out_alignment A pointer to hold the alignment of the block.
  * @return True on success; otherwise false.
  */
-KAPI b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment, memory_tag* out_tag);
+KAPI b8 kmemory_get_size_alignment (void *block, u64 *out_size, u16 *out_alignment, memory_tag *out_tag);
 
 /**
  * @brief Zeroes out the provided memory block.
@@ -276,7 +246,7 @@ KAPI b8 kmemory_get_size_alignment(void* block, u64* out_size, u16* out_alignmen
  * @param size The size in bytes to zero out.
  * @param A pointer to the zeroed out block of memory.
  */
-KAPI void* kzero_memory(void* block, u64 size);
+KAPI void *kzero_memory (void *block, u64 size);
 
 #define KZERO_TYPE(block, type) kzero_memory(block, sizeof(type));
 #define KZERO_TYPE_CARRAY(block, type, count) kzero_memory(block, sizeof(type) * count);
@@ -288,7 +258,7 @@ KAPI void* kzero_memory(void* block, u64 size);
  * @param size The amount of memory in bytes to be copied over.
  * @returns A pointer to the block of memory copied to.
  */
-KAPI void* kcopy_memory(void* dest, const void* source, u64 size);
+KAPI void *kcopy_memory (void *dest, const void *source, u64 size);
 
 #define KCOPY_TYPE(dest, source, type) kcopy_memory(dest, source, sizeof(type))
 #define KCOPY_TYPE_CARRAY(dest, source, type, count) kcopy_memory(dest, source, sizeof(type) * count)
@@ -304,9 +274,9 @@ KAPI void* kcopy_memory(void* dest, const void* source, u64 size);
  * @param size The size in bytes to copy over to.
  * @returns A pointer to the destination block of memory.
  */
-KAPI void* kset_memory(void* dest, i32 value, u64 size);
+KAPI void *kset_memory (void *dest, i32 value, u64 size);
 
-KAPI const char* get_unit_for_size(u64 size_bytes, f32* out_amount);
+KAPI const char *get_unit_for_size (u64 size_bytes, f32 *out_amount);
 
 /**
  * @brief Obtains a string containing a "printout" of memory usage, categorized by
@@ -314,17 +284,17 @@ KAPI const char* get_unit_for_size(u64 size_bytes, f32* out_amount);
  * @deprecated This function should be discontinued in favour of something more robust in the future.
  * @returns A pointer to a character array containing the string representation of memory usage.
  */
-KAPI char* get_memory_usage_str(void);
+KAPI char *get_memory_usage_str (void);
 
 /**
  * @brief Obtains the number of times kallocate was called since the memory system was initialized.
  * @returns The total count of allocations since the system's initialization.
  */
-KAPI u64 get_memory_alloc_count(void);
+KAPI u64 get_memory_alloc_count (void);
 
-KAPI u64 get_total_memory_space(void);
-KAPI u64 get_free_memory_space(void);
-KAPI u64 get_used_memory_space(void);
+KAPI u64 get_total_memory_space (void);
+KAPI u64 get_free_memory_space (void);
+KAPI u64 get_used_memory_space (void);
 
 /**
  * @brief Packs the values of 4 u8s into a single u32.
@@ -335,7 +305,7 @@ KAPI u64 get_used_memory_space(void);
  * @param w The fourth u8 to pack.
  * @returns The packed u32.
  */
-KAPI u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w);
+KAPI u32 pack_u8_into_u32 (u8 x, u8 y, u8 z, u8 w);
 
 /**
  * @brief Attempts to unpack 4 u8s from a u32.
@@ -347,4 +317,4 @@ KAPI u32 pack_u8_into_u32(u8 x, u8 y, u8 z, u8 w);
  * @param w The fourth u8 to extract to. Required.
  * @returns True if success, otherwise false.
  */
-KAPI b8 unpack_u8_from_u32(u32 n, u8* x, u8* y, u8* z, u8* w);
+KAPI b8 unpack_u8_from_u32 (u32 n, u8 *x, u8 *y, u8 *z, u8 *w);

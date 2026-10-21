@@ -7,7 +7,7 @@
 #include "renderer/renderer_frontend.h"
 #include "systems/texture_system.h"
 
-b8 skybox_create(skybox_config config, skybox* out_skybox) {
+b8 skybox_create (skybox_config config, skybox *out_skybox) {
 	if (!out_skybox) {
 		KERROR("skybox_create requires a valid pointer to out_skybox!");
 		return false;
@@ -20,7 +20,7 @@ b8 skybox_create(skybox_config config, skybox* out_skybox) {
 	return true;
 }
 
-b8 skybox_initialize(skybox* sb) {
+b8 skybox_initialize (skybox *sb) {
 	if (!sb) {
 		KERROR("skybox_initialize requires a valid pointer to sb!");
 		return false;
@@ -33,7 +33,7 @@ b8 skybox_initialize(skybox* sb) {
 	return true;
 }
 
-b8 skybox_load(skybox* sb) {
+b8 skybox_load (skybox *sb) {
 	if (!sb) {
 		KERROR("skybox_load requires a valid pointer to sb!");
 		return false;
@@ -52,7 +52,7 @@ b8 skybox_load(skybox* sb) {
 	return true;
 }
 
-b8 skybox_unload(skybox* sb) {
+b8 skybox_unload (skybox *sb) {
 	if (!sb) {
 		KERROR("skybox_unload requires a valid pointer to sb!");
 		return false;
@@ -79,7 +79,7 @@ b8 skybox_unload(skybox* sb) {
  *
  * @param sb A pointer to the skybox to be destroyed.
  */
-void skybox_destroy(skybox* sb) {
+void skybox_destroy (skybox *sb) {
 	if (!sb) {
 		KERROR("skybox_destroy requires a valid pointer to sb!");
 		return;

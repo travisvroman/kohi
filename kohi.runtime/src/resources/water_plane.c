@@ -10,7 +10,7 @@
 #include "strings/kname.h"
 #include "systems/kmaterial_system.h"
 
-b8 water_plane_create(water_plane* out_plane) {
+b8 water_plane_create (water_plane *out_plane) {
 	if (!out_plane) {
 		return false;
 	}
@@ -21,14 +21,14 @@ b8 water_plane_create(water_plane* out_plane) {
 
 	return true;
 }
-void water_plane_destroy(water_plane* plane) {
+void water_plane_destroy (water_plane *plane) {
 	if (plane) {
 
 		kzero_memory(plane, sizeof(water_plane));
 	}
 }
 
-b8 water_plane_initialize(water_plane* plane) {
+b8 water_plane_initialize (water_plane *plane) {
 	if (plane) {
 
 		// Create the geometry, but don't load it yet.
@@ -59,14 +59,14 @@ b8 water_plane_initialize(water_plane* plane) {
 	return false;
 }
 
-b8 water_plane_load(water_plane* plane) {
+b8 water_plane_load (water_plane *plane) {
 	if (plane) {
 
 		// Get water material.
 		// FIXME: Make this configurable.
 		plane->material = kmaterial_system_get_default_water(engine_systems_get()->material_system);
 
-		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+		struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 		krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
@@ -95,10 +95,10 @@ b8 water_plane_load(water_plane* plane) {
 	return false;
 }
 
-b8 water_plane_unload(water_plane* plane) {
+b8 water_plane_unload (water_plane *plane) {
 	if (plane) {
 
-		struct renderer_system_state* renderer_system = engine_systems_get()->renderer_system;
+		struct renderer_system_state *renderer_system = engine_systems_get()->renderer_system;
 
 		krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 		krenderbuffer index_buffer = renderer_renderbuffer_get(renderer_system, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
@@ -119,7 +119,7 @@ b8 water_plane_unload(water_plane* plane) {
 	return false;
 }
 
-b8 water_plane_update(water_plane* plane) {
+b8 water_plane_update (water_plane *plane) {
 	if (plane) {
 		//
 		return true;

@@ -5,7 +5,7 @@
 #include <logger.h>
 #include <strings/kstring.h>
 
-kentity_type kentity_type_from_string(const char* str) {
+kentity_type kentity_type_from_string (const char *str) {
 	if (!str || strings_equali(str, "none") || string_length(str) < 1) {
 		return KENTITY_TYPE_NONE;
 	} else if (strings_equali(str, "model")) {
@@ -29,7 +29,7 @@ kentity_type kentity_type_from_string(const char* str) {
 	}
 }
 
-const char* kentity_type_to_string(kentity_type type) {
+const char *kentity_type_to_string (kentity_type type) {
 	switch (type) {
 	case KENTITY_TYPE_NONE:
 		return "none";
@@ -56,7 +56,7 @@ const char* kentity_type_to_string(kentity_type type) {
 	}
 }
 
-b8 kentity_type_ignores_scale(kentity_type type) {
+b8 kentity_type_ignores_scale (kentity_type type) {
 	switch (type) {
 	default:
 	case KENTITY_TYPE_NONE:
@@ -73,7 +73,7 @@ b8 kentity_type_ignores_scale(kentity_type type) {
 	}
 }
 
-kshape_type kshape_type_from_string(const char* str) {
+kshape_type kshape_type_from_string (const char *str) {
 	if (strings_equali(str, "sphere")) {
 		return KSHAPE_TYPE_SPHERE;
 	} else if (strings_equali(str, "rectangle")) {
@@ -84,7 +84,7 @@ kshape_type kshape_type_from_string(const char* str) {
 	}
 }
 
-const char* kshape_type_to_string(kshape_type type) {
+const char *kshape_type_to_string (kshape_type type) {
 	switch (type) {
 	case KSHAPE_TYPE_SPHERE:
 		return "sphere";
@@ -93,7 +93,7 @@ const char* kshape_type_to_string(kshape_type type) {
 	}
 }
 
-kscene_volume_type scene_volume_type_from_string(const char* str) {
+kscene_volume_type scene_volume_type_from_string (const char *str) {
 	if (str) {
 		if (strings_equali(str, "trigger")) {
 			return KSCENE_VOLUME_TYPE_TRIGGER;
@@ -104,7 +104,7 @@ kscene_volume_type scene_volume_type_from_string(const char* str) {
 	return KSCENE_VOLUME_TYPE_TRIGGER;
 }
 
-const char* scene_volume_type_to_string(kscene_volume_type type) {
+const char *scene_volume_type_to_string (kscene_volume_type type) {
 	switch (type) {
 	case KSCENE_VOLUME_TYPE_TRIGGER:
 		return "trigger";

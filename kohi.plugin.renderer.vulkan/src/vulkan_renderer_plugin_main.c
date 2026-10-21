@@ -8,14 +8,14 @@
 #include "renderer/renderer_types.h"
 #include "vulkan_backend.h"
 
-b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
+b8 kohi_plugin_renderer_vulkan_create (kruntime_plugin *out_plugin) {
 	// Don't let the plugin system unload this plugin. It'll be handled here instead.
 	out_plugin->block_auto_unload = true;
 
 	out_plugin->plugin_state_size = sizeof(renderer_backend_interface);
 	out_plugin->plugin_state = kallocate(out_plugin->plugin_state_size, MEMORY_TAG_RENDERER);
 
-	renderer_backend_interface* backend = out_plugin->plugin_state;
+	renderer_backend_interface *backend = out_plugin->plugin_state;
 
 	backend->initialize = vulkan_renderer_backend_initialize;
 	backend->shutdown = vulkan_renderer_backend_shutdown;
@@ -70,6 +70,7 @@ b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
 	backend->texture_write_data = vulkan_renderer_texture_write_data;
 	backend->texture_read_data = vulkan_renderer_texture_read_data;
 	backend->texture_read_pixel = vulkan_renderer_texture_read_pixel;
+	backend->texture_blit_2d = vulkan_renderer_texture_blit_2d;
 
 	backend->shader_create = vulkan_renderer_shader_create;
 	backend->shader_destroy = vulkan_renderer_shader_destroy;
@@ -109,6 +110,13 @@ b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
 	backend->renderbuffer_copy_range = vulkan_buffer_copy_range;
 	backend->renderbuffer_draw = vulkan_buffer_draw;
 	backend->wait_for_idle = vulkan_renderer_wait_for_idle;
+	backend->gpu_profiler_initialize = vulkan_renderer_gpu_profiler_initialize;
+	backend->gpu_profiler_destroy = vulkan_renderer_gpu_profiler_destroy;
+	backend->gpu_profiler_begin_frame = vulkan_renderer_gpu_profiler_begin_frame;
+	backend->gpu_profiler_end_frame = vulkan_renderer_gpu_profiler_end_frame;
+	backend->gpu_profiler_begin_event = vulkan_renderer_gpu_profiler_begin_event;
+	backend->gpu_profiler_end_event = vulkan_renderer_gpu_profiler_end_event;
+	backend->gpu_profiler_query_timestamps = vulkan_renderer_gpu_profiler_query_timestamps;
 #if KOHI_DEBUG
 	backend->debug_pump_brakes = vulkan_renderer_debug_pump_brakes;
 #endif
@@ -118,7 +126,7 @@ b8 kohi_plugin_renderer_vulkan_create(kruntime_plugin* out_plugin) {
 	return true;
 }
 
-void kohi_plugin_renderer_vulkan_destroy(kruntime_plugin* plugin) {
+void kohi_plugin_renderer_vulkan_destroy (kruntime_plugin *plugin) {
 	// NOTE: this is taken care of internally
 	// if (plugin && plugin->plugin_state) {
 	//     kfree(plugin->plugin_state, plugin->plugin_state_size, MEMORY_TAG_RENDERER);

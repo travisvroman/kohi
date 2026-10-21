@@ -114,7 +114,7 @@ binding_sets = [
                 data_size = 256
             }
             {
-                name = "Kohi.StorageBuffer.TransformsGlobal"
+                name = "Kohi.StorageBuffer.MatrixGlobal"
                 type = "storage"
             }
             {

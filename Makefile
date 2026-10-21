@@ -27,7 +27,7 @@ else
     $(error Unsupported platform)
 endif
 
-.PHONY: all-debug all-release clean scaffold scaffold-win32 scaffold-linux scaffold-macos kohi-tools-debug copy-top-level copy-top-level-win32 copy-top-level-linux copy-top-level-macos tools-clean clean-top-level clean-top-level-win32 clean-top-level-linux clean-top-level-macos
+.PHONY: all-debug all-release clean scaffold scaffold-win32 scaffold-linux scaffold-macos kohi-tools-debug copy-top-level copy-top-level-win32 copy-top-level-nix copy-top-level-linux copy-top-level-macos tools-clean clean-top-level clean-top-level-win32 clean-top-level-linux clean-top-level-macos
 
 .PHONY: utils-debug core-debug core-tests-debug runtime-debug runtime-tests-debug plugin-audio-openal-debug plugin-renderer-vulkan-debug plugin-renderer-ui-kui-debug plugin-renderer-utils-debug tools-debug testbed-klib-debug testbed-kapp-debug
 .PHONY: kohi-debug kohi-tests-debug kohi-plugins-debug testbed-debug
@@ -38,11 +38,23 @@ endif
 .PHONY: utils-clean core-clean core-tests-clean runtime-clean runtime-tests-clean plugin-audio-openal-clean plugin-renderer-vulkan-clean plugin-renderer-ui-kui-clean plugin-renderer-utils-clean tools-clean testbed-klib-clean testbed-kapp-clean
 .PHONY: kohi-clean kohi-tests-clean kohi-plugins-clean testbed-clean
 
-.PHONY: setup build-debug build-release
+.PHONY: setup getdeps getdeps-linux getdeps-win32 getdeps-macos build-debug build-release
 
+# LEFTOFF: For some reason getdeps always runs... should only run during 'setup'
 
 # Setup: This really just needs to be done once to setup the environment, etc. Unless repo updates demand it.
-setup: scaffold utils-debug copy-utils
+setup: getdeps scaffold utils-debug copy-utils
+
+getdeps: getdeps-$(PLATFORM)
+
+getdeps-linux:
+	./get_deps_linux.sh
+
+getdeps-macos:
+	./get_deps_macos.sh
+
+getdeps-win32:
+	get_deps_win32.bat
 
 # Scaffold folder structure needed for top-level operations.
 scaffold: scaffold-$(PLATFORM)
@@ -60,6 +72,12 @@ copy-utils: copy-utils-$(PLATFORM)
 
 copy-utils-win32:
 	copy utils\bin\* misc
+
+ifeq ($(filter Linux Darwin,$(UNAME_S)),$(UNAME_S))
+ifeq ($(wildcard utils/bin/versiongen),)
+copy-utils-linux copy-utils-macos: utils-debug
+endif
+endif
 
 copy-utils-linux copy-utils-macos:
 	cp utils/bin/* misc
@@ -81,7 +99,7 @@ copy-top-level-win32: copy-utils
 	copy testbed.kapp\bin\* bin
 	copy "$(ASSIMP)\bin\x64\*assimp*.dll" bin
 
-copy-top-level-linux copy-top-level-macos: copy-utils
+copy-top-level-nix: copy-utils
 	cp kohi.core/bin/* bin
 	cp kohi.core.tests/bin/* bin
 	cp kohi.runtime/bin/* bin
@@ -94,17 +112,24 @@ copy-top-level-linux copy-top-level-macos: copy-utils
 	cp testbed.klib/bin/* bin
 	cp testbed.kapp/bin/* bin
 
+copy-top-level-linux: copy-top-level-nix
+	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so bin
+	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so.1 bin
+
+copy-top-level-macos: copy-top-level-nix
+
 copy-top-level-lib: copy-top-level-lib-$(PLATFORM)
 .NOTPARALLEL: copy-top-level-lib
 
 copy-top-level-lib-win32:
 	copy testbed.klib\bin\* bin
 
+
 copy-top-level-lib-linux copy-top-level-lib-macos:
 	cp testbed.klib/bin/* bin
 
 # Debug builds
-all-debug: setup kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
+all-debug: setup build-debug
 build-debug: kohi-debug kohi-tests-debug kohi-plugins-debug kohi-tools-debug testbed-debug copy-top-level
 kohi-debug: core-debug runtime-debug 
 kohi-tests-debug: kohi-debug core-tests-debug runtime-tests-debug
@@ -149,7 +174,7 @@ testbed-kapp-debug:
 	$(MAKE) -C testbed.kapp all-debug
 
 # Release builds 
-all-release: setup kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
+all-release: setup build-release
 build-release: kohi-release kohi-tests-release kohi-plugins-release kohi-tools-release testbed-release copy-top-level
 kohi-release: core-release runtime-release 
 kohi-tests-release: kohi-release core-tests-release runtime-tests-release

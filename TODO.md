@@ -4,20 +4,15 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.13.0 Release
 
-- [ ] Stability pass
-  - [ ] Ensure both debug AND release builds work as expected.
-  - [ ] Address sanitizer bug resolution, etc.
-- [ ] Nav meshes
-  - [ ] Nav mesh system - hold/manage nav meshes. Also responsible for the debug rendering of nav meshes.
-    - [ ] Creation of nav mesh based on node name within a model (i.e. a mesh named "navmesh-xx" would be used to create a navmesh, and not be rendered)
-  - [ ] Entity type
-  - [ ] Debug renderer to show nav meshes (instead of just rendering a mesh) - include ability to turn off depth
-  - [ ] Ability to retrieve nav meshes from scene.
-  - [ ] Ability to snap to nav mesh given a point in 3d space (i.e spawn points).
+- [ ] Collision meshes
+  - [ ] Collision meshes will be handled exclusively by the scene. They can be added explicitly via scene config or extracted from mesh data by name (i.e. something named "col-xyz" will cause it to be used as a collision mesh).
+  - [ ] Debug renderer to show collision meshes (instead of just rendering a mesh) - include ability to turn off depth
+  - [ ] Ability to retrieve collision meshes from scene (as a list and individually by name).
 - [ ] UI Controls:
   - [ ] Dropdown with variable content (text, text/image, image)
   - [ ] Windows with standard min/max/close controls, titlebar, resizing
   - [ ] Dialog/MessageBox that steals focus and has to be interacted with (i.e. to report errors, etc.)
+  - [ ] Horizontal/Vertical flow control.
 - [ ] Editor enhancements
   - [ ] HFTerrain->Chunk editor: Material selector dropdown
   - [ ] Generic scene - edit other global scene properties (shadow/directional light, fog dist/falloff, etc.)
@@ -34,6 +29,13 @@ The items in this list are not in any particular order. This list will be update
   - [ ] Emissive
 - [ ] Asset manifest
   - [ ] Add property bag for "metadata". Property bag should have a few basic types like KSON has, but be accessible by kstring_ids.
+- [ ] Stability pass
+  - [ ] Ensure both debug AND release builds work as expected.
+  - [ ] Address sanitizer bug resolution, etc.
+- [ ] Vendor lib inclusion
+  - [ ] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
+    - [ ] Assimp
+    - [ ] OpenAL
 
 ## 0.14.0 Release
 
@@ -44,6 +46,11 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Animated doodads - items that can animate (i.e. react to wind) such as grass, plants, shrubs, etc.
     - [ ] Property to control distance-based rendering (i.e rocks/fine details only show at closest chunks, grass is closest & med. dist, nothing far away)
 - [?] Move avatars to engine?
+- [ ] KUI
+  - [ ] Horizontal layout panel with alignment (left, right, center, justify/evenly spaced)
+  - [ ] Vertical layout panel with alignment (top, bottom, middle, justify/evenly spaced)
+- [ ] Investigate and reduce startup time
+  - [ ] Known issue: Fonts are pre-loaded, and multiples are loaded if using a ttf collection (ttc). Only load fonts when they are needed, as needed.
 
 ## Future Releases
 

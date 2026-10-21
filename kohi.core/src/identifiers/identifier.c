@@ -9,7 +9,7 @@
 static b8 generator_created = false;
 static mtrand_state generator;
 
-identifier identifier_create(void) {
+identifier identifier_create (void) {
 	if (!generator_created) {
 		generator = mtrand_create(time(0));
 		generator_created = true;
@@ -19,12 +19,12 @@ identifier identifier_create(void) {
 	return id;
 }
 
-identifier identifier_from_u64(u64 uniqueid) {
+identifier identifier_from_u64 (u64 uniqueid) {
 	identifier id;
 	id.uniqueid = uniqueid;
 	return id;
 }
 
-b8 identifiers_equal(identifier a, identifier b) {
+b8 identifiers_equal (identifier a, identifier b) {
 	return a.uniqueid == b.uniqueid;
 }

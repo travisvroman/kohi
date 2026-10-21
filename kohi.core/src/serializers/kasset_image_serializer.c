@@ -22,7 +22,7 @@ typedef struct binary_image_header {
 	u8 padding[3];
 } binary_image_header;
 
-KAPI void* kasset_image_serialize(const kasset_image* asset, u64* out_size) {
+KAPI void *kasset_image_serialize (const kasset_image *asset, u64 *out_size) {
 	if (!asset) {
 		KERROR("Cannot serialize without an asset, ya dingus!");
 		return 0;
@@ -43,20 +43,20 @@ KAPI void* kasset_image_serialize(const kasset_image* asset, u64* out_size) {
 
 	*out_size = sizeof(binary_image_header) + asset->pixel_array_size;
 
-	void* block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
+	void *block = kallocate(*out_size, MEMORY_TAG_SERIALIZER);
 	kcopy_memory(block, &header, sizeof(binary_image_header));
-	kcopy_memory(((u8*)block) + sizeof(binary_image_header), asset->pixels, asset->pixel_array_size);
+	kcopy_memory(((u8 *)block) + sizeof(binary_image_header), asset->pixels, asset->pixel_array_size);
 
 	return block;
 }
 
-KAPI b8 kasset_image_deserialize(u64 size, const void* block, kasset_image* out_asset) {
+KAPI b8 kasset_image_deserialize (u64 size, const void *block, kasset_image *out_asset) {
 	if (!size || !block || !out_asset) {
 		KERROR("Cannot deserialize image without a nonzero size, block of memory and an asset to write to.");
 		return false;
 	}
 
-	const binary_image_header* header = block;
+	const binary_image_header *header = block;
 	if (header->base.magic != ASSET_MAGIC) {
 		KERROR("Memory is not a Kohi binary asset.");
 		return false;
@@ -74,7 +74,7 @@ KAPI b8 kasset_image_deserialize(u64 size, const void* block, kasset_image* out_
 		return false;
 	}
 
-	kasset_image* out_image = (kasset_image*)out_asset;
+	kasset_image *out_image = (kasset_image *)out_asset;
 
 	out_image->height = header->height;
 	out_image->width = header->width;
@@ -94,7 +94,7 @@ KAPI b8 kasset_image_deserialize(u64 size, const void* block, kasset_image* out_
 
 	// Copy the actual image data block.
 	out_image->pixels = kallocate(out_image->pixel_array_size, MEMORY_TAG_ASSET);
-	kcopy_memory(out_image->pixels, ((u8*)block) + sizeof(binary_image_header), header->base.data_block_size);
+	kcopy_memory(out_image->pixels, ((u8 *)block) + sizeof(binary_image_header), header->base.data_block_size);
 
 	return true;
 }

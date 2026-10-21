@@ -5,13 +5,12 @@
 
 #include "renderer/renderer_types.h"
 #include "systems/kmaterial_system.h"
-#include "utils/kcolour.h"
 
-#define KMATERIAL_UBO_MAX_VIEWS 16
-#define KMATERIAL_UBO_MAX_PROJECTIONS 4
 #define KMATERIAL_UBO_MAX_SHADOW_CASCADES 4
 
 #define KRENDERBUFFER_NAME_MATERIALS_GLOBAL "Kohi.StorageBuffer.MaterialsGlobal"
+
+struct u32_bst_node;
 
 /**
  * The uniform data for a light. 32 bytes.
@@ -24,6 +23,7 @@ typedef struct klight_shader_data {
 	vec4 position;
 } klight_shader_data;
 
+// Base per-material data uploaded to SSBO on the GPU.
 typedef struct base_material_shader_data {
 	u32 metallic_texture_channel;
 	u32 roughness_texture_channel;
@@ -55,17 +55,10 @@ typedef struct base_material_shader_data {
 	f32 emissive_texture_intensity;
 } base_material_shader_data;
 
-// LEFTOFF: Integrate the above into a "global material SSBO" and use with the
-// renderer. Then combine all material types into a single shader. Then use that
-// shader, with this SSBO, to render.
-// Note that the vertex shader for animated/skinned meshes will have to differ though.
-//
-
+// Global material shader settings uploaded to GPU in the global uniform buffer.
 typedef struct kmaterial_settings_ubo {
-	mat4 views[KMATERIAL_UBO_MAX_VIEWS];							  // indexed by immediate.view_index
-	mat4 projections[KMATERIAL_UBO_MAX_PROJECTIONS];				  // indexed by immediate.projection_index
 	mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-	vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS];					  // indexed by immediate.view_index
+
 	// Light space for shadow mapping. Per cascade
 	vec4 cascade_splits; // 16 bytes
 
@@ -85,18 +78,15 @@ typedef struct kmaterial_settings_ubo {
 	f32 fog_start;
 	f32 fog_end;
 	vec2 padding; // TODO: available
+
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
 } kmaterial_settings_ubo;
 
-typedef enum kmaterial_data_index {
-	KMATERIAL_DATA_INDEX_VIEW = 0,
-	KMATERIAL_DATA_INDEX_PROJECTION = 1
-} kmaterial_data_index;
-
-typedef enum kmaterial_data_index2 {
-	KMATERIAL_DATA_INDEX2_ANIMATION = 0,
-	KMATERIAL_DATA_INDEX2_BASE_MATERIAL = 1
-} kmaterial_data_index2;
-
+// Immediate data uploaded to GPU.
 typedef struct kmaterial_render_immediate_data {
 	// bytes 0-15
 	u32 view_index;
@@ -154,9 +144,12 @@ typedef struct kmaterial_renderer {
 	kshader material_blended_shader;
 
 	// Keep a pointer to various system states for quick access.
-	struct renderer_system_state* renderer;
-	struct texture_system_state* texture_system;
-	struct kmaterial_system_state* material_state;
+	struct renderer_system_state *renderer;
+	struct texture_system_state *texture_system;
+	struct kmaterial_system_state *material_state;
+
+	// Lookup of kmaterial->binding_set_instance_id
+	struct u32_bst_node *lookup;
 
 	u32 max_material_count;
 
@@ -169,25 +162,21 @@ typedef struct kmaterial_renderer {
 	b8 current_uses_animated;
 } kmaterial_renderer;
 
-KAPI b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material_count, u32 max_material_instance_count);
-KAPI void kmaterial_renderer_shutdown(kmaterial_renderer* state);
+KAPI b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_material_count, u32 max_material_instance_count);
+KAPI void kmaterial_renderer_shutdown (kmaterial_renderer *state);
 
-KAPI void kmaterial_renderer_update(kmaterial_renderer* state);
+KAPI void kmaterial_renderer_update (kmaterial_renderer *state);
 
-KAPI void kmaterial_renderer_set_fog_colour(kmaterial_renderer* state, colour4 colour);
-KAPI void kmaterial_renderer_set_fog_near_far(kmaterial_renderer* state, f32 near, f32 far);
+KAPI void kmaterial_renderer_set_fog_colour (kmaterial_renderer *state, colour4 colour);
+KAPI void kmaterial_renderer_set_fog_near_far (kmaterial_renderer *state, f32 near, f32 far);
 
-// Sets material_data->group_id;
-KAPI void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* material_data);
-KAPI void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial_data* material_data);
+KAPI void kmaterial_renderer_set_irradiance_cubemap_textures (kmaterial_renderer *state, u8 count, ktexture *irradiance_cubemap_textures);
 
-KAPI void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* state, u8 count, ktexture* irradiance_cubemap_textures);
-
-KAPI void kmaterial_renderer_apply_globals(kmaterial_renderer* state);
+KAPI void kmaterial_renderer_apply_globals (kmaterial_renderer *state);
 
 // Updates and binds base material.
-KAPI void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base);
-KAPI void kmaterial_renderer_set_animated(kmaterial_renderer* state, b8 is_animated);
+KAPI void kmaterial_renderer_bind_base (kmaterial_renderer *state, kmaterial base);
+KAPI void kmaterial_renderer_set_animated (kmaterial_renderer *state, b8 is_animated);
 
 // Updates material instance immediates using the provided data.
-KAPI void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates);
+KAPI void kmaterial_renderer_apply_immediates (kmaterial_renderer *state, kmaterial_instance instance, const kmaterial_render_immediate_data *immediates);

@@ -4,6 +4,7 @@
 #if KPLATFORM_LINUX
 // #include <X11/extensions/Xrender.h>
 // #include <xcb/xproto.h>
+#	define _POSIX_C_SOURCE 200809L
 
 #	ifndef XRANDR_ROTATION_LEFT
 #		define XRANDR_ROTATION_LEFT (1 << 1)
@@ -11,6 +12,10 @@
 #	ifndef XRANDR_ROTATION_RIGHT
 #		define XRANDR_ROTATION_RIGHT (1 << 9)
 #	endif
+
+#	include <stddef.h>
+#	include <stdio.h>
+#	include <string.h>
 
 #	include <X11/XKBlib.h>	  // sudo apt-get install libx11-dev
 #	include <X11/Xlib-xcb.h> // sudo apt-get install libxkbcommon-x11-dev libx11-xcb-dev
@@ -30,27 +35,25 @@
 #	include <sys/statvfs.h>
 // For CPU queries
 #	include <dirent.h>
-#	include <ctype.h>
 
 #	if _POSIX_C_SOURCE >= 199309L
 #		include <time.h> // nanosleep
 #	endif
 
-#	include <errno.h> // For error reporting
-#	include <fcntl.h>
-#	include <limits.h> // Used for SSIZE_MAX
-#	include <pthread.h>
-#	include <stdio.h>
-#	include <stdlib.h>
-#	include <string.h>
+#	include <errno.h>	// For error reporting
+#	include <stdlib.h> // Annoyingly still needed for free, since X uses malloc internally.
 #	include <sys/sendfile.h>
 #	include <sys/stat.h>
 #	include <sys/sysinfo.h> // Processor info
 #	include <sys/utsname.h>
+#	include <limits.h>
+#	include <linux/cdrom.h> // cdrom detection
+#	include <sys/ioctl.h>	 // cdrom detection
 #	include <unistd.h>
-#	include <systemd/sd-bus.h>
-#	include <systemd/sd-bus-protocol.h>
 #	include <dlfcn.h> // dlopen
+#	include <fcntl.h> // open, O_CREAT, etc.
+#	include <dbus/dbus.h>
+#	include <dbus/dbus-protocol.h>
 
 #	include "defines.h"
 #	include "containers/darray.h"
@@ -59,22 +62,23 @@
 #	include "logger.h"
 #	include "memory/kmemory.h"
 #	include "strings/kstring.h"
+#	include "platform/syscall_nix.h"
 
 #	include "kfeatures_runtime.h"
 
 typedef struct linux_handle_info {
-	xcb_connection_t* connection;
-	xcb_screen_t* screen;
+	xcb_connection_t *connection;
+	xcb_screen_t *screen;
 } linux_handle_info;
 
 typedef struct linux_file_watch {
 	u32 id;
-	const char* file_path;
+	const char *file_path;
 	b8 is_binary;
 	platform_filewatcher_file_written_callback watcher_written_callback;
-	void* watcher_written_context;
+	void *watcher_written_context;
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback;
-	void* watcher_deleted_context;
+	void *watcher_deleted_context;
 	long last_write_time;
 	u32 update_poll_count;
 } linux_file_watch;
@@ -107,41 +111,57 @@ typedef struct internal_clipboard_state {
 	// Owned content for copying
 	kclipboard_content_type owned_type;
 	u32 owned_size;
-	void* owned_data;
+	void *owned_data;
 	b8 clipboard_owned;
 
 } internal_clipboard_state;
 
-typedef int (*PFN_sd_bus_open_user)(sd_bus** ret);
-typedef int (*PFN_sd_bus_call_method)(sd_bus* bus, const char* destination, const char* path, const char* interface, const char* member, sd_bus_error* reterr_error, sd_bus_message** ret_reply, const char* types, ...);
-typedef int (*PFN_sd_bus_message_new_method_call)(sd_bus* bus, sd_bus_message** ret, const char* destination, const char* path, const char* interface, const char* member);
-typedef int (*PFN_sd_bus_call)(sd_bus* bus, sd_bus_message* m, uint64_t usec, sd_bus_error* reterr_error, sd_bus_message** ret_reply);
-typedef int (*PFN_sd_bus_message_read)(sd_bus_message* m, const char* types, ...);
-typedef int (*PFN_sd_bus_message_skip)(sd_bus_message* m, const char* types);
-typedef int (*PFN_sd_bus_message_append)(sd_bus_message* m, const char* types, ...);
-typedef int (*PFN_sd_bus_message_append_array)(sd_bus_message* m, char type, const void* ptr, size_t size);
-typedef int (*PFN_sd_bus_add_match)(sd_bus* bus, sd_bus_slot** ret_slot, const char* match, sd_bus_message_handler_t callback, void* userdata);
-typedef int (*PFN_sd_bus_process)(sd_bus* bus, sd_bus_message** ret);
-typedef int (*PFN_sd_bus_wait)(sd_bus* bus, uint64_t timeout_usec);
-typedef sd_bus* (*PFN_sd_bus_unref)(sd_bus* bus);
-typedef int (*PFN_sd_bus_message_enter_container)(sd_bus_message* m, char type, const char* contents);
-typedef int (*PFN_sd_bus_message_exit_container)(sd_bus_message* m);
-typedef int (*PFN_sd_bus_message_open_container)(sd_bus_message* m, char type, const char* contents);
-typedef int (*PFN_sd_bus_message_close_container)(sd_bus_message* m);
+typedef void (*PFN_dbus_error_init)(DBusError *error);
+typedef void (*PFN_dbus_error_free)(DBusError *error);
+typedef dbus_bool_t (*PFN_dbus_error_is_set)(const DBusError *error);
+typedef DBusMessage *(*PFN_dbus_connection_send_with_reply_and_block)(DBusConnection *connection, DBusMessage *message, int timeout_milliseconds, DBusError *error);
+typedef DBusConnection *(*PFN_dbus_bus_get)(DBusBusType type, DBusError *error);
+typedef void (*PFN_dbus_bus_add_match)(DBusConnection *connection, const char *rule, DBusError *error);
+typedef DBusMessage *(*PFN_dbus_message_new_method_call)(const char *bus_name, const char *path, const char *iface, const char *method);
+typedef void (*PFN_dbus_message_iter_init_append)(DBusMessage *message, DBusMessageIter *iter);
+typedef dbus_bool_t (*PFN_dbus_message_iter_append_basic)(DBusMessageIter *iter, int type, const void *value);
+typedef dbus_bool_t (*PFN_dbus_message_iter_append_fixed_array)(DBusMessageIter *iter, int element_type, const void *value, int n_elements);
+typedef dbus_bool_t (*PFN_dbus_message_iter_open_container)(DBusMessageIter *iter, int type, const char *contained_signature, DBusMessageIter *sub);
+typedef dbus_bool_t (*PFN_dbus_message_iter_close_container)(DBusMessageIter *iter, DBusMessageIter *sub);
+typedef dbus_bool_t (*PFN_dbus_message_get_args)(DBusMessage *message, DBusError *error, int first_arg_type, ...);
+typedef DBusMessage *(*PFN_dbus_connection_pop_message)(DBusConnection *connection);
+typedef dbus_bool_t (*PFN_dbus_message_is_signal)(DBusMessage *message, const char *iface, const char *signal_name);
+typedef const char *(*PFN_dbus_message_get_path)(DBusMessage *message);
+typedef void (*PFN_dbus_message_unref)(DBusMessage *message);
+typedef dbus_bool_t (*PFN_dbus_connection_read_write)(DBusConnection *connection, int timeout_milliseconds);
+typedef dbus_bool_t (*PFN_dbus_message_iter_init)(DBusMessage *message, DBusMessageIter *iter);
+typedef dbus_bool_t (*PFN_dbus_message_iter_next)(DBusMessageIter *iter);
+typedef void (*PFN_dbus_message_iter_recurse)(DBusMessageIter *iter, DBusMessageIter *sub);
+typedef int (*PFN_dbus_message_iter_get_arg_type)(DBusMessageIter *iter);
+typedef void (*PFN_dbus_message_iter_get_basic)(DBusMessageIter *iter, void *value);
+
+#	define KDECLARE_DBUS_PFN(name) PFN_##name name
+
+#	define KLOAD_DBUS_PFN(name)                                                         \
+		state->name = dlsym(state->dbus_lib, #name);                                     \
+		if (!state->name) {                                                              \
+			KERROR("Linux platform layer failed to load PFN '%s' from dbus-1.0.", #name) \
+			return false;                                                                \
+		}
 
 typedef struct platform_state {
-	Display* display;
+	Display *display;
 	linux_handle_info handle;
 	// NOTE: May need to be part of window.
-	xcb_screen_t* screen;
+	xcb_screen_t *screen;
 	xcb_atom_t wm_protocols;
 	xcb_atom_t wm_delete_win;
 	i32 screen_count;
 	// darray
-	linux_file_watch* watches;
+	linux_file_watch *watches;
 
 	// darray of pointers to created windows (owned by the application);
-	kwindow** windows;
+	kwindow **windows;
 	platform_window_closed_callback window_closed_callback;
 	platform_window_resized_callback window_resized_callback;
 	platform_process_key process_key;
@@ -155,38 +175,63 @@ typedef struct platform_state {
 
 	internal_clipboard_state clipboard;
 
-	void* sd_bus_lib;
-	b8 kill_sd_bus_loop;
-	PFN_sd_bus_open_user ksd_bus_open_user;
-	PFN_sd_bus_call_method ksd_bus_call_method;
-	PFN_sd_bus_message_new_method_call ksd_bus_message_new_method_call;
-	PFN_sd_bus_call ksd_bus_call;
-	PFN_sd_bus_message_read ksd_bus_message_read;
-	PFN_sd_bus_message_skip ksd_bus_message_skip;
-	PFN_sd_bus_message_append ksd_bus_message_append;
-	PFN_sd_bus_message_append_array ksd_bus_message_append_array;
-	PFN_sd_bus_add_match ksd_bus_add_match;
-	PFN_sd_bus_process ksd_bus_process;
-	PFN_sd_bus_wait ksd_bus_wait;
-	PFN_sd_bus_unref ksd_bus_unref;
-	PFN_sd_bus_message_enter_container ksd_bus_message_enter_container;
-	PFN_sd_bus_message_exit_container ksd_bus_message_exit_container;
-	PFN_sd_bus_message_open_container ksd_bus_message_open_container;
-	PFN_sd_bus_message_close_container ksd_bus_message_close_container;
-	const char** ofd_files_temp;
+	void *dbus_lib;
+	KDECLARE_DBUS_PFN (dbus_error_init);
+	KDECLARE_DBUS_PFN (dbus_error_free);
+	KDECLARE_DBUS_PFN (dbus_error_is_set);
+	KDECLARE_DBUS_PFN (dbus_connection_send_with_reply_and_block);
+	KDECLARE_DBUS_PFN (dbus_bus_get);
+	KDECLARE_DBUS_PFN (dbus_bus_add_match);
+	KDECLARE_DBUS_PFN (dbus_message_new_method_call);
+	KDECLARE_DBUS_PFN (dbus_message_iter_init_append);
+	KDECLARE_DBUS_PFN (dbus_message_iter_append_basic);
+	KDECLARE_DBUS_PFN (dbus_message_iter_append_fixed_array);
+	KDECLARE_DBUS_PFN (dbus_message_iter_open_container);
+	KDECLARE_DBUS_PFN (dbus_message_iter_close_container);
+	KDECLARE_DBUS_PFN (dbus_message_get_args);
+	KDECLARE_DBUS_PFN (dbus_connection_pop_message);
+	KDECLARE_DBUS_PFN (dbus_message_is_signal);
+	KDECLARE_DBUS_PFN (dbus_message_get_path);
+	KDECLARE_DBUS_PFN (dbus_message_unref);
+	KDECLARE_DBUS_PFN (dbus_connection_read_write);
+	KDECLARE_DBUS_PFN (dbus_message_iter_init);
+	KDECLARE_DBUS_PFN (dbus_message_iter_next);
+	KDECLARE_DBUS_PFN (dbus_message_iter_recurse);
+	KDECLARE_DBUS_PFN (dbus_message_iter_get_arg_type);
+	KDECLARE_DBUS_PFN (dbus_message_iter_get_basic);
 } platform_state;
 
-static platform_state* state_ptr;
+typedef struct ofd_file_filter {
+	const char *name;
+	const char **patterns;
+	u64 pattern_count;
+} ofd_file_filter;
 
-static void platform_update_watches(void);
-static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev);
+static platform_state *state_ptr;
+
+static void platform_update_watches (void);
+static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev);
 // Key translation
-static keys translate_keycode(u32 x_keycode);
-static kwindow* window_from_handle(xcb_window_t window);
+static keys translate_keycode (u32 x_keycode);
+static kwindow *window_from_handle (xcb_window_t window);
 
-static xcb_atom_t intern_atom(xcb_connection_t* conn, const char* name) {
+#	define OFD_DBUS_PORTAL_NAME "org.freedesktop.portal.Desktop"
+#	define OFD_DBUS_PORTAL_PATH "/org/freedesktop/portal/desktop"
+#	define OFD_DBUS_PORTAL_INTERFACE "org.freedesktop.portal.FileChooser"
+#	define OFD_DBUS_REQUEST_INTERFACE "org.freedesktop.portal.Request"
+
+static i32 kdbus_append_bool_variant (DBusMessageIter *dict, const char *key, b8 value);
+// Appends a dictionary entry containing a string variant.
+static i32 kdbus_append_string_variant (DBusMessageIter *dict, const char *key, const char *value);
+// Appends a dictionary entry containing a byte-array variant.
+static i32 kdbus_append_byte_array_variant (DBusMessageIter *dict, const char *key, const u8 *bytes, i32 length);
+static i32 kdbus_append_filters_variant (DBusMessageIter *dict, const ofd_file_filter *filters, u64 filter_count);
+// >= 0 = number of paths obtained, 0 = user cancelled, -1 = internal error
+static char **extract_selected_path (DBusMessage *message, i32 *out_result);
+
+static xcb_atom_t intern_atom (xcb_connection_t *conn, const char *name) {
 	xcb_intern_atom_cookie_t cookie = xcb_intern_atom(conn, 0, string_length(name), name);
-	xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(conn, cookie, KNULL);
+	xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, cookie, KNULL);
 
 	xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
 	free(reply);
@@ -194,16 +239,16 @@ static xcb_atom_t intern_atom(xcb_connection_t* conn, const char* name) {
 	return atom;
 }
 
-static const char* atom_name(xcb_connection_t* conn, xcb_atom_t atom) {
+static const char *atom_name (xcb_connection_t *conn, xcb_atom_t atom) {
 	xcb_get_atom_name_cookie_t cookie = xcb_get_atom_name(conn, atom);
-	xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(conn, cookie, KNULL);
+	xcb_get_atom_name_reply_t *reply = xcb_get_atom_name_reply(conn, cookie, KNULL);
 
 	if (!reply) {
 		return KNULL;
 	}
 
 	i32 len = xcb_get_atom_name_name_length(reply);
-	char* name = kallocate(len + 1, MEMORY_TAG_STRING);
+	char *name = kallocate(len + 1, MEMORY_TAG_STRING);
 	kcopy_memory(name, xcb_get_atom_name_name(reply), len);
 	name[len] = 0;
 
@@ -212,15 +257,16 @@ static const char* atom_name(xcb_connection_t* conn, xcb_atom_t atom) {
 	return name;
 }
 
-static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
+static b8 enable_detectable_autorepeat (xcb_connection_t *conn) {
 	// Initialize xkb extension
 	xcb_xkb_use_extension_cookie_t uc = xcb_xkb_use_extension(conn, XCB_XKB_MAJOR_VERSION, XCB_XKB_MINOR_VERSION);
-	xcb_xkb_use_extension_reply_t* ur = xcb_xkb_use_extension_reply(conn, uc, NULL);
+	xcb_xkb_use_extension_reply_t *ur = xcb_xkb_use_extension_reply(conn, uc, NULL);
 	if (!ur) {
 		return false;
 	}
 
 	b8 ok = (ur->supported);
+
 	free(ur);
 	if (!ok) {
 		return false;
@@ -233,7 +279,7 @@ static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
 		XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
 		XCB_XKB_PER_CLIENT_FLAG_DETECTABLE_AUTO_REPEAT,
 		0, 0, 0);
-	xcb_xkb_per_client_flags_reply_t* pfr = xcb_xkb_per_client_flags_reply(conn, pcfc, NULL);
+	xcb_xkb_per_client_flags_reply_t *pfr = xcb_xkb_per_client_flags_reply(conn, pcfc, NULL);
 	if (!pfr) {
 		return false;
 	}
@@ -243,7 +289,7 @@ static b8 enable_detectable_autorepeat(xcb_connection_t* conn) {
 	return turned_on;
 }
 
-b8 platform_system_startup(u64* memory_requirement, struct platform_state* state, platform_system_config* config) {
+b8 platform_system_startup (u64 *memory_requirement, struct platform_state *state, platform_system_config *config) {
 	*memory_requirement = sizeof(platform_state);
 	if (state == 0) {
 		return true;
@@ -266,7 +312,7 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 	KINFO("XCB: %s detectable auto-repeat.", detectable_repeat ? "Enabled " : "Could not enable ");
 
 	// Get data from the X server
-	const struct xcb_setup_t* setup = xcb_get_setup(state->handle.connection);
+	const struct xcb_setup_t *setup = xcb_get_setup(state->handle.connection);
 
 	// TODO: Does this need to be associated with the window?
 	// Loop through screens using iterator
@@ -286,34 +332,48 @@ b8 platform_system_startup(u64* memory_requirement, struct platform_state* state
 	state->screen = it.data;
 	state->handle.screen = state->screen;
 
-	state->windows = darray_create(kwindow*);
+	state->windows = darray_create(kwindow *);
 
-	state->kill_sd_bus_loop = false;
-	state->sd_bus_lib = dlopen("libsystemd.so", RTLD_LOCAL | RTLD_NOW);
-	if (state->sd_bus_lib) {
-		state->ksd_bus_open_user = dlsym(state->sd_bus_lib, "sd_bus_open_user");
-		state->ksd_bus_call_method = dlsym(state->sd_bus_lib, "sd_bus_call_method");
-		state->ksd_bus_message_new_method_call = dlsym(state->sd_bus_lib, "sd_bus_message_new_method_call");
-		state->ksd_bus_call = dlsym(state->sd_bus_lib, "sd_bus_call");
-		state->ksd_bus_message_read = dlsym(state->sd_bus_lib, "sd_bus_message_read");
-		state->ksd_bus_message_skip = dlsym(state->sd_bus_lib, "sd_bus_message_skip");
-		state->ksd_bus_message_append = dlsym(state->sd_bus_lib, "sd_bus_message_append");
-		state->ksd_bus_message_append_array = dlsym(state->sd_bus_lib, "sd_bus_message_append_array");
-		state->ksd_bus_add_match = dlsym(state->sd_bus_lib, "sd_bus_add_match");
-		state->ksd_bus_process = dlsym(state->sd_bus_lib, "sd_bus_process");
-		state->ksd_bus_wait = dlsym(state->sd_bus_lib, "sd_bus_wait");
-		state->ksd_bus_unref = dlsym(state->sd_bus_lib, "sd_bus_unref");
-		state->ksd_bus_message_enter_container = dlsym(state->sd_bus_lib, "sd_bus_message_enter_container");
-		state->ksd_bus_message_exit_container = dlsym(state->sd_bus_lib, "sd_bus_message_exit_container");
-		state->ksd_bus_message_open_container = dlsym(state->sd_bus_lib, "sd_bus_message_open_container");
-		state->ksd_bus_message_close_container = dlsym(state->sd_bus_lib, "sd_bus_message_close_container");
+	// DBus functions are loaded dynamically to avoid the hard dependency on it.
+	// Things depending on it won't execute if it doesn't load, but it won't prevent
+	// the entire system from running this way.
+	state->dbus_lib = dlopen("libdbus-1.so.3", RTLD_LOCAL | RTLD_NOW);
+	if (!state->dbus_lib) {
+		state->dbus_lib = dlopen("libdbus-1.so", RTLD_LOCAL | RTLD_NOW);
+	}
+
+	if (state->dbus_lib) {
+		KLOAD_DBUS_PFN(dbus_error_init);
+		KLOAD_DBUS_PFN(dbus_error_free);
+		KLOAD_DBUS_PFN(dbus_error_is_set);
+		KLOAD_DBUS_PFN(dbus_connection_send_with_reply_and_block);
+		KLOAD_DBUS_PFN(dbus_bus_get);
+		KLOAD_DBUS_PFN(dbus_bus_add_match);
+		KLOAD_DBUS_PFN(dbus_message_new_method_call);
+		KLOAD_DBUS_PFN(dbus_message_iter_init_append);
+		KLOAD_DBUS_PFN(dbus_message_iter_append_basic);
+		KLOAD_DBUS_PFN(dbus_message_iter_append_fixed_array);
+		KLOAD_DBUS_PFN(dbus_message_iter_open_container);
+		KLOAD_DBUS_PFN(dbus_message_iter_close_container);
+		KLOAD_DBUS_PFN(dbus_message_get_args);
+		KLOAD_DBUS_PFN(dbus_connection_pop_message);
+		KLOAD_DBUS_PFN(dbus_message_is_signal);
+		KLOAD_DBUS_PFN(dbus_message_get_path);
+		KLOAD_DBUS_PFN(dbus_message_unref);
+		KLOAD_DBUS_PFN(dbus_connection_read_write);
+		KLOAD_DBUS_PFN(dbus_message_iter_init);
+		KLOAD_DBUS_PFN(dbus_message_iter_next);
+		KLOAD_DBUS_PFN(dbus_message_iter_recurse);
+		KLOAD_DBUS_PFN(dbus_message_iter_get_arg_type);
+		KLOAD_DBUS_PFN(dbus_message_iter_get_basic);
 	} else {
 		KERROR("Linux platform error: Unable to load sd-bus. Some platform functions (such as browsing for files) may not be available.");
 	}
+
 	return true;
 }
 
-void platform_system_shutdown(struct platform_state* state) {
+void platform_system_shutdown (struct platform_state *state) {
 	if (state) {
 		if (state->windows) {
 			u32 len = darray_length(state->windows);
@@ -341,7 +401,7 @@ void platform_system_shutdown(struct platform_state* state) {
 	}
 }
 
-b8 platform_window_create(const kwindow_config* config, struct kwindow* window, b8 show_immediately) {
+b8 platform_window_create (const kwindow_config *config, struct kwindow *window, b8 show_immediately) {
 	if (!window) {
 		return false;
 	}
@@ -489,10 +549,10 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 
 	// Tell the server to notify when the window manager
 	// attempts to destroy the window.
-	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
-	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, strlen("WM_PROTOCOLS"), "WM_PROTOCOLS");
-	xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_delete_cookie, NULL);
-	xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_protocols_cookie, NULL);
+	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, string_length("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
+	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, string_length("WM_PROTOCOLS"), "WM_PROTOCOLS");
+	xcb_intern_atom_reply_t *wm_delete_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_delete_cookie, NULL);
+	xcb_intern_atom_reply_t *wm_protocols_reply = xcb_intern_atom_reply(state_ptr->handle.connection, wm_protocols_cookie, NULL);
 	state_ptr->wm_delete_win = wm_delete_reply->atom;
 	state_ptr->wm_protocols = wm_protocols_reply->atom;
 
@@ -534,12 +594,12 @@ b8 platform_window_create(const kwindow_config* config, struct kwindow* window, 
 	}
 
 	// Register the window internally.
-	darray_push(state_ptr->windows, window);
+	darray_push(state_ptr->windows, &window);
 
 	return true;
 }
 
-void platform_window_destroy(struct kwindow* window) {
+void platform_window_destroy (struct kwindow *window) {
 	if (window) {
 		u32 len = darray_length(state_ptr->windows);
 		for (u32 i = 0; i < len; ++i) {
@@ -547,7 +607,7 @@ void platform_window_destroy(struct kwindow* window) {
 				string_free(window->name);
 				string_free(window->title);
 				xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
-				kfree(window->platform_state, sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
+				kfree(window->platform_state);
 				window->platform_state = KNULL;
 				state_ptr->windows[i] = KNULL;
 				return;
@@ -555,11 +615,11 @@ void platform_window_destroy(struct kwindow* window) {
 		}
 		KERROR("Destroying a window that was somehow not registered with the platform layer.");
 		xcb_destroy_window(state_ptr->handle.connection, window->platform_state->window);
-		window->platform_state->window = KNULL;
+		window->platform_state->window = 0;
 	}
 }
 
-b8 platform_window_show(struct kwindow* window) {
+b8 platform_window_show (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
@@ -575,7 +635,7 @@ b8 platform_window_show(struct kwindow* window) {
 	return true;
 }
 
-b8 platform_window_hide(struct kwindow* window) {
+b8 platform_window_hide (struct kwindow *window) {
 	if (!window) {
 		return false;
 	}
@@ -592,14 +652,14 @@ b8 platform_window_hide(struct kwindow* window) {
 	return true;
 }
 
-const char* platform_window_title_get(const struct kwindow* window) {
+const char *platform_window_title_get (const struct kwindow *window) {
 	if (window && window->title) {
 		return string_duplicate(window->title);
 	}
 	return 0;
 }
 
-b8 platform_window_title_set(struct kwindow* window, const char* title) {
+b8 platform_window_title_set (struct kwindow *window, const char *title) {
 	if (!window) {
 		return false;
 	}
@@ -611,10 +671,10 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 	}
 
 	xcb_intern_atom_cookie_t utf8_string_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, 11, "UTF8_STRING");
-	xcb_intern_atom_reply_t* utf8_string_reply = xcb_intern_atom_reply(state_ptr->handle.connection, utf8_string_cookie, 0);
+	xcb_intern_atom_reply_t *utf8_string_reply = xcb_intern_atom_reply(state_ptr->handle.connection, utf8_string_cookie, 0);
 
 	xcb_intern_atom_cookie_t net_wm_name_cookie = xcb_intern_atom(state_ptr->handle.connection, 0, 12, "_NET_WM_NAME");
-	xcb_intern_atom_reply_t* net_wm_name_reply = xcb_intern_atom_reply(state_ptr->handle.connection, net_wm_name_cookie, 0);
+	xcb_intern_atom_reply_t *net_wm_name_reply = xcb_intern_atom_reply(state_ptr->handle.connection, net_wm_name_cookie, 0);
 
 	// Change the title
 	xcb_change_property(
@@ -643,7 +703,7 @@ b8 platform_window_title_set(struct kwindow* window, const char* title) {
 	return true;
 }
 
-static void clipboard_retry_next_target(internal_clipboard_state* cb) {
+static void clipboard_retry_next_target (internal_clipboard_state *cb) {
 
 	cb->request_index++;
 	if (cb->request_index >= cb->request_count) {
@@ -662,10 +722,10 @@ static void clipboard_retry_next_target(internal_clipboard_state* cb) {
 	xcb_flush(state_ptr->handle.connection);
 }
 
-b8 platform_pump_messages(void) {
+b8 platform_pump_messages (void) {
 	if (state_ptr) {
-		xcb_generic_event_t* event;
-		xcb_client_message_event_t* cm;
+		xcb_generic_event_t *event;
+		xcb_client_message_event_t *cm;
 
 		b8 quit_flagged = false;
 
@@ -676,7 +736,7 @@ b8 platform_pump_messages(void) {
 			case XCB_KEY_PRESS:
 			case XCB_KEY_RELEASE: {
 				// Key press event - xcb_key_press_event_t and xcb_key_release_event_t are the same
-				xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
+				xcb_key_press_event_t *kb_event = (xcb_key_press_event_t *)event;
 				b8 pressed = event->response_type == XCB_KEY_PRESS;
 				xcb_keycode_t code = kb_event->detail;
 				KeySym key_sym = XkbKeycodeToKeysym(
@@ -694,7 +754,7 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_BUTTON_PRESS:
 			case XCB_BUTTON_RELEASE: {
-				xcb_button_press_event_t* mouse_event = (xcb_button_press_event_t*)event;
+				xcb_button_press_event_t *mouse_event = (xcb_button_press_event_t *)event;
 				b8 pressed = event->response_type == XCB_BUTTON_PRESS;
 				mouse_buttons mouse_button = MOUSE_BUTTON_MAX;
 
@@ -731,7 +791,7 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_MOTION_NOTIFY: {
 				// Mouse move
-				xcb_motion_notify_event_t* move_event = (xcb_motion_notify_event_t*)event;
+				xcb_motion_notify_event_t *move_event = (xcb_motion_notify_event_t *)event;
 
 				// Pass over to the input subsystem.
 				state_ptr->process_mouse_move(move_event->event_x, move_event->event_y);
@@ -740,12 +800,12 @@ b8 platform_pump_messages(void) {
 				// Resizing - note that this is also triggered by moving the window, but should be
 				// passed anyway since a change in the x/y could mean an upper-left resize.
 				// The application layer can decide what to do with this.
-				xcb_configure_notify_event_t* configure_event = (xcb_configure_notify_event_t*)event;
+				xcb_configure_notify_event_t *configure_event = (xcb_configure_notify_event_t *)event;
 
 				u16 width = configure_event->width;
 				u16 height = configure_event->height;
 
-				kwindow* w = window_from_handle(configure_event->window);
+				kwindow *w = window_from_handle(configure_event->window);
 				if (!w) {
 					KERROR("Recieved a window resize event for a non-registered window!");
 					return 0;
@@ -768,7 +828,7 @@ b8 platform_pump_messages(void) {
 			} break;
 
 			case XCB_CLIENT_MESSAGE: {
-				cm = (xcb_client_message_event_t*)event;
+				cm = (xcb_client_message_event_t *)event;
 
 				// Window close
 				if (cm->data.data32[0] == state_ptr->wm_delete_win) {
@@ -779,7 +839,7 @@ b8 platform_pump_messages(void) {
 
 				// Clipboard ownership lost (another app copied)
 
-				xcb_selection_clear_event_t* clear_event = (xcb_selection_clear_event_t*)event;
+				xcb_selection_clear_event_t *clear_event = (xcb_selection_clear_event_t *)event;
 				if (clear_event->selection == state_ptr->clipboard.clipboard) {
 
 					state_ptr->clipboard.clipboard_owned = false;
@@ -787,7 +847,7 @@ b8 platform_pump_messages(void) {
 						if (state_ptr->clipboard.owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 							string_free(state_ptr->clipboard.owned_data);
 						} else {
-							kfree(state_ptr->clipboard.owned_data, state_ptr->clipboard.owned_size, MEMORY_TAG_BINARY_DATA);
+							kfree(state_ptr->clipboard.owned_data);
 						}
 						state_ptr->clipboard.owned_data = KNULL;
 						state_ptr->clipboard.owned_size = 0;
@@ -796,9 +856,9 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_SELECTION_NOTIFY: {
 
-				internal_clipboard_state* cb = &state_ptr->clipboard;
+				internal_clipboard_state *cb = &state_ptr->clipboard;
 
-				xcb_selection_notify_event_t* selection_event = (xcb_selection_notify_event_t*)event;
+				xcb_selection_notify_event_t *selection_event = (xcb_selection_notify_event_t *)event;
 
 				if (selection_event->requestor == cb->requesting_window) {
 					if (cb->paste_pending) {
@@ -818,7 +878,7 @@ b8 platform_pump_messages(void) {
 							0,
 							UINT32_MAX);
 
-						xcb_get_property_reply_t* prop = xcb_get_property_reply(state_ptr->handle.connection, prop_cookie, KNULL);
+						xcb_get_property_reply_t *prop = xcb_get_property_reply(state_ptr->handle.connection, prop_cookie, KNULL);
 
 						if (!prop) {
 							clipboard_retry_next_target(cb);
@@ -826,7 +886,7 @@ b8 platform_pump_messages(void) {
 						}
 
 						i32 len = xcb_get_property_value_length(prop);
-						const void* val = xcb_get_property_value(prop);
+						const void *val = xcb_get_property_value(prop);
 
 						if (len > 0 && val) {
 
@@ -840,8 +900,8 @@ b8 platform_pump_messages(void) {
 							// For strings, be sure to null-terminate them.
 							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 								ctx.content = kallocate(len + 1, MEMORY_TAG_STRING);
-								kcopy_memory((void*)ctx.content, val, len);
-								((char*)ctx.content)[len] = 0;
+								kcopy_memory((void *)ctx.content, val, len);
+								((char *)ctx.content)[len] = 0;
 							} else {
 								ctx.content = val;
 								ctx.size = len;
@@ -852,7 +912,7 @@ b8 platform_pump_messages(void) {
 							}
 
 							if (ctx.content_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
-								kfree((void*)ctx.content, len + 1, MEMORY_TAG_STRING);
+								kfree((void *)ctx.content);
 							}
 
 							cb->paste_pending = false;
@@ -867,8 +927,8 @@ b8 platform_pump_messages(void) {
 			} break;
 			case XCB_SELECTION_REQUEST: {
 				// Paste from external app requested.
-				internal_clipboard_state* cb = &state_ptr->clipboard;
-				xcb_selection_request_event_t* request_event = (xcb_selection_request_event_t*)event;
+				internal_clipboard_state *cb = &state_ptr->clipboard;
+				xcb_selection_request_event_t *request_event = (xcb_selection_request_event_t *)event;
 				if (cb->clipboard) {
 					// Paste request (our app is the owner of the data)
 
@@ -922,7 +982,7 @@ b8 platform_pump_messages(void) {
 						0,
 						request_event->requestor,
 						0,
-						(const char*)&reply);
+						(const char *)&reply);
 				}
 			} break;
 			default:
@@ -941,37 +1001,47 @@ b8 platform_pump_messages(void) {
 	return true;
 }
 
-void* platform_allocate(u64 size, b8 aligned) {
-	return malloc(size);
+void *platform_allocate (u64 size, b8 aligned) {
+	void *p = (void *)syscall6(
+		SYS_mmap,
+		0, /* let kernel choose address */
+		(i64)size,
+		PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS,
+		-1,
+		0);
+
+	/* Linux syscalls return -errno on failure. */
+	if ((i64)p < 0) {
+		return 0;
+	}
+
+	// TODO: track all allocations made this way so the size can be gotten later.
+
+	return p;
 }
-void platform_free(void* block, b8 aligned) {
-	free(block);
-}
-void* platform_zero_memory(void* block, u64 size) {
-	return memset(block, 0, size);
-}
-void* platform_copy_memory(void* dest, const void* source, u64 size) {
-	return memcpy(dest, source, size);
-}
-void* platform_set_memory(void* dest, i32 value, u64 size) {
-	return memset(dest, value, size);
+void platform_free (void *block, b8 aligned, u64 size) {
+	if (block) {
+		syscall2(SYS_munmap, (i64)block, (i64)size);
+	}
 }
 
-void platform_console_write(struct platform_state* platform, log_level level, const char* message) {
+void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
 	b8 is_error = (level == LOG_LEVEL_ERROR || level == LOG_LEVEL_FATAL);
-	FILE* console_handle = is_error ? stderr : stdout;
-	// FATAL,ERROR,WARN,INFO,DEBUG,TRACE
-	const char* colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
-	fprintf(console_handle, "\033[%sm%s\033[0m", colour_strings[level], message);
+	const char *colour_strings[] = {"0;41", "1;31", "1;33", "1;32", "1;34", "1;30"};
+	const char *output = string_format("\033[%sm%s\033[0m", colour_strings[level], message);
+	i32 fd = is_error ? FD_STDERR : FD_STDOUT;
+	syscall3(SYS_write, fd, (i64)output, string_length(output));
+	string_free(output);
 }
 
-f64 platform_get_absolute_time(void) {
+f64 platform_get_absolute_time (void) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 	return now.tv_sec + now.tv_nsec * 0.000000001;
 }
 
-void platform_sleep(u64 ms) {
+void platform_sleep (u64 ms) {
 #	if _POSIX_C_SOURCE >= 199309L
 	struct timespec ts;
 	ts.tv_sec = ms / 1000;
@@ -985,7 +1055,7 @@ void platform_sleep(u64 ms) {
 #	endif
 }
 
-i32 platform_get_processor_count(void) {
+i32 platform_get_processor_count (void) {
 	// Load processor info.
 	i32 processor_count = get_nprocs_conf();
 	i32 processors_available = get_nprocs();
@@ -993,7 +1063,7 @@ i32 platform_get_processor_count(void) {
 	return processors_available;
 }
 
-void platform_get_handle_info(u64* out_size, void* memory) {
+void platform_get_handle_info (u64 *out_size, void *memory) {
 	*out_size = sizeof(linux_handle_info);
 	if (!memory) {
 		return;
@@ -1002,46 +1072,46 @@ void platform_get_handle_info(u64* out_size, void* memory) {
 	kcopy_memory(memory, &state_ptr->handle, *out_size);
 }
 
-f32 platform_device_pixel_ratio(const struct kwindow* window) {
+f32 platform_device_pixel_ratio (const struct kwindow *window) {
 	return window->platform_state->device_pixel_ratio;
 }
 
-const char* platform_dynamic_library_extension(void) {
+const char *platform_dynamic_library_extension (void) {
 	return ".so";
 }
 
-const char* platform_dynamic_library_prefix(void) {
-	return "./lib";
+const char *platform_dynamic_library_prefix (void) {
+	return "lib";
 }
 
-void platform_register_window_closed_callback(platform_window_closed_callback callback) {
+void platform_register_window_closed_callback (platform_window_closed_callback callback) {
 	state_ptr->window_closed_callback = callback;
 }
 
-void platform_register_window_resized_callback(platform_window_resized_callback callback) {
+void platform_register_window_resized_callback (platform_window_resized_callback callback) {
 	state_ptr->window_resized_callback = callback;
 }
 
-void platform_register_process_key(platform_process_key callback) {
+void platform_register_process_key (platform_process_key callback) {
 	state_ptr->process_key = callback;
 }
 
-void platform_register_process_mouse_button_callback(platform_process_mouse_button callback) {
+void platform_register_process_mouse_button_callback (platform_process_mouse_button callback) {
 	state_ptr->process_mouse_button = callback;
 }
 
-void platform_register_process_mouse_move_callback(platform_process_mouse_move callback) {
+void platform_register_process_mouse_move_callback (platform_process_mouse_move callback) {
 	state_ptr->process_mouse_move = callback;
 }
 
-void platform_register_process_mouse_wheel_callback(platform_process_mouse_wheel callback) {
+void platform_register_process_mouse_wheel_callback (platform_process_mouse_wheel callback) {
 	state_ptr->process_mouse_wheel = callback;
 }
-void platform_register_clipboard_paste_callback(platform_clipboard_on_paste_callback callback) {
+void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback) {
 	state_ptr->on_paste = callback;
 }
 
-platform_error_code platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
+platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
 	platform_error_code ret_code = PLATFORM_ERROR_SUCCESS;
 	i32 source_fd = -1;
 	i32 dest_fd = -1;
@@ -1082,7 +1152,8 @@ platform_error_code platform_copy_file(const char* source, const char* dest, b8 
 	// Copy the data. Iterate to handle large files, since Linux has a limit
 	// on the amount that can be copied at once.
 	while (size > 0) {
-		ssize_t sent = sendfile(dest_fd, source_fd, NULL, (size >= SSIZE_MAX ? SSIZE_MAX : (size_t)size));
+		// NOTE: SSIZE_MAX = 0x7FFFFFFFFFFFFFFF
+		ssize_t sent = sendfile(dest_fd, source_fd, NULL, (size >= 0x7FFFFFFFFFFFFFFF ? 0x7FFFFFFFFFFFFFFF : (size_t)size));
 		if (sent < 0) {
 			if (errno != EINVAL && errno != ENOSYS) {
 				ret_code = PLATFORM_ERROR_UNKNOWN;
@@ -1102,6 +1173,7 @@ platform_error_code platform_copy_file(const char* source, const char* dest, b8 
 		ret_code = PLATFORM_ERROR_FILE_NOT_FOUND;
 		goto close_handles;
 	} else {
+#	if 0
 		struct timeval dest_times[2];
 		// Update last access time.
 		dest_times[0].tv_sec = source_stat.st_atime;
@@ -1110,6 +1182,14 @@ platform_error_code platform_copy_file(const char* source, const char* dest, b8 
 		dest_times[1].tv_sec = source_stat.st_mtime;
 		dest_times[1].tv_usec = source_stat.st_mtim.tv_nsec / 1000;
 		result = futimes(dest_fd, dest_times);
+#	else
+		struct timespec dest_times[2];
+
+		dest_times[0] = source_stat.st_atim;
+		dest_times[1] = source_stat.st_mtim;
+
+		result = futimens(dest_fd, dest_times);
+#	endif
 		// If an error is returned, treat as the destination file being locked.
 		if (result != 0) {
 			ret_code = PLATFORM_ERROR_FILE_LOCKED;
@@ -1142,14 +1222,14 @@ close_handles:
 	return ret_code;
 }
 
-static b8 register_watch(
-	const char* file_path,
+static b8 register_watch (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 
 	if (!state_ptr || !file_path || !out_watch_id) {
 		if (out_watch_id) {
@@ -1174,7 +1254,7 @@ static b8 register_watch(
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		linux_file_watch* w = &state_ptr->watches[i];
+		linux_file_watch *w = &state_ptr->watches[i];
 		if (w->id == INVALID_ID) {
 			// Found a free slot to use.
 			w->id = i;
@@ -1195,12 +1275,12 @@ static b8 register_watch(
 	w.watcher_deleted_callback = watcher_deleted_callback;
 	w.watcher_deleted_context = watcher_deleted_context;
 	*out_watch_id = count;
-	darray_push(state_ptr->watches, w);
+	darray_push(state_ptr->watches, &w);
 
 	return true;
 }
 
-static b8 unregister_watch(u32 watch_id) {
+static b8 unregister_watch (u32 watch_id) {
 	if (!state_ptr || !state_ptr->watches) {
 		return false;
 	}
@@ -1210,24 +1290,23 @@ static b8 unregister_watch(u32 watch_id) {
 		return false;
 	}
 
-	linux_file_watch* w = &state_ptr->watches[watch_id];
+	linux_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
-	u32 len = string_length(w->file_path);
-	kfree((void*)w->file_path, sizeof(char) * (len + 1), MEMORY_TAG_STRING);
+	kfree((void *)w->file_path);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(long));
 
 	return true;
 }
 
-b8 platform_watch_file(
-	const char* file_path,
+b8 platform_watch_file (
+	const char *file_path,
 	b8 is_binary,
 	platform_filewatcher_file_written_callback watcher_written_callback,
-	void* watcher_written_context,
+	void *watcher_written_context,
 	platform_filewatcher_file_deleted_callback watcher_deleted_callback,
-	void* watcher_deleted_context,
-	u32* out_watch_id) {
+	void *watcher_deleted_context,
+	u32 *out_watch_id) {
 	return register_watch(
 		file_path,
 		is_binary,
@@ -1238,18 +1317,18 @@ b8 platform_watch_file(
 		out_watch_id);
 }
 
-b8 platform_unwatch_file(u32 watch_id) {
+b8 platform_unwatch_file (u32 watch_id) {
 	return unregister_watch(watch_id);
 }
 
-static void platform_update_watches(void) {
+static void platform_update_watches (void) {
 	if (!state_ptr || !state_ptr->watches) {
 		return;
 	}
 
 	u32 count = darray_length(state_ptr->watches);
 	for (u32 i = 0; i < count; ++i) {
-		linux_file_watch* f = &state_ptr->watches[i];
+		linux_file_watch *f = &state_ptr->watches[i];
 		if (f->id != INVALID_ID) {
 			struct stat info;
 			int result = stat(f->file_path, &info);
@@ -1294,7 +1373,7 @@ static void platform_update_watches(void) {
 }
 
 static inline kunix_time_ns
-unix_time_from_stat(const struct stat* s) {
+unix_time_from_stat (const struct stat *s) {
 #	if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200809L
 	return (kunix_time_ns)s->st_mtim.tv_sec * 1000000000ULL +
 		   (kunix_time_ns)s->st_mtim.tv_nsec;
@@ -1303,7 +1382,7 @@ unix_time_from_stat(const struct stat* s) {
 #	endif
 }
 
-kunix_time_ns platform_get_file_mtime(const char* path) {
+kunix_time_ns platform_get_file_mtime (const char *path) {
 	struct stat s;
 	if (stat(path, &s) != 0) {
 		return 0;
@@ -1317,8 +1396,8 @@ typedef struct linux_core_id {
 	i32 core_id;
 } linux_core_id;
 
-static u32 linux_physical_core_count(void) {
-	FILE* f = fopen("/proc/cpuinfo", "r");
+static u32 linux_physical_core_count (void) {
+	FILE *f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
 		return 0;
 	}
@@ -1332,9 +1411,9 @@ static u32 linux_physical_core_count(void) {
 	char line[256];
 	while (fgets(line, sizeof(line), f)) {
 
-		if (strncmp(line, "physical id", 11) == 0) {
+		if (strings_nequal(line, "physical id", 11)) {
 			sscanf(line, "physical id : %d", &physical_id);
-		} else if (strncmp(line, "core id", 7) == 0) {
+		} else if (strings_nequal(line, "core id", 7)) {
 			sscanf(line, "core id : %d", &core_id);
 		} else if (line[0] == '\n') {
 			/* end of one processor block */
@@ -1365,8 +1444,8 @@ static u32 linux_physical_core_count(void) {
 	return core_count;
 }
 
-static u32 linux_ram_speed_mhz(void) {
-	FILE* f;
+static u32 linux_ram_speed_mhz (void) {
+	FILE *f;
 	char path[256];
 	char buf[64];
 	u32 speed = 0;
@@ -1374,15 +1453,16 @@ static u32 linux_ram_speed_mhz(void) {
 
 	/* Try memory device entries */
 	for (int i = 0; i < 32; ++i) {
-		snprintf(path, sizeof(path),
-				 "/sys/devices/system/memory/memory%d/dimm_speed", i);
+		ksnprintf(path, sizeof(path),
+				  "/sys/devices/system/memory/memory%d/dimm_speed", i);
 
 		f = fopen(path, "r");
 		if (!f)
 			continue;
 
 		if (fgets(buf, sizeof(buf), f)) {
-			u32 mhz = (u32)strtoul(buf, NULL, 10);
+			u32 mhz = 0;
+			string_to_u32(buf, &mhz);
 			if (mhz > 0) {
 				speed += mhz;
 				count++;
@@ -1397,17 +1477,17 @@ static u32 linux_ram_speed_mhz(void) {
 	return 0; /* unknown */
 }
 
-static void linux_cpu(ksystem_info* s) {
-	FILE* f = fopen("/proc/cpuinfo", "r");
+static void linux_cpu (ksystem_info *s) {
+	FILE *f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
 		return;
 	}
 
 	char line[256];
 	while (fgets(line, sizeof(line), f)) {
-		if (strncmp(line, "model name", 10) == 0) {
+		if (strings_nequal(line, "model name", 10)) {
 			sscanf(line, "model name : %[^\n]", s->cpu_name);
-		} else if (strncmp(line, "cpu MHz", 7) == 0) {
+		} else if (strings_nequal(line, "cpu MHz", 7)) {
 			// Grab this first in case /sys/.../cpuinfo_max_freq isn't available.
 			f64 mhz = 0;
 			sscanf(line, "cpu MHz : %lf", &mhz);
@@ -1426,19 +1506,19 @@ static void linux_cpu(ksystem_info* s) {
 
 	// Attempt to get the base CPU clock speed mhz.
 	{
-		DIR* dir = opendir("/sys/devices/system/cpu/");
+		DIR *dir = opendir("/sys/devices/system/cpu/");
 		if (dir) {
 
-			struct dirent* entry;
+			struct dirent *entry;
 			u32 freq_khz = 0;
 			while ((entry = readdir(dir)) != NULL) {
-				if (strncmp(entry->d_name, "cpu", 3) == 0 && isdigit(entry->d_name[3])) {
+				if (strings_nequal(entry->d_name, "cpu", 3) && kisdigit(entry->d_name[3])) {
 					char path[256];
-					snprintf(path, sizeof(path),
-							 "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
-							 entry->d_name);
+					ksnprintf(path, sizeof(path),
+							  "/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq",
+							  entry->d_name);
 
-					FILE* f = fopen(path, "r");
+					FILE *f = fopen(path, "r");
 					if (!f)
 						continue;
 
@@ -1460,7 +1540,7 @@ static void linux_cpu(ksystem_info* s) {
 	detect_arm_features(&s->features);
 }
 
-static void linux_ram(ksystem_info* s) {
+static void linux_ram (ksystem_info *s) {
 	struct sysinfo info;
 	sysinfo(&info);
 	s->ram_total_bytes = (u64)info.totalram * info.mem_unit;
@@ -1468,28 +1548,28 @@ static void linux_ram(ksystem_info* s) {
 	s->ram_speed_mhz = linux_ram_speed_mhz();
 }
 
-static void linux_os(ksystem_info* s) {
+static void linux_os (ksystem_info *s) {
 	struct utsname u;
 	uname(&u);
 
-	strcpy(s->os_name, "Linux");
-	strcpy(s->kernel_version, u.release);
+	string_copy(s->os_name, "Linux");
+	string_copy(s->kernel_version, u.release);
 
-	FILE* f = fopen("/etc/os-release", "r");
+	FILE *f = fopen("/etc/os-release", "r");
 	if (!f) {
 		return;
 	}
 
 	char line[256];
 	while (fgets(line, sizeof(line), f)) {
-		if (strncmp(line, "PRETTY_NAME=", 12) == 0) {
+		if (strings_nequal(line, "PRETTY_NAME=", 12)) {
 			sscanf(line, "PRETTY_NAME=\"%[^\"]\"", s->distro);
 		}
 	}
 	fclose(f);
 }
-static int file_read_string(const char* path, char* out, size_t out_size) {
-	FILE* f = fopen(path, "r");
+static int file_read_string (const char *path, char *out, size_t out_size) {
+	FILE *f = fopen(path, "r");
 	if (!f)
 		return 0;
 	if (!fgets(out, (int)out_size, f)) {
@@ -1502,8 +1582,8 @@ static int file_read_string(const char* path, char* out, size_t out_size) {
 	return 1;
 }
 
-static int file_read_int(const char* path, int* out) {
-	FILE* f = fopen(path, "r");
+static int file_read_int (const char *path, int *out) {
+	FILE *f = fopen(path, "r");
 	if (!f)
 		return 0;
 	int v = 0;
@@ -1514,73 +1594,96 @@ static int file_read_int(const char* path, int* out) {
 	*out = v;
 	return 1;
 }
-static kdrive_type linux_classify_drive(
-	const char* device,		 // /dev/sda1
-	const char* mount_point, // /
-	const char* fs_type		 // ext4, tmpfs, nfs, ...
+
+i32 linux_cdrom_status (const char *device) {
+	i32 fd = open(device, O_RDONLY | O_NONBLOCK);
+	i32 status;
+
+	if (fd < 0)
+		return -1; /* Cannot open device */
+
+	status = ioctl(fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
+	close(fd);
+
+	return status;
+}
+
+static kdrive_type linux_classify_drive (
+	const char *device,		 // /dev/sda1
+	const char *mount_point, // /
+	const char *fs_type		 // ext4, tmpfs, nfs, ...
 ) {
 	// 1. No mount point
 	if (!mount_point || !mount_point[0])
 		return KDRIVE_TYPE_NO_ROOT_DIR;
 
 	// 2. RAM disk
-	if (!strcmp(fs_type, "tmpfs") || !strcmp(fs_type, "ramfs"))
+	if (strings_equal(fs_type, "tmpfs") || strings_equal(fs_type, "ramfs"))
 		return KDRIVE_TYPE_RAMDISK;
 
 	// 3. Network drive
-	if (!strcmp(fs_type, "nfs") ||
-		!strcmp(fs_type, "nfs4") ||
-		!strcmp(fs_type, "cifs") ||
-		!strcmp(fs_type, "smbfs") ||
-		!strcmp(fs_type, "sshfs") ||
-		!strcmp(fs_type, "fuse.sshfs") ||
-		!strcmp(fs_type, "davfs"))
+	if (strings_equal(fs_type, "nfs") ||
+		strings_equal(fs_type, "nfs4") ||
+		strings_equal(fs_type, "cifs") ||
+		strings_equal(fs_type, "smbfs") ||
+		strings_equal(fs_type, "sshfs") ||
+		strings_equal(fs_type, "fuse.sshfs") ||
+		strings_equal(fs_type, "davfs"))
 		return KDRIVE_TYPE_REMOTE;
 
 	// Only real block devices below this point
-	if (strncmp(device, "/dev/", 5) != 0)
+	if (strings_nequal(device, "/dev/", 5)) {
+		if (strings_equal(fs_type, "nfs4") ||
+			strings_equal(fs_type, "ext4") ||
+			strings_equal(fs_type, "btrfs")) {
+			return KDRIVE_TYPE_FIXED;
+		} else if (strings_equal(device, "/dev/sr0")) {
+			return KDRIVE_TYPE_CDROM;
+		}
 		return KDRIVE_TYPE_UNKNOWN;
+	}
 
 	// Extract parent disk: sda1 → sda, nvme0n1p2 → nvme0n1
 	char disk[128];
-	snprintf(disk, sizeof(disk), "%s", device + 5);
+	ksnprintf(disk, sizeof(disk), "%s", device + 5);
 
-	size_t len = strlen(disk);
-	while (len && isdigit(disk[len - 1]))
+	size_t len = string_length(disk);
+	while (len && kisdigit(disk[len - 1]))
 		disk[--len] = 0;
 	if (len && disk[len - 1] == 'p')
 		disk[--len] = 0;
 
 	// 4. Optical drive
 	char path[256], media[64];
-	snprintf(path, sizeof(path), "/sys/block/%s/device/media", disk);
+	ksnprintf(path, sizeof(path), "/sys/block/%s/device/media", disk);
 	if (file_read_string(path, media, sizeof(media))) {
-		if (!strcmp(media, "cdrom"))
+		if (strings_equal(media, "cdrom"))
 			return KDRIVE_TYPE_CDROM;
 	}
 
 	// 5. Removable
 	int removable = 0;
-	snprintf(path, sizeof(path), "/sys/block/%s/removable", disk);
+	ksnprintf(path, sizeof(path), "/sys/block/%s/removable", disk);
 	if (file_read_int(path, &removable) && removable == 1)
 		return KDRIVE_TYPE_REMOVABLE;
 
 	// 6. Fixed disk
-	snprintf(path, sizeof(path), "/sys/block/%s", disk);
+	ksnprintf(path, sizeof(path), "/sys/block/%s", disk);
 	if (access(path, F_OK) == 0)
 		return KDRIVE_TYPE_FIXED;
 
 	return KDRIVE_TYPE_UNKNOWN;
 }
 
-static void linux_query_storage(ksystem_info* s) {
+static void linux_query_storage (ksystem_info *s) {
 	s->storage_count = 0;
 
-	FILE* f = fopen("/proc/self/mounts", "r");
+	FILE *f = fopen("/proc/self/mounts", "r");
 	if (f) {
 
 		char line[1024];
 
+		b8 devsr0_found = false;
 		while (fgets(line, sizeof(line), f) && s->storage_count < KMAX_STORAGE_DEVICES) {
 			char device[256];
 			char mount[256];
@@ -1591,50 +1694,87 @@ static void linux_query_storage(ksystem_info* s) {
 				continue;
 
 			// Only real block devices
-			if (strncmp(device, "/dev/", 5) != 0)
+			if (!strings_nequal(device, "/dev/", 5)) {
 				continue;
+			}
 
 			// Skip pseudo FS
-			if (!strcmp(fs, "tmpfs") ||
-				!strcmp(fs, "proc") ||
-				!strcmp(fs, "sysfs") ||
-				!strcmp(fs, "devtmpfs"))
+			if (strings_equal(fs, "tmpfs") ||
+				strings_equal(fs, "proc") ||
+				strings_equal(fs, "sysfs") ||
+				strings_equal(fs, "devtmpfs"))
 				continue;
 
 			struct statvfs vfs;
 			if (statvfs(mount, &vfs) != 0)
 				continue;
 
-			kstorage_info* m = &s->storage[s->storage_count++];
-			strncpy(m->name, device, sizeof(m->name));
-			strncpy(m->mount_point, mount, sizeof(m->mount_point));
+			kstorage_info *m = &s->storage[s->storage_count++];
+			string_ncopy(m->name, device, sizeof(m->name));
+			string_ncopy(m->mount_point, mount, sizeof(m->mount_point));
 			m->total_bytes = (u64)vfs.f_blocks * vfs.f_frsize;
 			m->free_bytes = (u64)vfs.f_bavail * vfs.f_frsize;
 			m->type = linux_classify_drive(device, mount, fs);
+
+			if (strings_equal(device, "/dev/sr0")) {
+				devsr0_found = true;
+			}
+		}
+
+		// Check cdrom status if not mounted.
+		if (!devsr0_found) {
+			i32 status = linux_cdrom_status("/dev/sr0");
+			const char *cdrom_status_text = "";
+			if (status == -1) {
+				/* Device unavailable, unsupported, or permission error */
+			} else if (status == CDS_DISC_OK) {
+				/* Drive is ready with a disc inserted */
+				cdrom_status_text = "CD-ROM (Disc Inserted)";
+			} else if (status == CDS_NO_DISC) {
+				/* Drive exists, but no disc is inserted */
+				cdrom_status_text = "CD-ROM (No Disc)";
+			} else if (status == CDS_TRAY_OPEN) {
+				/* Tray is open */
+				cdrom_status_text = "CD-ROM (Tray Open)";
+			} else if (status == CDS_DRIVE_NOT_READY) {
+				/* Drive is busy or not ready */
+				cdrom_status_text = "CD-ROM (Not ready)";
+			} else if (status == CDS_NO_INFO) {
+				/* Status is unknown */
+				cdrom_status_text = "CD-ROM (Unknown status)";
+			}
+			if (status >= 0) {
+				kstorage_info *m = &s->storage[s->storage_count++];
+				string_ncopy(m->name, "/dev/sr0", sizeof(m->name));
+				string_ncopy(m->mount_point, cdrom_status_text, string_length(cdrom_status_text));
+				m->total_bytes = 0;
+				m->free_bytes = 0;
+				m->type = KDRIVE_TYPE_CDROM;
+			}
 		}
 
 		fclose(f);
 	}
 }
-static u32 linux_get_ram_speed_mhz(void) {
-	DIR* dir = opendir("/sys/firmware/dmi/entries");
+static u32 linux_get_ram_speed_mhz (void) {
+	DIR *dir = opendir("/sys/firmware/dmi/entries");
 	if (!dir)
 		return 0;
 
-	struct dirent* ent;
+	struct dirent *ent;
 	u32 max_speed = 0;
 
 	while ((ent = readdir(dir)) != NULL) {
 		// Memory Device (Type 17)
-		if (strncmp(ent->d_name, "17-", 3) != 0)
+		if (strings_nequal(ent->d_name, "17-", 3))
 			continue;
 
 		char path[512];
-		snprintf(path, sizeof(path),
-				 "/sys/firmware/dmi/entries/%s/raw",
-				 ent->d_name);
+		ksnprintf(path, sizeof(path),
+				  "/sys/firmware/dmi/entries/%s/raw",
+				  ent->d_name);
 
-		FILE* f = fopen(path, "rb");
+		FILE *f = fopen(path, "rb");
 		if (!f)
 			continue;
 
@@ -1656,7 +1796,7 @@ static u32 linux_get_ram_speed_mhz(void) {
 	return max_speed;
 }
 
-b8 platform_system_info_collect(ksystem_info* out_info) {
+b8 platform_system_info_collect (ksystem_info *out_info) {
 	kzero_memory(out_info, sizeof(*out_info));
 
 	linux_cpu(out_info);
@@ -1666,9 +1806,9 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	out_info->ram_speed_mhz = linux_get_ram_speed_mhz();
 
 #	if defined(__x86_64__)
-	strcpy(out_info->cpu_arch, "x86_64");
+	string_copy(out_info->cpu_arch, "x86_64");
 #	elif defined(__aarch64__)
-	strcpy(out_info->cpu_arch, "arm_64");
+	string_copy(out_info->cpu_arch, "arm_64");
 	detect_arm_features(&out_info->features);
 #	endif
 
@@ -1676,13 +1816,13 @@ b8 platform_system_info_collect(ksystem_info* out_info) {
 	return true;
 }
 
-void platform_request_clipboard_content(kwindow* window) {
+void platform_request_clipboard_content (kwindow *window) {
 	if (!state_ptr->clipboard.initialized) {
 		KWARN("Clipboard not yet initialized, unable to begin new request.");
 		return;
 	}
 
-	internal_clipboard_state* cb = &state_ptr->clipboard;
+	internal_clipboard_state *cb = &state_ptr->clipboard;
 
 	if (cb->paste_pending) {
 		KWARN("Clipboard currently processing, unable to begin new request.");
@@ -1711,13 +1851,13 @@ void platform_request_clipboard_content(kwindow* window) {
 	xcb_flush(state_ptr->handle.connection);
 }
 
-void platform_clipboard_content_set(kwindow* window, kclipboard_content_type type, u32 size, void* content) {
-	internal_clipboard_state* cb = &state_ptr->clipboard;
+void platform_clipboard_content_set (kwindow *window, kclipboard_content_type type, u32 size, void *content) {
+	internal_clipboard_state *cb = &state_ptr->clipboard;
 	if (cb->owned_data) {
 		if (cb->owned_type == KCLIPBOARD_CONTENT_TYPE_STRING) {
 			string_free(cb->owned_data);
 		} else {
-			kfree(cb->owned_data, size, MEMORY_TAG_BINARY_DATA);
+			kfree(cb->owned_data);
 		}
 		cb->owned_data = KNULL;
 		cb->owned_size = 0;
@@ -1745,64 +1885,12 @@ void platform_clipboard_content_set(kwindow* window, kclipboard_content_type typ
 	xcb_flush(state_ptr->handle.connection);
 }
 
-static i32 openfiledialog_on_response(sd_bus_message* m, void* user_data, sd_bus_error* error) {
-	u32 response;
-	state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_STRUCT, "u a{sv}");
-
-	// 0=success, 1=cancel
-	state_ptr->ksd_bus_message_read(m, "u", &response);
-	if (response != 0) {
-		KTRACE("User cancelled.");
-		state_ptr->kill_sd_bus_loop = true;
-		return 0;
-	}
-
-	// Read the results dictionary
-	state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
-
-	state_ptr->ofd_files_temp = darray_create(const char*);
-
-	const char* key;
-	while (state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv")) {
-		state_ptr->ksd_bus_message_read(m, "s", &key);
-		if (strings_equal(key, "uris")) {
-			state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_VARIANT, "as");
-			state_ptr->ksd_bus_message_enter_container(m, SD_BUS_TYPE_ARRAY, "s");
-
-			const char* uri;
-			while (state_ptr->ksd_bus_message_read(m, "s", &uri)) {
-				// Add to selection list, sanitizing "file://" from the front.
-				// TODO: May need to decode this path too, to handle spaces, etc.
-				darray_push(state_ptr->ofd_files_temp, string_duplicate(uri + 7));
-				/* KTRACE("Selected: '%s'", uri); */
-			}
-
-			state_ptr->ksd_bus_message_exit_container(m); // array
-			state_ptr->ksd_bus_message_exit_container(m); // variant
-		} else {
-			state_ptr->ksd_bus_message_skip(m, "v");
-		}
-
-		state_ptr->ksd_bus_message_exit_container(m); // dictionary entry
-	}
-
-	state_ptr->kill_sd_bus_loop = true;
-
-	return 0;
-}
-
-typedef struct open_file_filter_type_data {
-	const char* description;
-	u8 extension_count;
-	const char** extensions;
-} open_file_filter_type_data;
-
-static open_file_filter_type_data* parse_open_file_filters(const char* filter_str, u8* out_count) {
+static ofd_file_filter *parse_open_file_filters (const char *filter_str, u8 *out_count) {
 	if (!filter_str || !out_count) {
 		return KNULL;
 	}
 
-	char** parts = darray_create(char*);
+	char **parts = darray_create(char *);
 	u32 parts_count = string_split(filter_str, '|', &parts, true, false, false);
 	if (parts_count < 2) {
 		KERROR("Invalid open file filter string '%s'. Must have at least 2 parts.");
@@ -1811,17 +1899,17 @@ static open_file_filter_type_data* parse_open_file_filters(const char* filter_st
 	}
 
 	u32 type_count = parts_count / 2;
-	open_file_filter_type_data* types = KALLOC_TYPE_CARRAY(open_file_filter_type_data, type_count);
+	ofd_file_filter *types = KALLOC_TYPE_CARRAY(ofd_file_filter, type_count);
 	for (u32 i = 0; i < type_count; ++i) {
-		char** extensions = darray_create(char*);
+		char **extensions = darray_create(char *);
 		u32 extensions_count = string_split(parts[(i * 2) + 1], ';', &extensions, true, false, false);
-		open_file_filter_type_data type_data = {
-			.description = string_duplicate(parts[(i * 2)]),
-			.extension_count = (u8)extensions_count,
+		ofd_file_filter type_data = {
+			.name = string_duplicate(parts[(i * 2)]),
+			.pattern_count = (u8)extensions_count,
 		};
-		type_data.extensions = KALLOC_TYPE_CARRAY(const char*, extensions_count);
+		type_data.patterns = KALLOC_TYPE_CARRAY(const char *, extensions_count);
 		for (u8 j = 0; j < extensions_count; ++j) {
-			type_data.extensions[j] = string_duplicate(extensions[j]);
+			type_data.patterns[j] = string_duplicate(extensions[j]);
 		}
 		string_cleanup_split_darray(extensions);
 
@@ -1834,158 +1922,268 @@ static open_file_filter_type_data* parse_open_file_filters(const char* filter_st
 	return types;
 }
 
-platform_open_file_dialog_result platform_open_file_dialog_open(platform_open_file_dialog_options options) {
+platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options) {
+	DBusConnection *connection;
+	DBusMessage *call = KNULL;
+	DBusMessage *reply = KNULL;
+	DBusMessage *signal = KNULL;
+	DBusMessageIter args, opts;
+	DBusError error;
+	const char *request_path;
+	const char *empty_parent = "";
+	char match_rule[512];
+	ofd_file_filter *types;
+
+	types = KNULL;
+
 	platform_open_file_dialog_result result = {
 		.file_count = 0,
 		.file_paths = KNULL,
-		.success = false,
+		.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE,
 	};
-	if (!state_ptr->sd_bus_lib) {
-		KERROR("Linux platform: open file dialog not available.");
+
+	state_ptr->dbus_error_init(&error);
+	connection = state_ptr->dbus_bus_get(DBUS_BUS_SESSION, &error);
+	if (!connection) {
+		KERROR("Failed to connect to bus. Open file dialog cannot open. Error='%s'.", error.message ? error.message : "unknown error");
+		state_ptr->dbus_error_free(&error);
 		return result;
 	}
 
-	state_ptr->kill_sd_bus_loop = false;
-
-	sd_bus* bus = KNULL;
-	sd_bus_message* m = KNULL;
-	sd_bus_message* reply = KNULL;
-	sd_bus_error err = SD_BUS_ERROR_NULL;
-
-	i32 r = state_ptr->ksd_bus_open_user(&bus);
-	if (r < 0) {
-		KERROR("Failed to connect to bus. Open file dialog cannot open.");
+	state_ptr->dbus_bus_add_match(connection, "type='signal',interface='org.freedesktop.portal.Request',member='Response'", &error);
+	if (state_ptr->dbus_error_is_set(&error)) {
+		KERROR("DBus match error: '%s'.", error.message ? error.message : "unknown error");
+		state_ptr->dbus_error_free(&error);
 		return result;
 	}
 
-	r = state_ptr->ksd_bus_message_new_method_call(
-		bus,
-		&m,
-		"org.freedesktop.portal.Desktop",
-		"/org/freedesktop/portal/desktop",
-		"org.freedesktop.portal.FileChooser",
-		"OpenFile");
+	call = state_ptr->dbus_message_new_method_call(OFD_DBUS_PORTAL_NAME, OFD_DBUS_PORTAL_PATH, OFD_DBUS_PORTAL_INTERFACE, "OpenFile");
+	if (!call) {
+		goto ofd_open_cleanup;
+	}
 
-	// Parent and title
-	const char* title = (options.title) ? options.title : "Open File";
-	state_ptr->ksd_bus_message_append(m, "ss", "", title);
+	state_ptr->dbus_message_iter_init_append(call, &args);
 
-	// Options dictionary
-	state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, "{sv}");
+	// Parent window identifier.
+	if (!state_ptr->dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &empty_parent)) {
+		goto ofd_open_cleanup;
+	}
+
+	// Dialog title.
+	const char *title = (options.title) ? options.title : "Open File";
+	if (!state_ptr->dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &title)) {
+		goto ofd_open_cleanup;
+	}
+
+	// Options dict.
+	if (!state_ptr->dbus_message_iter_open_container(&args, DBUS_TYPE_ARRAY, "{sv}", &opts)) {
+		goto ofd_open_cleanup;
+	}
+
+	if (options.starting_dir) {
+		u32 len = string_length(options.starting_dir);
+		if (len > U32_MAX) {
+			goto ofd_open_cleanup;
+		}
+
+		if (!kdbus_append_byte_array_variant(&opts, "current_folder", (const u8 *)options.starting_dir, (i32)len)) {
+			goto ofd_open_cleanup;
+		}
+	}
 
 	// multiselect
 	if (options.allow_multiselect) {
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
-		state_ptr->ksd_bus_message_append(m, "s", "multiple");
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, "b");
-		state_ptr->ksd_bus_message_append(m, "b", 1);
-		state_ptr->ksd_bus_message_close_container(m); // Close variant
-		state_ptr->ksd_bus_message_close_container(m); // Close dict entry
-	}
-
-	// starting_dir
-	{
-		const char* path = options.starting_dir ? options.starting_dir : ".";
-
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
-		state_ptr->ksd_bus_message_append(m, "s", "current_folder");
-		state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, "ay");
-		state_ptr->ksd_bus_message_append_array(m, SD_BUS_TYPE_BYTE, path, string_length(path));
-		state_ptr->ksd_bus_message_close_container(m); // Close variant
-		state_ptr->ksd_bus_message_close_container(m); // Close dict entry
+		// NOTE: only add if the value is true.
+		if (!kdbus_append_bool_variant(&opts, "multiple", true)) {
+			goto ofd_open_cleanup;
+		}
 	}
 
 	// Filters, if included. If not, a default of *.*/all files is assumed.
 	if (options.filter) {
 		u8 type_count = 0;
-		open_file_filter_type_data* types = parse_open_file_filters(options.filter, &type_count);
+		types = parse_open_file_filters(options.filter, &type_count);
 		if (type_count > 0) {
-			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_DICT_ENTRY, "sv");
-			state_ptr->ksd_bus_message_append(m, "s", "filters");
-			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_VARIANT, "a(sa(us))");
-			state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, "(sa(us))");
+			if (!kdbus_append_filters_variant(&opts, types, type_count)) {
+				goto ofd_open_cleanup;
+			}
+		}
+	}
 
-			// Each type
-			for (u8 i = 0; i < type_count; ++i) {
-				open_file_filter_type_data* type = &types[i];
-				state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_STRUCT, "sa(us)");
-				state_ptr->ksd_bus_message_append(m, "s", type->description);
-				KTRACE("Type desc: '%s'", type->description);
+	if (!state_ptr->dbus_message_iter_close_container(&args, &opts)) {
+		goto ofd_open_cleanup;
+	}
 
-				state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_ARRAY, "(us)");
+	reply = state_ptr->dbus_connection_send_with_reply_and_block(connection, call, DBUS_TIMEOUT_USE_DEFAULT, &error);
+	if (!reply) {
+		KERROR("OpenFile error: '%s'.", error.message ? error.message : "unknown error");
+		state_ptr->dbus_error_free(&error);
+		goto ofd_open_cleanup;
+	}
 
-				// Each extension for the type.
-				for (u8 j = 0; j < type->extension_count; ++j) {
-					const char* ext = type->extensions[j];
-					KTRACE("ext: '%s'", ext);
-					state_ptr->ksd_bus_message_open_container(m, SD_BUS_TYPE_STRUCT, "us");
-					state_ptr->ksd_bus_message_append(m, "u", 0);
-					state_ptr->ksd_bus_message_append(m, "s", ext);
-					state_ptr->ksd_bus_message_close_container(m); // struct
-																   //
+	if (!state_ptr->dbus_message_get_args(reply, &error, DBUS_TYPE_OBJECT_PATH, &request_path, DBUS_TYPE_INVALID)) {
+		KERROR("OpenFile reply error: '%s'.", error.message ? error.message : "invalid reply");
+		state_ptr->dbus_error_free(&error);
+		goto ofd_open_cleanup;
+	}
+
+	string_nformat(match_rule, sizeof(match_rule), "type='signal',interface='org.freedesktop.portal.Request',member='Response',path='%s'", request_path);
+
+	for (;;) {
+		DBusMessage *msg;
+		const char *path;
+
+		while ((msg = state_ptr->dbus_connection_pop_message(connection)) != KNULL) {
+			if (state_ptr->dbus_message_is_signal(msg, OFD_DBUS_REQUEST_INTERFACE, "Response")) {
+				path = state_ptr->dbus_message_get_path(msg);
+
+				if (path && strings_equal(path, request_path)) {
+					dbus_uint32_t response = 1;
+					if (state_ptr->dbus_message_get_args(msg, &error, DBUS_TYPE_UINT32, &response, DBUS_TYPE_INVALID)) {
+						if (response == 0) {
+							i32 extracted_count = 0;
+							char **paths = extract_selected_path(msg, &extracted_count);
+							result.result = (extracted_count >= 1) ? PLATFORM_OFD_OP_RESULT_SUCCESS : (extracted_count == 0) ? PLATFORM_OFD_OP_RESULT_USER_CANCELLED
+																															 : PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE;
+							// Return a standard C array, not a darray.
+							result.file_count = darray_length(paths);
+							result.file_paths = KALLOC_TYPE_CARRAY(const char *, result.file_count);
+							for (u8 i = 0; i < result.file_count; ++i) {
+								result.file_paths[i] = paths[i];
+								KTRACE("path[%u]: '%s", i, paths[i]);
+							}
+							darray_destroy(paths);
+						} else if (response == 1) {
+							result.result = PLATFORM_OFD_OP_RESULT_USER_CANCELLED;
+						} else {
+							result.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE; // Portal reported failure.
+						}
+					} else {
+						state_ptr->dbus_error_free(&error);
+						result.result = PLATFORM_OFD_OP_RESULT_INTERNAL_FAILURE;
+					}
+
+					state_ptr->dbus_message_unref(msg);
+					goto ofd_open_cleanup;
 				}
-
-				state_ptr->ksd_bus_message_close_container(m); // type exts array
-				state_ptr->ksd_bus_message_close_container(m); // type struct
 			}
 
-			// Close filters containers
-			state_ptr->ksd_bus_message_close_container(m); // array
-			state_ptr->ksd_bus_message_close_container(m); // variant
-			state_ptr->ksd_bus_message_close_container(m); // struct
+			state_ptr->dbus_message_unref(msg);
+		}
+
+		if (!state_ptr->dbus_connection_read_write(connection, -1)) {
+			goto ofd_open_cleanup;
 		}
 	}
-	state_ptr->ksd_bus_message_close_container(m); // Close options
 
-	state_ptr->ksd_bus_call(bus, m, 0, &err, &reply);
-
-	if (r < 0) {
-		KERROR("Call failed with '%s'. Open file dialog cannot open.", err.message);
-		return result;
+ofd_open_cleanup:
+	if (signal) {
+		state_ptr->dbus_message_unref(signal);
+	}
+	if (reply) {
+		state_ptr->dbus_message_unref(reply);
+	}
+	if (call) {
+		state_ptr->dbus_message_unref(call);
 	}
 
-	// Read returned object path.
-	const char* request_path = KNULL;
-	state_ptr->ksd_bus_message_read(reply, "o", &request_path);
-
-	KTRACE("Request path: '%s'", request_path);
-
-	// Listen for response signal.
-	state_ptr->ksd_bus_add_match(
-		bus,
-		KNULL,
-		"type='signal',interface='org.freedesktop.portal.Request'",
-		openfiledialog_on_response,
-		KNULL // user_data
-	);
-
-	// Event loop
-	while (true) {
-		state_ptr->ksd_bus_process(bus, KNULL);
-		state_ptr->ksd_bus_wait(bus, (u64)500000); // Half second between iterations.
-		if (state_ptr->kill_sd_bus_loop) {
-			break;
-		}
-	}
-	state_ptr->kill_sd_bus_loop = false;
-
-	// Read from results list here and return listing of file paths.
-	result.success = state_ptr->ofd_files_temp != KNULL;
-	result.file_count = (u8)darray_length(state_ptr->ofd_files_temp);
-	if (result.success) {
-		KDUPLICATE_TYPE_CARRAY(result.file_paths, state_ptr->ofd_files_temp, const char*, result.file_count);
-	}
-	darray_destroy(state_ptr->ofd_files_temp);
-	state_ptr->ofd_files_temp = KNULL;
-
-	state_ptr->ksd_bus_unref(bus);
 	return result;
 }
 
-static kwindow* window_from_handle(xcb_window_t window) {
+// NOTE: syscall implementation
+i64 syscall2 (i64 number, i64 arg0, i64 arg1) {
+	i64 ret;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall3 (i64 number, i64 arg0, i64 arg1, i64 arg2) {
+	i64 ret;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall4 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3) {
+	i64 ret;
+
+	register i64 r10 __asm__("r10") = arg3;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2),
+		  "r"(r10)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall5 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3, i64 arg4) {
+	i64 ret;
+
+	register i64 r10 __asm__("r10") = arg3;
+	register i64 r8 __asm__("r8") = arg4;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2),
+		  "r"(r10),
+		  "r"(r8)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+i64 syscall6 (i64 number, i64 arg0, i64 arg1, i64 arg2, i64 arg3, i64 arg4, i64 arg5) {
+	i64 ret;
+
+	register i64 r10 __asm__("r10") = arg3;
+	register i64 r8 __asm__("r8") = arg4;
+	register i64 r9 __asm__("r9") = arg5;
+
+	__asm__ volatile(
+		"syscall"
+		: "=a"(ret)
+		: "a"(number),
+		  "D"(arg0),
+		  "S"(arg1),
+		  "d"(arg2),
+		  "r"(r10),
+		  "r"(r8),
+		  "r"(r9)
+		: "rcx", "r11", "memory");
+
+	return ret;
+}
+
+static kwindow *window_from_handle (xcb_window_t window) {
 	u32 len = darray_length(state_ptr->windows);
 	for (u32 i = 0; i < len; ++i) {
-		kwindow* w = state_ptr->windows[i];
+		kwindow *w = state_ptr->windows[i];
 		if (w && w->platform_state->window == window) {
 			return state_ptr->windows[i];
 		}
@@ -1993,7 +2191,7 @@ static kwindow* window_from_handle(xcb_window_t window) {
 	return 0;
 }
 
-static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev) {
+static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev) {
 	b8 repeat = (ev->detail == state->last_keycode) && (ev->time == state->last_key_time); // Some servers send identical timestamps for repeats
 
 	state->last_keycode = ev->detail;
@@ -2003,7 +2201,7 @@ static b8 key_is_repeat(platform_state* state, const xcb_key_press_event_t* ev) 
 }
 
 // Key translation
-static keys translate_keycode(u32 x_keycode) {
+static keys translate_keycode (u32 x_keycode) {
 	switch (x_keycode) {
 	case XK_BackSpace:
 		return KEY_BACKSPACE;
@@ -2305,6 +2503,270 @@ static keys translate_keycode(u32 x_keycode) {
 	default:
 		return 0;
 	}
+}
+
+// Appends a dictionary entry containing a bool variant.
+static i32 kdbus_append_bool_variant (DBusMessageIter *dict, const char *key, b8 value) {
+	DBusMessageIter entry, variant;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "b", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_BOOLEAN, &value)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+// Appends a dictionary entry containing a string variant.
+static i32 kdbus_append_string_variant (DBusMessageIter *dict, const char *key, const char *value) {
+	DBusMessageIter entry, variant;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "s", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &value)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+// Appends a dictionary entry containing a byte-array variant.
+static i32 kdbus_append_byte_array_variant (DBusMessageIter *dict, const char *key, const u8 *bytes, i32 length) {
+	DBusMessageIter entry, variant, array;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_append_basic(dict, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "ay", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&variant, DBUS_TYPE_ARRAY, "y", &array)) {
+		return 0;
+	}
+
+	if (length > 0 && !state_ptr->dbus_message_iter_append_fixed_array(&array, DBUS_TYPE_BYTE, &bytes, length)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&variant, &array)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+static i32 kdbus_append_filters_variant (DBusMessageIter *dict, const ofd_file_filter *filters, u64 filter_count) {
+	DBusMessageIter entry, variant, array;
+	u64 i, j;
+
+	if (!state_ptr->dbus_message_iter_open_container(dict, DBUS_TYPE_DICT_ENTRY, KNULL, &entry)) {
+		return 0;
+	}
+
+	const char *key = "filters";
+	if (!state_ptr->dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &key)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT, "a(sa(us))", &variant)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_open_container(&variant, DBUS_TYPE_ARRAY, "(sa(us))", &array)) {
+		return 0;
+	}
+
+	for (i = 0; i < filter_count; ++i) {
+		DBusMessageIter structure, patterns;
+
+		if (!state_ptr->dbus_message_iter_open_container(&array, DBUS_TYPE_STRUCT, KNULL, &structure)) {
+			return 0;
+		}
+
+		if (!state_ptr->dbus_message_iter_append_basic(&structure, DBUS_TYPE_STRING, &filters[i].name)) {
+			return 0;
+		}
+
+		if (!state_ptr->dbus_message_iter_open_container(&structure, DBUS_TYPE_ARRAY, "(us)", &patterns)) {
+			return 0;
+		}
+
+		for (j = 0; j < filters[i].pattern_count; ++j) {
+			DBusMessageIter pattern;
+			dbus_uint32_t type = 0;
+			const char *text = filters[i].patterns[j];
+
+			if (!state_ptr->dbus_message_iter_open_container(&patterns, DBUS_TYPE_STRUCT, KNULL, &pattern)) {
+				return 0;
+			}
+
+			if (!state_ptr->dbus_message_iter_append_basic(&pattern, DBUS_TYPE_UINT32, &type)) {
+				return 0;
+			}
+
+			if (!state_ptr->dbus_message_iter_append_basic(&pattern, DBUS_TYPE_STRING, &text)) {
+				return 0;
+			}
+
+			if (!state_ptr->dbus_message_iter_close_container(&patterns, &pattern)) {
+				return 0;
+			}
+		}
+
+		if (!state_ptr->dbus_message_iter_close_container(&structure, &patterns)) {
+			return 0;
+		}
+
+		if (!state_ptr->dbus_message_iter_close_container(&array, &structure)) {
+			return 0;
+		}
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&variant, &array)) {
+		return 0;
+	}
+
+	if (!state_ptr->dbus_message_iter_close_container(&entry, &variant)) {
+		return 0;
+	}
+
+	return state_ptr->dbus_message_iter_close_container(dict, &entry);
+}
+
+// out_result: >0 = number of paths obtained, 0 = user cancelled, -1 = error
+static char **extract_selected_path (DBusMessage *message, i32 *out_result) {
+	DBusMessageIter iter, dict;
+	char **out_paths;
+
+	out_paths = KNULL;
+	*out_result = -2;
+
+	if (!state_ptr->dbus_message_iter_init(message, &iter)) {
+		*out_result = -1;
+		goto extract_selected_path_cleanup;
+	}
+
+	// Response arguments: u32 response, a{sv} results
+	if (state_ptr->dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_UINT32) {
+		*out_result = -1;
+		goto extract_selected_path_cleanup;
+	}
+
+	state_ptr->dbus_message_iter_next(&iter);
+
+	if (state_ptr->dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+		*out_result = -1;
+		goto extract_selected_path_cleanup;
+	}
+
+	state_ptr->dbus_message_iter_recurse(&iter, &dict);
+
+	while (state_ptr->dbus_message_iter_get_arg_type(&dict) != DBUS_TYPE_INVALID) {
+		DBusMessageIter entry, value;
+
+		state_ptr->dbus_message_iter_recurse(&dict, &entry);
+
+		if (state_ptr->dbus_message_iter_get_arg_type(&entry) != DBUS_TYPE_STRING) {
+			*out_result = -1;
+			goto extract_selected_path_cleanup;
+		}
+
+		const char *key;
+		state_ptr->dbus_message_iter_get_basic(&entry, &key);
+
+		if (strings_equal(key, "uris")) {
+			state_ptr->dbus_message_iter_next(&entry);
+
+			if (state_ptr->dbus_message_iter_get_arg_type(&entry) != DBUS_TYPE_VARIANT) {
+				*out_result = -1;
+				goto extract_selected_path_cleanup;
+			}
+
+			state_ptr->dbus_message_iter_recurse(&entry, &value);
+
+			if (state_ptr->dbus_message_iter_get_arg_type(&value) != DBUS_TYPE_ARRAY) {
+				*out_result = -1;
+				goto extract_selected_path_cleanup;
+			}
+
+			state_ptr->dbus_message_iter_recurse(&value, &entry);
+
+			if (state_ptr->dbus_message_iter_get_arg_type(&entry) != DBUS_TYPE_STRING) {
+				*out_result = -1;
+				goto extract_selected_path_cleanup;
+			}
+
+			const char *uri;
+			state_ptr->dbus_message_iter_get_basic(&entry, &uri);
+
+			// Add to the list of strings.
+			const char *val = string_from_file_uri(uri);
+			if (val) {
+				if (!out_paths) {
+					out_paths = darray_create(char *);
+				}
+
+				darray_push(out_paths, &val);
+			}
+		}
+
+		state_ptr->dbus_message_iter_next(&dict);
+	}
+
+	*out_result = darray_length(out_paths);
+
+extract_selected_path_cleanup:
+	if (*out_result < 1) {
+		if (out_paths) {
+			u32 len = darray_length(out_paths);
+			for (u32 i = 0; i < len; ++i) {
+				kfree(out_paths[i]);
+			}
+			darray_destroy(out_paths);
+			out_paths = KNULL;
+		}
+	}
+
+	return out_paths;
 }
 
 #endif

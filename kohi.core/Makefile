@@ -3,7 +3,7 @@
 ASSEMBLY_NAME=kohi.core
 
 # All compiler flags/rules used across the board.
-CFLAGS =-std=gnu11 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
+CFLAGS =-std=c99 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
 CFLAGS +=-Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -Wstrict-prototypes -Wno-unused-parameter 
 CFLAGS +=-Wno-missing-field-initializers -Wno-tautological-compare 
 # NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say otherwise are exported (i.e. via KAPI).
@@ -23,6 +23,7 @@ BUILD_TYPE =U
 
 
 UNAME_S := 
+UNAME_M :=
 ifneq ($(OS),Windows_NT)
 	UNAME_S = $(shell uname -s)
 endif
@@ -40,11 +41,21 @@ else ifeq ($(UNAME_S),Linux)
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	INCLUDE_FLAGS += $(shell pkg-config --cflags dbus-1) 
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
 	SRC_FILES := $(shell find src -type f \( -name "*.c" -o -name "*.m" \))
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	# TODO: not sure if we are going to bother supporting intel macs, but if we do, 
+	# this will need to hinge off of that
+	UNAME_M = $(shell uname -m)
+ifeq ($(UNAME_M),arm64)
+	CFLAGS +=-arch arm64
+	LDFLAGS +=-arch arm64
+	CFLAGS +=-target arm64-apple-darwin
+	LDFLAGS +=-target arm64-apple-darwin
+endif
 else
     $(error Unsupported platform)
 endif
@@ -58,17 +69,17 @@ endif
 .PHONY: link link-win32 link-linux link-macos
 .PHONY: clean clean-win32 clean-linux clean-macos
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
-flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
+flags-debug: CFLAGS += -pthread -g -MD -O0 -fno-omit-frame-pointer
 flags-debug: LDFLAGS += -g
 flags-debug: BUILD_TYPE=D
 flags-debug: link compile genversion
 
 flags-release: DEFINES += -DKOHI_RELEASE
-flags-release: CFLAGS += -MD -O2
+flags-release: CFLAGS += -pthread -MD -O2
 flags-release: LDFLAGS += 
 flags-release: BUILD_TYPE=R
 flags-release: link compile genversion
@@ -78,8 +89,8 @@ scaffold: scaffold-$(PLATFORM)
 .NOTPARALLEL: scaffold
 
 scaffold-win32:
-	@if not exist bin mkdir bin
 	-@mkdir $(addprefix obj\\, $(DIRECTORIES)) 2>nul
+	@if not exist bin mkdir bin
 
 scaffold-linux scaffold-macos:
 	@mkdir -p bin
@@ -92,9 +103,9 @@ genversion-win32:
 	@..\misc\versiongen.exe version.txt -outfile=src\$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
 genversion-linux genversion-macos:
-	../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
+	@../misc/versiongen version.txt -outfile=src/$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
 
-
+.PHONY: clean
 clean:    clean-$(PLATFORM)
 
 clean-win32:
@@ -159,7 +170,7 @@ gen_compile_flags-release: gen_compile_flags
 .PHONY: gen_compile_flags
 gen_compile_flags:
 ifeq ($(BUILD_PLATFORM),windows)
-	@..\misc\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	@..\misc\cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) $(CFLAGS) -ferror-limit=0
 else
-	@../misc/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) -ferror-limit=0
+	@../misc/cfgen -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) $(CFLAGS) -ferror-limit=0
 endif

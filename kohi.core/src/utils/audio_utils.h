@@ -9,7 +9,7 @@
  * @param str The string to parse.
  * @return The sound space.
  */
-KAPI kaudio_space string_to_audio_space(const char* str);
+KAPI kaudio_space string_to_audio_space (const char *str);
 
 /**
  * @brief Gets the string representation of the given sound space.
@@ -18,7 +18,7 @@ KAPI kaudio_space string_to_audio_space(const char* str);
  * @param space The audio space to convert.
  * @return the string representation of the given audio space.
  */
-KAPI const char* audio_space_to_string(kaudio_space space);
+KAPI const char *audio_space_to_string (kaudio_space space);
 
 /**
  * @brief Parses the attenuation model from the given string. Defaults to linear if not valid.
@@ -26,7 +26,7 @@ KAPI const char* audio_space_to_string(kaudio_space space);
  * @param str The string to parse.
  * @return The attenuation model.
  */
-KAPI kaudio_attenuation_model string_to_attenuation_model(const char* str);
+KAPI kaudio_attenuation_model string_to_attenuation_model (const char *str);
 
 /**
  * @brief Gets the string representation of the given attenuation model.
@@ -35,7 +35,7 @@ KAPI kaudio_attenuation_model string_to_attenuation_model(const char* str);
  * @param model The model to convert.
  * @return the string representation of the given attenuation model.
  */
-KAPI const char* attenuation_model_to_string(kaudio_attenuation_model model);
+KAPI const char *attenuation_model_to_string (kaudio_attenuation_model model);
 
 /**
  * @brief Computes spatial gain based on position, radius and attenuation model parameters.
@@ -48,7 +48,7 @@ KAPI const char* attenuation_model_to_string(kaudio_attenuation_model model);
  *
  * @return The final gain of the sound based on the supplied parameters, before being mixed with volume.
  */
-KAPI f32 calculate_spatial_gain(f32 distance, f32 inner_radius, f32 outer_radius, f32 falloff_factor, kaudio_attenuation_model model);
+KAPI f32 calculate_spatial_gain (f32 distance, f32 inner_radius, f32 outer_radius, f32 falloff_factor, kaudio_attenuation_model model);
 
 /**
  * @brief Downmixes the provided stereo data to mono data by averaging the left
@@ -59,4 +59,4 @@ KAPI f32 calculate_spatial_gain(f32 distance, f32 inner_radius, f32 outer_radius
  *
  * @returns A dynamically-allocated array of downmixed mono data on success; otherwise 0/null.
  */
-KAPI i16* kaudio_downmix_stereo_to_mono(const i16* stereo_data, u32 sample_count);
+KAPI i16 *kaudio_downmix_stereo_to_mono (const i16 *stereo_data, u32 sample_count);

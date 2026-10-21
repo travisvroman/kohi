@@ -1,15 +1,14 @@
 #pragma once
 
+#include "systems/kmatrix_system.h"
 #include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core_render_types.h>
-#include <core_resource_types.h>
 #include <defines.h>
 #include <math/math_types.h>
 #include <renderer/renderer_types.h>
 #include <systems/kmaterial_system.h>
 #include <systems/light_system.h>
-#include <utils/kcolour.h>
 
 #define DEFAULT_SHADOW_BIAS 0.0005f
 #define DEFAULT_SHADOW_DIST 100.0f
@@ -18,13 +17,14 @@
 
 struct renderer_system_state;
 struct standard_ui_renderable;
+struct application;
 
 typedef struct kshadow_pass_data {
 	// Static meshes
 	kshader staticmesh_shader;
 	u32 sm_set0_instance_id;
 	u32 sm_set1_max_instances;
-	u32* sm_set1_instance_ids;
+	u32 *sm_set1_instance_ids;
 	// Used for opaque material rendering. Typically the first instance of the above list.
 	u32 sm_default_instance_id;
 
@@ -70,6 +70,18 @@ typedef struct kworld_debug_pass_data {
 
 #endif
 
+typedef enum kforward_renderer_stage {
+	// Standard forward stage.
+	KFORWARD_RENDERER_STAGE_FORWARD,
+	// Any refraction stage.
+	KFORWARD_RENDERER_STAGE_REFRACT,
+	// Any reflection state.
+	KFORWARD_RENDERER_STAGE_REFLECT,
+	KFORWARD_RENDERER_STAGE_COUNT
+} kforward_renderer_stage;
+
+typedef b8 (*PFN_kforward_renderer_on_render_callback)(struct application *app, frame_data *p_frame_data, rect_2di vp_rect, ktexture colour_buffer, ktexture depth_buffer, vec4 clipping_plane);
+
 /**
  * @brief Represents the state of the Kohi Default Forward application renderer.
  */
@@ -77,21 +89,31 @@ typedef struct kforward_renderer {
 	ktexture colour_buffer;
 	ktexture depth_stencil_buffer;
 
-	struct renderer_system_state* renderer_state;
-	struct kmaterial_system_state* material_system;
-	struct kmaterial_renderer* material_renderer;
-	struct texture_system_state* texture_system;
+	struct application *app;
+
+	struct renderer_system_state *renderer_state;
+	struct kmaterial_system_state *material_system;
+	struct kmaterial_renderer *material_renderer;
+	struct texture_system_state *texture_system;
+	struct kmatrix_system_state *matrix_system;
 
 	kdepth_prepass_data depth_prepass;
 	kshadow_pass_data shadow_pass;
 	kforward_pass_data forward_pass;
 #if KOHI_DEBUG
 	kworld_debug_pass_data world_debug_pass;
+	kmatrix_id debug_identity_matrix;
 #endif
 
 	krenderbuffer standard_vertex_buffer;
 	krenderbuffer index_buffer;
 
+	// Max of one callback per stage. The application should split up multiple calls here if need be.
+	PFN_kforward_renderer_on_render_callback stage_callbacks[KFORWARD_RENDERER_STAGE_COUNT];
+
+	// Darray, acquired/released in bulk for rendering HF terrain.
+	hf_terrain *current_terrain;
+	u32 *hf_terrain_instance_ids;
 } kforward_renderer;
 
 typedef struct kskybox_render_data {
@@ -137,7 +159,7 @@ typedef struct kmaterial_render_data {
 	// The number of geometries.
 	u32 geometry_count;
 	// An array of geometries using the material.
-	kgeometry_render_data* geometries;
+	kgeometry_render_data *geometries;
 } kmaterial_render_data;
 
 typedef struct hm_terrain_chunk_render_data {
@@ -152,7 +174,7 @@ typedef struct hm_terrain_render_data {
 	kmaterial_instance material_instance;
 	ktransform transform;
 	u32 chunk_count;
-	hm_terrain_chunk_render_data* chunks;
+	hm_terrain_chunk_render_data *chunks;
 } hm_terrain_render_data;
 
 typedef struct kshadow_pass_cascade_render_data {
@@ -163,29 +185,29 @@ typedef struct kshadow_pass_render_data {
 	klight dir_light;
 
 	u32 cascade_count;
-	kshadow_pass_cascade_render_data* cascades;
+	kshadow_pass_cascade_render_data *cascades;
 
 	// The number of opaque geometries.
 	u16 opaque_geometry_count;
 	// An array of geometries whose materials are opaque and can thus be rendered with the defualt group.
-	kgeometry_render_data* opaque_geometries;
+	kgeometry_render_data *opaque_geometries;
 
 	// Static mesh geo data organized by transparent material.
 	u16 transparent_geometries_by_material_count;
-	kmaterial_render_data* transparent_geometries_by_material;
+	kmaterial_render_data *transparent_geometries_by_material;
 
 	// The number of animated opaque geometries.
 	u16 animated_opaque_geometry_count;
 	// An array of animated geometries whose materials are opaque and can thus be rendered with the defualt group.
-	kgeometry_render_data* animated_opaque_geometries;
+	kgeometry_render_data *animated_opaque_geometries;
 
 	// Animated mesh geo data organized by transparent material.
 	u16 animated_transparent_geometries_by_material_count;
-	kmaterial_render_data* animated_transparent_geometries_by_material;
+	kmaterial_render_data *animated_transparent_geometries_by_material;
 
 	// Terrain geo data
 	u16 terrain_count;
-	hm_terrain_render_data* terrains;
+	hm_terrain_render_data *terrains;
 
 	hf_terrain_render_data hf_terrain_data;
 
@@ -195,28 +217,28 @@ typedef struct kshadow_pass_render_data {
 
 // Water plane render data used once for reflection and once for refraction.
 typedef struct kscene_pass_render_data {
-	mat4 view_matrix;
+	kmatrix_id view_id;
 	vec3 view_position;
 
 	// Opaque static mesh geo data organized by material.
 	u16 opaque_meshes_by_material_count;
-	kmaterial_render_data* opaque_meshes_by_material;
+	kmaterial_render_data *opaque_meshes_by_material;
 
 	// Transparent static mesh geo data organized by material.
 	u16 transparent_meshes_by_material_count;
-	kmaterial_render_data* transparent_meshes_by_material;
+	kmaterial_render_data *transparent_meshes_by_material;
 
 	// Opaque animated mesh geo data organized by material.
 	u16 animated_opaque_meshes_by_material_count;
-	kmaterial_render_data* animated_opaque_meshes_by_material;
+	kmaterial_render_data *animated_opaque_meshes_by_material;
 
 	// Transparent animated mesh geo data organized by material.
 	u16 animated_transparent_meshes_by_material_count;
-	kmaterial_render_data* animated_transparent_meshes_by_material;
+	kmaterial_render_data *animated_transparent_meshes_by_material;
 
 	// Terrain geo data
 	u16 terrain_count;
-	hm_terrain_render_data* terrains;
+	hm_terrain_render_data *terrains;
 
 	hf_terrain_render_data hf_terrain_data;
 } kscene_pass_render_data;
@@ -247,10 +269,10 @@ typedef struct kforward_pass_water_plane_render_data {
 
 typedef struct kforward_pass_render_data {
 	// View matrix/position used for the rendering of the water plane itself.
-	mat4 view_matrix;
+	kmatrix_id view_id;
 	vec4 view_position;
 
-	mat4 projection;
+	kmatrix_id projection_id;
 
 	u32 render_mode;
 
@@ -279,7 +301,7 @@ typedef struct kforward_pass_render_data {
 
 	// Water planes
 	u16 water_plane_count;
-	kforward_pass_water_plane_render_data* water_planes;
+	kforward_pass_water_plane_render_data *water_planes;
 
 	// Data to be used after reflection/refraction passes.
 	kscene_pass_render_data standard_pass;
@@ -290,19 +312,19 @@ typedef struct kforward_pass_render_data {
 
 typedef struct kdebug_geometry_render_data {
 	kgeometry_render_data geo;
-	mat4 model;
+	kmatrix_id model_id;
 	colour4 colour;
 } kdebug_geometry_render_data;
 
 #if KOHI_DEBUG
 typedef struct kworld_debug_pass_render_data {
-	mat4 projection;
-	mat4 view;
+	kmatrix_id projection_id;
+	kmatrix_id view_id;
 
 	// The number of geometries.
 	u16 geometry_count;
 	// An array of geometries.
-	kdebug_geometry_render_data* geometries;
+	kdebug_geometry_render_data *geometries;
 
 	b8 draw_grid;
 	kdebug_geometry_render_data grid_geometry;
@@ -325,7 +347,10 @@ typedef struct kforward_renderer_render_data {
 #endif
 } kforward_renderer_render_data;
 
-KAPI b8 kforward_renderer_create(ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer* out_renderer);
-KAPI void kforward_renderer_destroy(kforward_renderer* renderer);
+KAPI b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, ktexture depth_stencil_buffer, kforward_renderer *out_renderer);
+KAPI void kforward_renderer_destroy (kforward_renderer *renderer);
 
-KAPI b8 kforward_renderer_render_frame(kforward_renderer* renderer, frame_data* p_frame_data, kforward_renderer_render_data* render_data);
+KAPI b8 kforward_renderer_render_frame (kforward_renderer *renderer, frame_data *p_frame_data, kforward_renderer_render_data *render_data);
+
+// NOTE: overwrites stage callback if already set.
+KAPI void kforward_renderer_register_stage_callback (kforward_renderer *renderer, kforward_renderer_stage stage, PFN_kforward_renderer_on_render_callback callback);

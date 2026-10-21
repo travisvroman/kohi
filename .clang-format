@@ -3,7 +3,12 @@ IndentWidth: 4
 ColumnLimit: 0
 NamespaceIndentation: All
 BreakBeforeBraces: Attach
-PointerAlignment: Left
+PointerAlignment: Right
 IndentPPDirectives: AfterHash
 UseTab: Always
 TabWidth: 4
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterFunctionDefinitionName: true
+  AfterFunctionDeclarationName: true

@@ -3,10 +3,10 @@
 #include "defines.h"
 
 /** @brief A function pointer definition for jobs. */
-typedef b8 (*pfn_job_start)(void*, void*);
+typedef b8 (*pfn_job_start)(void *, void *);
 
 /** @brief A function pointer definition for completion of a job. */
-typedef void (*pfn_job_on_complete)(void*);
+typedef void (*pfn_job_on_complete)(void *);
 
 struct frame_data;
 
@@ -69,13 +69,13 @@ typedef struct job_info {
 	pfn_job_on_complete on_fail;
 
 	/** @brief Data to be passed to the entry point upon execution. */
-	void* param_data;
+	void *param_data;
 
 	/** @brief The size of the data passed to the job. */
 	u32 param_data_size;
 
 	/** @brief Data to be passed to the success/fail function upon execution, if exists. */
-	void* result_data;
+	void *result_data;
 
 	/** @brief The size of the data passed to the success/fail function. */
 	u32 result_data_size;
@@ -84,7 +84,7 @@ typedef struct job_info {
 	u8 dependency_count;
 
 	/** @brief An array of job identifiers that must be complete before this job starts. */
-	u16* dependency_ids;
+	u16 *dependency_ids;
 } job_info;
 
 typedef struct job_system_config {
@@ -94,7 +94,7 @@ typedef struct job_system_config {
 	 */
 	u8 max_job_thread_count;
 	/** @param type_masks A collection of type masks for each job thread. Must match max_job_thread_count. */
-	u32* type_masks;
+	u32 *type_masks;
 } job_system_config;
 
 /**
@@ -105,23 +105,23 @@ typedef struct job_system_config {
  * @param config A pointer to the configuration (job_system_config) of this system.
  * @returns True if the job system started up successfully; otherwise false.
  */
-b8 job_system_initialize(u64* job_system_memory_requirement, void* state, void* config);
+b8 job_system_initialize (u64 *job_system_memory_requirement, void *state, void *config);
 
 /**
  * @brief Shuts the job system down.
  */
-void job_system_shutdown(void* state);
+void job_system_shutdown (void *state);
 
 /**
  * @brief Updates the job system. Should happen once an update cycle.
  */
-b8 job_system_update(void* state, struct frame_data* p_frame_data);
+b8 job_system_update (void *state, struct frame_data *p_frame_data);
 
 /**
  * @brief Submits the provided job to be queued for execution.
  * @param info The description of the job to be executed.
  */
-KAPI void job_system_submit(job_info info);
+KAPI void job_system_submit (job_info info);
 
 /**
  * @brief Creates a new job with default type (Generic) and priority (Normal).
@@ -133,7 +133,7 @@ KAPI void job_system_submit(job_info info);
  * @param result_data_size The size of result data to be passed on to success callback. Pass 0 if not used.
  * @returns The newly created job information to be submitted for execution.
  */
-KAPI job_info job_create(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size);
+KAPI job_info job_create (pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void *param_data, u32 param_data_size, u32 result_data_size);
 
 /**
  * @brief Creates a new job with default priority (Normal).
@@ -146,7 +146,7 @@ KAPI job_info job_create(pfn_job_start entry_point, pfn_job_on_complete on_succe
  * @param type The type of job. Used to determine which thread the job executes on.
  * @returns The newly created job information to be submitted for execution.
  */
-KAPI job_info job_create_type(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size, job_type type);
+KAPI job_info job_create_type (pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void *param_data, u32 param_data_size, u32 result_data_size, job_type type);
 
 /**
  * @brief Creates a new job with the provided priority.
@@ -160,7 +160,7 @@ KAPI job_info job_create_type(pfn_job_start entry_point, pfn_job_on_complete on_
  * @param priority The priority of this job. Higher priority jobs obviously run sooner.
  * @returns The newly created job information to be submitted for execution.
  */
-KAPI job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void* param_data, u32 param_data_size, u32 result_data_size, job_type type, job_priority priority);
+KAPI job_info job_create_priority (pfn_job_start entry_point, pfn_job_on_complete on_success, pfn_job_on_complete on_fail, void *param_data, u32 param_data_size, u32 result_data_size, job_type type, job_priority priority);
 
 /**
  * @brief Creates a new job with the provided type, priority, and dependencies.
@@ -176,19 +176,19 @@ KAPI job_info job_create_priority(pfn_job_start entry_point, pfn_job_on_complete
  * @param dependencies An array of job identifiers which must be complete before this job runs.
  * @returns The newly created job information to be submitted for execution.
  */
-KAPI job_info job_create_with_dependencies(
+KAPI job_info job_create_with_dependencies (
 	pfn_job_start entry_point,
 	pfn_job_on_complete on_success,
 	pfn_job_on_complete on_fail,
-	void* param_data,
+	void *param_data,
 	u32 param_data_size,
 	u32 result_data_size,
 	job_type type,
 	job_priority priority,
 	u8 dependency_count,
-	u16* dependencies);
+	u16 *dependencies);
 
 /**
  * @brief Returns whether or not the job with the given identifier has completed.
  */
-KAPI b8 job_system_query_job_complete(u16 job_id);
+KAPI b8 job_system_query_job_complete (u16 job_id);

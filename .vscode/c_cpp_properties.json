@@ -9,7 +9,9 @@
                 "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
                 "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
                 "${workspaceFolder}/testbed.klib/src/**",
-                "${VULKAN_SDK}/include"
+                "${VULKAN_SDK}/include",
+                "/usr/include/dbus-1.0",
+                "/usr/lib64/dbus-1.0/include"
             ],
             "defines": [
                 "_DEBUG",

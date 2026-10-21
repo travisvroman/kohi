@@ -49,15 +49,15 @@ pipelines = [
 ]
 
 binding_sets = [
-    {
-        name = "shadow static mesh global binding set"
-        max_instance_count = 1
-        bindings = [
-            {
-                name = "shadow HF Terrain global UBO"
-                type = "UBO"
-                data_size = 256
-            }
-        ]
-    }
+	{
+		name = "shadow static mesh global binding set"
+		max_instance_count = 1
+		bindings = [
+			{
+				name = "shadow HF Terrain global UBO"
+				type = "UBO"
+				data_size = 256
+			}
+		]
+	}
 ]

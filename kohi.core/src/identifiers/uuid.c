@@ -9,7 +9,7 @@
 #	error "Full implementation of uuid does not exist"
 #endif
 
-void uuid_seed(u64 seed) {
+void uuid_seed (u64 seed){
 #ifdef UUID_QUICK_AND_DIRTY
 // NOTE: does nothing, for now...
 #endif

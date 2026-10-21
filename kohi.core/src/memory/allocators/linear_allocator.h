@@ -28,7 +28,7 @@ typedef struct linear_allocator {
 	/** @brief The amount of memory currently allocated. */
 	u64 allocated;
 	/** @brief The internal block of memory used by the allocator. */
-	void* memory;
+	void *memory;
 	/**
 	 * @brief Indicates if the allocator owns the memory (meaning it
 	 * performed the allocation itself) or whether it was provided by an outside source.
@@ -44,14 +44,14 @@ typedef struct linear_allocator {
  * and this allocator is considered to own that memory.
  * @param out_allocator A pointer to hold the new allocator.
  */
-KAPI void linear_allocator_create(u64 total_size, void* memory, linear_allocator* out_allocator);
+KAPI void linear_allocator_create (u64 total_size, void *memory, linear_allocator *out_allocator);
 
 /**
  * @brief Destroys the given allocator. If the allocator owns its memory, it is freed at this time.
  *
  * @param allocator A pointer to the allocator to be destroyed.
  */
-KAPI void linear_allocator_destroy(linear_allocator* allocator);
+KAPI void linear_allocator_destroy (linear_allocator *allocator);
 
 /**
  * @brief Allocates the given amount from the allocator.
@@ -60,7 +60,7 @@ KAPI void linear_allocator_destroy(linear_allocator* allocator);
  * @param size The size to be allocated.
  * @return A pointer to a block of memory as allocated. If this fails, 0 is returned.
  */
-KAPI void* linear_allocator_allocate(linear_allocator* allocator, u64 size);
+KAPI void *linear_allocator_allocate (linear_allocator *allocator, u64 size);
 
 /**
  * @brief Frees everything in the allocator, effectively moving its pointer back to the beginning.
@@ -69,4 +69,4 @@ KAPI void* linear_allocator_allocate(linear_allocator* allocator, u64 size);
  * @param allocator A pointer to the allocator to free.
  * @param clear Indicates whether or not to clear/zero the memory. Enabling this obviously takes more processing power.
  */
-KAPI void linear_allocator_free_all(linear_allocator* allocator, b8 clear);
+KAPI void linear_allocator_free_all (linear_allocator *allocator, b8 clear);

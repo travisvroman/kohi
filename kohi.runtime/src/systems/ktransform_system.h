@@ -1,7 +1,7 @@
 #ifndef _ktransform_SYSTEM_H_
 #define _ktransform_SYSTEM_H_
 
-#include <core_resource_types.h>
+#include "systems/kmatrix_system.h"
 #include <math/math_types.h>
 
 struct frame_data;
@@ -13,13 +13,13 @@ typedef struct ktransform_system_config {
 
 struct ktransform_system_state;
 
-#define KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL "Kohi.StorageBuffer.TransformsGlobal"
+#define KRENDERBUFFER_NAME_MATRIX_GLOBAL "Kohi.StorageBuffer.MatrixGlobal"
 
-b8 ktransform_system_initialize(u64* memory_requirement, void* state, void* config);
+b8 ktransform_system_initialize (u64 *memory_requirement, void *state, void *config);
 
-void ktransform_system_shutdown(void* state);
+void ktransform_system_shutdown (void *state);
 
-b8 ktransform_system_update(struct ktransform_system_state* state, struct frame_data* p_frame_data);
+b8 ktransform_system_update (struct ktransform_system_state *state, struct frame_data *p_frame_data);
 
 /**
  * @brief Creates and returns a new ktransform, using a zero
@@ -29,7 +29,7 @@ b8 ktransform_system_update(struct ktransform_system_state* state, struct frame_
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_create(u64 user);
+KAPI ktransform ktransform_create (u64 user);
 
 /**
  * @brief Creates and returns a new ktransform, using the position,
@@ -40,14 +40,14 @@ KAPI ktransform ktransform_create(u64 user);
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_clone(ktransform original, u64 user);
+KAPI ktransform ktransform_clone (ktransform original, u64 user);
 
 /**
  * Forces the transform to be dirty, thus forcing a recalculation on the next update.
  *
  * @param transform The transform to flag as dirty.
  */
-KAPI void ktransform_mark_dirty(ktransform transform);
+KAPI void ktransform_mark_dirty (ktransform transform);
 
 /**
  * @brief Creates a ktransform from the given position.
@@ -57,7 +57,7 @@ KAPI void ktransform_mark_dirty(ktransform transform);
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_position(vec3 position, u64 user);
+KAPI ktransform ktransform_from_position (vec3 position, u64 user);
 
 /**
  * @brief Creates a ktransform from the given rotation.
@@ -67,7 +67,7 @@ KAPI ktransform ktransform_from_position(vec3 position, u64 user);
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_rotation(quat rotation, u64 user);
+KAPI ktransform ktransform_from_rotation (quat rotation, u64 user);
 
 /**
  * @brief Creates a ktransform from the given position and rotation.
@@ -78,7 +78,7 @@ KAPI ktransform ktransform_from_rotation(quat rotation, u64 user);
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_position_rotation(vec3 position, quat rotation, u64 user);
+KAPI ktransform ktransform_from_position_rotation (vec3 position, quat rotation, u64 user);
 
 /**
  * @brief Creates a ktransform from the given position, rotation and scale.
@@ -89,7 +89,7 @@ KAPI ktransform ktransform_from_position_rotation(vec3 position, quat rotation, 
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_position_rotation_scale(vec3 position, quat rotation, vec3 scale, u64 user);
+KAPI ktransform ktransform_from_position_rotation_scale (vec3 position, quat rotation, vec3 scale, u64 user);
 
 /**
  * @brief Creates a ktransform from the provided matrix.
@@ -98,13 +98,21 @@ KAPI ktransform ktransform_from_position_rotation_scale(vec3 position, quat rota
  * @param user User data, typically a handle or pointer to something for reverse lookups.
  * @return A handle to the new ktransform.
  */
-KAPI ktransform ktransform_from_matrix(mat4 m, u64 user);
+KAPI ktransform ktransform_from_matrix (mat4 m, u64 user);
 
 /**
  * @brief Destroys the ktransform with the given handle, and frees the handle.
  * @param t A pointer to a handle to the transform to be destroyed. The handle itself is also invalidated.
  */
-KAPI void ktransform_destroy(ktransform* t);
+KAPI void ktransform_destroy (ktransform *t);
+
+/**
+ * @brief Returns the kmatrix_id for the given transform.
+ *
+ * @param t The transform to get the kmatrix_id for.
+ * @return The kmatrix_id of the transform, or KMATRIX_INVALID if it does not exist.
+ */
+KAPI kmatrix_id ktransform_kmatrixid_get (ktransform t);
 
 /**
  * @brief Indicates if the provided transform is an identity transform (i.e. zero position, identity rotation, one-scale).
@@ -112,10 +120,10 @@ KAPI void ktransform_destroy(ktransform* t);
  *
  * @return True if the transform is identity; otherwise false.
  */
-KAPI b8 ktransform_is_identity(ktransform t);
+KAPI b8 ktransform_is_identity (ktransform t);
 
-KAPI b8 ktransform_parent_set(ktransform t, ktransform parent);
-KAPI ktransform ktransform_parent_get(ktransform t);
+KAPI b8 ktransform_parent_set (ktransform t, ktransform parent);
+KAPI ktransform ktransform_parent_get (ktransform t);
 
 /**
  * @brief Returns the local position of the given ktransform.
@@ -123,7 +131,7 @@ KAPI ktransform ktransform_parent_get(ktransform t);
  * @param t A handle whose position to get.
  * @return A copy of the position.
  */
-KAPI vec3 ktransform_position_get(ktransform t);
+KAPI vec3 ktransform_position_get (ktransform t);
 
 /**
  * @brief Returns the world position of the given ktransform.
@@ -131,7 +139,7 @@ KAPI vec3 ktransform_position_get(ktransform t);
  * @param t A handle whose position to get.
  * @return A copy of the position.
  */
-KAPI vec3 ktransform_world_position_get(ktransform t);
+KAPI vec3 ktransform_world_position_get (ktransform t);
 
 /**
  * @brief Sets the position of the given ktransform.
@@ -139,7 +147,7 @@ KAPI vec3 ktransform_world_position_get(ktransform t);
  * @param t A handle to the ktransform to be updated.
  * @param position The position to be set.
  */
-KAPI void ktransform_position_set(ktransform t, vec3 position);
+KAPI void ktransform_position_set (ktransform t, vec3 position);
 
 /**
  * @brief Applies a translation to the given ktransform. Not the
@@ -148,7 +156,7 @@ KAPI void ktransform_position_set(ktransform t, vec3 position);
  * @param t A handle to the ktransform to be updated.
  * @param translation The translation to be applied.
  */
-KAPI void ktransform_translate(ktransform t, vec3 translation);
+KAPI void ktransform_translate (ktransform t, vec3 translation);
 
 /**
  * @brief Returns the rotation of the given ktransform.
@@ -156,7 +164,7 @@ KAPI void ktransform_translate(ktransform t, vec3 translation);
  * @param t A handle whose rotation to get.
  * @return A copy of the rotation.
  */
-KAPI quat ktransform_rotation_get(ktransform t);
+KAPI quat ktransform_rotation_get (ktransform t);
 
 /**
  * @brief Returns the world rotation of the given ktransform.
@@ -164,7 +172,7 @@ KAPI quat ktransform_rotation_get(ktransform t);
  * @param t A handle whose world rotation to get.
  * @return A copy of the world rotation.
  */
-KAPI quat ktransform_world_rotation_get(ktransform t);
+KAPI quat ktransform_world_rotation_get (ktransform t);
 
 /**
  * @brief Sets the rotation of the given ktransform.
@@ -172,7 +180,7 @@ KAPI quat ktransform_world_rotation_get(ktransform t);
  * @param t A handle to the ktransform to be updated.
  * @param rotation The rotation to be set.
  */
-KAPI void ktransform_rotation_set(ktransform t, quat rotation);
+KAPI void ktransform_rotation_set (ktransform t, quat rotation);
 
 /**
  * @brief Applies a rotation to the given ktransform. Not the
@@ -181,7 +189,7 @@ KAPI void ktransform_rotation_set(ktransform t, quat rotation);
  * @param t A handle to the ktransform to be updated.
  * @param rotation The rotation to be applied.
  */
-KAPI void ktransform_rotate(ktransform t, quat rotation);
+KAPI void ktransform_rotate (ktransform t, quat rotation);
 
 /**
  * @brief Returns the scale of the given ktransform.
@@ -189,7 +197,7 @@ KAPI void ktransform_rotate(ktransform t, quat rotation);
  * @param t A handle whose scale to get.
  * @return A copy of the scale.
  */
-KAPI vec3 ktransform_scale_get(ktransform t);
+KAPI vec3 ktransform_scale_get (ktransform t);
 
 /**
  * @brief Returns the world scale of the given ktransform.
@@ -197,7 +205,7 @@ KAPI vec3 ktransform_scale_get(ktransform t);
  * @param t A handle whose scale to get.
  * @return A copy of the scale.
  */
-KAPI vec3 ktransform_world_scale_get(ktransform t);
+KAPI vec3 ktransform_world_scale_get (ktransform t);
 
 /**
  * @brief Sets the scale of the given ktransform.
@@ -205,7 +213,7 @@ KAPI vec3 ktransform_world_scale_get(ktransform t);
  * @param t A handle to the ktransform to be updated.
  * @param scale The scale to be set.
  */
-KAPI void ktransform_scale_set(ktransform t, vec3 scale);
+KAPI void ktransform_scale_set (ktransform t, vec3 scale);
 
 /**
  * @brief Applies a scale to the given ktransform. Not the
@@ -214,7 +222,7 @@ KAPI void ktransform_scale_set(ktransform t, vec3 scale);
  * @param t A handle to the ktransform to be updated.
  * @param scale The scale to be applied.
  */
-KAPI void ktransform_scale(ktransform t, vec3 scale);
+KAPI void ktransform_scale (ktransform t, vec3 scale);
 
 /**
  * @brief Sets the position and rotation of the given ktransform.
@@ -223,7 +231,7 @@ KAPI void ktransform_scale(ktransform t, vec3 scale);
  * @param position The position to be set.
  * @param rotation The rotation to be set.
  */
-KAPI void ktransform_position_rotation_set(ktransform t, vec3 position, quat rotation);
+KAPI void ktransform_position_rotation_set (ktransform t, vec3 position, quat rotation);
 
 /**
  * @brief Sets the position, rotation and scale of the given ktransform.
@@ -233,7 +241,7 @@ KAPI void ktransform_position_rotation_set(ktransform t, vec3 position, quat rot
  * @param rotation The rotation to be set.
  * @param scale The scale to be set.
  */
-KAPI void ktransform_position_rotation_scale_set(ktransform t, vec3 position, quat rotation, vec3 scale);
+KAPI void ktransform_position_rotation_scale_set (ktransform t, vec3 position, quat rotation, vec3 scale);
 
 /**
  * @brief Applies translation and rotation to the given ktransform.
@@ -243,12 +251,12 @@ KAPI void ktransform_position_rotation_scale_set(ktransform t, vec3 position, qu
  * @param rotation The rotation to be applied.
  * @return KAPI
  */
-KAPI void ktransform_translate_rotate(ktransform t, vec3 translation, quat rotation);
+KAPI void ktransform_translate_rotate (ktransform t, vec3 translation, quat rotation);
 
 /**
  * Recalculates the local matrix for the transform with the given handle.
  */
-KAPI void ktransform_calculate_local(ktransform t);
+KAPI void ktransform_calculate_local (ktransform t);
 
 /**
  * @brief Retrieves the local ktransformation matrix from the provided ktransform.
@@ -258,7 +266,7 @@ KAPI void ktransform_calculate_local(ktransform t);
  * @param t A handle to the ktransform whose matrix to retrieve.
  * @return A copy of the local ktransformation matrix.
  */
-KAPI mat4 ktransform_local_get(ktransform t);
+KAPI mat4 ktransform_local_get (ktransform t);
 
 /**
  * @brief Obtains the world matrix of the given ktransform.
@@ -266,10 +274,10 @@ KAPI mat4 ktransform_local_get(ktransform t);
  * @param t A handle to the ktransform whose world matrix to retrieve.
  * @return A copy of the world matrix.
  */
-KAPI mat4 ktransform_world_get(ktransform t);
+KAPI mat4 ktransform_world_get (ktransform t);
 
-KAPI u64 ktransform_user_get(ktransform t);
-KAPI void ktransform_user_set(ktransform t, u64 user);
+KAPI u64 ktransform_user_get (ktransform t);
+KAPI void ktransform_user_set (ktransform t, u64 user);
 
 /**
  * @brief Returns a string representation of the ktransform pointed to by the given handle.
@@ -277,7 +285,7 @@ KAPI void ktransform_user_set(ktransform t, u64 user);
  * @param t A handle to the ktransform to retrieve as a string.
  * @return The ktransform in string format.
  */
-KAPI const char* ktransform_to_string(ktransform t);
+KAPI const char *ktransform_to_string (ktransform t);
 
 /**
  * @brief Creates an ktransform from the given string.
@@ -287,6 +295,6 @@ KAPI const char* ktransform_to_string(ktransform t);
  * @param out_ktransform A pointer to hold the handle to the newly created ktransform.
  * @returns True on success; otherwise false.
  */
-KAPI b8 ktransform_from_string(const char* str, u64 user, ktransform* out_ktransform);
+KAPI b8 ktransform_from_string (const char *str, u64 user, ktransform *out_ktransform);
 
 #endif

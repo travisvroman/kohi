@@ -37,10 +37,10 @@ typedef struct binary_string_table_header {
 typedef struct binary_string_table {
 	binary_string_table_header header;
 	// Entry lookup
-	binary_string_table_entry* lookup;
+	binary_string_table_entry *lookup;
 	// The data block holding all string data. Strings are NOT terminated since
 	// thier offset and length is stored in the header entries' lookup.
-	char* data;
+	char *data;
 } binary_string_table;
 
 /**
@@ -48,7 +48,7 @@ typedef struct binary_string_table {
  *
  * @return The newly-created binary string table.
  */
-KAPI binary_string_table binary_string_table_create(void);
+KAPI binary_string_table binary_string_table_create (void);
 
 /**
  * Creates a binary string table from the given block of memory. This should have been created by
@@ -57,14 +57,14 @@ KAPI binary_string_table binary_string_table_create(void);
  *
  * @return The newly-created binary string table.
  */
-KAPI binary_string_table binary_string_table_from_block(void* block);
+KAPI binary_string_table binary_string_table_from_block (void *block);
 
 /**
  * @brief Destroys the provided binary string table.
  *
  * @param table A pointer to the table to be destroyted.
  */
-KAPI void binary_string_table_destroy(binary_string_table* table);
+KAPI void binary_string_table_destroy (binary_string_table *table);
 
 /**
  * @brief Adds the given string to the provided table. String MUST be null-terminated.
@@ -73,7 +73,7 @@ KAPI void binary_string_table_destroy(binary_string_table* table);
  * @param The null-terminated string to be added.
  * @return The index of the added string.
  */
-KAPI u32 binary_string_table_add(binary_string_table* table, const char* string);
+KAPI u32 binary_string_table_add (binary_string_table *table, const char *string);
 
 /**
  * @brief Returns a null-terminated copy of the string from the table. Dynamically allocated and must be freed by the caller.
@@ -82,7 +82,7 @@ KAPI u32 binary_string_table_add(binary_string_table* table, const char* string)
  * @param index The index of the string to look up.
  * @return A null-terminated copy of the string at the given index.
  */
-KAPI const char* binary_string_table_get(const binary_string_table* table, u32 index);
+KAPI const char *binary_string_table_get (const binary_string_table *table, u32 index);
 
 /**
  * @brief Returns the length of the string, NOT accounting for null terminator.
@@ -91,7 +91,7 @@ KAPI const char* binary_string_table_get(const binary_string_table* table, u32 i
  * @param index The index of the string to look up.
  * @return The length of the given entry, NOT counting the null terminator.
  */
-KAPI u32 binary_string_table_length_get(const binary_string_table* table, u32 index);
+KAPI u32 binary_string_table_length_get (const binary_string_table *table, u32 index);
 /**
  * @brief Copies string into already-existing buffer. Use binary_string_table_length_get to obtain the length of an entry's string.
  *
@@ -99,7 +99,7 @@ KAPI u32 binary_string_table_length_get(const binary_string_table* table, u32 in
  * @param index The index of the string to look up.
  * @param buffer Allocated memory to hold the string data. Ideally should be length + 1 to account for a null terminator (although one is not added by this function)
  */
-KAPI void binary_string_table_get_buffered(const binary_string_table* table, u32 index, char* buffer);
+KAPI void binary_string_table_get_buffered (const binary_string_table *table, u32 index, char *buffer);
 
 /**
  * @brief Serialize table to a single block of memory, tagged with MEMORY_TAG_BINARY_DATA. Should be freed by the caller.
@@ -108,4 +108,4 @@ KAPI void binary_string_table_get_buffered(const binary_string_table* table, u32
  * @param out_size A pointer to hold the total serialized block size.
  * @return A block of memory containing the serialized data.
  */
-KAPI void* binary_string_table_serialized(const binary_string_table* table, u64* out_size);
+KAPI void *binary_string_table_serialized (const binary_string_table *table, u64 *out_size);

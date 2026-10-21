@@ -7,7 +7,7 @@
 #define TEMPERING_MASK_B 0x9d2c5680
 #define TEMPERING_MASK_C 0xefc60000
 
-static void mtrand_seed(u64 seed, struct mtrand_state* out_generator) {
+static void mtrand_seed (u64 seed, struct mtrand_state *out_generator) {
 	/* set initial seeds to mt[STATE_VECTOR_LENGTH] using the generator
 	 * from Line 25 of Table 1 in: Donald Knuth, "The Art of Computer
 	 * Programming," Vol. 2 (2nd Ed.) pp.102.
@@ -18,13 +18,13 @@ static void mtrand_seed(u64 seed, struct mtrand_state* out_generator) {
 	}
 }
 
-mtrand_state mtrand_create(u64 seed) {
+mtrand_state mtrand_create (u64 seed) {
 	mtrand_state generator;
 	mtrand_seed(seed, &generator);
 	return generator;
 }
 
-u64 mtrand_generate(mtrand_state* generator) {
+u64 mtrand_generate (mtrand_state *generator) {
 	u64 result;
 	static u64 mag[2] = {0x0, 0x9908b0df}; /* mag[x] = x * 0x9908b0df for x = 0,1 */
 	if (generator->index >= STATE_VECTOR_LENGTH || generator->index < 0) {
@@ -54,6 +54,6 @@ u64 mtrand_generate(mtrand_state* generator) {
 	return result;
 }
 
-f64 mtrand_generate_d(mtrand_state* generator) {
+f64 mtrand_generate_d (mtrand_state *generator) {
 	return ((f64)mtrand_generate(generator) / (u64)0xffffffff);
 }

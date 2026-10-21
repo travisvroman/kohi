@@ -3,14 +3,14 @@
 #include "logger.h"
 #include "memory/kmemory.h"
 
-static u64 hash_name(const char* name, u32 element_count) {
+static u64 hash_name (const char *name, u32 element_count) {
 	// A multipler to use when generating a hash. Prime to hopefully avoid collisions.
 	static const u64 multiplier = 97;
 
-	unsigned const char* us;
+	unsigned const char *us;
 	u64 hash = 0;
 
-	for (us = (unsigned const char*)name; *us; us++) {
+	for (us = (unsigned const char *)name; *us; us++) {
 		hash = hash * multiplier + *us;
 	}
 
@@ -20,7 +20,7 @@ static u64 hash_name(const char* name, u32 element_count) {
 	return hash;
 }
 
-void hashtable_create(u64 element_size, u32 element_count, void* memory, b8 is_pointer_type, hashtable* out_hashtable) {
+void hashtable_create (u64 element_size, u32 element_count, void *memory, b8 is_pointer_type, hashtable *out_hashtable) {
 	if (!memory || !out_hashtable) {
 		KERROR("hashtable_create failed! Pointer to memory and out_hashtable are required.");
 		return;
@@ -38,14 +38,14 @@ void hashtable_create(u64 element_size, u32 element_count, void* memory, b8 is_p
 	kzero_memory(out_hashtable->memory, element_size * element_count);
 }
 
-void hashtable_destroy(hashtable* table) {
+void hashtable_destroy (hashtable *table) {
 	if (table) {
 		// TODO: If using allocator above, free memory here.
 		kzero_memory(table, sizeof(hashtable));
 	}
 }
 
-b8 hashtable_set(hashtable* table, const char* name, void* value) {
+b8 hashtable_set (hashtable *table, const char *name, void *value) {
 	if (!table || !name || !value) {
 		KERROR("hashtable_set requires table, name and value to exist.");
 		return false;
@@ -60,7 +60,7 @@ b8 hashtable_set(hashtable* table, const char* name, void* value) {
 	return true;
 }
 
-b8 hashtable_set_ptr(hashtable* table, const char* name, void** value) {
+b8 hashtable_set_ptr (hashtable *table, const char *name, void **value) {
 	if (!table || !name) {
 		KWARN("hashtable_set_ptr requires table and name  to exist.");
 		return false;
@@ -71,11 +71,11 @@ b8 hashtable_set_ptr(hashtable* table, const char* name, void** value) {
 	}
 
 	u64 hash = hash_name(name, table->element_count);
-	((void**)table->memory)[hash] = value ? *value : 0;
+	((void **)table->memory)[hash] = value ? *value : 0;
 	return true;
 }
 
-b8 hashtable_get(hashtable* table, const char* name, void* out_value) {
+b8 hashtable_get (hashtable *table, const char *name, void *out_value) {
 	if (!table || !name || !out_value) {
 		KWARN("hashtable_get requires table, name and out_value to exist.");
 		return false;
@@ -89,7 +89,7 @@ b8 hashtable_get(hashtable* table, const char* name, void* out_value) {
 	return true;
 }
 
-b8 hashtable_get_ptr(hashtable* table, const char* name, void** out_value) {
+b8 hashtable_get_ptr (hashtable *table, const char *name, void **out_value) {
 	if (!table || !name || !out_value) {
 		KWARN("hashtable_get_ptr requires table, name and out_value to exist.");
 		return false;
@@ -100,11 +100,11 @@ b8 hashtable_get_ptr(hashtable* table, const char* name, void** out_value) {
 	}
 
 	u64 hash = hash_name(name, table->element_count);
-	*out_value = ((void**)table->memory)[hash];
+	*out_value = ((void **)table->memory)[hash];
 	return *out_value != 0;
 }
 
-b8 hashtable_fill(hashtable* table, void* value) {
+b8 hashtable_fill (hashtable *table, void *value) {
 	if (!table || !value) {
 		KWARN("hashtable_fill requires table and value to exist.");
 		return false;

@@ -1,7 +1,9 @@
 
 #include "kmaterial_renderer.h"
 #include "assets/kasset_types.h"
+#include "containers/u32_bst.h"
 #include "core/engine.h"
+#include "core/event.h"
 #include "core/kvar.h"
 #include "core_render_types.h"
 #include "debug/kassert.h"
@@ -16,12 +18,12 @@
 #include "strings/kname.h"
 #include "strings/kstring.h"
 #include "systems/kmaterial_system.h"
+#include "systems/kmatrix_system.h"
 #include "systems/kmodel_system.h"
 #include "systems/kshader_system.h"
 #include "systems/ktransform_system.h"
 #include "systems/light_system.h"
 #include "systems/texture_system.h"
-#include "utils/kcolour.h"
 
 #define VERTEX_LAYOUT_INDEX_STATIC 0
 #define VERTEX_LAYOUT_INDEX_SKINNED 1
@@ -75,7 +77,10 @@ typedef enum kmaterial_standard_flag_bits {
 
 typedef u32 kmaterial_standard_flags;
 
-b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material_count, u32 max_material_instance_count) {
+static b8 on_material_loaded (u16 code, void *sender, void *listener_inst, event_context data);
+static b8 on_material_unloaded (u16 code, void *sender, void *listener_inst, event_context data);
+
+b8 kmaterial_renderer_initialize (kmaterial_renderer *out_state, u32 max_material_count, u32 max_material_instance_count) {
 
 	out_state->max_material_count = max_material_count;
 	out_state->renderer = engine_systems_get()->renderer_system;
@@ -132,7 +137,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		mat_std_shader.pipelines = KALLOC_TYPE_CARRAY(kasset_shader_pipeline, mat_std_shader.pipeline_count);
 		// Vertex layout for static geometry
 		{
-			kasset_shader_pipeline* static_pipeline = &mat_std_shader.pipelines[0];
+			kasset_shader_pipeline *static_pipeline = &mat_std_shader.pipelines[0];
 
 			static_pipeline->stage_count = 2;
 			static_pipeline->stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, static_pipeline->stage_count);
@@ -158,7 +163,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		}
 		// Vertex layout for skinned geometry
 		{
-			kasset_shader_pipeline* skinned_pipeline = &mat_std_shader.pipelines[1];
+			kasset_shader_pipeline *skinned_pipeline = &mat_std_shader.pipelines[1];
 
 			skinned_pipeline->stage_count = 2;
 			skinned_pipeline->stages = KALLOC_TYPE_CARRAY(kasset_shader_stage, skinned_pipeline->stage_count);
@@ -190,7 +195,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		mat_std_shader.binding_set_count = 2;
 		mat_std_shader.binding_sets = KALLOC_TYPE_CARRAY(shader_binding_set_config, mat_std_shader.binding_set_count);
 
-		shader_binding_set_config* set_0 = &mat_std_shader.binding_sets[0];
+		shader_binding_set_config *set_0 = &mat_std_shader.binding_sets[0];
 		set_0->max_instance_count = 1;
 		set_0->name = kname_create("material skinned shader global binding set");
 		set_0->binding_count = 9;
@@ -198,14 +203,14 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 
 		u8 bidx = 0;
 		set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_UBO;
-		set_0->bindings[bidx].name = kname_create("material global_ubo_data");
+		set_0->bindings[bidx].name = kname_create("material_global_ubo_data");
 		set_0->bindings[bidx].data_size = sizeof(kmaterial_settings_ubo);
 		set_0->bindings[bidx].offset = 0;
 		set_0->ubo_index = 0;
 		bidx++;
 
 		set_0->bindings[bidx].binding_type = SHADER_BINDING_TYPE_SSBO;
-		set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_TRANSFORMS_GLOBAL);
+		set_0->bindings[bidx].name = kname_create(KRENDERBUFFER_NAME_MATRIX_GLOBAL);
 		set_0->ssbo_count++;
 		bidx++;
 
@@ -255,7 +260,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		KASSERT_DEBUG(bidx == set_0->binding_count);
 
 		// Set 1
-		shader_binding_set_config* set_1 = &mat_std_shader.binding_sets[1];
+		shader_binding_set_config *set_1 = &mat_std_shader.binding_sets[1];
 		set_1->max_instance_count = max_material_count;
 		set_1->name = kname_create("material skinned shader base material binding set");
 		set_1->binding_count = 2;
@@ -280,25 +285,25 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 		KASSERT_DEBUG(bidx == set_1->binding_count);
 
 		// Serialize
-		const char* config_source = kasset_shader_serialize(&mat_std_shader);
-		KTRACE(config_source);
+		const char *config_source = kasset_shader_serialize(&mat_std_shader);
+		/* KTRACE(config_source); */
 
 		// Destroy the temp asset.
 		for (u8 i = 0; i < mat_std_shader.pipeline_count; ++i) {
-			kasset_shader_pipeline* p = &mat_std_shader.pipelines[i];
-			KFREE_TYPE_CARRAY(p->stages, kasset_shader_stage, p->stage_count);
-			KFREE_TYPE_CARRAY(p->attributes, kasset_shader_attribute, p->attribute_count);
+			kasset_shader_pipeline *p = &mat_std_shader.pipelines[i];
+			kfree(p->stages);
+			kfree(p->attributes);
 		}
-		KFREE_TYPE_CARRAY(mat_std_shader.pipelines, kasset_shader_pipeline, mat_std_shader.pipeline_count);
+		kfree(mat_std_shader.pipelines);
 
 		if (mat_std_shader.binding_sets && mat_std_shader.binding_set_count) {
 			for (u8 bs = 0; bs < mat_std_shader.binding_set_count; ++bs) {
-				shader_binding_set_config* set = &mat_std_shader.binding_sets[bs];
+				shader_binding_set_config *set = &mat_std_shader.binding_sets[bs];
 				if (set->bindings && set->binding_count) {
-					KFREE_TYPE_CARRAY(set->bindings, shader_binding_config, set->binding_count);
+					kfree(set->bindings);
 				}
 			}
-			KFREE_TYPE_CARRAY(mat_std_shader.binding_sets, shader_binding_set_config, mat_std_shader.binding_set_count);
+			kfree(mat_std_shader.binding_sets);
 		}
 		if (mat_std_shader.stencil_attachment.name) {
 			string_free(mat_std_shader.stencil_attachment.name);
@@ -312,7 +317,7 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 					string_free(mat_std_shader.colour_attachments[c].name);
 				}
 			}
-			KFREE_TYPE_CARRAY(mat_std_shader.colour_attachments, kasset_shader_attachment, mat_std_shader.colour_attachment_count);
+			kfree(mat_std_shader.colour_attachments);
 		}
 		kzero_memory(&mat_std_shader, sizeof(kasset_shader));
 
@@ -330,17 +335,28 @@ b8 kmaterial_renderer_initialize(kmaterial_renderer* out_state, u32 max_material
 	// Get the binding 0 set instances for the shaders.
 	out_state->material_standard_skinned_shader_bs_0_instance_id = kshader_acquire_binding_set_instance(out_state->material_standard_skinned_shader, 0);
 
+	// lookup table for material->binding_set_instance_id
+	out_state->lookup = KNULL;
+
+	// Listen for material load/unload events.
+	event_register(EVENT_CODE_MATERIAL_CREATED, out_state, on_material_loaded);
+	event_register(EVENT_CODE_MATERIAL_DESTROYED, out_state, on_material_unloaded);
+
 	return true;
 }
 
-void kmaterial_renderer_shutdown(kmaterial_renderer* state) {
+void kmaterial_renderer_shutdown (kmaterial_renderer *state) {
 	if (state) {
 		// TODO: Free resources, etc.
 		renderer_renderbuffer_destroy(state->renderer, state->material_global_ssbo);
+
+		// Stop listening for material load/unload events.
+		event_unregister(EVENT_CODE_MATERIAL_CREATED, state, on_material_loaded);
+		event_unregister(EVENT_CODE_MATERIAL_DESTROYED, state, on_material_unloaded);
 	}
 }
 
-void kmaterial_renderer_update(kmaterial_renderer* state) {
+void kmaterial_renderer_update (kmaterial_renderer *state) {
 	if (state) {
 
 		// Get "use pcf" option
@@ -351,49 +367,16 @@ void kmaterial_renderer_update(kmaterial_renderer* state) {
 	}
 }
 
-void kmaterial_renderer_set_fog_colour(kmaterial_renderer* state, colour4 colour) {
+void kmaterial_renderer_set_fog_colour (kmaterial_renderer *state, colour4 colour) {
 	state->settings.fog_colour = colour;
 }
 
-void kmaterial_renderer_set_fog_near_far(kmaterial_renderer* state, f32 near, f32 far) {
+void kmaterial_renderer_set_fog_near_far (kmaterial_renderer *state, f32 near, f32 far) {
 	state->settings.fog_start = near;
 	state->settings.fog_end = far;
 }
 
-static kshader get_shader_for_material_type(kmaterial_renderer* state, kmaterial_type type) {
-	switch (type) {
-	default:
-	case KMATERIAL_TYPE_UNKNOWN:
-		return KSHADER_INVALID;
-	case KMATERIAL_TYPE_STANDARD:
-	case KMATERIAL_TYPE_WATER:
-		return state->material_standard_skinned_shader;
-	}
-}
-
-void kmaterial_renderer_register_base(kmaterial_renderer* state, kmaterial_data* base_material) {
-	if (state) {
-		kshader shader = get_shader_for_material_type(state, base_material->type);
-		if (shader != KSHADER_INVALID) {
-			// Create a shader instance for the material.
-			base_material->binding_set_id = kshader_acquire_binding_set_instance(shader, MATERIAL_BINDING_SET_INSTANCE);
-			KASSERT_MSG(base_material->binding_set_id != INVALID_ID_U32, "Failed to acquire shader binding set instance (base material). See logs for details.");
-		}
-	}
-}
-
-void kmaterial_renderer_unregister_base(kmaterial_renderer* state, kmaterial_data* base_material) {
-	if (state) {
-		kshader shader = get_shader_for_material_type(state, base_material->type);
-		if (shader != KSHADER_INVALID) {
-			// Release the group for the material.
-			kshader_release_binding_set_instance(shader, MATERIAL_BINDING_SET_INSTANCE, base_material->binding_set_id);
-		}
-		base_material->binding_set_id = INVALID_ID_U32;
-	}
-}
-
-void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* state, u8 count, ktexture* irradiance_cubemap_textures) {
+void kmaterial_renderer_set_irradiance_cubemap_textures (kmaterial_renderer *state, u8 count, ktexture *irradiance_cubemap_textures) {
 	// Ignore anything over KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT
 	count = KMIN(count, KMATERIAL_MAX_IRRADIANCE_CUBEMAP_COUNT);
 
@@ -405,17 +388,17 @@ void kmaterial_renderer_set_irradiance_cubemap_textures(kmaterial_renderer* stat
 	KCOPY_TYPE_CARRAY(state->ibl_cubemap_textures, irradiance_cubemap_textures, ktexture, count);
 }
 
-void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
+void kmaterial_renderer_apply_globals (kmaterial_renderer *state) {
 
 	// Setup material Storage buffer data.
-	void* mapped_memory = renderer_renderbuffer_get_mapped_memory(state->renderer, state->material_global_ssbo);
+	void *mapped_memory = renderer_renderbuffer_get_mapped_memory(state->renderer, state->material_global_ssbo);
 
-	base_material_shader_data* mapped_materials = (base_material_shader_data*)mapped_memory;
-	const kmaterial_data* materials = kmaterial_system_get_all_base_materials(state->material_state);
+	base_material_shader_data *mapped_materials = (base_material_shader_data *)mapped_memory;
+	const kmaterial_data *materials = kmaterial_system_get_all_base_materials(state->material_state);
 	// FIXME: Find a way to unify these types to avoid all the copying.
 	for (u32 i = 0; i < state->max_material_count; ++i) {
-		const kmaterial_data* src = &materials[i];
-		base_material_shader_data* dest = &mapped_materials[i];
+		const kmaterial_data *src = &materials[i];
+		base_material_shader_data *dest = &mapped_materials[i];
 
 		// FIXME: Need a better mapping for all material types.
 		dest->material_type = src->type == KMATERIAL_TYPE_WATER ? 1 : 0;
@@ -439,6 +422,13 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 		// NOTE: texture flags get set during binding phase below.
 		dest->tex_flags = 0;
 	}
+
+	// Ensure the matrix ssbo offsets are up to date.
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+	state->settings.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_VIEW);
+	state->settings.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_PROJECTION);
+	state->settings.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_TRANSFORM);
+	state->settings.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(matrix_system, KMATRIX_TYPE_GENERAL);
 
 	// Set standard shader UBO globals
 	{
@@ -473,20 +463,27 @@ void kmaterial_renderer_apply_globals(kmaterial_renderer* state) {
 	// TODO: Set blended shader globals
 }
 
-void kmaterial_renderer_set_animated(kmaterial_renderer* state, b8 is_animated) {
+void kmaterial_renderer_set_animated (kmaterial_renderer *state, b8 is_animated) {
 	state->current_uses_animated = is_animated;
 }
 
 // Updates and binds base material.
-void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_material) {
+void kmaterial_renderer_bind_base (kmaterial_renderer *state, kmaterial base_material) {
+	const u32_bst_node *node;
+	u32 binding_set_instance_id;
+
 	KASSERT_DEBUG(state);
 
-	const kmaterial_data* material = kmaterial_get_base_material_data(engine_systems_get()->material_system, base_material);
+	const kmaterial_data *material = kmaterial_get_base_material_data(engine_systems_get()->material_system, base_material);
 	KASSERT_DEBUG(material);
 
-	void* mapped_memory = renderer_renderbuffer_get_mapped_memory(state->renderer, state->material_global_ssbo);
-	base_material_shader_data* mapped_materials = (base_material_shader_data*)mapped_memory;
-	base_material_shader_data* mapped_mat = &mapped_materials[base_material];
+	node = u32_bst_find(state->lookup, material->index);
+	KASSERT_DEBUG(node != KNULL);
+	binding_set_instance_id = node->value.u32;
+
+	void *mapped_memory = renderer_renderbuffer_get_mapped_memory(state->renderer, state->material_global_ssbo);
+	base_material_shader_data *mapped_materials = (base_material_shader_data *)mapped_memory;
+	base_material_shader_data *mapped_mat = &mapped_materials[base_material];
 
 	mapped_mat->tex_flags = 0;
 
@@ -573,15 +570,15 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 		}
 
 		// Apply textures
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, base_colour_tex);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_tex);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_METALLIC, metallic_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_ROUGHNESS, roughness_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_AO, ao_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_MRA, mra_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_EMISSIVE, emissive_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, base_colour_tex);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_tex);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_METALLIC, metallic_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_ROUGHNESS, roughness_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_AO, ao_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_MRA, mra_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_EMISSIVE, emissive_texture);
 
-		kshader_apply_binding_set(shader, 1, base_material);
+		kshader_apply_binding_set(shader, 1, binding_set_instance_id);
 	} break;
 	case KMATERIAL_TYPE_WATER: {
 
@@ -596,16 +593,16 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 
 		FLAG_SET(mapped_mat->tex_flags, MATERIAL_STANDARD_FLAG_USE_NORMAL_TEX, true);
 
-		// NOTE: Base colour and emissive textures are not used here, but must be bound.
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, state->default_base_colour_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFLECTION, reflection_colour_tex);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION, refraction_colour_tex);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION_DEPTH, refraction_depth_tex);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_WATER_TEX_ARRAY_IDX_DUDV, dudv_texture);
-		kshader_set_binding_texture(shader, 1, base_material, 0, MAT_TEX_ARRAY_IDX_EMISSIVE, state->default_texture);
+		// NOTE: Base colour and emissive textures are not used for water, but something must be bound because it uses the same layout.
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_BASE_COLOUR, state->default_base_colour_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_NORMAL, normal_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_WATER_TEX_ARRAY_IDX_REFLECTION, reflection_colour_tex);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION, refraction_colour_tex);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_WATER_TEX_ARRAY_IDX_REFRACTION_DEPTH, refraction_depth_tex);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_WATER_TEX_ARRAY_IDX_DUDV, dudv_texture);
+		kshader_set_binding_texture(shader, 1, binding_set_instance_id, 0, MAT_TEX_ARRAY_IDX_EMISSIVE, state->default_texture);
 
-		kshader_apply_binding_set(shader, 1, base_material);
+		kshader_apply_binding_set(shader, 1, binding_set_instance_id);
 	} break;
 	case KMATERIAL_TYPE_BLENDED: {
 		shader = state->material_blended_shader;
@@ -618,13 +615,13 @@ void kmaterial_renderer_bind_base(kmaterial_renderer* state, kmaterial base_mate
 }
 
 // Updates and binds material instance using the provided lighting information.
-void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_instance instance, const kmaterial_render_immediate_data* immediates) {
+void kmaterial_renderer_apply_immediates (kmaterial_renderer *state, kmaterial_instance instance, const kmaterial_render_immediate_data *immediates) {
 	KASSERT_DEBUG(state);
 
 	/* const kmaterial_instance_data* instance_data = kmaterial_get_material_instance_data(engine_systems_get()->material_system, instance);
 	KASSERT_DEBUG(instance_data); */
 
-	const kmaterial_data* base_material = kmaterial_get_base_material_data(engine_systems_get()->material_system, instance.base_material);
+	const kmaterial_data *base_material = kmaterial_get_base_material_data(engine_systems_get()->material_system, instance.base_material);
 	KASSERT_DEBUG(base_material);
 
 	kshader shader = KSHADER_INVALID;
@@ -649,4 +646,55 @@ void kmaterial_renderer_apply_immediates(kmaterial_renderer* state, kmaterial_in
 		KASSERT_MSG(false, "Custom materials not yet supported.");
 		break;
 	}
+}
+
+static b8 on_material_loaded (u16 code, void *sender, void *listener_inst, event_context context) {
+	kmaterial_renderer *state;
+	kmaterial_data *material;
+	kshader shader;
+	u32 binding_set_instance_id;
+	u32_bst_node *node;
+
+	state = listener_inst;
+	KASSERT_DEBUG(state);
+	material = context.data.custom_data.data;
+	KASSERT_DEBUG(material);
+	shader = state->material_standard_skinned_shader;
+	KASSERT_DEBUG(shader != KSHADER_INVALID);
+
+	binding_set_instance_id = kshader_acquire_binding_set_instance(shader, MATERIAL_BINDING_SET_INSTANCE);
+	KASSERT_DEBUG_MSG(binding_set_instance_id != INVALID_ID_U32, "Failed to acquire shader binding set instance (base material). See logs for details.");
+
+	u32_bst_node_value val = {.u32 = binding_set_instance_id};
+	node = u32_bst_insert(state->lookup, material->index, val);
+	if (!state->lookup) {
+		state->lookup = node;
+	}
+
+	// Consider event as not handled so other systems can handle it as well.
+	return false;
+}
+
+static b8 on_material_unloaded (u16 code, void *sender, void *listener_inst, event_context context) {
+	kmaterial_renderer *state;
+	kmaterial_data *material;
+	kshader shader;
+	u32 binding_set_instance_id;
+	const u32_bst_node *node;
+
+	state = listener_inst;
+	KASSERT_DEBUG(state);
+	material = context.data.custom_data.data;
+	KASSERT_DEBUG(material);
+	shader = state->material_standard_skinned_shader;
+	KASSERT_DEBUG(shader != KSHADER_INVALID);
+
+	node = u32_bst_find(state->lookup, material->index);
+	KASSERT_DEBUG(node != KNULL);
+	binding_set_instance_id = node->value.u32;
+	kshader_release_binding_set_instance(shader, MATERIAL_BINDING_SET_INSTANCE, binding_set_instance_id);
+
+	u32_bst_delete(state->lookup, material->index);
+
+	return false;
 }

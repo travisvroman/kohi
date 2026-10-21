@@ -1,17 +1,13 @@
 #pragma once
 
-#include "editor/texture_browser.h"
-#include "kui_types.h"
-#include "math/geometry.h"
-#include "math/math_types.h"
-#include "systems/texture_system.h"
-#include "world/heightfield_terrain.h"
 #include <core/frame_data.h>
 #include <core/keymap.h>
 #include <kui_system.h>
-#include <platform/platform.h>
 #include <renderer/kforward_renderer.h>
 #include <world/world_types.h>
+
+#include "editor/texture_browser.h"
+#include "strings/kstring.h"
 
 #define EDITOR_AXIS_COLOUR_R \
 	(colour4){1.0f, 0.5f, 0.5f, 1.0f}
@@ -25,14 +21,14 @@
 #include "editor/editor_gizmo.h"
 
 typedef struct keditor_gizmo_pass_render_data {
-	mat4 projection;
-	mat4 view;
+	kmatrix_id projection_id;
+	kmatrix_id view_id;
 
 	b8 visible;
 
 	kdebug_geometry_render_data geometry;
 
-	mat4 gizmo_transform;
+	kmatrix_id gizmo_transform_id;
 
 	b8 do_pass;
 } keditor_gizmo_pass_render_data;
@@ -42,7 +38,12 @@ typedef enum editor_mode {
 	EDITOR_MODE_ENTITY,
 	EDITOR_MODE_TREE,
 	EDITOR_MODE_HF_TERRAIN,
-	EDITOR_MODE_ASSETS
+	EDITOR_MODE_ASSETS,
+
+	// Any editor extensions should use beyond this point.
+	EDITOR_MODE_USER_SPACE = 0x00FF,
+	// Max number of editor modes available.
+	EDITOR_MODE_MAX = 0x0200
 } editor_mode;
 
 typedef struct keditor_gizmo_pass_data {
@@ -102,6 +103,8 @@ typedef enum editor_action {
 	EDITOR_ACTION_MAX = 0x1FFF,
 } editor_action;
 
+struct editor_plugin;
+
 typedef struct editor_state {
 	kname game_package_name;
 	// Editor camera
@@ -112,22 +115,25 @@ typedef struct editor_state {
 	b8 using_gizmo;
 	// Editor state
 	// Darray of selected entities.
-	kentity* selection_list;
+	kentity *selection_list;
 	keymap editor_keymap;
+
+	struct kmatrix_system_state *matrix_system;
+	kmatrix_id default_identity_matrix_id;
 
 	b8 is_running;
 
 	// Pointer to the scene currently owned by the editor (NOT necessarily the scene owned by the game code currently!)
-	struct kscene* edit_scene;
+	struct kscene *edit_scene;
 	kname scene_asset_name;
 	kname scene_package_name;
 
 	keditor_gizmo_pass_data editor_gizmo_pass;
-	struct renderer_system_state* renderer;
+	struct renderer_system_state *renderer;
 	krenderbuffer standard_vertex_buffer;
 	krenderbuffer index_buffer;
 
-	keditor_gizmo_pass_render_data* editor_gizmo_render_data;
+	keditor_gizmo_pass_render_data *editor_gizmo_render_data;
 
 	// position and colour vertex data
 	kshader colour_shader;
@@ -137,15 +143,18 @@ typedef struct editor_state {
 	colour_vertex_3d debug_points[256];
 	u64 debug_points_vertex_buffer_offset;
 
-	editor_mode mode;
+	u16 mode;
 
 	u16 font_size;
 	kname font_name;
 	u16 textbox_font_size;
 	kname textbox_font_name;
 
+	// Listing of base mode controls per editor mode.
+	kui_control base_mode_controls[EDITOR_MODE_MAX];
+
 	// UI elements
-	kui_state* kui_state;
+	kui_state *kui_state;
 	kui_control editor_root;
 
 	// Main window
@@ -246,7 +255,7 @@ typedef struct editor_state {
 	kui_control hft_mode_chunk_content;
 	kui_control hft_chunk_material_labels[5];
 	kui_control hft_chunk_material_textboxes[5];
-	hf_chunk* selected_chunk;
+	hf_chunk *selected_chunk;
 	kgeometry hft_selected_chunk_debug_box;
 
 	kui_control hft_mode_remove_content;
@@ -273,29 +282,32 @@ typedef struct editor_state {
 
 } editor_state;
 
-KAPI b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname gmae_package_name);
-KAPI void editor_shutdown(struct editor_state* state);
+KAPI b8 editor_initialize (u64 *memory_requirement, struct editor_state *state, kname gmae_package_name);
+KAPI void editor_shutdown (struct editor_state *state);
 
-KAPI b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package_name);
-KAPI b8 editor_close(struct editor_state* state);
-KAPI void editor_set_mode(struct editor_state* state, editor_mode mode);
+KAPI b8 editor_open (struct editor_state *state, kname scene_name, kname scene_package_name);
+KAPI b8 editor_close (struct editor_state *state);
+// Can either be an editor_mode or a user-defined mode.
+KAPI void editor_set_mode (struct editor_state *state, u16 mode);
 
-KAPI void editor_clear_selected_entities(struct editor_state* state);
-KAPI void editor_select_entities(struct editor_state* state, u32 count, kentity* entities);
-KAPI void editor_add_to_selected_entities(struct editor_state* state, u32 count, kentity* entities);
-KAPI void editor_select_parent(struct editor_state* state);
-KAPI b8 editor_selection_contains(struct editor_state* state, kentity entity);
+KAPI void editor_clear_selected_entities (struct editor_state *state);
+KAPI void editor_select_entities (struct editor_state *state, u32 count, kentity *entities);
+KAPI void editor_add_to_selected_entities (struct editor_state *state, u32 count, kentity *entities);
+KAPI void editor_select_parent (struct editor_state *state);
+KAPI b8 editor_selection_contains (struct editor_state *state, kentity entity);
 
-KAPI void editor_update(struct editor_state* state, frame_data* p_frame_data);
-KAPI void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, kcamera current_camera, b8 draw_gizmo, keditor_gizmo_pass_render_data* gizmo_pass_render_data);
-KAPI b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera current_camera, ktexture colour_buffer_target, b8 draw_gizmo, keditor_gizmo_pass_render_data* gizmo_pass_render_data);
+KAPI void editor_update (struct editor_state *state, frame_data *p_frame_data);
+KAPI void editor_frame_prepare (struct editor_state *state, frame_data *p_frame_data, kcamera current_camera, b8 draw_gizmo, keditor_gizmo_pass_render_data *gizmo_pass_render_data);
+KAPI b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera current_camera, ktexture colour_buffer_target, b8 draw_gizmo, keditor_gizmo_pass_render_data *gizmo_pass_render_data);
 
-KAPI void editor_on_window_resize(struct editor_state* state, const struct kwindow* window);
+KAPI void editor_on_window_resize (struct editor_state *state, const struct kwindow *window);
 
-KAPI void editor_setup_keymaps(struct editor_state* state);
-KAPI void editor_destroy_keymaps(struct editor_state* state);
+KAPI void editor_setup_keymaps (struct editor_state *state);
+KAPI void editor_destroy_keymaps (struct editor_state *state);
 
-KAPI b8 editor_on_action(struct editor_state* state, u32 action_code);
+KAPI b8 editor_on_action (struct editor_state *state, u32 action_code);
 
-KAPI void editor_on_lib_load(struct editor_state* state);
-KAPI void editor_on_lib_unload(struct editor_state* state);
+KAPI void editor_on_lib_load (struct editor_state *state);
+KAPI void editor_on_lib_unload (struct editor_state *state);
+
+KAPI void editor_register_user_mode_ui_control (struct editor_state *state, u16 user_mode, kui_control base_control);

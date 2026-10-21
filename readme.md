@@ -4,30 +4,53 @@
 
 This engine is made as part of the Kohi Game Engine series on YouTube (now live-streamed on Twitch), where we make a game engine from the ground up using C and Vulkan.
 
+As of v0.13.0, it is written exclusively in C99 (POSIX.1-2008 on GNU/Linux and MacOS).
+
 The name **Kohi** (コーヒー, pronounced "koh-hee") is a simplification of the Japanese word for "coffee", which makes sense given how much I love the stuff.
 
 The original YouTube series is located here: https://www.youtube.com/watch?v=dHPuU-DJoBM&list=PLv8Ddw9K0JPg1BEO-RS-0MYs423cvLVtj.
 
 The Twitch stream happens here: https://twitch.tv/travisvroman.
 
+# <span style="color:#ff6600">IMPORTANT UPDATE FOR SOURCE CONTROL!</span>
+<span style="color:#ff6600">**The repository for Kohi is being migrated away from GitHub (and Git) to a new Subversion/SVN server.**</span>
+
+<ins>From this point forward, the GitHub repo will simply act as a mirror of the SVN repo, and will only
+be updated periodically.</ins> Therefore, the SVN repo will now be the _single source of truth_. 
+
+**If you are looking for the bleeding-edge code, look at the SVN repo, in `trunk`.**
+
+I've written an article with the why and how [here](https://travisvroman.com/articles/svn.html).
+
+Note that this repo _isn't going anywhere_, and will be updated, It's just not the primary anymore.
+
+See [Project Links](#project-links) below.
+
+Also See [Contributions](#contributions) below.
+
+
 ![Screenshot of Kohi](/images/kohi_screenshot_2.png?raw=true "Screenshot of Kohi")
 ![Screenshot of Kohi](/images/kohi_screenshot.png?raw=true "Screenshot of Kohi")
 
 ## Important Links
 
+<a name="project-links"></a>
+### Project Links
+- [![Subversion](https://img.shields.io/badge/Kohi%20on%20SVN--green.svg?style=social&logo=subversion)](https://svn.kohiengine.com/svn/kohi) The bleeding edge code is now here! See `trunk`.
+- [![GitHub](https://img.shields.io/badge/Kohi%20on%20GitHub--green.svg?style=social&logo=Github)](https://github.com/travisvroman/kohi) GitHub is now treated as a mirror and is updated from SVN every so often.
+- [![Website](https://img.shields.io/badge/Website-0066ff)](https://kohiengine.com) Additional info about the engine.
+- [![Forum](https://img.shields.io/badge/Forum-ff6600)](https://forum.kohiengine.com) Report issues or bugs with the engine here.
+- [![Bugtracking](https://img.shields.io/badge/Bug%20Tracking-ff0066)](https://forum.kohiengine.com) Discussions about the engine.
+- [![API Documentation](https://img.shields.io/badge/API%20Documentation-00ff66)](https://kohiengine.com/docs/) Auto-generated code documentation.
+
 ### Socials
 
-[![Twitch](/images/media_icon_twitch_name.png?raw=true)](https://twitch.tv/travisvroman)
-[![YouTube](/images/media_icon_yt_name.png?raw=true)](https://youtube.com/travisvroman)
-[![Patreon](/images/media_icon_patreon_name.png?raw=true)](https://patreon.com/travisvroman)
-[![Twitter](/images/media_icon_tw_name.png?raw=true)](https://twitter.com/travisvroman)
+[![Twitter](https://img.shields.io/badge/%40travisvroman--blue.svg?style=social&logo=x)](https://twitter.com/travisvroman)
+[![Instagram](https://img.shields.io/badge/travisvroman--red.svg?style=social&logo=Instagram)](https://www.instagram.com/travisvroman)
+[![Youtube](https://img.shields.io/badge/TravisVroman--red.svg?style=social&logo=youtube)](https://www.youtube.com/travisvroman)
+[![Discord](https://img.shields.io/badge/TravisVroman%20Server--blue.svg?style=social&logo=Discord)](https://discord.gg/YBMH9Em)
+[![Patreon](https://img.shields.io/badge/travisvroman--green.svg?style=social&logo=Patreon)](https://patreon.com/travisvroman)
 
-- Discord: https://discord.com/invite/YBMH9Em
-
-### Project Links
-
-- Website: https://kohiengine.com
-- API Documentation: https://kohiengine.com/docs/
 
 ## Goal
 
@@ -37,7 +60,7 @@ The goal here is simple, to provide a resource that I wish I had when learning g
 including not only design decisions, but _why_ those decisions were made. It should also be noted that, while this is _a_ way of building a game engine,
 it is not _the only_ way to build one and sometimes not even the _correct_ way to build one. There is a lot of trial-and-error along the way, complete with
 deep dives. Sometimes we do things the wrong way to illustrate _why_ it's the wrong way before then fixing it. Sometimes things work, sometimes they don't.
-The idea is to try things and explore along the way.
+The idea is to try things and explore along the way. It is not, and never will be, a competitor to the Big Three (Unity, Unreal, Godot). It's an engine for programmers, by a programmer.
 
 Kohi has been a 3D engine from the start, with most of it built from scratch.
 
@@ -49,57 +72,41 @@ series on my Twitch/YouTube channels as well.
 
 ## Platform support
 
-Windows, Linux and macOS are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
+Windows, GNU/Linux and macOS are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
 
 ## Prerequisites
 
 While the highest effort is made to reduce dependencies, each platform has things that _must_ be installed for this to work.
 
+Immediately after cloning, run `make setup`. If you don't have make, run the `get_deps_<platform>.sh|bat` first, then try again.
+
 ### Prerequisites for Windows
 
 NOTE: This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
 
-- Make for Windows: `winget install exwinports.make` OR https://gnuwin32.sourceforge.net/packages/make.htm (Yes, the last update was in 2006. But if ain't broke, why fix it?)
-- Visual Studio Build Tools: `winget install Microsoft.VisualStudio.2022.BuildTools`
-- Git for Windows: `winget install git.git` OR https://gitforwindows.org/
-- Vulkan SDK: `winget install khronosgroup.vulkansdk` OR download from https://vulkan.lunarg.com/
+Running `make setup` now gathers the required dependencies automatically for Windows via the `get_deps_win32.bat` script.
+
+NOTE: Assimp must still be installed this way for now on Windows. More work will be done to automate this in the future.
+
 - Assimp: Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
   - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
   - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
 
-### Prerequisites for Linux
+### Prerequisites for GNU/Linux
 
-Install these via package manager:
+Update!
 
-#### Debian/Ubuntu:
-
-- `sudo apt install llvm git make libx11-dev libxkbcommon-x11-dev libx11-xcb-dev`
-
-#### Arch:
-
-- `sudo pacman -S llvm`
-- `sudo pacman -S git`
-
-#### Fedora:
-
-- `sudo dnf install git make clang libX11-devel libxcb-devel libxkbcommon-devel systemd-devel openal-soft-devel vulkan-headers libshaderc-devel sudo dnf vulkan-validation-layers`
-
-- Assimp (for tooling/model imports): `sudo apt install assimp` or `sudo pacman -S assimp` `sudo dnf install assimp-devel`
+Running `make setup` now gathers the required dependencies automatically for Debian/Ubuntu, Arch, and Fedora via the `get_deps_linux.sh` script. Other distros to come in the future.
 
 NOTE: Wayland not natively supported (yet)
 
 ### Prerequisites for macOS
 
-- XCode command line tools: `xcode-select --install`. This should install the latest XCode and
-  command-line tools (most importantly clang). At the time of install, this installs Apple Clang 15.0.0.
-
-Install these via homebrew (brew) or other package manager:
-
-- Git: `brew install git`
-- Make: `brew install make`
-- Assimp (for tooling/model imports): `brew install assimp`
+Running `make setup` now gathers the required dependencies automatically for MacOS via the `get_deps_macos.sh` script.
 
 The Vulkan SDK
+
+NOTE: for the time being, this still needs manual installation.
 
 - Vulkan SDK: download from https://vulkan.lunarg.com/
   - NOTE: Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
@@ -123,9 +130,9 @@ For shaderc:
 
 The audio plugin requires an installatiion of OpenAL.
 
-- Linux: use a package manager to install OpenAL, if not already installed (i.e. `sudo apt install openal` for Ubuntu or `sudo pacman -S openal` on Arch)
-- macOS: install openal-soft via homebrew: `brew install openal-soft`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
-- Windows: `winget install OpenAL.OpenAL` OR Install the SDK from here: https://www.openal.org/downloads/
+- GNU/Linux: use a package manager to install OpenAL, if not already installed via `make setup`.
+- macOS: use a homebrew to install OpenAL-Soft, if not already installed via `make setup`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
+- Windows: If not already installed via `make setup`, Install the SDK from here: https://www.openal.org/downloads/
 
 # Start
 
@@ -135,7 +142,7 @@ After this, clone the repository recursively: `git clone --recurse-submodules ht
 
 Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
 
-See the setup videos in the series for Windows or Linux for details. macOS setup happens significantly later in the series at video 76, when support is officially added for that platform.
+See the setup videos in the series for Windows or GNU/Linux for details. macOS setup happens significantly later in the series at video 76, when support is officially added for that platform.
 
 # Building
 
@@ -152,7 +159,7 @@ be done again).
 There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
 
 On all platforms, you can simply browse to the root directory of the project in a terminal/command prompt and run either `make all-debug`, `make all-release`, or `make clean`.
-There are alternative shell script (macOS/Linux) and batch files (Windows) available for convenience here as well.
+There are alternative shell script (macOS and GNU/Linux) and batch files (Windows) available for convenience here as well.
 
 ## Asset Imports
 
@@ -164,27 +171,27 @@ So, to re-import only assets which have been updated or not-yet imported, you co
 
 `./bin/kohi.tools importmanifest testbed.kapp/asset_manifest.kson --updated-only`
 
-You can also run all module/plugin asset imports at once by running the `import-updated-assets.sh` (MacOS/Linux) or `import-updated-assets.bat` (Windows).
+You can also run all module/plugin asset imports at once by running the `import-updated-assets.sh` (MacOS and GNU/Linux) or `import-updated-assets.bat` (Windows).
 There is also a task available in the VSCode config for this called "Import ALL updated assets for all modules".
 
 # Running
 
-At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in Linux/macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for Linux/macOS.
+At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in and GNU/Linux and macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for GNU/Linux and macOS.
 
 # Project Structure
 
 This structure breakdown is based on the root folder of the repository. Some files/folders are omitted from this description as they aren't important to the overall picture.
 
-- `kohi.core` - Shared library/.dll. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, Linux, macOS).
+- `kohi.core` - Shared library/.dll/.so/.dylib. Contains types, containers, string lib, math lib, utils, etc. as well as the platform layer (Win32, GNU/Linux, macOS).
 - `kohi.core.tests` - A small collection of unit tests for the core library. Needs to be expanded.
-- `kohi.runtime` - Shared library/.dll. Contains the core engine logic as well as many of the core engine systems.
+- `kohi.runtime` - Shared library/.dll/.so/.dylib. Contains the core engine logic as well as many of the core engine systems.
 - `kohi.runtime.tests` - A small collection of unit tests for the runtime library. Needs to be expanded.
-- `kohi.plugin.audio.openal` - Shared library/.dll. Contains the audio plugin which uses OpenAL as the audio backend.
-- `kohi.plugin.renderer.vulkan` - Shared library/.dll. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
-- `kohi.plugin.ui.kui` - Shared library/.dll. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
+- `kohi.plugin.audio.openal` - Shared library/.dll/.so/.dylib. Contains the audio plugin which uses OpenAL as the audio backend.
+- `kohi.plugin.renderer.vulkan` - Shared library/.dll/.so/.dylib. Contains the Vulkan renderer plugin, which serves as the renderer backend to the engine for Vulkan.
+- `kohi.plugin.ui.kui` - Shared library/.dll/.so/.dylib. Contains the Kohi UI, which contains a general-use collection of controls such as buttons, labels, textboxes, etc. This is a retained-mode UI.
 - `testbed.kapp` - Application/.exe. The consuming application executable, loads up testbed.klib, configures/uses plugins and other Kohi libraries.
-- `testbed.klib` = Shared library/.dll. Contains the application code (or "game code") specific to the application. Hot-reloadable.
-- `kohi.tools` - A collection of command-line tools. Mostly empty at the moment, but will be expended when editor development begins.
+- `testbed.klib` = Shared library/.dll/.so/.dylib. Contains the application code (or "game code") specific to the application. Hot-reloadable.
+- `kohi.tools` - A collection of command-line tools. Contains utilities such as "importmanifest".
 - `utils` - A collection of build utilities required to build Kohi. These only require the C compiler, so no additional dependencies are needed.
 - `.vscode` A folder containing VS Code-specific project setup.
 
@@ -192,19 +199,27 @@ This structure breakdown is based on the root folder of the repository. Some fil
 
 See [here](TODO.md).
 
+<a name="contributions"></a>
 ## Contributions
 
-As the project progresses, community contributions are welcome via
-[Pull Requests](https://github.com/travisvroman/kohi/pulls) on GitHub.
+<span style="color:#ff6600;">**IMPORTANT UPDATE!**</span>
 
-Features should be contributed via a branch name in the format of `feature/<feature name>` where `<feature name>` is replaced with either the name of a feature or, ideally, the number of a reported feature issue (ex: `feature/80` or `feature/terrain`).
+**Issues and Pull Requests will no longer be accepted or reviewed via GitHub.** 
 
-Bug fixes _must_ be contributed via a branch name in the format of `bugfix/<issue#>` where `<issue#>` is replaced with the number of a reported feature issue (ex: `bugfix/80`). Bug fixes therefore _must_ have an associated issue created on GitHub.
+Instead, they must be submitted [here](https://bugs.kohiengine.com/) instead. All prior issues 
+located on the GitHub repo were moved and are now tracked there.
 
-Code should match the general style of the code in the repo. A code style guide will
+To contribute a fix or enhancement, submit a patch file as an attachment to a new issue [here](https://bugs.kohiengine.com/). It will be reviewed at some point whereafter it will either be:
+- Accepted as-is
+- Changes are requested before it is accepted
+- Declined with a reason.
+
+Code submitted must match the general style of the code in the repo. A code style guide will
 be published here at some point in the near future.
 
-All contributions are subject to review and may or may not be accepted, or have change requests made before being accepted.
+NOTE: that it will not be possible any longer for GitHub users to be associated with "contributors"
+on that repo. However, I'm more than happy to include you in a file that stays along with the code
+if you specify how you'd like to appear.
 
 ## Support Me
 
@@ -219,3 +234,5 @@ I am developing Kohi in my spare time. I don't have any sponsors at the moment. 
 I would also greatly appreciate follows/subscriptions on YouTube and Twitch. Please spread the word!
 
 Your support is greatly appreciated and will be re-invested back into the project.
+
+

@@ -97,7 +97,7 @@ typedef enum asset_request_result {
  * @param asset A constant pointer to the asset that is loaded.
  * @param listener_inst A pointer to the listener, usually passed along with the original request.
  */
-typedef void (*PFN_kasset_on_result)(asset_request_result result, const struct kasset* asset, void* listener_inst);
+typedef void (*PFN_kasset_on_result)(asset_request_result result, const struct kasset *asset, void *listener_inst);
 
 struct vfs_asset_data;
 
@@ -105,7 +105,7 @@ struct vfs_asset_data;
  * @brief A function pointer typedef to be used to provide the asset system with a callback function
  * when an asset is written to on-disk (i.e. a hot-reload). This process is synchronous.
  */
-typedef void (*PFN_kasset_on_hot_reload)(const struct vfs_asset_data* asset_data, const struct kasset* asset);
+typedef void (*PFN_kasset_on_hot_reload)(const struct vfs_asset_data *asset_data, const struct kasset *asset);
 
 /**
  * @brief Imports an asset according to the provided params and the importer's internal logic.
@@ -119,14 +119,14 @@ typedef void (*PFN_kasset_on_hot_reload)(const struct vfs_asset_data* asset_data
  * @param out_asset A pointer to the asset being imported.
  * @returns True on success; otherwise false.
  */
-typedef b8 (*PFN_kasset_importer_import)(const struct kasset_importer* self, u64 data_size, const void* data, void* params, struct kasset* out_asset);
+typedef b8 (*PFN_kasset_importer_import)(const struct kasset_importer *self, u64 data_size, const void *data, void *params, struct kasset *out_asset);
 
 /**
  * @brief Represents the interface point for an importer.
  */
 typedef struct kasset_importer {
 	/** @brief The file type supported by the importer. */
-	const char* source_type;
+	const char *source_type;
 	/**
 	 * @brief Imports an asset according to the provided params and the importer's internal logic.
 	 * NOTE: Some importers (i.e. .obj for static meshes) can also trigger imports of other assets. Those assets are immediately
@@ -155,7 +155,7 @@ typedef struct kasset_metadata {
 	u32 tag_count;
 
 	/** @brief An array of tags. */
-	kname* tags;
+	kname *tags;
 	// TODO: Listing of asset-type-specific metadata
 
 } kasset_metadata;
@@ -191,7 +191,7 @@ typedef struct kasset_heightmap_terrain {
 	u16 chunk_size;
 	vec3 tile_scale;
 	u8 material_count;
-	kname* material_names;
+	kname *material_names;
 	u32 version;
 } kasset_heightmap_terrain;
 
@@ -206,7 +206,7 @@ typedef struct kasset_image {
 	u8 mip_levels;
 	kpixel_format format;
 	u64 pixel_array_size;
-	u8* pixels;
+	u8 *pixels;
 } kasset_image;
 
 #define KASSET_TYPE_NAME_MATERIAL "Material"
@@ -264,7 +264,7 @@ typedef struct kasset_material {
 	kmaterial_texture_input_config dudv_map;
 
 	u32 custom_sampler_count;
-	kmaterial_sampler_config* custom_samplers;
+	kmaterial_sampler_config *custom_samplers;
 
 	// Only used in water materials.
 	f32 tiling;
@@ -278,21 +278,21 @@ typedef struct kasset_material {
 #define KASSET_TYPE_NAME_TEXT "Text"
 
 typedef struct kasset_text {
-	const char* content;
+	const char *content;
 } kasset_text;
 
 #define KASSET_TYPE_NAME_BINARY "Binary"
 
 typedef struct kasset_binary {
 	u64 size;
-	const void* content;
+	const void *content;
 } kasset_binary;
 
 #define KASSET_TYPE_NAME_KSON "Kson"
 
 typedef struct kasset_kson {
 	kasset base;
-	const char* source_text;
+	const char *source_text;
 	kson_tree tree;
 } kasset_kson;
 
@@ -300,28 +300,28 @@ typedef struct kasset_kson {
 
 typedef struct kasset_shader_stage {
 	shader_stage type;
-	const char* source_asset_name;
-	const char* package_name;
+	const char *source_asset_name;
+	const char *package_name;
 } kasset_shader_stage;
 
 typedef struct kasset_shader_attribute {
-	const char* name;
+	const char *name;
 	shader_attribute_type type;
 } kasset_shader_attribute;
 
 // One per vertex layout.
 typedef struct kasset_shader_pipeline {
-	const char* name;
+	const char *name;
 
 	u8 stage_count;
-	kasset_shader_stage* stages;
+	kasset_shader_stage *stages;
 
 	u8 attribute_count;
-	kasset_shader_attribute* attributes;
+	kasset_shader_attribute *attributes;
 } kasset_shader_pipeline;
 
 typedef struct kasset_shader_attachment {
-	const char* name;
+	const char *name;
 	kpixel_format format;
 } kasset_shader_attachment;
 
@@ -342,16 +342,16 @@ typedef struct kasset_shader {
 	primitive_topology_type default_topology;
 
 	u8 colour_attachment_count;
-	kasset_shader_attachment* colour_attachments;
+	kasset_shader_attachment *colour_attachments;
 
 	kasset_shader_attachment depth_attachment;
 	kasset_shader_attachment stencil_attachment;
 
 	u8 pipeline_count;
-	kasset_shader_pipeline* pipelines;
+	kasset_shader_pipeline *pipelines;
 
 	u8 binding_set_count;
-	shader_binding_set_config* binding_sets;
+	shader_binding_set_config *binding_sets;
 } kasset_shader;
 
 #define KASSET_TYPE_NAME_SYSTEM_FONT "SystemFont"
@@ -364,9 +364,9 @@ typedef struct kasset_system_font {
 	kname ttf_asset_name;
 	kname ttf_asset_package_name;
 	u32 face_count;
-	kasset_system_font_face* faces;
+	kasset_system_font_face *faces;
 	u32 font_binary_size;
-	void* font_binary;
+	void *font_binary;
 } kasset_system_font;
 
 #define KASSET_TYPE_NAME_BITMAP_FONT "BitmapFont"
@@ -402,11 +402,11 @@ typedef struct kasset_bitmap_font {
 	i32 atlas_size_x;
 	i32 atlas_size_y;
 	u32 glyph_count;
-	kasset_bitmap_font_glyph* glyphs;
+	kasset_bitmap_font_glyph *glyphs;
 	u32 kerning_count;
-	kasset_bitmap_font_kerning* kernings;
+	kasset_bitmap_font_kerning *kernings;
 	u32 page_count;
-	kasset_bitmap_font_page* pages;
+	kasset_bitmap_font_page *pages;
 } kasset_bitmap_font;
 
 #define KASSET_TYPE_NAME_AUDIO "Audio"
@@ -425,7 +425,7 @@ typedef struct kasset_audio {
 
 	u64 pcm_data_size;
 	/** Pulse-code modulation buffer, or raw data to be fed into a buffer. */
-	i16* pcm_data;
+	i16 *pcm_data;
 } kasset_audio;
 
 #define KASSET_TYPE_NAME_MODEL "Model"
@@ -445,11 +445,11 @@ typedef struct kasset_model_key_quat {
 typedef struct kasset_model_channel {
 	kname name;
 	u32 pos_count;
-	kasset_model_key_vec3* positions;
+	kasset_model_key_vec3 *positions;
 	u32 scale_count;
-	kasset_model_key_vec3* scales;
+	kasset_model_key_vec3 *scales;
 	u32 rot_count;
-	kasset_model_key_quat* rotations;
+	kasset_model_key_quat *rotations;
 } kasset_model_channel;
 
 typedef struct kasset_model_animation {
@@ -457,7 +457,7 @@ typedef struct kasset_model_animation {
 	f32 duration;
 	f32 ticks_per_second;
 	u16 channel_count;
-	kasset_model_channel* channels;
+	kasset_model_channel *channels;
 } kasset_model_animation;
 
 // Bone data
@@ -474,7 +474,7 @@ typedef struct kasset_model_node {
 	mat4 local_transform;
 	u16 parent_index; // INVALID_ID_U16 = root
 	u16 child_count;
-	u16* children;
+	u16 *children;
 } kasset_model_node;
 
 typedef enum kasset_model_mesh_type {
@@ -489,9 +489,9 @@ typedef struct kasset_model_submesh_data {
 	kname material_name;
 	u32 vertex_count;
 	kasset_model_mesh_type type;
-	void* vertices;
+	void *vertices;
 	u32 index_count;
-	u32* indices;
+	u32 *indices;
 	vec3 center;
 	extents_3d extents;
 } kasset_model_submesh_data;
@@ -503,13 +503,13 @@ typedef struct kasset_model_submesh_data {
  */
 typedef struct kasset_model {
 	u16 submesh_count;
-	kasset_model_submesh_data* submeshes;
+	kasset_model_submesh_data *submeshes;
 	u16 bone_count;
-	kasset_model_bone* bones;
+	kasset_model_bone *bones;
 	u16 node_count;
-	kasset_model_node* nodes;
+	kasset_model_node *nodes;
 	u16 animation_count;
-	kasset_model_animation* animations;
+	kasset_model_animation *animations;
 
 	mat4 global_inverse_transform;
 
@@ -555,9 +555,9 @@ typedef struct kasset_hf_terrain_material_OLD {
 } kasset_hf_terrain_material_OLD;
 
 typedef struct kasset_hf_terrain_material_map_names {
-	const char* albedo_str;
-	const char* normal_str;
-	const char* mra_str;
+	const char *albedo_str;
+	const char *normal_str;
+	const char *mra_str;
 } kasset_hf_terrain_material_map_names;
 
 typedef struct kasset_hf_terrain {
@@ -567,16 +567,16 @@ typedef struct kasset_hf_terrain {
 	u16 block_count_x;
 	// Number of blocks along z axis. Must be at least 1.
 	u16 block_count_z;
-	kasset_hf_terrain_block* blocks;
+	kasset_hf_terrain_block *blocks;
 
 	u32 vertex_count;
-	kasset_hf_terrain_vertex* vertices;
+	kasset_hf_terrain_vertex *vertices;
 
 	u8 material_count;
-	kasset_hf_terrain_material* materials;
+	kasset_hf_terrain_material *materials;
 	// Collection of map names per material
-	kasset_hf_terrain_material_map_names* material_map_names;
+	kasset_hf_terrain_material_map_names *material_map_names;
 	// Names of each material.
-	const char** material_names;
+	const char **material_names;
 
 } kasset_hf_terrain;

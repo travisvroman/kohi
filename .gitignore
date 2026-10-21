@@ -3,6 +3,8 @@ obj/
 misc/
 *.spv
 docs/
+*.swp
+vendor/
 
 *.vim
 *_version.h
@@ -15,3 +17,5 @@ docs/
 *.ksm
 *.kaf
 *.k3d
+
+llvm.sh*

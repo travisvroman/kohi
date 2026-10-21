@@ -3,7 +3,7 @@
 ASSEMBLY_NAME=testbed.kapp
 
 # All compiler flags/rules used across the board.
-CFLAGS =-std=gnu11 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
+CFLAGS =-std=c99 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
 CFLAGS +=-Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -Wstrict-prototypes -Wno-unused-parameter 
 CFLAGS +=-Wno-missing-field-initializers -Wno-tautological-compare 
 # NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say otherwise are exported (i.e. via KAPI).
@@ -59,8 +59,8 @@ endif
 .PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
 .PHONY: link link-win32 link-linux link-macos
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer

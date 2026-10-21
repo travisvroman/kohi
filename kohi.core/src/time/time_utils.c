@@ -3,7 +3,7 @@
 #include "math/kmath.h"
 #include "strings/kstring.h"
 
-const char* time_as_string_from_seconds(f32 total_seconds) {
+const char *time_as_string_from_seconds (f32 total_seconds) {
 
 	// Extract whole hours
 	u32 hours = (u32)(total_seconds / 3600);

@@ -51,7 +51,7 @@
  * @param file The path and name of the file containing the expression.
  * @param line The line number in the file where the assertion failure occurred.
  */
-KAPI void report_assertion_failure(const char* expression, const char* message, const char* file, i32 line);
+KAPI void report_assertion_failure (const char *expression, const char *message, const char *file, i32 line);
 
 /**
  * @brief Asserts the provided expression to be true, and logs a failure if not.

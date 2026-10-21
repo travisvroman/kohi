@@ -20,7 +20,7 @@
  * is invoked every time a logging event occurs. Consumers must
  * implement this and handle the input thusly.
  */
-typedef b8 (*PFN_console_consumer_write)(void* inst, log_level level, const char* message);
+typedef b8 (*PFN_console_consumer_write)(void *inst, log_level level, const char *message);
 
 /**
  * @brief Represents a single console command argument's value.
@@ -30,7 +30,7 @@ typedef b8 (*PFN_console_consumer_write)(void* inst, log_level level, const char
  */
 typedef struct console_command_argument {
 	/** @brief The argument's value. */
-	const char* value;
+	const char *value;
 } console_command_argument;
 
 /**
@@ -39,17 +39,17 @@ typedef struct console_command_argument {
  */
 typedef struct console_command_context {
 	/** @brief The full, original console command. */
-	const char* command;
+	const char *command;
 
 	/** @brief The console command name only. */
-	const char* command_name;
+	const char *command_name;
 
 	/** @brief The number of arguments passed.*/
 	u8 argument_count;
 	/** @brief The arguments array. */
-	console_command_argument* arguments;
+	console_command_argument *arguments;
 	/** @brief A pointer to a listener, if required. */
-	void* listener;
+	void *listener;
 } console_command_context;
 
 /**
@@ -74,13 +74,13 @@ struct console_state;
  * @param config Ignored.
  * @return True on success; otherwise false.
  */
-b8 console_initialize(u64* memory_requirement, struct console_state* memory, void* config);
+b8 console_initialize (u64 *memory_requirement, struct console_state *memory, void *config);
 /**
  * @brief Shuts down the console system.
  *
  * @param state A pointer to the console system state.
  */
-void console_shutdown(struct console_state* state);
+void console_shutdown (struct console_state *state);
 
 /**
  * @brief Registers a console consumer with the console system.
@@ -88,9 +88,9 @@ void console_shutdown(struct console_state* state);
  * @param inst Instance information to pass along with the consumer.
  * @param callback The callback to be made on console write.
  */
-KAPI void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id);
+KAPI void console_consumer_register (void *inst, PFN_console_consumer_write callback, u8 *out_consumer_id);
 
-KAPI void console_consumer_unregister(u8 consumer_id);
+KAPI void console_consumer_unregister (u8 consumer_id);
 /**
  * @brief Updates the instance and callback for the consumer with the given identifier.
  *
@@ -98,7 +98,7 @@ KAPI void console_consumer_unregister(u8 consumer_id);
  * @param inst The consumer instance.
  * @param callback The new callback function.
  */
-KAPI void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_write callback);
+KAPI void console_consumer_update (u8 consumer_id, void *inst, PFN_console_consumer_write callback);
 
 /**
  * @brief Called internally by the logging system to write a new line
@@ -107,7 +107,7 @@ KAPI void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consum
  * @param level The logging level.
  * @param message The message to be written.
  */
-void console_write(log_level level, const char* message);
+void console_write (log_level level, const char *message);
 
 /**
  * @brief Registers a console command with the console system.
@@ -119,7 +119,7 @@ void console_write(log_level level, const char* message);
  * @param func The function pointer to be invoked.
  * @return True on success; otherwise false.
  */
-KAPI b8 console_command_register(const char* command, u8 min_arg_count, u8 max_arg_count, void* listener, PFN_console_command func);
+KAPI b8 console_command_register (const char *command, u8 min_arg_count, u8 max_arg_count, void *listener, PFN_console_command func);
 
 /**
  * @brief Unregisters the given command.
@@ -127,7 +127,7 @@ KAPI b8 console_command_register(const char* command, u8 min_arg_count, u8 max_a
  * @param command The name of the command to be unregistered.
  * @return True on success; otherwise false.
  */
-KAPI b8 console_command_unregister(const char* command);
+KAPI b8 console_command_unregister (const char *command);
 
 /**
  * @brief Executes a console command.
@@ -135,7 +135,7 @@ KAPI b8 console_command_unregister(const char* command);
  * @param command The command, including arguments separated by spaces. ex: "kvar_int_set test_var 4"
  * @return True on success; otherwise false.
  */
-KAPI b8 console_command_execute(const char* command);
+KAPI b8 console_command_execute (const char *command);
 
 typedef enum console_object_type {
 	CONSOLE_OBJECT_TYPE_INT32,
@@ -145,10 +145,10 @@ typedef enum console_object_type {
 	CONSOLE_OBJECT_TYPE_STRUCT
 } console_object_type;
 
-KAPI b8 console_object_register(const char* object_name, void* object, console_object_type type);
+KAPI b8 console_object_register (const char *object_name, void *object, console_object_type type);
 
-KAPI b8 console_object_unregister(const char* object_name);
+KAPI b8 console_object_unregister (const char *object_name);
 
-KAPI b8 console_object_add_property(const char* object_name, const char* property_name, void* property, console_object_type type);
+KAPI b8 console_object_add_property (const char *object_name, const char *property_name, void *property, console_object_type type);
 
-KAPI b8 console_object_remove_property(const char* object_name, const char* property_name);
+KAPI b8 console_object_remove_property (const char *object_name, const char *property_name);

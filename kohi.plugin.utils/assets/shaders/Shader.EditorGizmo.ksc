@@ -4,8 +4,8 @@ depth_test=true
 depth_write=true
 
 topology_types = [
-    "line_list"
-    "triangle_list"
+	"line_list"
+	"triangle_list"
 ]
 
 attachments = {
@@ -54,16 +54,15 @@ pipelines = [
 ]
 
 binding_sets = [
-    {
-        name = "Colour3D global binding set"
-        max_instance_count = 1
-        bindings = [
-            {
-                name = "Colour3D global UBO"
-                type = "UBO"
-                data_size = 128
-            }
-        ]
-    }
+	{
+		name = "Colour3D global binding set"
+		max_instance_count = 1
+		bindings = [
+			{
+				name = "Kohi.StorageBuffer.MatrixGlobal"
+				type = "storage"
+			}
+		]
+	}
 ]
 

@@ -11,14 +11,14 @@ typedef struct asset_manifest_asset {
 
 	// The full path to the asset relative to the runtime.
 	// TODO: If loaded from binary, this might be null?
-	const char* path;
+	const char *path;
 	// The full path to the source asset relative to the runtime.
-	const char* source_path;
+	const char *source_path;
 
 	// The full path to the asset relative to the package.
-	const char* local_path;
+	const char *local_path;
 	// The full path to the source asset relative to the package.
-	const char* local_source_path;
+	const char *local_source_path;
 } asset_manifest_asset;
 
 /**
@@ -26,21 +26,21 @@ typedef struct asset_manifest_asset {
  */
 typedef struct asset_manifest_reference {
 	kname name;
-	const char* path;
+	const char *path;
 } asset_manifest_reference;
 
 typedef struct asset_manifest {
 	kname name;
 	// Path to .kpackage file. Null if loading from disk.
-	const char* file_path;
+	const char *file_path;
 	// Path containing the .kpackage file, without the filename itself.
-	const char* path;
+	const char *path;
 
 	// darray
-	asset_manifest_asset* assets;
+	asset_manifest_asset *assets;
 
 	// darray
-	asset_manifest_reference* references;
+	asset_manifest_reference *references;
 } asset_manifest;
 
 struct kpackage_internal;
@@ -48,8 +48,8 @@ struct kpackage_internal;
 typedef struct kpackage {
 	kname name;
 	b8 is_binary;
-	const char* manifest_file_path;
-	struct kpackage_internal* internal_data;
+	const char *manifest_file_path;
+	struct kpackage_internal *internal_data;
 } kpackage;
 
 typedef enum kpackage_result {
@@ -58,15 +58,15 @@ typedef enum kpackage_result {
 	KPACKAGE_RESULT_INTERNAL_FAILURE
 } kpackage_result;
 
-KAPI b8 kpackage_create_from_manifest(const char* manifest_file_path, const asset_manifest* manifest, kpackage* out_package);
-KAPI b8 kpackage_create_from_binary(u64 size, void* bytes, kpackage* out_package);
-KAPI void kpackage_destroy(kpackage* package);
+KAPI b8 kpackage_create_from_manifest (const char *manifest_file_path, const asset_manifest *manifest, kpackage *out_package);
+KAPI b8 kpackage_create_from_binary (u64 size, void *bytes, kpackage *out_package);
+KAPI void kpackage_destroy (kpackage *package);
 
 // NOTE: array is dynamically allocated and must be freed by the caller.
-KAPI kname* kpackage_asset_names_by_type(const kpackage* package, kasset_type type, u32* out_count);
+KAPI kname *kpackage_asset_names_by_type (const kpackage *package, kasset_type type, u32 *out_count);
 
-KAPI kpackage_result kpackage_asset_bytes_get(const kpackage* package, kname name, u64* out_size, const void** out_data);
-KAPI kpackage_result kpackage_asset_text_get(const kpackage* package, kname name, u64* out_size, const char** out_text);
+KAPI kpackage_result kpackage_asset_bytes_get (const kpackage *package, kname name, u64 *out_size, const void **out_data);
+KAPI kpackage_result kpackage_asset_text_get (const kpackage *package, kname name, u64 *out_size, const char **out_text);
 
 /**
  * Attempts to retrieve the path string for the given asset within the provided package.
@@ -76,7 +76,7 @@ KAPI kpackage_result kpackage_asset_text_get(const kpackage* package, kname name
  * @param name The name of the asset to search for.
  * @returns A copy of the path string, if found. Otherwise 0/null.
  */
-KAPI const char* kpackage_path_for_asset(const kpackage* package, kname name);
+KAPI const char *kpackage_path_for_asset (const kpackage *package, kname name);
 
 /**
  * Attempts to retrieve the source path string for the given asset within the provided package.
@@ -86,15 +86,15 @@ KAPI const char* kpackage_path_for_asset(const kpackage* package, kname name);
  * @param name The name of the asset to search for.
  * @returns A copy of the source path string, if found. Otherwise 0/null.
  */
-KAPI const char* kpackage_source_path_for_asset(const kpackage* package, kname name);
+KAPI const char *kpackage_source_path_for_asset (const kpackage *package, kname name);
 
-KAPI b8 kpackage_asset_bytes_write(kpackage* package, kname name, u64 size, const void* bytes);
-KAPI b8 kpackage_asset_text_write(kpackage* package, kname name, u64 size, const char* text);
+KAPI b8 kpackage_asset_bytes_write (kpackage *package, kname name, u64 size, const void *bytes);
+KAPI b8 kpackage_asset_text_write (kpackage *package, kname name, u64 size, const char *text);
 
-KAPI b8 kpackage_parse_manifest_file_content(const char* path, asset_manifest* out_manifest);
-KAPI void kpackage_manifest_destroy(asset_manifest* manifest);
+KAPI b8 kpackage_parse_manifest_file_content (const char *path, asset_manifest *out_manifest);
+KAPI void kpackage_manifest_destroy (asset_manifest *manifest);
 
 #if KOHI_DEBUG
-KAPI b8 kpackage_add_asset(kpackage* package, const asset_manifest_asset* asset);
-KAPI b8 kpackage_save(kpackage* package);
+KAPI b8 kpackage_add_asset (kpackage *package, const asset_manifest_asset *asset);
+KAPI b8 kpackage_save (kpackage *package);
 #endif

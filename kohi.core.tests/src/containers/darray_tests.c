@@ -10,19 +10,19 @@
 static linear_allocator alloc;
 static frame_allocator_int frame_allocator;
 
-static void* fn_alloc(u64 size) {
+static void *fn_alloc (u64 size) {
 	return linear_allocator_allocate(&alloc, size);
 }
 
-static void fn_free(void* block, u64 size) {
+static void fn_free (void *block, u64 size) {
 	// NOTE: intentional No-op here.
 }
 
-static void fn_free_all(void) {
+static void fn_free_all (void) {
 	linear_allocator_free_all(&alloc, true);
 }
 
-static void setup_frame_allocator(void) {
+static void setup_frame_allocator (void) {
 	// Setup a linear allocator. The allocator can own its memory.
 	linear_allocator_create(1024 * 1024 * 20, 0, &alloc);
 
@@ -32,14 +32,14 @@ static void setup_frame_allocator(void) {
 	frame_allocator.free_all = fn_free_all;
 }
 
-static void destroy_frame_allocator(void) {
+static void destroy_frame_allocator (void) {
 	linear_allocator_destroy(&alloc);
 	frame_allocator.allocate = 0;
 	frame_allocator.free = 0;
 	frame_allocator.free_all = 0;
 }
 
-static u8 all_darray_tests_after_create(void) {
+static u8 all_darray_tests_after_create (void) {
 	// Test a basic type first.
 
 	darray_u8 arr = darray_u8_create();
@@ -51,7 +51,7 @@ static u8 all_darray_tests_after_create(void) {
 	expect_should_be(0, arr.base.allocator);
 
 	// Push and validate content [69], length = 1, capacity = 1
-	darray_u8* returned = darray_u8_push(&arr, 69);
+	darray_u8 *returned = darray_u8_push(&arr, 69);
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(1, arr.base.capacity);
@@ -258,7 +258,7 @@ static u8 all_darray_tests_after_create(void) {
 	return true;
 }
 
-static u8 all_darray_tests_after_reserve_3(void) {
+static u8 all_darray_tests_after_reserve_3 (void) {
 	// Test a basic type first.
 
 	darray_u8 arr = darray_u8_reserve(3);
@@ -270,7 +270,7 @@ static u8 all_darray_tests_after_reserve_3(void) {
 	expect_should_be(0, arr.base.allocator);
 
 	// Push and validate content [69], length = 1, capacity = 3
-	darray_u8* returned = darray_u8_push(&arr, 69);
+	darray_u8 *returned = darray_u8_push(&arr, 69);
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(3, arr.base.capacity);
@@ -487,7 +487,7 @@ static u8 all_darray_tests_after_reserve_3(void) {
 	return true;
 }
 
-static u8 all_darray_tests_after_create_custom_allocator(void) {
+static u8 all_darray_tests_after_create_custom_allocator (void) {
 	setup_frame_allocator();
 
 	darray_u8 arr = darray_u8_create_with_allocator(&frame_allocator);
@@ -499,7 +499,7 @@ static u8 all_darray_tests_after_create_custom_allocator(void) {
 	expect_should_be(&frame_allocator, arr.base.allocator);
 
 	// Push and validate content [69], length = 1, capacity = 1
-	darray_u8* returned = darray_u8_push(&arr, 69);
+	darray_u8 *returned = darray_u8_push(&arr, 69);
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(1, arr.base.capacity);
@@ -708,7 +708,7 @@ static u8 all_darray_tests_after_create_custom_allocator(void) {
 	return true;
 }
 
-static u8 all_darray_tests_after_reserve_3_with_allocator(void) {
+static u8 all_darray_tests_after_reserve_3_with_allocator (void) {
 	setup_frame_allocator();
 
 	darray_u8 arr = darray_u8_reserve_with_allocator(3, &frame_allocator);
@@ -720,7 +720,7 @@ static u8 all_darray_tests_after_reserve_3_with_allocator(void) {
 	expect_should_be(&frame_allocator, arr.base.allocator);
 
 	// Push and validate content [69], length = 1, capacity = 3
-	darray_u8* returned = darray_u8_push(&arr, 69);
+	darray_u8 *returned = darray_u8_push(&arr, 69);
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(3, arr.base.capacity);
@@ -945,7 +945,7 @@ static u8 all_darray_tests_after_reserve_3_with_allocator(void) {
 	return true;
 }
 
-static u8 darray_all_iterator_tests(void) {
+static u8 darray_all_iterator_tests (void) {
 
 	darray_iterator it;
 	u32 loop_count = 0;
@@ -982,7 +982,7 @@ static u8 darray_all_iterator_tests(void) {
 	}
 
 	// Push and validate content [69], length = 1, capacity = 1
-	darray_u8* returned = darray_u8_push(&arr, 69);
+	darray_u8 *returned = darray_u8_push(&arr, 69);
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(1, arr.base.capacity);
@@ -999,7 +999,7 @@ static u8 darray_all_iterator_tests(void) {
 		expect_should_be(1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			}
@@ -1014,7 +1014,7 @@ static u8 darray_all_iterator_tests(void) {
 		expect_should_be(-1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			}
@@ -1041,7 +1041,7 @@ static u8 darray_all_iterator_tests(void) {
 		expect_should_be(1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = (u8*)it.value(&it);
+			u8 *val = (u8 *)it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 1) {
@@ -1058,7 +1058,7 @@ static u8 darray_all_iterator_tests(void) {
 		expect_should_be(-1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 1) {
@@ -1088,7 +1088,7 @@ static u8 darray_all_iterator_tests(void) {
 		expect_should_be(1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 1) {
@@ -1108,7 +1108,7 @@ static u8 darray_all_iterator_tests(void) {
 		expect_should_be(-1, it.dir);
 		loop_count = 0;
 		for (; !it.end(&it); it.next(&it)) {
-			u8* val = it.value(&it);
+			u8 *val = it.value(&it);
 			if (it.pos == 0) {
 				expect_should_be(69, *val);
 			} else if (it.pos == 1) {
@@ -1127,22 +1127,22 @@ static u8 darray_all_iterator_tests(void) {
 	return true;
 }
 
-static u8 darray_string_type_test(void) {
+static u8 darray_string_type_test (void) {
 
 	darray_string arr = darray_string_create();
 	// Verify that the memory was assigned.
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(0, arr.base.length);
 	expect_should_be(1, arr.base.capacity);
-	expect_should_be(sizeof(const char*), arr.base.stride);
+	expect_should_be(sizeof(const char *), arr.base.stride);
 	expect_should_be(0, arr.base.allocator);
 
 	// Push and validate content ["test"], length = 1, capacity = 1
-	darray_string* returned = darray_string_push(&arr, "test");
+	darray_string *returned = darray_string_push(&arr, "test");
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(1, arr.base.capacity);
-	expect_should_be(sizeof(const char*), arr.base.stride);
+	expect_should_be(sizeof(const char *), arr.base.stride);
 	expect_should_be(0, arr.base.allocator);
 	expect_should_be(&arr, returned);
 	expect_string_to_be("test", arr.data[0]);
@@ -1152,7 +1152,7 @@ static u8 darray_string_type_test(void) {
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(2, arr.base.length);
 	expect_should_be(2, arr.base.capacity);
-	expect_should_be(sizeof(const char*), arr.base.stride);
+	expect_should_be(sizeof(const char *), arr.base.stride);
 	expect_should_be(0, arr.base.allocator);
 	expect_string_to_be("test", arr.data[0]);
 	expect_string_to_be("something else", arr.data[1]);
@@ -1162,7 +1162,7 @@ static u8 darray_string_type_test(void) {
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(3, arr.base.length);
 	expect_should_be(4, arr.base.capacity);
-	expect_should_be(sizeof(const char*), arr.base.stride);
+	expect_should_be(sizeof(const char *), arr.base.stride);
 	expect_should_be(0, arr.base.allocator);
 	expect_string_to_be("test", arr.data[0]);
 	expect_string_to_be("something else", arr.data[1]);
@@ -1173,7 +1173,7 @@ static u8 darray_string_type_test(void) {
 	return true;
 }
 
-static u8 darray_float_type_test(void) {
+static u8 darray_float_type_test (void) {
 
 	darray_f32 arr = darray_f32_create();
 	// Verify that the memory was assigned.
@@ -1184,7 +1184,7 @@ static u8 darray_float_type_test(void) {
 	expect_should_be(0, arr.base.allocator);
 
 	// Push and validate content [0.1f], length = 1, capacity = 1
-	darray_f32* returned = darray_f32_push(&arr, 0.1f);
+	darray_f32 *returned = darray_f32_push(&arr, 0.1f);
 	expect_should_not_be(arr.data, 0);
 	expect_should_be(1, arr.base.length);
 	expect_should_be(1, arr.base.capacity);
@@ -1219,7 +1219,7 @@ static u8 darray_float_type_test(void) {
 	return true;
 }
 
-void darray_register_tests(void) {
+void darray_register_tests (void) {
 	test_manager_register_test(all_darray_tests_after_create, "All darray tests after create");
 	test_manager_register_test(all_darray_tests_after_reserve_3, "All darray tests after reserve(3)");
 	test_manager_register_test(all_darray_tests_after_create_custom_allocator, "All darray tests after create with frame allocator");

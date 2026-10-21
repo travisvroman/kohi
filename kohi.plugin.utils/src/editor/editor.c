@@ -1,163 +1,171 @@
 #include "editor.h"
 
-#include "assets/kasset_types.h"
-#include "audio/audio_frontend.h"
-#include "controls/checkbox_control.h"
-#include "controls/image_box_control.h"
-#include "controls/kui_scrollable.h"
-#include "controls/kui_tree_item.h"
-#include "core/event.h"
-#include "core/keymap.h"
-#include "core_render_types.h"
-#include "core_resource_types.h"
-#include "debug/kassert.h"
-#include "defines.h"
-#include "editor/editor_gizmo.h"
-#include "editor/texture_browser.h"
-#include "input_types.h"
-#include "kui_system.h"
-#include "kui_types.h"
-#include "math/geometry.h"
-#include "math/geometry_2d.h"
-#include "math/math_types.h"
-#include "memory/kmemory.h"
-#include "platform/kpackage.h"
-#include "platform/vfs.h"
-#include "plugins/plugin_types.h"
-#include "renderer/renderer_frontend.h"
-#include "renderer/renderer_types.h"
-#include "runtime_defines.h"
-#include "strings/kname.h"
-#include "strings/kstring.h"
-#include "strings/kstring_id.h"
-#include "systems/asset_system.h"
-#include "systems/font_system.h"
-#include "systems/kcamera_system.h"
-#include "systems/kshader_system.h"
-#include "systems/plugin_system.h"
-#include "systems/texture_system.h"
-#include "utils/kcolour.h"
-#include "utils_plugin_defines.h"
-#include "world/heightfield_terrain.h"
-#include "world/kscene.h"
-#include "world/world_types.h"
-#include "world/world_utils.h"
-
+// Core
+#include <assets/kasset_types.h>
 #include <containers/darray.h>
+#include <core_render_types.h>
+#include <debug/kassert.h>
+#include <defines.h>
+#include <input_types.h>
+#include <logger.h>
+#include <math/geometry.h>
+#include <math/geometry_2d.h>
+#include <math/kmath.h>
+#include <math/math_types.h>
+#include <memory/kmemory.h>
+#include <platform/platform.h>
+#include <strings/kname.h>
+#include <strings/kstring.h>
+#include <strings/kstring_id.h>
+#include <utils/ksort.h>
+
+// Runtime
+#include <audio/audio_frontend.h>
+#include <core/console.h>
+#include <core/engine.h>
+#include <core/event.h>
+#include <core/keymap.h>
+#include <plugins/plugin_types.h>
+#include <renderer/renderer_frontend.h>
+#include <renderer/renderer_types.h>
+#include <runtime_defines.h>
+#include <systems/asset_system.h>
+#include <systems/font_system.h>
+#include <systems/kcamera_system.h>
+#include <systems/kmatrix_system.h>
+#include <systems/kshader_system.h>
+#include <systems/ktimeline_system.h>
+#include <systems/plugin_system.h>
+#include <systems/texture_system.h>
+#include <world/heightfield_terrain.h>
+#include <world/kscene.h>
+#include <world/world_types.h>
+#include <world/world_utils.h>
+
+// KUI plugin
+#include <controls/checkbox_control.h>
+#include <controls/image_box_control.h>
 #include <controls/kui_button.h>
 #include <controls/kui_label.h>
 #include <controls/kui_panel.h>
+#include <controls/kui_scrollable.h>
 #include <controls/kui_textbox.h>
-#include <core/console.h>
-#include <core/engine.h>
+#include <controls/kui_tree_item.h>
 #include <kui_plugin_main.h>
-#include <math/kmath.h>
-#include <platform/platform.h>
-#include <renderer/renderer_frontend.h>
-#include <systems/ktimeline_system.h>
-#include <utils/ksort.h>
+#include <kui_system.h>
+#include <kui_types.h>
 
-#include <logger.h>
-
-typedef struct editor_gizmo_global_ubo {
-	mat4 projection;
-	mat4 view;
-} editor_gizmo_global_ubo;
+// Utils plugin
+#include "editor/editor_gizmo.h"
+#include "editor/texture_browser.h"
+#include "utils_plugin_defines.h"
 
 typedef struct editor_gizmo_immediate_data {
-	mat4 model;
+	// Offsets into the matrix SSBO per type.
+	u32 mat_ssbo_view_offset;
+	u32 mat_ssbo_proj_offset;
+	u32 mat_ssbo_tran_offset;
+	u32 mat_ssbo_genc_offset;
+	// Indices into the matrix SSBO, offset by above types.
+	u32 view_index;
+	u32 projection_index;
+	u32 model_index;
+	u32 padding;
 } editor_gizmo_immediate_data;
 
 typedef struct hf_terrain_material_imagebox_context {
-	editor_state* editor;
+	editor_state *editor;
 	u8 material_index;
 	hf_terrain_material_map map;
 } hf_terrain_material_imagebox_context;
 
 typedef struct hf_terrain_chunk_material_context {
-	editor_state* editor;
+	editor_state *editor;
 	u8 material_slot;
 } hf_terrain_chunk_material_context;
 
-static f32 get_engine_delta_time(void);
-static f32 get_engine_total_time(void);
-static b8 editor_has_focused_control(editor_state* editor);
+static f32 get_engine_delta_time (void);
+static f32 get_engine_total_time (void);
+static b8 editor_has_focused_control (editor_state *editor);
 
 // General editor movement/interaction
-static void save_scene(const struct kscene* scene, kname package_name, kname asset_name);
-static void zoom_extents(struct editor_state* state);
-static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_context context);
-static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_context context);
+static void save_scene (const struct kscene *scene, kname package_name, kname asset_name);
+static void zoom_extents (struct editor_state *state);
+static b8 editor_on_mouse_move (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 editor_on_drag (u16 code, void *sender, void *listener_inst, event_context context);
+static b8 editor_on_button (u16 code, void *sender, void *listener_inst, event_context context);
 
-static void editor_command_execute(console_command_context context);
+static void editor_command_execute (console_command_context context);
 
-static void editor_register_events(struct editor_state* state);
-static void editor_unregister_events(struct editor_state* state);
-static void editor_register_commands(struct editor_state* state);
-static void editor_unregister_commands(struct editor_state* state);
+static void editor_register_events (struct editor_state *state);
+static void editor_unregister_events (struct editor_state *state);
+static void editor_register_commands (struct editor_state *state);
+static void editor_unregister_commands (struct editor_state *state);
 
 // "Main menu" and/or mode buttons.
-static b8 save_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 mode_hf_terrain_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 texture_browser_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static b8 save_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 mode_scene_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 mode_entity_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 mode_tree_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 mode_hf_terrain_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 texture_browser_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
 
 // Editor options
-static void show_bvh_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
-static void show_grid_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
-static void show_debug_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
-static void scene_visibility_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
+static void show_bvh_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
+static void show_grid_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
+static void show_debug_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
+static void scene_visibility_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
 
 // Scene editor controls
-static void scene_name_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void scene_fog_colour_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static void scene_name_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void scene_fog_colour_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
 
 // Entity editor controls
-static void entity_name_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_position_x_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_position_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_position_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_orientation_x_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_orientation_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_orientation_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_orientation_w_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_scale_x_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_scale_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void entity_scale_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static void entity_name_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_position_x_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_position_y_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_position_z_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_orientation_x_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_orientation_y_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_orientation_z_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_orientation_w_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_scale_x_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_scale_y_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void entity_scale_z_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
 
 // Tree view controls
-static void tree_clear(editor_state* state);
-static void tree_refresh(editor_state* state);
-static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 tree_item_expanded(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 tree_item_collapsed(struct kui_state* state, kui_control self, struct kui_mouse_event event);
+static void tree_clear (editor_state *state);
+static void tree_refresh (editor_state *state);
+static b8 tree_item_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 tree_item_expanded (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 tree_item_collapsed (struct kui_state *state, kui_control self, struct kui_mouse_event event);
 
 // HF Terrain editor controls
-static b8 hft_save_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static b8 hft_material_imagebox_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event);
-static void hft_paint_brush_diameter_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void hft_paint_brush_strength_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void hft_paint_material_index_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static b8 hft_save_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static b8 hft_material_imagebox_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event);
+static void hft_paint_brush_diameter_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void hft_paint_brush_strength_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void hft_paint_material_index_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
 
-static void hft_elevation_diameter_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
-static void hft_elevation_amount_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static void hft_elevation_diameter_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
+static void hft_elevation_amount_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
 
-static void hf_terrain_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
-static void hf_terrain_erase_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
-static void hf_terrain_set_height_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event);
+static void hf_terrain_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
+static void hf_terrain_erase_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
+static void hf_terrain_set_height_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event);
 
-static void hft_chunk_material_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt);
+static void hft_chunk_material_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt);
 
-b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname game_package_name) {
+b8 editor_initialize (u64 *memory_requirement, struct editor_state *state, kname game_package_name) {
 	*memory_requirement = sizeof(editor_state);
 	if (!state) {
 		return true;
 	}
 
 	state->game_package_name = game_package_name;
+
+	state->matrix_system = engine_systems_get()->matrix_system;
+	state->default_identity_matrix_id = kmatrix_system_add(state->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
 
 	// Setup gizmo.
 	if (!editor_gizmo_create(&state->gizmo)) {
@@ -211,8 +219,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 
 	state->selection_list = darray_create(kentity);
 
-	kruntime_plugin* kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.kui");
-	kui_state* kui_state = ((kui_plugin_state*)kui_plugin->plugin_state)->state;
+	kruntime_plugin *kui_plugin = plugin_system_get(engine_systems_get()->plugin_system, "kohi.plugin.ui.kui");
+	kui_state *kui_state = ((kui_plugin_state *)kui_plugin->plugin_state)->state;
 	state->kui_state = kui_state;
 
 	// UI elements. Create/load them all up here.
@@ -650,8 +658,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 			for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
 				// Label
 				{
-					char* name = string_format("hft_general_material_name_%u", i);
-					char* text = string_format("Material %u", i);
+					char *name = string_format("hft_general_material_name_%u", i);
+					char *text = string_format("Material %u", i);
 					state->hft_general_material_names[i] = kui_label_control_create(state->kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
 					string_free(name);
 					string_free(text);
@@ -660,10 +668,10 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 				}
 				// Albedo
 				{
-					char* name = string_format("hft_general_material_albedo_image_box_%u", i);
+					char *name = string_format("hft_general_material_albedo_image_box_%u", i);
 					state->hft_general_material_albedo_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
 					string_free(name);
-					hf_terrain_material_imagebox_context* context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
+					hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
 					context->editor = state;
 					context->material_index = i;
 					context->map = HF_TERRAIN_MATERIAL_MAP_ALBEDO;
@@ -674,10 +682,10 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 				}
 				// Normal
 				{
-					char* name = string_format("hft_general_material_normal_image_box_%u", i);
+					char *name = string_format("hft_general_material_normal_image_box_%u", i);
 					state->hft_general_material_normal_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
 					string_free(name);
-					hf_terrain_material_imagebox_context* context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
+					hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
 					context->editor = state;
 					context->material_index = i;
 					context->map = HF_TERRAIN_MATERIAL_MAP_NORMAL;
@@ -688,10 +696,10 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 				}
 				// MRA
 				{
-					char* name = string_format("hft_general_material_mra_image_box_%u", i);
+					char *name = string_format("hft_general_material_mra_image_box_%u", i);
 					state->hft_general_material_mra_image_boxes[i] = kui_image_box_control_create(state->kui_state, name, (vec2i){imagebox_size, imagebox_size});
 					string_free(name);
-					hf_terrain_material_imagebox_context* context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
+					hf_terrain_material_imagebox_context *context = KALLOC_TYPE(hf_terrain_material_imagebox_context, MEMORY_TAG_EDITOR);
 					context->editor = state;
 					context->material_index = i;
 					context->map = HF_TERRAIN_MATERIAL_MAP_MRA;
@@ -846,8 +854,8 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 				f32 ypos = i * 50.0f;
 
 				// Material label
-				char* name = string_format("hft_chunk_material_labels[%u]", i);
-				char* text = string_format("Slot %u", i);
+				char *name = string_format("hft_chunk_material_labels[%u]", i);
+				char *text = string_format("Slot %u", i);
 				state->hft_chunk_material_labels[i] = kui_label_control_create(kui_state, name, FONT_TYPE_SYSTEM, state->font_name, state->font_size, text);
 				string_free(name);
 				string_free(text);
@@ -862,7 +870,7 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 				kui_control_position_set(kui_state, state->hft_chunk_material_textboxes[i], (vec3){state->hf_terrain_right_col_x, ypos, 0});
 				KASSERT(kui_textbox_control_width_set(kui_state, state->hft_chunk_material_textboxes[i], 40));
 
-				hf_terrain_chunk_material_context* ctrl_context = KALLOC_TYPE(hf_terrain_chunk_material_context, MEMORY_TAG_EDITOR);
+				hf_terrain_chunk_material_context *ctrl_context = KALLOC_TYPE(hf_terrain_chunk_material_context, MEMORY_TAG_EDITOR);
 				ctrl_context->editor = state;
 				ctrl_context->material_slot = i;
 				kui_control_set_user_data(kui_state, state->hft_chunk_material_textboxes[i], sizeof(*ctrl_context), ctrl_context, true, MEMORY_TAG_EDITOR);
@@ -898,11 +906,21 @@ b8 editor_initialize(u64* memory_requirement, struct editor_state* state, kname 
 			.textbox_font_name = state->textbox_font_name};
 		texture_browser_create(&state->tex_browser, create_info);
 	}
+
+	// Listing of editor base controls.
+	for (u16 i = 0; i < EDITOR_MODE_MAX; ++i) {
+		state->base_mode_controls[i] = INVALID_KUI_CONTROL;
+	}
+	state->base_mode_controls[EDITOR_MODE_SCENE] = state->scene_inspector_bg_panel;
+	state->base_mode_controls[EDITOR_MODE_ENTITY] = state->entity_inspector_bg_panel;
+	state->base_mode_controls[EDITOR_MODE_TREE] = state->tree_inspector_bg_panel;
+	state->base_mode_controls[EDITOR_MODE_HF_TERRAIN] = state->hf_terrain_bg_panel;
+
 	state->is_running = true;
 
 	return true;
 }
-void editor_shutdown(struct editor_state* state) {
+void editor_shutdown (struct editor_state *state) {
 
 	editor_gizmo_destroy(&state->gizmo);
 
@@ -926,8 +944,8 @@ void editor_shutdown(struct editor_state* state) {
 	}
 }
 
-b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package_name) {
-	kasset_text* scene_asset = asset_system_request_text_from_package_sync(
+b8 editor_open (struct editor_state *state, kname scene_name, kname scene_package_name) {
+	kasset_text *scene_asset = asset_system_request_text_from_package_sync(
 		engine_systems_get()->asset_state,
 		kname_string_get(scene_package_name),
 		kname_string_get(scene_name));
@@ -961,7 +979,7 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 	kui_checkbox_set_checked(state->kui_state, state->view_skybox_checkbox, kscene_get_flag(state->edit_scene, KSCENE_FLAG_RENDER_SKYBOX_BIT));
 	kui_checkbox_set_checked(state->kui_state, state->view_fog_checkbox, kscene_get_flag(state->edit_scene, KSCENE_FLAG_RENDER_FOG_BIT));
 
-	const char* scene_name_str = kscene_get_name(state->edit_scene);
+	const char *scene_name_str = kscene_get_name(state->edit_scene);
 	kui_textbox_text_set(state->kui_state, state->scene_name_textbox, scene_name_str ? scene_name_str : "");
 	colour4 fog_colour = kscene_get_fog_colour(state->edit_scene);
 	kui_textbox_f32_set(state->kui_state, state->scene_fog_colour_r_textbox, fog_colour.r);
@@ -971,7 +989,7 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 
 	// Setup terrain material controls.
 	u8 material_count = 0;
-	hf_terrain_material_data* materials = kscene_get_hf_terrain_materials(state->edit_scene, &material_count);
+	hf_terrain_material_data *materials = kscene_get_hf_terrain_materials(state->edit_scene, &material_count);
 	for (u8 i = 0; i < HF_TERRAIN_MAX_MATERIALS; ++i) {
 		// Material name.
 		kstring_id name_strid = i < material_count ? materials[i].name : INVALID_KSTRING_ID;
@@ -993,7 +1011,7 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 			kui_image_box_control_texture_set_by_name(state->kui_state, state->hft_general_material_mra_image_boxes[i], asset_name, package_name);
 		}
 	}
-	KFREE_TYPE_CARRAY(materials, hf_terrain_material_data, material_count);
+	kfree(materials);
 
 	// If opened successfully, change keymaps.
 	if (!input_keymap_pop()) {
@@ -1016,7 +1034,7 @@ b8 editor_open(struct editor_state* state, kname scene_name, kname scene_package
 	return true;
 }
 
-b8 editor_close(struct editor_state* state) {
+b8 editor_close (struct editor_state *state) {
 	// TODO: dirty check. If dirty, return false here. May need some sort of callback to
 	// allow a "this is saved, now we can close" function.
 
@@ -1043,36 +1061,28 @@ b8 editor_close(struct editor_state* state) {
 	return true;
 }
 
-kui_control get_inspector_base_for_mode(struct editor_state* state, editor_mode mode) {
-	switch (mode) {
-	case EDITOR_MODE_SCENE:
-		return state->scene_inspector_bg_panel;
-	case EDITOR_MODE_ENTITY:
-		return state->entity_inspector_bg_panel;
-	case EDITOR_MODE_TREE:
-		return state->tree_inspector_bg_panel;
-	case EDITOR_MODE_HF_TERRAIN:
-		return state->hf_terrain_bg_panel;
-	case EDITOR_MODE_ASSETS:
-		// TODO: other types
-		return INVALID_KUI_CONTROL;
-	}
+static kui_control get_inspector_base_for_mode (struct editor_state *state, u16 mode) {
+	return state->base_mode_controls[mode];
 }
 
-void editor_set_mode(struct editor_state* state, editor_mode mode) {
+void editor_set_mode (struct editor_state *state, u16 mode) {
 	// Disable current window
 	kui_control window = get_inspector_base_for_mode(state, state->mode);
-	kui_control_set_is_visible(state->kui_state, window, false);
-	kui_control_set_is_active(state->kui_state, window, false);
+	if (window.val != INVALID_KUI_CONTROL.val) {
+		kui_control_set_is_visible(state->kui_state, window, false);
+		kui_control_set_is_active(state->kui_state, window, false);
+	}
 
 	// Set mode an enable the new.
 	state->mode = mode;
 	window = get_inspector_base_for_mode(state, state->mode);
-	kui_control_set_is_visible(state->kui_state, window, true);
-	kui_control_set_is_active(state->kui_state, window, true);
+	if (window.val != INVALID_KUI_CONTROL.val) {
+		kui_control_set_is_visible(state->kui_state, window, true);
+		kui_control_set_is_active(state->kui_state, window, true);
+	}
 }
 
-void editor_clear_selected_entities(struct editor_state* state) {
+void editor_clear_selected_entities (struct editor_state *state) {
 	darray_clear(state->selection_list);
 	state->gizmo.selected_transform = KTRANSFORM_INVALID;
 	KTRACE("Selection cleared.");
@@ -1098,20 +1108,20 @@ void editor_clear_selected_entities(struct editor_state* state) {
 	kui_textbox_text_set(state->kui_state, state->entity_scale_z_textbox, "");
 }
 
-void editor_select_entities(struct editor_state* state, u32 count, kentity* entities) {
+void editor_select_entities (struct editor_state *state, u32 count, kentity *entities) {
 	editor_clear_selected_entities(state);
 
 	editor_add_to_selected_entities(state, count, entities);
 }
 
-void editor_add_to_selected_entities(struct editor_state* state, u32 count, kentity* entities) {
+void editor_add_to_selected_entities (struct editor_state *state, u32 count, kentity *entities) {
 
 	for (u32 s = 0; s < count; ++s) {
 		kentity entity = entities[s];
 		kname name = kscene_get_entity_name(state->edit_scene, entity);
 		KINFO("Selection [%u]: '%s'", s, kname_string_get(name));
 		if (!editor_selection_contains(state, entity)) {
-			darray_push(state->selection_list, entity);
+			darray_push(state->selection_list, &entity);
 		}
 	}
 
@@ -1124,13 +1134,13 @@ void editor_add_to_selected_entities(struct editor_state* state, u32 count, kent
 	// and apply the modifications to transforms individually, but together.
 
 	// Update inspector controls.
-	const char* type_str = kentity_type_to_string(kentity_unpack_type(state->selection_list[0]));
-	char* title_str = string_format("Entity (%s)", type_str);
+	const char *type_str = kentity_type_to_string(kentity_unpack_type(state->selection_list[0]));
+	char *title_str = string_format("Entity (%s)", type_str);
 	kui_label_text_set(state->kui_state, state->entity_inspector_title, title_str);
 	string_free(title_str);
 
 	kname name = kscene_get_entity_name(state->edit_scene, state->selection_list[0]);
-	const char* name_str = kname_string_get(name);
+	const char *name_str = kname_string_get(name);
 	kui_textbox_text_set(state->kui_state, state->entity_name_textbox, name_str ? name_str : "");
 
 	// Update inspector position controls.
@@ -1157,7 +1167,7 @@ void editor_add_to_selected_entities(struct editor_state* state, u32 count, kent
 	}
 }
 
-void editor_select_parent(struct editor_state* state) {
+void editor_select_parent (struct editor_state *state) {
 	u32 count = darray_length(state->selection_list);
 	if (count != 1) {
 		KWARN("%s - cannot select parent unless exactly one entity is selected.", __FUNCTION__);
@@ -1177,7 +1187,7 @@ void editor_select_parent(struct editor_state* state) {
 		kscene_get_entity_transform(state->edit_scene, state->selection_list[0]));
 }
 
-b8 editor_selection_contains(struct editor_state* state, kentity entity) {
+b8 editor_selection_contains (struct editor_state *state, kentity entity) {
 	u32 selection_count = darray_length(state->selection_list);
 	for (u32 s = 0; s < selection_count; ++s) {
 		if (state->selection_list[s] == entity) {
@@ -1188,7 +1198,7 @@ b8 editor_selection_contains(struct editor_state* state, kentity entity) {
 	return false;
 }
 
-void editor_update(struct editor_state* state, frame_data* p_frame_data) {
+void editor_update (struct editor_state *state, frame_data *p_frame_data) {
 	editor_gizmo_update(&state->gizmo, state->editor_camera);
 
 	// Update the listener orientation. In editor mode, the sound follows the camera.
@@ -1207,7 +1217,7 @@ void editor_update(struct editor_state* state, frame_data* p_frame_data) {
 	}
 }
 
-void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, kcamera current_camera, b8 draw_gizmo, keditor_gizmo_pass_render_data* gizmo_pass_render_data) {
+void editor_frame_prepare (struct editor_state *state, frame_data *p_frame_data, kcamera current_camera, b8 draw_gizmo, keditor_gizmo_pass_render_data *gizmo_pass_render_data) {
 	// Setup data required for the editor gizmo pass
 
 	editor_gizmo_render_frame_prepare(&state->gizmo, p_frame_data);
@@ -1216,13 +1226,13 @@ void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, 
 	gizmo_pass_render_data->do_pass = state->mode == EDITOR_MODE_ENTITY && has_selection && draw_gizmo;
 	if (gizmo_pass_render_data->do_pass) {
 
-		gizmo_pass_render_data->projection = state->gizmo.render_projection;
-		gizmo_pass_render_data->view = kcamera_get_view(state->editor_camera);
+		gizmo_pass_render_data->projection_id = state->gizmo.render_projection_id;
+		gizmo_pass_render_data->view_id = kcamera_get_view_id(state->editor_camera);
 		gizmo_pass_render_data->visible = has_selection;
-		gizmo_pass_render_data->gizmo_transform = state->gizmo.render_model;
+		gizmo_pass_render_data->gizmo_transform_id = state->gizmo.render_model_id;
 
 		kgeometry g = state->gizmo.mode_data[state->gizmo.mode].geo;
-		kdebug_geometry_render_data* geo_rd = &gizmo_pass_render_data->geometry;
+		kdebug_geometry_render_data *geo_rd = &gizmo_pass_render_data->geometry;
 		geo_rd->geo.index_count = g.index_count;
 		geo_rd->geo.index_offset = g.index_buffer_offset;
 		geo_rd->geo.vertex_count = g.vertex_count;
@@ -1234,8 +1244,8 @@ void editor_frame_prepare(struct editor_state* state, frame_data* p_frame_data, 
 	}
 }
 
-static void set_render_state_defaults(rect_2di vp_rect) {
-	renderer_begin_debug_label("frame defaults", vec3_zero());
+static void set_render_state_defaults (rect_2di vp_rect) {
+	/* renderer_begin_debug_label("frame defaults", KCOLOUR4_BLACK); */
 
 	renderer_set_depth_test_enabled(false);
 	renderer_set_depth_write_enabled(false);
@@ -1254,17 +1264,17 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 	rect_2di scissor_rect = {vp_rect.x, vp_rect.y, vp_rect.width, vp_rect.height};
 	renderer_scissor_set(scissor_rect);
 
-	renderer_end_debug_label();
+	/* renderer_end_debug_label(); */
 }
 
-b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera current_camera, ktexture colour_buffer_target, b8 draw_gizmo, keditor_gizmo_pass_render_data* render_data) {
+b8 editor_render (struct editor_state *state, frame_data *p_frame_data, kcamera current_camera, ktexture colour_buffer_target, b8 draw_gizmo, keditor_gizmo_pass_render_data *render_data) {
 
 	rect_2di vp_rect = {0};
-	if (!texture_dimensions_get(colour_buffer_target, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+	if (!texture_dimensions_get(colour_buffer_target, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 		return false;
 	}
 
-	renderer_begin_debug_label("Editor", (vec3){0.6f, 1.0f, 0.6});
+	renderer_begin_debug_label("Editor", (colour4){0.6f, 1.0f, 0.6f, 1.0f});
 
 	// Editor begin render
 	renderer_begin_rendering(state->renderer, p_frame_data, vp_rect, 1, &colour_buffer_target, INVALID_KTEXTURE, 0);
@@ -1274,7 +1284,7 @@ b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera c
 	// NOTE: Editor gizmo only included in non-release builds
 	if (render_data->do_pass) {
 		if (render_data->visible) {
-			renderer_begin_debug_label("Editor gizmo", (vec3){0.5f, 1.0f, 0.5});
+			renderer_begin_debug_label("Editor gizmo", (colour4){0.5f, 1.0f, 0.5f, 1.0f});
 
 			// Disable depth test/write so the gizmo is always on top.
 			renderer_set_depth_test_enabled(false);
@@ -1284,16 +1294,19 @@ b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera c
 			kshader_system_use_with_topology(state->editor_gizmo_pass.gizmo_shader, PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE_LIST_BIT, 0);
 			renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-			// Global UBO data
-			editor_gizmo_global_ubo global_ubo_data = {
-				.view = render_data->view,
-				.projection = render_data->projection};
-			kshader_set_binding_data(state->editor_gizmo_pass.gizmo_shader, 0, state->editor_gizmo_pass.set0_instance_id, 0, 0, &global_ubo_data, sizeof(editor_gizmo_global_ubo));
+			// Global binding set
 			kshader_apply_binding_set(state->editor_gizmo_pass.gizmo_shader, 0, state->editor_gizmo_pass.set0_instance_id);
 
-			kdebug_geometry_render_data* g = &render_data->geometry;
+			kdebug_geometry_render_data *g = &render_data->geometry;
 
-			editor_gizmo_immediate_data immediate_data = {.model = render_data->gizmo_transform};
+			editor_gizmo_immediate_data immediate_data = {
+				.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+				.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+				.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+				.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+				.view_index = UNPACK_U32_U16_AT(render_data->view_id, 1),
+				.projection_index = UNPACK_U32_U16_AT(render_data->projection_id, 1),
+				.model_index = UNPACK_U32_U16_AT(render_data->gizmo_transform_id, 1)};
 			kshader_set_immediate_data(state->editor_gizmo_pass.gizmo_shader, &immediate_data, sizeof(editor_gizmo_immediate_data));
 
 			// Draw it.
@@ -1317,23 +1330,24 @@ b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera c
 
 	// Debug points render, if applicable
 	if (state->debug_point_count) {
-		renderer_begin_debug_label("Editor debug points", (vec3){0.4f, 1.0f, 0.4});
+		renderer_begin_debug_label("Editor debug points", (colour4){0.4f, 1.0f, 0.4f, 1.0f});
 
 		kshader_system_use_with_topology(state->colour_shader, PRIMITIVE_TOPOLOGY_TYPE_POINT_LIST_BIT, 0);
 		renderer_cull_mode_set(RENDERER_CULL_MODE_NONE);
 
-		// Global UBO data
-		colour_3d_global_ubo global_ubo_data = {
-			.view = kcamera_get_view(current_camera),
-			.projection = kcamera_get_projection(current_camera)};
-		// NOTE: This shader only ever has one instance of set 0.
+		// Global Binding set
 		u32 colour_set0_instance_id = 0;
-		kshader_set_binding_data(state->colour_shader, 0, colour_set0_instance_id, 0, 0, &global_ubo_data, sizeof(colour_3d_global_ubo));
 		kshader_apply_binding_set(state->colour_shader, 0, colour_set0_instance_id);
 
-		mat4 model = mat4_identity();
-
-		colour_3d_immediate_data immediate_data = {.model = model};
+		colour_3d_immediate_data immediate_data = {
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+			.view_index = UNPACK_U32_U16_AT(kcamera_get_view_id(current_camera), 1),
+			.projection_index = UNPACK_U32_U16_AT(kcamera_get_projection_id(current_camera), 1),
+			// Just using the default debug identity matrix since transform doesn't matter here.
+			.model_index = UNPACK_U32_U16_AT(state->default_identity_matrix_id, 1)};
 		kshader_set_immediate_data(state->colour_shader, &immediate_data, sizeof(colour_3d_immediate_data));
 
 		// NOTE: May need to do this earlier, like in frame prepare
@@ -1360,24 +1374,27 @@ b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera c
 
 	// Editor-specific Debug shapes
 	// TODO: debug shape renderer?
-	renderer_begin_debug_label("Editor debug shapes", (vec3){0.4f, 1.0f, 0.3});
+	renderer_begin_debug_label("Editor debug shapes", (colour4){0.4f, 1.0f, 0.3f, 1.0f});
 	if (state->mode == EDITOR_MODE_HF_TERRAIN && state->hft_edit_mode == HF_TERRAIN_EDIT_MODE_CHUNK) {
 		KASSERT(kshader_system_use_with_topology(state->debug_shader, PRIMITIVE_TOPOLOGY_TYPE_LINE_LIST_BIT, 0));
 
-		// Global UBO data
-		debug_shader_global_ubo_data global_ubo_data = {
-			.view = kcamera_get_view(current_camera),
-			.projection = kcamera_get_projection(current_camera)};
+		// Global Binding set
 		// "Global" should always be instance 0
 		u32 instance_id = 0;
-		kshader_set_binding_data(state->debug_shader, 0, instance_id, 0, 0, &global_ubo_data, sizeof(global_ubo_data));
 		kshader_apply_binding_set(state->debug_shader, 0, instance_id);
 
 		// Render the debug data.
-		kgeometry* geo = &state->hft_selected_chunk_debug_box;
+		kgeometry *geo = &state->hft_selected_chunk_debug_box;
 
 		debug_shader_immediate_data immediate_data = {
-			.model = mat4_identity(),						// HACK: Should this use a transform?
+			.mat_ssbo_view_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_VIEW),
+			.mat_ssbo_proj_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_PROJECTION),
+			.mat_ssbo_tran_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_TRANSFORM),
+			.mat_ssbo_genc_offset = kmatrix_system_get_offset_by_type(state->matrix_system, KMATRIX_TYPE_GENERAL),
+			.view_index = UNPACK_U32_U16_AT(kcamera_get_view_id(current_camera), 1),
+			.projection_index = UNPACK_U32_U16_AT(kcamera_get_projection_id(current_camera), 1),
+			// Just using the default debug identity matrix since transform doesn't matter here.
+			.model_index = UNPACK_U32_U16_AT(state->default_identity_matrix_id, 1),
 			.colour = vec4_create(1.0f, 0.5f, 0.0f, 1.0f)}; // HACK: hardcoded colour.
 		kshader_set_immediate_data(state->debug_shader, &immediate_data, sizeof(immediate_data));
 
@@ -1404,7 +1421,7 @@ b8 editor_render(struct editor_state* state, frame_data* p_frame_data, kcamera c
 	return true;
 }
 
-void editor_on_window_resize(struct editor_state* state, const struct kwindow* window) {
+void editor_on_window_resize (struct editor_state *state, const struct kwindow *window) {
 	if (!window->width || !window->height) {
 		return;
 	}
@@ -1464,9 +1481,9 @@ void editor_on_window_resize(struct editor_state* state, const struct kwindow* w
 	kui_scrollable_control_resize(state->kui_state, state->tex_browser_scrollable_control, (vec2){scrollable_width, 275}); */
 }
 
-void editor_setup_keymaps(struct editor_state* state) {
+void editor_setup_keymaps (struct editor_state *state) {
 	state->editor_keymap = keymap_create();
-	keymap* km = &state->editor_keymap;
+	keymap *km = &state->editor_keymap;
 	/* state->editor_keymap.overrides_all = true; */
 
 	keymap_binding_add(km, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
@@ -1504,11 +1521,11 @@ void editor_setup_keymaps(struct editor_state* state) {
 	keymap_binding_add(km, KEY_Z, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_ZOOM_EXTENTS);
 }
 
-void editor_destroy_keymaps(struct editor_state* state) {
+void editor_destroy_keymaps (struct editor_state *state) {
 	keymap_clear(&state->editor_keymap);
 }
 
-b8 editor_on_action(struct editor_state* state, u32 action_code) {
+b8 editor_on_action (struct editor_state *state, u32 action_code) {
 	switch (action_code) {
 	case EDITOR_ACTION_MOVE_FORWARD:
 		if (!editor_has_focused_control(state)) {
@@ -1621,26 +1638,26 @@ b8 editor_on_action(struct editor_state* state, u32 action_code) {
 	return false;
 }
 
-static f32 get_engine_delta_time(void) {
+static f32 get_engine_delta_time (void) {
 	ktimeline engine = ktimeline_system_get_engine();
 	return ktimeline_system_delta_get(engine);
 }
 
-static f32 get_engine_total_time(void) {
+static f32 get_engine_total_time (void) {
 	ktimeline engine = ktimeline_system_get_engine();
 	return ktimeline_system_total_get(engine);
 }
 
-static b8 editor_has_focused_control(editor_state* editor) {
+static b8 editor_has_focused_control (editor_state *editor) {
 	return editor->kui_state->focused.val != INVALID_KUI_CONTROL.val;
 }
 
-static void save_scene(const struct kscene* scene, kname package_name, kname asset_name) {
+static void save_scene (const struct kscene *scene, kname package_name, kname asset_name) {
 	if (scene) {
 		kscene_state scene_state = kscene_state_get(scene);
 		if (scene_state == KSCENE_STATE_LOADED) {
 			KDEBUG("Saving current scene...");
-			const char* serialized = kscene_serialize(scene);
+			const char *serialized = kscene_serialize(scene);
 			if (!serialized) {
 				KERROR("Scene serialization failed! Scene save thus fails. Check logs.");
 				return;
@@ -1658,7 +1675,7 @@ static void save_scene(const struct kscene* scene, kname package_name, kname ass
 	}
 }
 
-static void zoom_extents(struct editor_state* state) {
+static void zoom_extents (struct editor_state *state) {
 	KTRACE("Zoom extents");
 
 	if (darray_length(state->selection_list)) {
@@ -1728,8 +1745,8 @@ static void zoom_extents(struct editor_state* state) {
 	}
 }
 
-static void editor_command_execute(console_command_context context) {
-	editor_state* state = (editor_state*)context.listener;
+static void editor_command_execute (console_command_context context) {
+	editor_state *state = (editor_state *)context.listener;
 	if (strings_equal(context.command_name, "editor_save_scene")) {
 		save_scene(state->edit_scene, state->scene_package_name, state->scene_asset_name);
 	} else if (strings_equal(context.command_name, "editor_select_parent")) {
@@ -1816,7 +1833,8 @@ static void editor_command_execute(console_command_context context) {
 			.filter = "Image Files (*.bmp;*.jpg;*.gif;*.png)|*.bmp;*.jpg;*.gif;*.png|All files (*.*)|*.*",
 		};
 		platform_open_file_dialog_result result = platform_open_file_dialog_open(options);
-		KTRACE("Open file dialog success: %s", bool_to_string(result.success));
+		KTRACE("Open file dialog result: %s", result.result == PLATFORM_OFD_OP_RESULT_SUCCESS ? "success" : result.result == PLATFORM_OFD_OP_RESULT_USER_CANCELLED ? "cancelled"
+																																								   : "internal error");
 		for (u8 i = 0; i < result.file_count; ++i) {
 			KTRACE("File selected (%u): '%s'", i, result.file_paths[i]);
 		}
@@ -1826,12 +1844,12 @@ static void editor_command_execute(console_command_context context) {
 			for (u8 i = 0; i < result.file_count; ++i) {
 				string_free(result.file_paths[i]);
 			}
-			KFREE_TYPE_CARRAY(result.file_paths, const char*, result.file_count);
+			kfree(result.file_paths);
 		}
 	}
 }
 
-static void editor_register_events(struct editor_state* state) {
+static void editor_register_events (struct editor_state *state) {
 	KASSERT(event_register(EVENT_CODE_BUTTON_PRESSED, state, editor_on_button));
 	KASSERT(event_register(EVENT_CODE_BUTTON_RELEASED, state, editor_on_button));
 	KASSERT(event_register(EVENT_CODE_MOUSE_MOVED, state, editor_on_mouse_move));
@@ -1840,7 +1858,7 @@ static void editor_register_events(struct editor_state* state) {
 	KASSERT(event_register(EVENT_CODE_MOUSE_DRAGGED, state, editor_on_drag));
 }
 
-static void editor_unregister_events(struct editor_state* state) {
+static void editor_unregister_events (struct editor_state *state) {
 	event_unregister(EVENT_CODE_BUTTON_PRESSED, state, editor_on_button);
 	event_unregister(EVENT_CODE_BUTTON_RELEASED, state, editor_on_button);
 	event_unregister(EVENT_CODE_MOUSE_MOVED, state, editor_on_mouse_move);
@@ -1849,7 +1867,7 @@ static void editor_unregister_events(struct editor_state* state) {
 	event_unregister(EVENT_CODE_MOUSE_DRAGGED, state, editor_on_drag);
 }
 
-static void editor_register_commands(struct editor_state* state) {
+static void editor_register_commands (struct editor_state *state) {
 	KASSERT(console_command_register("editor_save_scene", 0, 0, state, editor_command_execute));
 	KASSERT(console_command_register("editor_select_parent", 0, 0, state, editor_command_execute));
 	KASSERT(console_command_register("editor_dump_hierarchy", 0, 0, state, editor_command_execute));
@@ -1859,7 +1877,7 @@ static void editor_register_commands(struct editor_state* state) {
 	KASSERT(console_command_register("editor_add_model", 2, 3, state, editor_command_execute));
 }
 
-static void editor_unregister_commands(struct editor_state* state) {
+static void editor_unregister_commands (struct editor_state *state) {
 	console_command_unregister("editor_save_scene");
 	console_command_unregister("editor_select_parent");
 	console_command_unregister("editor_dump_hierarchy");
@@ -1872,18 +1890,24 @@ static void editor_unregister_commands(struct editor_state* state) {
 	console_command_unregister("ofd");
 }
 
-void editor_on_lib_load(struct editor_state* state) {
+void editor_on_lib_load (struct editor_state *state) {
 	if (state->is_running) {
 		editor_register_events(state);
 		editor_register_commands(state);
 	}
 }
-void editor_on_lib_unload(struct editor_state* state) {
+void editor_on_lib_unload (struct editor_state *state) {
 	editor_unregister_events(state);
 	editor_unregister_commands(state);
 }
 
-static b8 save_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+KAPI void editor_register_user_mode_ui_control (struct editor_state *state, u16 user_mode, kui_control base_control) {
+	KASSERT(state);
+	KASSERT(user_mode > EDITOR_MODE_USER_SPACE);
+	state->base_mode_controls[user_mode] = base_control;
+}
+
+static b8 save_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("Save button clicked.");
 
 	console_command_execute("editor_save_scene");
@@ -1891,24 +1915,24 @@ static b8 save_button_clicked(struct kui_state* state, kui_control self, struct 
 	// Don't allow the event to popagate.
 	return false;
 }
-static b8 mode_scene_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 mode_scene_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("Scene mode button clicked.");
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	editor_set_mode(base->user_data, EDITOR_MODE_SCENE);
 	// Don't allow the event to popagate.
 	return false;
 }
-static b8 mode_entity_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 mode_entity_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("Entity mode button clicked.");
-	kui_base_control* base = kui_system_get_base(state, self);
+	kui_base_control *base = kui_system_get_base(state, self);
 	editor_set_mode(base->user_data, EDITOR_MODE_ENTITY);
 	// Don't allow the event to popagate.
 	return false;
 }
-static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 mode_tree_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("Tree mode button clicked.");
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	if (edit_state->mode != EDITOR_MODE_TREE) {
 		editor_set_mode(edit_state, EDITOR_MODE_TREE);
@@ -1919,10 +1943,10 @@ static b8 mode_tree_button_clicked(struct kui_state* state, kui_control self, st
 	return false;
 }
 
-static b8 mode_hf_terrain_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 mode_hf_terrain_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("HF Terrain mode button clicked.");
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	if (edit_state->mode != EDITOR_MODE_HF_TERRAIN) {
 		editor_set_mode(edit_state, EDITOR_MODE_HF_TERRAIN);
@@ -1931,10 +1955,10 @@ static b8 mode_hf_terrain_button_clicked(struct kui_state* state, kui_control se
 	return false;
 }
 
-static b8 texture_browser_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
+static b8 texture_browser_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
 	KTRACE("Texture browser button clicked.");
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	b8 is_open = texture_browser_is_open(&edit_state->tex_browser);
 	if (is_open) {
@@ -1947,32 +1971,32 @@ static b8 texture_browser_button_clicked(struct kui_state* state, kui_control se
 	return false;
 }
 
-static void show_bvh_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+static void show_bvh_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_DEBUG_BVH_ENABLED_BIT, event.checked);
 }
 
-static void show_grid_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+static void show_grid_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_DEBUG_GRID_ENABLED_BIT, event.checked);
 }
 
-static void show_debug_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+static void show_debug_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_DEBUG_ENABLED_BIT, event.checked);
 	kui_control_set_is_active(edit_state->kui_state, edit_state->view_bvh_checkbox, event.checked);
 	kui_control_set_is_active(edit_state->kui_state, edit_state->view_grid_checkbox, event.checked);
 }
 
-static void scene_visibility_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+static void scene_visibility_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	if (self.val == edit_state->view_skybox_checkbox.val) {
 		kscene_set_flag(edit_state->edit_scene, KSCENE_FLAG_RENDER_SKYBOX_BIT, event.checked);
@@ -1983,8 +2007,8 @@ static void scene_visibility_checkbox_check_changed(struct kui_state* state, kui
 	}
 }
 
-static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, event_context context) {
-	editor_state* state = (editor_state*)listener_inst;
+static b8 editor_on_mouse_move (u16 code, void *sender, void *listener_inst, event_context context) {
+	editor_state *state = (editor_state *)listener_inst;
 
 	if (!state->is_running) {
 		// Do nothing, but allow other handlers to process the event.
@@ -2010,7 +2034,7 @@ static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, even
 		}
 	} else if (state->mode == EDITOR_MODE_HF_TERRAIN) {
 		state->debug_point_count = 0;
-		hf_terrain* terrain = kscene_hf_terrain_get(state->edit_scene);
+		hf_terrain *terrain = kscene_hf_terrain_get(state->edit_scene);
 
 		i16 x = context.data.i16[0];
 		i16 y = context.data.i16[1];
@@ -2021,6 +2045,7 @@ static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, even
 		mat4 projection = kcamera_get_projection(state->editor_camera);
 
 		ray r = ray_from_screen((vec2i){x, y}, vp_rect, origin, view, projection);
+		KTRACE("r direction = %V3.3f", &r.direction);
 
 		hf_block block;
 		hf_chunk chunk;
@@ -2040,7 +2065,7 @@ static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, even
 				i64 index = -1;
 				u32 tx = 0;
 				u32 tz = 0;
-				hf_vertex_3d* v = hf_terrain_chunk_get_closest_vertex(terrain, &block, &chunk, pos, &tx, &tz, &index);
+				hf_vertex_3d *v = hf_terrain_chunk_get_closest_vertex(terrain, &block, &chunk, pos, &tx, &tz, &index);
 
 				// HACK: Just the first one for now, add to this once there diameter is working for this.
 				state->debug_point_count = 1;
@@ -2060,7 +2085,7 @@ static b8 editor_on_mouse_move(u16 code, void* sender, void* listener_inst, even
 	return false; // Allow other event handlers to process this event.
 }
 
-static void hf_terrain_paint(editor_state* state, vec3 pos, vec3 normal, const hf_block* block, const hf_chunk* chunk) {
+static void hf_terrain_paint (editor_state *state, vec3 pos, vec3 normal, const hf_block *block, const hf_chunk *chunk) {
 	f32 local_x = pos.x - block->aabb.min.x;
 	f32 local_z = pos.z - block->aabb.min.z;
 	f32 u = local_x / HF_BLOCK_SIZE_WORLD;
@@ -2102,7 +2127,7 @@ static void hf_terrain_paint(editor_state* state, vec3 pos, vec3 normal, const h
 
 	// FIXME: Maybe have some sort of buffer that sticks around for this...
 	u32 total_px = width * height;
-	u8* new_colour = KALLOC_TYPE_CARRAY(u8, total_px * 4);
+	u8 *new_colour = KALLOC_TYPE_CARRAY(u8, total_px * 4);
 	for (u32 z = 0; z < height; ++z) {
 		for (u32 x = 0; x < width; ++x) {
 			vec2 pos = vec2_create(min_x + x, min_z + z);
@@ -2161,10 +2186,10 @@ static void hf_terrain_paint(editor_state* state, vec3 pos, vec3 normal, const h
 
 	texture_write_data(block->splatmap, 32, min_x, min_z, 0, width, height, new_colour, false);
 
-	KFREE_TYPE_CARRAY(new_colour, u8, total_px * 4);
+	kfree(new_colour);
 }
 
-static void hf_terrain_adjust_vertex_at(hf_terrain* terrain, u32 index, f32 amount, b8 set_height) {
+static void hf_terrain_adjust_vertex_at (hf_terrain *terrain, u32 index, f32 amount, b8 set_height) {
 	if (set_height) {
 		terrain->vertices[index].position.y = amount;
 	} else {
@@ -2172,7 +2197,7 @@ static void hf_terrain_adjust_vertex_at(hf_terrain* terrain, u32 index, f32 amou
 	}
 }
 
-static hf_chunk* hf_terrain_get_next_vertex_index(const hf_terrain* terrain, const hf_block* block, const hf_chunk* chunk, u32 x, u32 z, i8 rel_x, i8 rel_z, i64* out_index) {
+static hf_chunk *hf_terrain_get_next_vertex_index (const hf_terrain *terrain, const hf_block *block, const hf_chunk *chunk, u32 x, u32 z, i8 rel_x, i8 rel_z, i64 *out_index) {
 	i16 block_x = block->x;
 	i16 block_z = block->z;
 	i16 chunk_x = chunk->x;
@@ -2239,18 +2264,18 @@ static hf_chunk* hf_terrain_get_next_vertex_index(const hf_terrain* terrain, con
 		}
 	}
 
-	hf_block* new_block = hf_terrain_get_block_at(terrain, block_x, block_z);
-	hf_chunk* new_chunk = hf_terrain_block_get_chunk_at(new_block, chunk_x, chunk_z);
+	hf_block *new_block = hf_terrain_get_block_at(terrain, block_x, block_z);
+	hf_chunk *new_chunk = hf_terrain_block_get_chunk_at(new_block, chunk_x, chunk_z);
 
 	*out_index = hf_terrain_chunk_get_vert_index_at(new_chunk, next_x, next_z);
 	return new_chunk;
 }
 
-static void hf_terrain_recalc_and_update_verts(hf_terrain* terrain, hf_chunk** p_chunks, u8 count) {
+static void hf_terrain_recalc_and_update_verts (hf_terrain *terrain, hf_chunk **p_chunks, u8 count) {
 
 	/* hf_terrain_recalculate_vertices(terrain); */
 
-	struct renderer_system_state* renderer_state = engine_systems_get()->renderer_system;
+	struct renderer_system_state *renderer_state = engine_systems_get()->renderer_system;
 	krenderbuffer vertex_buffer = renderer_renderbuffer_get(renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 
 	u32 size = sizeof(hf_vertex_3d) * HF_CHUNK_VERTEX_COUNT;
@@ -2268,10 +2293,10 @@ static void hf_terrain_recalc_and_update_verts(hf_terrain* terrain, hf_chunk** p
 	}
 }
 
-static b8 update_list_includes(
-	hf_chunk* chunk,
+static b8 update_list_includes (
+	hf_chunk *chunk,
 	u8 chunk_update_count,
-	hf_chunk* update_list[128]) {
+	hf_chunk *update_list[128]) {
 	for (u8 i = 0; i < chunk_update_count; ++i) {
 		if (update_list[i] == chunk) {
 			return true;
@@ -2280,17 +2305,17 @@ static b8 update_list_includes(
 	return false;
 }
 
-static void adjust_terrain_vertex_at(
-	editor_state* state,
-	hf_terrain* terrain,
-	hf_block* block,
-	hf_chunk* chunk,
+static void adjust_terrain_vertex_at (
+	editor_state *state,
+	hf_terrain *terrain,
+	hf_block *block,
+	hf_chunk *chunk,
 	i32 center_x,
 	i32 center_z,
 	i64 index,
 	f32 weighted_amount,
-	u8* chunk_update_count,
-	hf_chunk* update_list[128]) {
+	u8 *chunk_update_count,
+	hf_chunk *update_list[128]) {
 
 	hf_terrain_adjust_vertex_at(terrain, index, weighted_amount, state->hft_elevation_set_height);
 	if (!update_list_includes(chunk, *chunk_update_count, update_list)) {
@@ -2299,7 +2324,7 @@ static void adjust_terrain_vertex_at(
 	}
 	// Check if the vertex is shared with the next chunk on the X axis.
 	{
-		hf_chunk* new_chunk = chunk;
+		hf_chunk *new_chunk = chunk;
 		index = -1;
 		if (center_x == HF_CHUNK_QUAD_COUNT) {
 			new_chunk = hf_terrain_get_next_vertex_index(terrain, block, chunk, center_x, center_z, 1, 0, &index);
@@ -2318,7 +2343,7 @@ static void adjust_terrain_vertex_at(
 
 	// Check if the vertex is shared with the next chunk on the Z axis.
 	{
-		hf_chunk* new_chunk = chunk;
+		hf_chunk *new_chunk = chunk;
 		index = -1;
 		if (center_z == HF_CHUNK_QUAD_COUNT) {
 			new_chunk = hf_terrain_get_next_vertex_index(terrain, block, chunk, center_x, center_z, 0, 1, &index);
@@ -2337,7 +2362,7 @@ static void adjust_terrain_vertex_at(
 
 	// If in a corner, also need to check if there's a diagonally-opposite shared vertex.
 	{
-		hf_chunk* new_chunk = chunk;
+		hf_chunk *new_chunk = chunk;
 		index = -1;
 		// All intercardinal directions need checking.
 		if (center_x == HF_CHUNK_QUAD_COUNT && center_z == HF_CHUNK_QUAD_COUNT) {
@@ -2360,19 +2385,19 @@ static void adjust_terrain_vertex_at(
 	}
 }
 
-static void hf_terrain_do_elevation(
-	editor_state* state,
+static void hf_terrain_do_elevation (
+	editor_state *state,
 	vec3 pos,
 	vec3 normal,
-	hf_block* block,
-	hf_chunk* chunk,
+	hf_block *block,
+	hf_chunk *chunk,
 	i64 index,
 	u32 center_x,
 	u32 center_z,
-	hf_vertex_3d* closest_vertex,
+	hf_vertex_3d *closest_vertex,
 	f32 mod) {
 
-	hf_terrain* terrain = kscene_hf_terrain_get(state->edit_scene);
+	hf_terrain *terrain = kscene_hf_terrain_get(state->edit_scene);
 
 	/* KINFO("%s - pos=%V3.3", __FUNCTION__, &pos); */
 
@@ -2380,7 +2405,7 @@ static void hf_terrain_do_elevation(
 	f32 center_amount = state->hft_elevation_amount * mod;
 
 	u8 chunk_update_count = 0;
-	hf_chunk* update_list[128];
+	hf_chunk *update_list[128];
 
 	if (state->hft_elevation_diameter == 1) {
 		f32 weighted_amount = center_amount * 1.0f;
@@ -2390,8 +2415,8 @@ static void hf_terrain_do_elevation(
 		// Work in a grid that's the size of the diameter.
 		for (u8 z = 0; z < state->hft_elevation_diameter; ++z) {
 			for (u8 x = 0; x < state->hft_elevation_diameter; ++x) {
-				hf_block* b = block;
-				hf_chunk* c = chunk;
+				hf_block *b = block;
+				hf_chunk *c = chunk;
 				i32 block_x = b->x;
 				i32 block_z = b->z;
 
@@ -2486,8 +2511,8 @@ static void hf_terrain_do_elevation(
 	}
 }
 
-static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_context context) {
-	editor_state* state = (editor_state*)listener_inst;
+static b8 editor_on_drag (u16 code, void *sender, void *listener_inst, event_context context) {
+	editor_state *state = (editor_state *)listener_inst;
 
 	if (!state->is_running) {
 		// Do nothing, but allow other handlers to process the event.
@@ -2544,7 +2569,7 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 				kui_textbox_f32_set(state->kui_state, state->entity_scale_z_textbox, scale.z);
 			}
 		} else if (state->mode == EDITOR_MODE_HF_TERRAIN) {
-			hf_terrain* terrain = kscene_hf_terrain_get(state->edit_scene);
+			hf_terrain *terrain = kscene_hf_terrain_get(state->edit_scene);
 
 			i16 x = context.data.i16[0];
 			i16 y = context.data.i16[1];
@@ -2576,7 +2601,7 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 					i64 index = -1;
 					u32 tx = 0;
 					u32 tz = 0;
-					hf_vertex_3d* v = hf_terrain_chunk_get_closest_vertex(terrain, &block, &chunk, pos, &tx, &tz, &index);
+					hf_vertex_3d *v = hf_terrain_chunk_get_closest_vertex(terrain, &block, &chunk, pos, &tx, &tz, &index);
 
 					hf_terrain_do_elevation(state, pos, normal, &block, &chunk, index, tx, tz, v, delta_y > 0 ? -1 : 1);
 					// HACK: Just the first one for now, add to this once there diameter is working for this.
@@ -2599,9 +2624,9 @@ static b8 editor_on_drag(u16 code, void* sender, void* listener_inst, event_cont
 	return false; // Let other handlers handle.
 }
 
-i32 raycast_hit_kquicksort_compare(void* a, void* b) {
-	raycast_hit* a_typed = a;
-	raycast_hit* b_typed = b;
+i32 raycast_hit_kquicksort_compare (void *a, void *b) {
+	raycast_hit *a_typed = a;
+	raycast_hit *b_typed = b;
 	if (a_typed->distance > b_typed->distance) {
 		return -1;
 	} else if (a_typed->distance < b_typed->distance) {
@@ -2609,9 +2634,9 @@ i32 raycast_hit_kquicksort_compare(void* a, void* b) {
 	}
 	return 0;
 }
-i32 raycast_hit_kquicksort_compare_desc(void* a, void* b) {
-	raycast_hit* a_typed = a;
-	raycast_hit* b_typed = b;
+i32 raycast_hit_kquicksort_compare_desc (void *a, void *b) {
+	raycast_hit *a_typed = a;
+	raycast_hit *b_typed = b;
 	if (a_typed->distance > b_typed->distance) {
 		return 1;
 	} else if (a_typed->distance < b_typed->distance) {
@@ -2622,7 +2647,7 @@ i32 raycast_hit_kquicksort_compare_desc(void* a, void* b) {
 
 /* KAPI void kquick_sort(u64 type_size, void* data, i32 low_index, i32 high_index, PFN_kquicksort_compare compare_pfn); */
 
-static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_context context) {
+static b8 editor_on_button (u16 code, void *sender, void *listener_inst, event_context context) {
 	if (code == EVENT_CODE_BUTTON_PRESSED) {
 
 		u16 button = context.data.u16[4];
@@ -2630,7 +2655,7 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 		case MOUSE_BUTTON_LEFT: {
 			i16 x = context.data.i16[0];
 			i16 y = context.data.i16[1];
-			editor_state* state = (editor_state*)listener_inst;
+			editor_state *state = (editor_state *)listener_inst;
 
 			if (state->edit_scene) {
 				kscene_state scene_state = kscene_state_get(state->edit_scene);
@@ -2656,9 +2681,9 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 								vec3 normal;
 								if (kscene_hf_terrain_raycast(state->edit_scene, &r, true, &block, &chunk, &pos, &normal)) {
 
-									hf_terrain* t = kscene_hf_terrain_get(state->edit_scene);
-									hf_block* p_block = hf_terrain_get_block_at(t, block.x, block.z);
-									hf_chunk* p_chunk = hf_terrain_block_get_chunk_at(p_block, chunk.x, chunk.z);
+									hf_terrain *t = kscene_hf_terrain_get(state->edit_scene);
+									hf_block *p_block = hf_terrain_get_block_at(t, block.x, block.z);
+									hf_chunk *p_chunk = hf_terrain_block_get_chunk_at(p_block, chunk.x, chunk.z);
 									state->selected_chunk = p_chunk;
 
 									// Update the selected chunk visual debug box.
@@ -2685,7 +2710,7 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 		case MOUSE_BUTTON_LEFT: {
 			i16 x = context.data.i16[0];
 			i16 y = context.data.i16[1];
-			editor_state* state = (editor_state*)listener_inst;
+			editor_state *state = (editor_state *)listener_inst;
 
 			if (state->edit_scene) {
 
@@ -2702,7 +2727,7 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 					// Multi-select
 					b8 multiselect = (input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL));
 
-					struct kscene* current_scene = state->edit_scene;
+					struct kscene *current_scene = state->edit_scene;
 					// Cast a ray into the scene and see if anything can be selected.
 					if (point_in_rect_2di((vec2i){x, y}, current_vp_rect)) {
 						ray r = ray_from_screen((vec2i){x, y}, current_vp_rect, origin, view, projection);
@@ -2730,7 +2755,7 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 
 									for (u32 i = 0; i < hit_count; ++i) {
 										// Each thing. Use this to make selections, etc.
-										raycast_hit* hit = &result.hits[i];
+										raycast_hit *hit = &result.hits[i];
 
 										kentity entity = (kentity)hit->user;
 
@@ -2761,14 +2786,14 @@ static b8 editor_on_button(u16 code, void* sender, void* listener_inst, event_co
 	return false;
 }
 
-static void scene_name_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void scene_name_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				kscene_set_name(editor->edit_scene, entry_control_text);
@@ -2777,11 +2802,11 @@ static void scene_name_textbox_on_key(kui_state* state, kui_control self, kui_ke
 	}
 }
 
-static void scene_fog_colour_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void scene_fog_colour_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		kui_control next_control = INVALID_KUI_CONTROL;
 		u8 element_index = 0;
@@ -2802,11 +2827,11 @@ static void scene_fog_colour_textbox_on_key(kui_state* state, kui_control self, 
 		}
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				colour4 fog_colour = kscene_get_fog_colour(editor->edit_scene);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 parsed;
 				if (string_to_f32(val, &parsed)) {
 					fog_colour.elements[element_index] = parsed;
@@ -2820,14 +2845,14 @@ static void scene_fog_colour_textbox_on_key(kui_state* state, kui_control self, 
 	}
 }
 
-static void entity_name_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_name_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				kscene_set_entity_name(editor->edit_scene, editor->selection_list[0], kname_create(entry_control_text));
@@ -2836,18 +2861,18 @@ static void entity_name_textbox_on_key(kui_state* state, kui_control self, kui_k
 	}
 }
 
-static void entity_position_x_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_position_x_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 position = kscene_get_entity_position(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					position.x = x;
@@ -2860,18 +2885,18 @@ static void entity_position_x_textbox_on_key(kui_state* state, kui_control self,
 		}
 	}
 }
-static void entity_position_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_position_y_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 position = kscene_get_entity_position(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 y;
 				if (string_to_f32(val, &y)) {
 					position.y = y;
@@ -2884,18 +2909,18 @@ static void entity_position_y_textbox_on_key(kui_state* state, kui_control self,
 		}
 	}
 }
-static void entity_position_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_position_z_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 position = kscene_get_entity_position(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 z;
 				if (string_to_f32(val, &z)) {
 					position.z = z;
@@ -2909,18 +2934,18 @@ static void entity_position_z_textbox_on_key(kui_state* state, kui_control self,
 	}
 }
 
-static void entity_orientation_x_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_orientation_x_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					rotation.x = x;
@@ -2933,18 +2958,18 @@ static void entity_orientation_x_textbox_on_key(kui_state* state, kui_control se
 		}
 	}
 }
-static void entity_orientation_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_orientation_y_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 y;
 				if (string_to_f32(val, &y)) {
 					rotation.y = y;
@@ -2958,18 +2983,18 @@ static void entity_orientation_y_textbox_on_key(kui_state* state, kui_control se
 	}
 }
 
-static void entity_orientation_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_orientation_z_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 z;
 				if (string_to_f32(val, &z)) {
 					rotation.z = z;
@@ -2983,18 +3008,18 @@ static void entity_orientation_z_textbox_on_key(kui_state* state, kui_control se
 	}
 }
 
-static void entity_orientation_w_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_orientation_w_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				quat rotation = kscene_get_entity_rotation(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 w;
 				if (string_to_f32(val, &w)) {
 					rotation.w = w;
@@ -3008,18 +3033,18 @@ static void entity_orientation_w_textbox_on_key(kui_state* state, kui_control se
 	}
 }
 
-static void entity_scale_x_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_scale_x_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 scale = kscene_get_entity_scale(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					scale.x = x;
@@ -3032,18 +3057,18 @@ static void entity_scale_x_textbox_on_key(kui_state* state, kui_control self, ku
 		}
 	}
 }
-static void entity_scale_y_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_scale_y_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 scale = kscene_get_entity_scale(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 y;
 				if (string_to_f32(val, &y)) {
 					scale.y = y;
@@ -3056,18 +3081,18 @@ static void entity_scale_y_textbox_on_key(kui_state* state, kui_control self, ku
 		}
 	}
 }
-static void entity_scale_z_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void entity_scale_z_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
 				vec3 scale = kscene_get_entity_scale(editor->edit_scene, editor->selection_list[0]);
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 z;
 				if (string_to_f32(val, &z)) {
 					scale.z = z;
@@ -3089,53 +3114,53 @@ typedef struct tree_hierarchy_node {
 	b8 expanded;
 
 	// Pointer back to the tree.
-	struct tree_hierarchy* tree;
+	struct tree_hierarchy *tree;
 
 	// user context for the node.
 	u32 user_data_size;
-	void* user_data;
+	void *user_data;
 
 	// A handle to the control associated with this item.
 	kui_control tree_item;
 
 	// Pointer to the parent.
-	struct tree_hierarchy_node* parent;
+	struct tree_hierarchy_node *parent;
 
 	// Child nodes.
 	u32 child_count;
-	struct tree_hierarchy_node* children;
+	struct tree_hierarchy_node *children;
 } tree_hierarchy_node;
 
 // Top-level representation of the tree hierarchy.
 typedef struct tree_hierarchy {
 	// user context for the entire tree.
 	u32 user_data_size;
-	void* user_data;
+	void *user_data;
 
 	u32 root_count;
-	struct tree_hierarchy_node* root_nodes;
+	struct tree_hierarchy_node *root_nodes;
 } tree_hierarchy;
 
 typedef struct hierarchy_node_context {
-	editor_state* editor;
+	editor_state *editor;
 	kentity entity;
-	tree_hierarchy_node* hierarchy_node;
+	tree_hierarchy_node *hierarchy_node;
 } hierarchy_node_context;
 
 static tree_hierarchy tree;
 
-static void tree_node_cleanup_r(tree_hierarchy_node* node) {
+static void tree_node_cleanup_r (tree_hierarchy_node *node) {
 	for (u32 i = 0; i < node->child_count; ++i) {
 		tree_node_cleanup_r(&node->children[i]);
 	}
 
 	if (node->child_count && node->children) {
-		KFREE_TYPE_CARRAY(node->children, tree_hierarchy_node, node->child_count);
+		kfree(node->children);
 	}
 }
 
-static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_node, tree_hierarchy_node* tree_node, tree_hierarchy_node* parent_node, u32 index, f32* y_offset) {
-	kui_state* kui_state = state->kui_state;
+static void tree_setup_node_r (editor_state *state, kscene_hierarchy_node *scene_node, tree_hierarchy_node *tree_node, tree_hierarchy_node *parent_node, u32 index, f32 *y_offset) {
+	kui_state *kui_state = state->kui_state;
 
 	kname name = kscene_get_entity_name(state->edit_scene, scene_node->entity);
 
@@ -3144,7 +3169,7 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 		tree_node->children = KALLOC_TYPE_CARRAY(tree_hierarchy_node, tree_node->child_count);
 	}
 
-	const char* tree_item_name = string_format("tree_item_%i", index);
+	const char *tree_item_name = string_format("tree_item_%i", index);
 
 	tree_node->tree_item = kui_tree_item_control_create(
 		kui_state,
@@ -3160,8 +3185,8 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 
 	if (parent_node) {
 		/* kui_tree_item_control_add_child_tree_item(kui_state, parent_node->tree_item, tree_node); */
-		kui_base_control* parent_base = kui_system_get_base(state->kui_state, parent_node->tree_item);
-		kui_tree_item_control* typed_parent_control = (kui_tree_item_control*)parent_base;
+		kui_base_control *parent_base = kui_system_get_base(state->kui_state, parent_node->tree_item);
+		kui_tree_item_control *typed_parent_control = (kui_tree_item_control *)parent_base;
 		KASSERT(kui_system_control_add_child(kui_state, typed_parent_control->child_container, tree_node->tree_item));
 	} else {
 		// Add to the content container of the scrollable control.
@@ -3170,7 +3195,7 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 
 	*y_offset += KUI_TREE_ITEM_HEIGHT;
 
-	hierarchy_node_context* context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_EDITOR);
+	hierarchy_node_context *context = KALLOC_TYPE(hierarchy_node_context, MEMORY_TAG_EDITOR);
 	context->editor = state;
 	context->entity = scene_node->entity;
 	context->hierarchy_node = tree_node;
@@ -3186,7 +3211,7 @@ static void tree_setup_node_r(editor_state* state, kscene_hierarchy_node* scene_
 	}
 }
 
-static f32 refresh_tree_item_expansion_r(editor_state* state, tree_hierarchy_node* node, f32 y_offset) {
+static f32 refresh_tree_item_expansion_r (editor_state *state, tree_hierarchy_node *node, f32 y_offset) {
 
 	f32 accumulated_y_offset = 0.0f;
 	kui_control_position_set(state->kui_state, node->tree_item, (vec3){44, y_offset, 0});
@@ -3202,7 +3227,7 @@ static f32 refresh_tree_item_expansion_r(editor_state* state, tree_hierarchy_nod
 	return accumulated_y_offset;
 }
 
-static void refresh_tree_expansion(editor_state* state, tree_hierarchy* tree) {
+static void refresh_tree_expansion (editor_state *state, tree_hierarchy *tree) {
 	f32 accumulated_height = 0.0f;
 	for (u32 i = 0; i < tree->root_count; ++i) {
 		accumulated_height += refresh_tree_item_expansion_r(state, &tree->root_nodes[i], accumulated_height);
@@ -3211,16 +3236,16 @@ static void refresh_tree_expansion(editor_state* state, tree_hierarchy* tree) {
 	kui_scrollable_set_content_size(state->kui_state, state->tree_scrollable_control, state->tree_inspector_width, accumulated_height);
 }
 
-static void tree_clear(editor_state* state) {
+static void tree_clear (editor_state *state) {
 	// Destroy current tree.
 	if (tree.root_count && tree.root_nodes) {
 		// First, cleanup the nodes recursively.
 		for (u32 i = 0; i < tree.root_count; ++i) {
-			tree_hierarchy_node* node = &tree.root_nodes[i];
+			tree_hierarchy_node *node = &tree.root_nodes[i];
 			tree_node_cleanup_r(node);
 		}
 
-		KFREE_TYPE_CARRAY(tree.root_nodes, tree_hierarchy_node, tree.root_count);
+		kfree(tree.root_nodes);
 		tree.root_count = 0;
 		tree.root_nodes = KNULL;
 
@@ -3228,14 +3253,14 @@ static void tree_clear(editor_state* state) {
 	}
 }
 
-static void tree_refresh(editor_state* state) {
+static void tree_refresh (editor_state *state) {
 	KTRACE("Tree refresh starting.");
 	if (state->edit_scene) {
 		tree_clear(state);
 
 		// Refresh the data.
 		u32 node_count = 0;
-		kscene_hierarchy_node* scene_nodes = kscene_get_hierarchy(state->edit_scene, &node_count);
+		kscene_hierarchy_node *scene_nodes = kscene_get_hierarchy(state->edit_scene, &node_count);
 		if (node_count && scene_nodes) {
 
 			tree.root_count = node_count;
@@ -3244,7 +3269,7 @@ static void tree_refresh(editor_state* state) {
 			// Create all the new tree items.
 			f32 y_offset = 0.0f;
 			for (u32 i = 0; i < node_count; ++i) {
-				kscene_hierarchy_node* scene_node = &scene_nodes[i];
+				kscene_hierarchy_node *scene_node = &scene_nodes[i];
 
 				tree_setup_node_r(state, scene_node, &tree.root_nodes[i], KNULL, i, &y_offset);
 			}
@@ -3261,8 +3286,8 @@ static void tree_refresh(editor_state* state) {
 	KTRACE("Tree refresh complete.");
 }
 
-static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	hierarchy_node_context* context = (hierarchy_node_context*)kui_control_get_user_data(state, self);
+static b8 tree_item_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	hierarchy_node_context *context = (hierarchy_node_context *)kui_control_get_user_data(state, self);
 
 	editor_clear_selected_entities(context->editor);
 	editor_add_to_selected_entities(context->editor, 1, &context->entity);
@@ -3270,8 +3295,8 @@ static b8 tree_item_clicked(struct kui_state* state, kui_control self, struct ku
 	return true;
 }
 
-static b8 tree_item_expanded(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	hierarchy_node_context* context = (hierarchy_node_context*)kui_control_get_user_data(state, self);
+static b8 tree_item_expanded (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	hierarchy_node_context *context = (hierarchy_node_context *)kui_control_get_user_data(state, self);
 
 	context->hierarchy_node->expanded = true;
 
@@ -3280,8 +3305,8 @@ static b8 tree_item_expanded(struct kui_state* state, kui_control self, struct k
 	return true;
 }
 
-static b8 tree_item_collapsed(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	hierarchy_node_context* context = (hierarchy_node_context*)kui_control_get_user_data(state, self);
+static b8 tree_item_collapsed (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	hierarchy_node_context *context = (hierarchy_node_context *)kui_control_get_user_data(state, self);
 
 	context->hierarchy_node->expanded = false;
 
@@ -3290,17 +3315,17 @@ static b8 tree_item_collapsed(struct kui_state* state, kui_control self, struct 
 	return true;
 }
 
-static void hft_elevation_diameter_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void hft_elevation_diameter_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				i64 x;
 				if (string_to_i64(val, &x)) {
 					editor->hft_elevation_diameter = KCLAMP((u32)x, 1, 64);
@@ -3312,17 +3337,17 @@ static void hft_elevation_diameter_textbox_on_key(kui_state* state, kui_control 
 		}
 	}
 }
-static void hft_elevation_amount_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void hft_elevation_amount_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				f32 x;
 				if (string_to_f32(val, &x)) {
 					editor->hft_elevation_amount = (f32)KCLAMP((f32)x, -127, 127);
@@ -3335,9 +3360,9 @@ static void hft_elevation_amount_textbox_on_key(kui_state* state, kui_control se
 	}
 }
 
-static void hf_terrain_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	kui_base_control* base = kui_system_get_base(state, self);
-	editor_state* edit_state = base->user_data;
+static void hf_terrain_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	kui_base_control *base = kui_system_get_base(state, self);
+	editor_state *edit_state = base->user_data;
 
 	static kui_control checkboxes[HF_TERRAIN_EDIT_MODE_COUNT] = {0};
 	checkboxes[HF_TERRAIN_EDIT_MODE_GENERAL] = edit_state->hft_mode_general_checkbox;
@@ -3388,13 +3413,13 @@ static void hf_terrain_checkbox_check_changed(struct kui_state* state, kui_contr
 	}
 }
 
-static void hf_terrain_erase_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	editor_state* editor = kui_control_get_user_data(state, self);
+static void hf_terrain_erase_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	editor_state *editor = kui_control_get_user_data(state, self);
 
-	const char* entry_control_text = kui_textbox_text_get(state, editor->hft_paint_brush_strength_textbox);
+	const char *entry_control_text = kui_textbox_text_get(state, editor->hft_paint_brush_strength_textbox);
 	u32 len = string_length(entry_control_text);
 	if (len > 0) {
-		const char* val = kui_textbox_text_get(state, editor->hft_paint_brush_strength_textbox);
+		const char *val = kui_textbox_text_get(state, editor->hft_paint_brush_strength_textbox);
 		i64 x;
 		if (string_to_i64(val, &x)) {
 			editor->hft_paint_brush_strength = (i8)KCLAMP((i8)(x *= -1), -127, 127);
@@ -3403,23 +3428,23 @@ static void hf_terrain_erase_checkbox_check_changed(struct kui_state* state, kui
 	}
 }
 
-static void hf_terrain_set_height_checkbox_check_changed(struct kui_state* state, kui_control self, struct kui_checkbox_event event) {
-	editor_state* editor = kui_control_get_user_data(state, self);
+static void hf_terrain_set_height_checkbox_check_changed (struct kui_state *state, kui_control self, struct kui_checkbox_event event) {
+	editor_state *editor = kui_control_get_user_data(state, self);
 
 	editor->hft_elevation_set_height = event.checked;
 }
 
-static void hft_chunk_material_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void hft_chunk_material_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		hf_terrain_chunk_material_context* context = kui_control_get_user_data(state, self);
+		hf_terrain_chunk_material_context *context = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				i64 x;
 				if (string_to_i64(val, &x)) {
 					// Set the material index for the given chunk.
@@ -3437,8 +3462,8 @@ static void hft_chunk_material_textbox_on_key(kui_state* state, kui_control self
 	}
 }
 
-static b8 hft_save_button_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	editor_state* editor = kui_control_get_user_data(state, self);
+static b8 hft_save_button_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	editor_state *editor = kui_control_get_user_data(state, self);
 
 	b8 result = kscene_hf_terrain_save(editor->edit_scene);
 	KTRACE("HF Terrain save %s", result ? "success" : "failure");
@@ -3450,36 +3475,36 @@ static b8 hft_save_button_clicked(struct kui_state* state, kui_control self, str
 }
 
 typedef struct hft_tex_browser_context {
-	editor_state* editor;
+	editor_state *editor;
 	kui_control image_box;
 	u8 material_index;
 	hf_terrain_material_map map;
 } hft_tex_browser_context;
 
-static void hft_tex_browser_selected_callback(ktexture texture, void* context) {
-	hft_tex_browser_context* typed_context = context;
+static void hft_tex_browser_selected_callback (ktexture texture, void *context) {
+	hft_tex_browser_context *typed_context = context;
 
 	kui_image_box_control_texture_set(typed_context->editor->kui_state, typed_context->image_box, texture);
 
 	// Update the terrain material listing.
 
-	hf_terrain* terrain = kscene_hf_terrain_get(typed_context->editor->edit_scene);
+	hf_terrain *terrain = kscene_hf_terrain_get(typed_context->editor->edit_scene);
 	hf_terrain_material_texture_set(terrain, typed_context->material_index, typed_context->map, texture);
 
-	KFREE_TYPE(context, hft_tex_browser_context, MEMORY_TAG_EDITOR);
+	kfree(context);
 }
-static void hft_tex_browser_cancelled_callback(void* context) {
+static void hft_tex_browser_cancelled_callback (void *context) {
 	/* hft_tex_browser_context* typed_context = context; */
 
-	KFREE_TYPE(context, hft_tex_browser_context, MEMORY_TAG_EDITOR);
+	kfree(context);
 }
 
-static b8 hft_material_imagebox_clicked(struct kui_state* state, kui_control self, struct kui_mouse_event event) {
-	hf_terrain_material_imagebox_context* ctrl_context = kui_control_get_user_data(state, self);
-	editor_state* editor = ctrl_context->editor;
+static b8 hft_material_imagebox_clicked (struct kui_state *state, kui_control self, struct kui_mouse_event event) {
+	hf_terrain_material_imagebox_context *ctrl_context = kui_control_get_user_data(state, self);
+	editor_state *editor = ctrl_context->editor;
 	// Open the texture browser in select mode, passing along a callback with enough context data to
 	// set the texture of the provided imagebox to the selected texture _if_ a selection is made.
-	hft_tex_browser_context* context = KALLOC_TYPE(hft_tex_browser_context, MEMORY_TAG_EDITOR);
+	hft_tex_browser_context *context = KALLOC_TYPE(hft_tex_browser_context, MEMORY_TAG_EDITOR);
 	context->editor = editor;
 	context->image_box = self;
 	context->material_index = ctrl_context->material_index;
@@ -3496,17 +3521,17 @@ static b8 hft_material_imagebox_clicked(struct kui_state* state, kui_control sel
 	return false;
 }
 
-static void hft_paint_brush_diameter_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void hft_paint_brush_diameter_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				i64 x;
 				if (string_to_i64(val, &x)) {
 					editor->hft_paint_brush_diameter = KCLAMP((u32)x, 1, 64);
@@ -3518,17 +3543,17 @@ static void hft_paint_brush_diameter_textbox_on_key(kui_state* state, kui_contro
 		}
 	}
 }
-static void hft_paint_brush_strength_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void hft_paint_brush_strength_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				i64 x;
 				if (string_to_i64(val, &x)) {
 					editor->hft_paint_brush_strength = (i8)KCLAMP((i8)x, -127, 127);
@@ -3544,17 +3569,17 @@ static void hft_paint_brush_strength_textbox_on_key(kui_state* state, kui_contro
 		}
 	}
 }
-static void hft_paint_material_index_textbox_on_key(kui_state* state, kui_control self, kui_keyboard_event evt) {
+static void hft_paint_material_index_textbox_on_key (kui_state *state, kui_control self, kui_keyboard_event evt) {
 	if (evt.type == KUI_KEYBOARD_EVENT_TYPE_PRESS) {
 		u16 key_code = evt.key;
 
-		editor_state* editor = kui_control_get_user_data(state, self);
+		editor_state *editor = kui_control_get_user_data(state, self);
 
 		if (key_code == KEY_ENTER) {
-			const char* entry_control_text = kui_textbox_text_get(state, self);
+			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
-				const char* val = kui_textbox_text_get(state, self);
+				const char *val = kui_textbox_text_get(state, self);
 				i64 x;
 				if (string_to_i64(val, &x)) {
 					editor->hft_paint_material_index = (u8)KCLAMP((u8)x, 0, HF_TERRAIN_CHUNK_MAX_MATERIALS - 2);

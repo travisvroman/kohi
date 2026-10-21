@@ -7,7 +7,6 @@
 
 #include "editor_gizmo.h"
 
-#include <core_resource_types.h>
 #include <debug/kassert.h>
 #include <defines.h>
 #include <logger.h>
@@ -17,14 +16,15 @@
 #include <memory/kmemory.h>
 #include <renderer/renderer_frontend.h>
 #include <systems/ktransform_system.h>
-#include <utils/kcolour.h>
 
+#include "core/engine.h"
 #include "systems/kcamera_system.h"
+#include "systems/kmatrix_system.h"
 
-static void create_gizmo_mode_none(editor_gizmo* gizmo);
-static void create_gizmo_mode_move(editor_gizmo* gizmo);
-static void create_gizmo_mode_scale(editor_gizmo* gizmo);
-static void create_gizmo_mode_rotate(editor_gizmo* gizmo);
+static void create_gizmo_mode_none (editor_gizmo *gizmo);
+static void create_gizmo_mode_move (editor_gizmo *gizmo);
+static void create_gizmo_mode_scale (editor_gizmo *gizmo);
+static void create_gizmo_mode_rotate (editor_gizmo *gizmo);
 
 const static u8 segments = 32;
 const static f32 radius = 1.0f;
@@ -35,7 +35,7 @@ const static u8 axis_sides = 6;
 const static f32 axis_length = 2.0f;
 const static f32 box_axis_length = 0.4f;
 
-b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
+b8 editor_gizmo_create (editor_gizmo *out_gizmo) {
 	if (!out_gizmo) {
 		KERROR("Unable to create gizmo with an invalid out pointer.");
 		return false;
@@ -56,23 +56,26 @@ b8 editor_gizmo_create(editor_gizmo* out_gizmo) {
 		out_gizmo->mode_data[i].indices = 0;
 	}
 
+	out_gizmo->render_projection_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_PROJECTION, mat4_identity());
+	out_gizmo->render_model_id = kmatrix_system_add(engine_systems_get()->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
+
 	return true;
 }
 
-void editor_gizmo_destroy(editor_gizmo* gizmo) {
+void editor_gizmo_destroy (editor_gizmo *gizmo) {
 	if (gizmo) {
 		editor_gizmo_unload(gizmo);
 
 		u8 mode_count = EDITOR_GIZMO_MODE_MAX + 1;
 		for (u8 i = 0; i < mode_count; ++i) {
-			editor_gizmo_mode_data* data = &gizmo->mode_data[i];
+			editor_gizmo_mode_data *data = &gizmo->mode_data[i];
 			geometry_destroy(&data->geo);
-			KFREE_TYPE_CARRAY(data->mode_extents, extents_3d, data->extents_count);
+			kfree(data->mode_extents);
 		}
 	}
 }
 
-b8 editor_gizmo_initialize(editor_gizmo* gizmo) {
+b8 editor_gizmo_initialize (editor_gizmo *gizmo) {
 	if (!gizmo) {
 		return false;
 	}
@@ -87,14 +90,14 @@ b8 editor_gizmo_initialize(editor_gizmo* gizmo) {
 	return true;
 }
 
-b8 editor_gizmo_load(editor_gizmo* gizmo) {
+b8 editor_gizmo_load (editor_gizmo *gizmo) {
 	if (!gizmo) {
 		return false;
 	}
 
 	for (u32 i = 0; i < EDITOR_GIZMO_MODE_MAX + 1; ++i) {
-		kgeometry* g = &gizmo->mode_data[i].geo;
-		editor_gizmo_mode_data* mode = &gizmo->mode_data[i];
+		kgeometry *g = &gizmo->mode_data[i].geo;
+		editor_gizmo_mode_data *mode = &gizmo->mode_data[i];
 
 		g->type = KGEOMETRY_TYPE_3D_STATIC_COLOUR;
 		g->vertex_count = mode->vertex_count;
@@ -128,7 +131,7 @@ b8 editor_gizmo_load(editor_gizmo* gizmo) {
 	return true;
 }
 
-b8 editor_gizmo_unload(editor_gizmo* gizmo) {
+b8 editor_gizmo_unload (editor_gizmo *gizmo) {
 	if (gizmo) {
 #if KOHI_DEBUG
 		debug_line3d_unload(&gizmo->plane_normal_line);
@@ -143,7 +146,7 @@ b8 editor_gizmo_unload(editor_gizmo* gizmo) {
 	return true;
 }
 
-void editor_gizmo_refresh(editor_gizmo* gizmo) {
+void editor_gizmo_refresh (editor_gizmo *gizmo) {
 	if (gizmo) {
 		if (gizmo->selected_transform != KTRANSFORM_INVALID) {
 			// Set the position.
@@ -172,7 +175,7 @@ void editor_gizmo_refresh(editor_gizmo* gizmo) {
 	}
 }
 
-editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo) {
+editor_gizmo_orientation editor_gizmo_orientation_get (editor_gizmo *gizmo) {
 	if (gizmo) {
 		return gizmo->orientation;
 	}
@@ -181,7 +184,7 @@ editor_gizmo_orientation editor_gizmo_orientation_get(editor_gizmo* gizmo) {
 	return EDITOR_GIZMO_ORIENTATION_GLOBAL;
 }
 
-void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation orientation) {
+void editor_gizmo_orientation_set (editor_gizmo *gizmo, editor_gizmo_orientation orientation) {
 	if (gizmo) {
 		gizmo->orientation = orientation;
 #if KOHI_DEBUG
@@ -197,14 +200,14 @@ void editor_gizmo_orientation_set(editor_gizmo* gizmo, editor_gizmo_orientation 
 		editor_gizmo_refresh(gizmo);
 	}
 }
-void editor_gizmo_selected_transform_set(editor_gizmo* gizmo, ktransform transform) {
+void editor_gizmo_selected_transform_set (editor_gizmo *gizmo, ktransform transform) {
 	if (gizmo) {
 		gizmo->selected_transform = transform;
 		editor_gizmo_refresh(gizmo);
 	}
 }
 
-static mat4 gizmo_generate_render_model(vec3 pos, quat rot, f32 world_scale, b8 local_mode) {
+static mat4 gizmo_generate_render_model (vec3 pos, quat rot, f32 world_scale, b8 local_mode) {
 
 	// Determine rotation: local = object local, global = identity
 	quat q = local_mode ? rot : quat_identity();
@@ -252,7 +255,7 @@ static mat4 gizmo_generate_render_model(vec3 pos, quat rot, f32 world_scale, b8 
 	return SR_T;
 }
 
-void editor_gizmo_update(editor_gizmo* gizmo, kcamera camera) {
+void editor_gizmo_update (editor_gizmo *gizmo, kcamera camera) {
 	if (gizmo) {
 		ktransform_calculate_local(gizmo->ktransform_handle);
 
@@ -264,7 +267,7 @@ void editor_gizmo_update(editor_gizmo* gizmo, kcamera camera) {
 		f32 dist = vec3_distance(cam_pos, gizmo_pos);
 		rect_2di vp_rect = kcamera_get_vp_rect(camera);
 
-		gizmo->render_projection =
+		mat4 proj =
 			(gizmo->mode == EDITOR_GIZMO_MODE_ROTATE)
 				// Setting the far clip to just beyond the gizmo distance from the camera "hides" the
 				// backward parts of the loops in the rotation mode, making it far less confusing to look at.
@@ -272,28 +275,31 @@ void editor_gizmo_update(editor_gizmo* gizmo, kcamera camera) {
 				// Otherwise just use the projection as normal.
 				: kcamera_get_projection(camera);
 
-		gizmo->render_projection = kcamera_get_projection(camera);
+		/* proj = kcamera_get_projection(camera); */
+
+		kmatrix_system_update_by_id(engine_systems_get()->matrix_system, gizmo->render_projection_id, proj);
 
 		// Calculate the gizmo's world/model matrix
-		f32 proj_scale = gizmo->render_projection.data[5];
+		f32 proj_scale = proj.data[5];
 		f32 desired_pixels = 200;
 		gizmo->world_scale = (dist * desired_pixels) / (proj_scale * vp_rect.height);
 
 		vec3 gizmo_scale = vec3_from_scalar(gizmo->world_scale);
 
-		gizmo->render_model = mat4_from_translation_rotation_scale(gizmo_pos, gizmo_rot, gizmo_scale);
+		mat4 model = mat4_from_translation_rotation_scale(gizmo_pos, gizmo_rot, gizmo_scale);
+		kmatrix_system_update_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id, model);
 	}
 }
 
-void editor_gizmo_render_frame_prepare(editor_gizmo* gizmo, const struct frame_data* p_frame_data) {
+void editor_gizmo_render_frame_prepare (editor_gizmo *gizmo, const struct frame_data *p_frame_data) {
 	if (gizmo && gizmo->is_dirty) {
-		editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
+		editor_gizmo_mode_data *data = &gizmo->mode_data[gizmo->mode];
 		renderer_geometry_vertex_update(&data->geo, 0, data->vertex_count, data->vertices, false);
 		gizmo->is_dirty = false;
 	}
 }
 
-void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode) {
+void editor_gizmo_mode_set (editor_gizmo *gizmo, editor_gizmo_mode mode) {
 	if (gizmo) {
 		gizmo->mode = mode;
 		gizmo->is_dirty = true;
@@ -316,8 +322,8 @@ void editor_gizmo_mode_set(editor_gizmo* gizmo, editor_gizmo_mode mode) {
 	}
 }
 
-static void create_gizmo_mode_none(editor_gizmo* gizmo) {
-	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_NONE];
+static void create_gizmo_mode_none (editor_gizmo *gizmo) {
+	editor_gizmo_mode_data *data = &gizmo->mode_data[EDITOR_GIZMO_MODE_NONE];
 
 	vec4 grey = (vec4){0.5f, 0.5f, 0.5f, 1.0f};
 
@@ -331,8 +337,8 @@ static void create_gizmo_mode_none(editor_gizmo* gizmo) {
 	data->index_count = axis_index_count * 3;
 	data->indices = KALLOC_TYPE_CARRAY(u32, data->index_count);
 
-	colour_vertex_3d* verts = data->vertices;
-	u32* inds = data->indices;
+	colour_vertex_3d *verts = data->vertices;
+	u32 *inds = data->indices;
 	generate_axis_geometry(AXIS_X, base_offset, axis_length, grey, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, KNULL, KNULL, verts, inds, (axis_vert_count * 0));
 	verts += axis_vert_count;
 	inds += axis_index_count;
@@ -342,8 +348,8 @@ static void create_gizmo_mode_none(editor_gizmo* gizmo) {
 	generate_axis_geometry(AXIS_Z, base_offset, axis_length, grey, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, false, KNULL, KNULL, verts, inds, (axis_vert_count * 2));
 }
 
-static void create_gizmo_mode_move(editor_gizmo* gizmo) {
-	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_MOVE];
+static void create_gizmo_mode_move (editor_gizmo *gizmo) {
+	editor_gizmo_mode_data *data = &gizmo->mode_data[EDITOR_GIZMO_MODE_MOVE];
 
 	data->current_axis_index = INVALID_ID_U8;
 	colour4 r = {1, 0, 0, 1};
@@ -372,7 +378,7 @@ static void create_gizmo_mode_move(editor_gizmo* gizmo) {
 	data->indices = KALLOC_TYPE_CARRAY(u32, data->index_count);
 
 	u32 v_offset = 0;
-	u32* inds = data->indices;
+	u32 *inds = data->indices;
 
 	// X
 	generate_axis_geometry(AXIS_X, base_offset, axis_length, r, axis_thickness, arrowhead_size, arrowhead_length, axis_sides, true, KNULL, KNULL, data->vertices + v_offset, inds, v_offset);
@@ -412,7 +418,7 @@ static void create_gizmo_mode_move(editor_gizmo* gizmo) {
 
 	// Create boxes for each axis
 	// x
-	extents_3d* ex = &data->mode_extents[EDITOR_GIZMO_AXIS_X];
+	extents_3d *ex = &data->mode_extents[EDITOR_GIZMO_AXIS_X];
 	ex->min = vec3_create(0.4f, -0.2f, -0.2f);
 	ex->max = vec3_create(2.1f, 0.2f, 0.2f);
 
@@ -448,8 +454,8 @@ static void create_gizmo_mode_move(editor_gizmo* gizmo) {
 	ex->max = vec3_create(0.1f, 0.1f, 0.1f);
 }
 
-static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
-	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_SCALE];
+static void create_gizmo_mode_scale (editor_gizmo *gizmo) {
+	editor_gizmo_mode_data *data = &gizmo->mode_data[EDITOR_GIZMO_MODE_SCALE];
 
 	data->current_axis_index = INVALID_ID_U8;
 
@@ -466,8 +472,8 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 	data->index_count = axis_index_count * 3;
 	data->indices = kallocate(sizeof(u32) * data->index_count, MEMORY_TAG_ARRAY);
 
-	colour_vertex_3d* verts = data->vertices;
-	u32* inds = data->indices;
+	colour_vertex_3d *verts = data->vertices;
+	u32 *inds = data->indices;
 	generate_axis_geometry(AXIS_X, base_offset, axis_length, r, axis_thickness, arrowhead_length, arrowhead_size, axis_sides, true, KNULL, KNULL, verts, inds, (axis_vert_count * 0));
 	verts += axis_vert_count;
 	inds += axis_index_count;
@@ -481,7 +487,7 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 
 	// Create boxes for each axis
 	// x
-	extents_3d* ex = &data->mode_extents[EDITOR_GIZMO_AXIS_X];
+	extents_3d *ex = &data->mode_extents[EDITOR_GIZMO_AXIS_X];
 	ex->min = vec3_create(0.4f, -0.2f, -0.2f);
 	ex->max = vec3_create(2.1f, 0.2f, 0.2f);
 
@@ -517,8 +523,8 @@ static void create_gizmo_mode_scale(editor_gizmo* gizmo) {
 	ex->max = vec3_create(0.1f, 0.1f, 0.1f);
 }
 
-static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
-	editor_gizmo_mode_data* data = &gizmo->mode_data[EDITOR_GIZMO_MODE_ROTATE];
+static void create_gizmo_mode_rotate (editor_gizmo *gizmo) {
+	editor_gizmo_mode_data *data = &gizmo->mode_data[EDITOR_GIZMO_MODE_ROTATE];
 
 	u32 axis_vert_count = 0;
 	u32 axis_index_count = 0;
@@ -532,8 +538,8 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
 	data->index_count = axis_index_count * 3;
 	data->indices = kallocate(sizeof(u32) * data->index_count, MEMORY_TAG_ARRAY);
 
-	colour_vertex_3d* verts = data->vertices;
-	u32* inds = data->indices;
+	colour_vertex_3d *verts = data->vertices;
+	u32 *inds = data->indices;
 	generate_axis_ring_geometry(AXIS_X, 1.0f, 0.1f, xcol, segments, 6, KNULL, KNULL, verts, inds, (axis_vert_count * 0));
 	verts += axis_vert_count;
 	inds += axis_index_count;
@@ -545,7 +551,7 @@ static void create_gizmo_mode_rotate(editor_gizmo* gizmo) {
 	// NOTE: Rotation gizmo uses discs, not extents, so this mode doesn't need them.
 }
 
-static void handle_highlighting(editor_gizmo* gizmo, editor_gizmo_mode_data* data, u8 hit_axis) {
+static void handle_highlighting (editor_gizmo *gizmo, editor_gizmo_mode_data *data, u8 hit_axis) {
 	if (data->current_axis_index != hit_axis) {
 		data->current_axis_index = hit_axis;
 
@@ -602,7 +608,7 @@ static void handle_highlighting(editor_gizmo* gizmo, editor_gizmo_mode_data* dat
 	}
 }
 
-void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* r, editor_gizmo_interaction_type interaction_type) {
+void editor_gizmo_interaction_begin (editor_gizmo *gizmo, kcamera c, struct ray *r, editor_gizmo_interaction_type interaction_type) {
 	if (!gizmo || !r) {
 		return;
 	}
@@ -610,7 +616,7 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* 
 	gizmo->interaction = interaction_type;
 
 	if (gizmo->interaction == EDITOR_GIZMO_INTERACTION_TYPE_MOUSE_DRAG) {
-		editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
+		editor_gizmo_mode_data *data = &gizmo->mode_data[gizmo->mode];
 		/* mat4 gizmo_local = ktransform_local_get(gizmo->ktransform_handle); */
 		vec3 origin = ktransform_position_get(gizmo->ktransform_handle);
 
@@ -731,7 +737,7 @@ void editor_gizmo_interaction_begin(editor_gizmo* gizmo, kcamera c, struct ray* 
 	}
 }
 
-void editor_gizmo_interaction_end(editor_gizmo* gizmo) {
+void editor_gizmo_interaction_end (editor_gizmo *gizmo) {
 	if (!gizmo) {
 		return;
 	}
@@ -749,12 +755,12 @@ void editor_gizmo_interaction_end(editor_gizmo* gizmo) {
 	gizmo->interaction = EDITOR_GIZMO_INTERACTION_TYPE_NONE;
 }
 
-void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct ray* r, editor_gizmo_interaction_type interaction_type) {
+void editor_gizmo_handle_interaction (editor_gizmo *gizmo, kcamera camera, struct ray *r, editor_gizmo_interaction_type interaction_type) {
 	if (!gizmo || !r) {
 		return;
 	}
 
-	editor_gizmo_mode_data* data = &gizmo->mode_data[gizmo->mode];
+	editor_gizmo_mode_data *data = &gizmo->mode_data[gizmo->mode];
 	mat4 gizmo_local = ktransform_local_get(gizmo->ktransform_handle);
 	vec3 origin = ktransform_position_get(gizmo->ktransform_handle);
 
@@ -854,7 +860,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo->render_model);
+			mat4 inv = mat4_inverse(kmatrix_system_get_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id));
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -980,7 +986,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			ktransform_calculate_local(gizmo->ktransform_handle);
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 inv = mat4_inverse(gizmo->render_model);
+			mat4 inv = mat4_inverse(kmatrix_system_get_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id));
 
 			ray transformed_ray = {
 				.origin = vec3_transform(r->origin, 1.0f, inv),
@@ -1061,7 +1067,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 			vec3 point;
 			u8 hit_axis = INVALID_ID_U8;
 
-			mat4 transform = gizmo->render_model;
+			mat4 transform = kmatrix_system_get_by_id(engine_systems_get()->matrix_system, gizmo->render_model_id);
 			vec3 center = mat4_position(transform);
 			quat q = ktransform_rotation_get(gizmo->selected_transform);
 			q = quat_normalize(q);
@@ -1096,7 +1102,7 @@ void editor_gizmo_handle_interaction(editor_gizmo* gizmo, kcamera camera, struct
 	ktransform_calculate_local(gizmo->ktransform_handle);
 }
 
-mat4 editor_gizmo_model_get(editor_gizmo* gizmo) {
+mat4 editor_gizmo_model_get (editor_gizmo *gizmo) {
 	if (gizmo) {
 		// NOTE: Using the local matrix since the gizmo will never be parented to anything.
 		return ktransform_local_get(gizmo->ktransform_handle);

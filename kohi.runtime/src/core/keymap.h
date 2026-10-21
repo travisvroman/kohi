@@ -78,7 +78,7 @@ typedef struct keymap_binding {
 	/** @brief A code for an action to be passed to the application when this binding is triggered. */
 	keymap_action_code code;
 	/** @brief A pointer to the next binding in the linked list, or 0 if the tail. */
-	struct keymap_binding* next;
+	struct keymap_binding *next;
 } keymap_binding;
 
 /**
@@ -89,7 +89,7 @@ typedef struct keymap_entry {
 	/** @brief The bound key. */
 	keys key;
 	/** @brief Linked list of bindings. Default: 0. */
-	keymap_binding* bindings;
+	keymap_binding *bindings;
 } keymap_entry;
 
 /**
@@ -110,7 +110,7 @@ typedef struct keymap {
 /**
  * @brief Creates and returns a new keymap.
  */
-KAPI keymap keymap_create(void);
+KAPI keymap keymap_create (void);
 
 /**
  * @brief Adds a binding to the keymap provided.
@@ -121,7 +121,7 @@ KAPI keymap keymap_create(void);
  * @param modifiers Required modifier keys, if any (OR them together).
  * @param code The action code provided by the application. Required.
  */
-KAPI void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code);
+KAPI void keymap_binding_add (keymap *map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code);
 
 /**
  * @brief Removes the binding from the given keymap that also matches
@@ -134,11 +134,11 @@ KAPI void keymap_binding_add(keymap* map, keys key, keymap_entry_bind_type type,
  * @param modifiers The modifiers required for the binding.
  * @param code The action code associated with the binding. Required.
  */
-KAPI void keymap_binding_remove(keymap* map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code);
+KAPI void keymap_binding_remove (keymap *map, keys key, keymap_entry_bind_type type, keymap_modifier modifiers, keymap_action_code code);
 
 /**
  * @brief Clears all bindings from the given keymap.
  *
  * @param map A pointer to the map to be cleared.
  */
-KAPI void keymap_clear(keymap* map);
+KAPI void keymap_clear (keymap *map);

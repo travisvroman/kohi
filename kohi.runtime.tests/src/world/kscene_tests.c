@@ -9,7 +9,7 @@
 #include "../test_manager.h"
 #include "logger.h"
 
-u8 kscene_entity_handle_should_pack_and_unpack(void) {
+u8 kscene_entity_handle_should_pack_and_unpack (void) {
 	// First test - handle type and index of 0 should create a zero-handle, which is technically valid.
 	kentity_type original_entity_type = KENTITY_TYPE_NONE;
 	u16 original_entity_type_index = 0;
@@ -68,6 +68,6 @@ u8 kscene_entity_handle_should_pack_and_unpack(void) {
 	return true;
 }
 
-void kscene_register_tests(void) {
+void kscene_register_tests (void) {
 	test_manager_register_test(kscene_entity_handle_should_pack_and_unpack, "kscene entity handle should pack and unpack successfully.");
 }

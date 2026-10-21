@@ -25,11 +25,11 @@ typedef enum kvar_types {
 typedef union kvar_value {
 	i32 i;
 	f32 f;
-	char* s;
+	char *s;
 } kvar_value;
 
 typedef struct kvar_change {
-	const char* name;
+	const char *name;
 	kvar_types old_type;
 	kvar_types new_type;
 	kvar_value new_value;
@@ -48,13 +48,13 @@ typedef struct kvar_change {
  * @param config A pointer to config, if required.
  * @return b8 True on success; otherwise false.
  */
-b8 kvar_system_initialize(u64* memory_requirement, struct kvar_state* memory, void* config);
+b8 kvar_system_initialize (u64 *memory_requirement, struct kvar_state *memory, void *config);
 /**
  * @brief Shuts down the KVar system.
  *
  * @param state The system state.
  */
-void kvar_system_shutdown(struct kvar_state* state);
+void kvar_system_shutdown (struct kvar_state *state);
 
 /**
  * @brief Attempts to obtain a variable value with the given
@@ -65,7 +65,7 @@ void kvar_system_shutdown(struct kvar_state* state);
  * @param out_value A pointer to hold the variable.
  * @return True if the variable was found and the value was successfully converted/returned; otherwise false.
  */
-KAPI b8 kvar_i32_get(const char* name, i32* out_value);
+KAPI b8 kvar_i32_get (const char *name, i32 *out_value);
 
 /**
  * @brief Attempts to set the value as an integer of an existing variable with
@@ -76,7 +76,7 @@ KAPI b8 kvar_i32_get(const char* name, i32* out_value);
  * @param value The value to be set.
  * @return True if found and set, otherwise false.
  */
-KAPI b8 kvar_i32_set(const char* name, const char* desc, i32 value);
+KAPI b8 kvar_i32_set (const char *name, const char *desc, i32 value);
 
 /**
  * @brief Attempts to obtain a variable value with the given
@@ -87,7 +87,7 @@ KAPI b8 kvar_i32_set(const char* name, const char* desc, i32 value);
  * @param out_value A pointer to hold the variable.
  * @return True if the variable was found and the value was successfully converted/returned; otherwise false.
  */
-KAPI b8 kvar_f32_get(const char* name, f32* out_value);
+KAPI b8 kvar_f32_get (const char *name, f32 *out_value);
 
 /**
  * @brief Attempts to set the value as a float of an existing variable with
@@ -98,7 +98,7 @@ KAPI b8 kvar_f32_get(const char* name, f32* out_value);
  * @param value The value to be set.
  * @return True if found and set, otherwise false.
  */
-KAPI b8 kvar_f32_set(const char* name, const char* desc, f32 value);
+KAPI b8 kvar_f32_set (const char *name, const char *desc, f32 value);
 
 /**
  * @brief Attempts to obtain a variable value with the given
@@ -109,7 +109,7 @@ KAPI b8 kvar_f32_set(const char* name, const char* desc, f32 value);
  * @param name The name of the variable.
  * @return A copy of the value as a string, or 0 if the operation fails. Must be freed by the caller.
  */
-KAPI const char* kvar_string_get(const char* name);
+KAPI const char *kvar_string_get (const char *name);
 
 /**
  * @brief Attempts to set the value as a string of an existing variable with
@@ -120,4 +120,4 @@ KAPI const char* kvar_string_get(const char* name);
  * @param value The value to be set.
  * @return True if found and set, otherwise false.
  */
-KAPI b8 kvar_string_set(const char* name, const char* desc, const char* value);
+KAPI b8 kvar_string_set (const char *name, const char *desc, const char *value);

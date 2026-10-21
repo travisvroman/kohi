@@ -11,14 +11,14 @@
 
 #include <stdio.h> // sscanf
 
-static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_mtl_source_asset);
+static b8 import_fnt_file (const char *fnt_file_text, fnt_source_asset *out_mtl_source_asset);
 
-b8 fnt_serializer_serialize(const fnt_source_asset* source_asset, const char** out_file_text) {
+b8 fnt_serializer_serialize (const fnt_source_asset *source_asset, const char **out_file_text) {
 	KASSERT_MSG(false, "Not yet implemented");
 	return false;
 }
 
-b8 fnt_serializer_deserialize(const char* fnt_file_text, fnt_source_asset* out_fnt_source_asset) {
+b8 fnt_serializer_deserialize (const char *fnt_file_text, fnt_source_asset *out_fnt_source_asset) {
 	if (!fnt_file_text || !out_fnt_source_asset) {
 		KERROR("fnt_serializer_deserialize requires valid pointers to fnt_file_text and out_fnt_source_asset.");
 		return false;
@@ -33,13 +33,13 @@ b8 fnt_serializer_deserialize(const char* fnt_file_text, fnt_source_asset* out_f
 		return false;                                                                                                                          \
 	}
 
-static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_asset) {
+static b8 import_fnt_file (const char *fnt_file_text, fnt_source_asset *out_asset) {
 	KDEBUG("Importing source bitmap font .fnt file ...");
 
 	kzero_memory(out_asset, sizeof(fnt_source_asset));
-	char* line = 0;
+	char *line = 0;
 	char line_buffer[512];
-	char* p = &line_buffer[0];
+	char *p = &line_buffer[0];
 	u32 line_length = 0;
 	u8 addl_advance = 0; // To skip \n, or \r\n, etc.
 	u32 line_num = 0;
@@ -121,7 +121,7 @@ static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_asset
 					}
 				} else {
 					// Assume 'char' line
-					kasset_bitmap_font_glyph* g = &out_asset->glyphs[glyphs_read];
+					kasset_bitmap_font_glyph *g = &out_asset->glyphs[glyphs_read];
 
 					i32 elements_read = sscanf(
 						line,
@@ -147,7 +147,7 @@ static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_asset
 		}
 		case 'p': {
 			// 'page' line
-			kasset_bitmap_font_page* page = &out_asset->pages[pages_read];
+			kasset_bitmap_font_page *page = &out_asset->pages[pages_read];
 			char page_file_str[200] = {0};
 			i32 elements_read = sscanf(
 				line,
@@ -175,7 +175,7 @@ static b8 import_fnt_file(const char* fnt_file_text, fnt_source_asset* out_asset
 				}
 			} else if (line[7] == ' ') {
 				// Kerning record
-				kasset_bitmap_font_kerning* k = &out_asset->kernings[kernings_read];
+				kasset_bitmap_font_kerning *k = &out_asset->kernings[kernings_read];
 				i32 elements_read = sscanf(
 					line,
 					"kerning first=%i  second=%i amount=%hi",

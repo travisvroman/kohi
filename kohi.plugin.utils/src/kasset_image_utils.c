@@ -21,13 +21,13 @@ typedef enum map_type {
 } map_type;
 
 typedef struct channel_map {
-	char* file_path;
+	char *file_path;
 	i32 width, height;
 	i32 channels_in_file;
-	u8* data;
+	u8 *data;
 } channel_map;
 
-i32 combine_texture_maps(i32 argc, char** argv) {
+i32 combine_texture_maps (i32 argc, char **argv) {
 	if (argc < 3) {
 		KERROR("Build shaders mode requires at least one additional argument.");
 		return -3;
@@ -49,7 +49,7 @@ i32 combine_texture_maps(i32 argc, char** argv) {
 
 	// Starting at third argument. One argument = 1 shader.
 	for (i32 i = 2; i < argc; ++i) {
-		char** parts = darray_create(char*);
+		char **parts = darray_create(char *);
 		string_split(argv[i], '=', &parts, true, false, true);
 
 		if (strings_equali(parts[0], "metallic")) {
@@ -138,7 +138,7 @@ i32 combine_texture_maps(i32 argc, char** argv) {
 	}
 
 	// combine the data.
-	u8* target_buffer = malloc(sizeof(u8) * width * height * 4);
+	u8 *target_buffer = malloc(sizeof(u8) * width * height * 4);
 	for (i32 row = 0; row < width; ++row) {
 		for (i32 col = 0; col < height; ++col) {
 			i32 index = (row * width) + col;

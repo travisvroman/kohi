@@ -13,7 +13,7 @@
 
 #pragma once
 
-#define KNULL 0
+#define KNULL ((void *)0)
 
 // Unsigned int types.
 
@@ -290,11 +290,11 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 /** @brief Gets the number of bytes from amount of kilobytes (KB) (1000) */
 #define KILOBYTES(amount) ((amount) * 1000ULL)
 
-KINLINE u64 get_aligned(u64 operand, u64 granularity) {
+KINLINE u64 get_aligned (u64 operand, u64 granularity) {
 	return ((operand + (granularity - 1)) & ~(granularity - 1));
 }
 
-KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
+KINLINE krange get_aligned_range (u64 offset, u64 size, u64 granularity) {
 	return (krange){get_aligned(offset, granularity), get_aligned(size, granularity)};
 }
 
@@ -430,4 +430,20 @@ KINLINE krange get_aligned_range(u64 offset, u64 size, u64 granularity) {
  */
 #define PACK_U32_U16_AT(target, n, index) (target = (target | ((u32)n << ((1 - index) * 16))))
 
+/**
+ * @brief Indicates if val is within the range of [from-to] (inclusive). Flips from/to if needed.
+ * @param val The value to check.
+ * @param from The low end of the range. Should be <= to.
+ * @param to The high end of the range. Should be >= from.
+ * @returns True if within range; otherwise false.
+ */
 #define IS_IN_RANGE(val, from, to) ((from < to) ? (val >= from && val <= to) : (val <= from && val >= to))
+
+/**
+ * @brief Indicates if val is within the range of (from-to) (exclusive). Flips from/to if needed.
+ * @param val The value to check.
+ * @param from The low end of the range. Should be <= to.
+ * @param to The high end of the range. Should be >= from.
+ * @returns True if within range; otherwise false.
+ */
+#define IS_IN_RANGE_EX(val, from, to) ((from < to) ? (val >= from && val <= to) : (val <= from && val >= to))

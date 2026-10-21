@@ -8,16 +8,16 @@ struct frame_data;
 struct kwindow;
 struct kruntime_plugin;
 
-typedef b8 (*PFN_kruntime_plugin_create)(struct kruntime_plugin* out_plugin);
-typedef b8 (*PFN_kruntime_plugin_boot)(struct kruntime_plugin* plugin);
-typedef b8 (*PFN_kruntime_plugin_initialize)(struct kruntime_plugin* plugin);
-typedef void (*PFN_kruntime_plugin_destroy)(struct kruntime_plugin* plugin);
+typedef b8 (*PFN_kruntime_plugin_create)(struct kruntime_plugin *out_plugin);
+typedef b8 (*PFN_kruntime_plugin_boot)(struct kruntime_plugin *plugin);
+typedef b8 (*PFN_kruntime_plugin_initialize)(struct kruntime_plugin *plugin);
+typedef void (*PFN_kruntime_plugin_destroy)(struct kruntime_plugin *plugin);
 
-typedef b8 (*PFN_kruntime_plugin_update)(struct kruntime_plugin* plugin, struct frame_data* p_frame_data);
-typedef b8 (*PFN_kruntime_plugin_frame_prepare)(struct kruntime_plugin* plugin, struct frame_data* p_frame_data);
-typedef b8 (*PFN_kruntime_plugin_render)(struct kruntime_plugin* plugin, struct frame_data* p_frame_data);
+typedef b8 (*PFN_kruntime_plugin_update)(struct kruntime_plugin *plugin, struct frame_data *p_frame_data);
+typedef b8 (*PFN_kruntime_plugin_frame_prepare)(struct kruntime_plugin *plugin, struct frame_data *p_frame_data);
+typedef b8 (*PFN_kruntime_plugin_render)(struct kruntime_plugin *plugin, struct frame_data *p_frame_data);
 
-typedef void (*PFN_kruntime_plugin_on_window_resized)(void* plugin_state, struct kwindow* window, u16 width, u16 height);
+typedef void (*PFN_kruntime_plugin_on_window_resized)(void *plugin_state, struct kwindow *window, u16 width, u16 height);
 
 /**
  * A generic structure to hold function pointers for a given plugin. These serve as
@@ -32,10 +32,10 @@ typedef void (*PFN_kruntime_plugin_on_window_resized)(void* plugin_state, struct
  */
 typedef struct kruntime_plugin {
 	/** @brief The plugin's name. Just for display, really. Serves no purpose. */
-	const char* name;
+	const char *name;
 
 	/** @brief The plugin's configuration in string format. */
-	const char* config_str;
+	const char *config_str;
 
 	b8 block_auto_unload;
 
@@ -76,7 +76,7 @@ typedef struct kruntime_plugin {
 	u64 plugin_state_size;
 
 	/** @brief The block of memory holding the plugin's internal state. */
-	void* plugin_state;
+	void *plugin_state;
 } kruntime_plugin;
 
 #endif

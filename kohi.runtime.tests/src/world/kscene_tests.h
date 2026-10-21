@@ -1,3 +1,3 @@
 #pragma once
 
-void kscene_register_tests(void);
+void kscene_register_tests (void);

@@ -33,7 +33,7 @@ struct asset_system_state;
  * @param out_config A pointer to hold the deserialized config.
  * @return True on success; otherwise false.
  */
-KAPI b8 asset_system_deserialize_config(const char* config_str, asset_system_config* out_config);
+KAPI b8 asset_system_deserialize_config (const char *config_str, asset_system_config *out_config);
 
 /**
  * @brief Initializes the asset system. Call twice; once to get the memory requirement (pass 0 to state and config) and a second
@@ -44,18 +44,18 @@ KAPI b8 asset_system_deserialize_config(const char* config_str, asset_system_con
  * @param config A constant pointer to the configuration of the system. Ignored when getting memory requirement.
  * @return True on success; otherwise false.
  */
-KAPI b8 asset_system_initialize(u64* memory_requirement, struct asset_system_state* state, const asset_system_config* config);
+KAPI b8 asset_system_initialize (u64 *memory_requirement, struct asset_system_state *state, const asset_system_config *config);
 
 /**
  * @brief Shuts the system down.
  *
  * @param state A pointer to the state. Required.
  */
-KAPI void asset_system_shutdown(struct asset_system_state* state);
+KAPI void asset_system_shutdown (struct asset_system_state *state);
 
 #if KOHI_HOT_RELOAD
-KAPI u32 _asset_system_watch_for_reload(struct asset_system_state* state, kasset_type type, kname asset_name, kname package_name);
-KAPI void _asset_system_stop_watch(struct asset_system_state* state, u32 watch_id);
+KAPI u32 _asset_system_watch_for_reload (struct asset_system_state *state, kasset_type type, kname asset_name, kname package_name);
+KAPI void _asset_system_stop_watch (struct asset_system_state *state, u32 watch_id);
 
 #	define asset_system_watch_for_reload(state, type, asset_name, package_name) _asset_system_watch_for_reload(state, type, asset_name, package_name)
 #	define asset_system_stop_watch(state, watch_id) _asset_system_stop_watch(state, watch_id)
@@ -65,167 +65,167 @@ KAPI void _asset_system_stop_watch(struct asset_system_state* state, u32 watch_i
 #	define asset_system_stop_watch(state, watch_id)
 #endif
 
-KAPI kname* asset_system_names_by_type(struct asset_system_state* state, kasset_type type, kname package_name, u32* out_count);
+KAPI kname *asset_system_names_by_type (struct asset_system_state *state, kasset_type type, kname package_name, u32 *out_count);
 
 // ////////////////////////////////////
 // BINARY ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_binary_loaded_callback)(void* listener, kasset_binary* asset);
+typedef void (*PFN_kasset_binary_loaded_callback)(void *listener, kasset_binary *asset);
 // async load from game package.
-KAPI kasset_binary* asset_system_request_binary(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback);
+KAPI kasset_binary *asset_system_request_binary (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_binary_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_binary* asset_system_request_binary_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_binary *asset_system_request_binary_sync (struct asset_system_state *state, const char *name);
 // async load from specific package.
-KAPI kasset_binary* asset_system_request_binary_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_binary_loaded_callback callback);
+KAPI kasset_binary *asset_system_request_binary_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_binary_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_binary* asset_system_request_binary_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_binary *asset_system_request_binary_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_binary(struct asset_system_state* state, kasset_binary* asset);
+KAPI void asset_system_release_binary (struct asset_system_state *state, kasset_binary *asset);
 
-KAPI b8 asset_system_write_binary(struct asset_system_state* state, kname package_name, kname asset_name, u64 size, const void* data);
+KAPI b8 asset_system_write_binary (struct asset_system_state *state, kname package_name, kname asset_name, u64 size, const void *data);
 
 // ////////////////////////////////////
 // TEXT ASSETS
 // ////////////////////////////////////
 
 // sync load from game package.
-KAPI kasset_text* asset_system_request_text_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_text *asset_system_request_text_sync (struct asset_system_state *state, const char *name);
 // sync load from specific package.
-KAPI kasset_text* asset_system_request_text_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_text *asset_system_request_text_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_text(struct asset_system_state* state, kasset_text* asset);
+KAPI void asset_system_release_text (struct asset_system_state *state, kasset_text *asset);
 
-KAPI b8 asset_system_write_text(struct asset_system_state* state, kname package_name, kname asset_name, const char* content);
+KAPI b8 asset_system_write_text (struct asset_system_state *state, kname package_name, kname asset_name, const char *content);
 
 // ////////////////////////////////////
 // IMAGE ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_image_loaded_callback)(void* listener, kasset_image* asset);
+typedef void (*PFN_kasset_image_loaded_callback)(void *listener, kasset_image *asset);
 // async load from game package.
-KAPI kasset_image* asset_system_request_image(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_image_loaded_callback callback);
+KAPI kasset_image *asset_system_request_image (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_image_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_image* asset_system_request_image_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_image *asset_system_request_image_sync (struct asset_system_state *state, const char *name);
 // async load from specific package.
-KAPI kasset_image* asset_system_request_image_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_image_loaded_callback callback);
+KAPI kasset_image *asset_system_request_image_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_image_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_image* asset_system_request_image_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_image *asset_system_request_image_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_image(struct asset_system_state* state, kasset_image* asset);
+KAPI void asset_system_release_image (struct asset_system_state *state, kasset_image *asset);
 
 // ////////////////////////////////////
 // BITMAP FONT ASSETS
 // ////////////////////////////////////
 
 // sync load from game package.
-KAPI kasset_bitmap_font* asset_system_request_bitmap_font_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_bitmap_font *asset_system_request_bitmap_font_sync (struct asset_system_state *state, const char *name);
 // sync load from specific package.
-KAPI kasset_bitmap_font* asset_system_request_bitmap_font_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_bitmap_font *asset_system_request_bitmap_font_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_bitmap_font(struct asset_system_state* state, kasset_bitmap_font* asset);
+KAPI void asset_system_release_bitmap_font (struct asset_system_state *state, kasset_bitmap_font *asset);
 
 // ////////////////////////////////////
 // SYSTEM FONT ASSETS
 // ////////////////////////////////////
 
 // sync load from game package.
-KAPI kasset_system_font* asset_system_request_system_font_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_system_font *asset_system_request_system_font_sync (struct asset_system_state *state, const char *name);
 
 // sync load from specific package.
-KAPI kasset_system_font* asset_system_request_system_font_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_system_font *asset_system_request_system_font_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_system_font(struct asset_system_state* state, kasset_system_font* asset);
+KAPI void asset_system_release_system_font (struct asset_system_state *state, kasset_system_font *asset);
 
 // ////////////////////////////////////
 // MODEL ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_model_loaded_callback)(void* listener, kasset_model* asset);
+typedef void (*PFN_kasset_model_loaded_callback)(void *listener, kasset_model *asset);
 
 // async load from game package.
-KAPI kasset_model* asset_system_request_model(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_model_loaded_callback callback);
+KAPI kasset_model *asset_system_request_model (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_model_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_model* asset_system_request_model_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_model *asset_system_request_model_sync (struct asset_system_state *state, const char *name);
 // async load from specific package.
-KAPI kasset_model* asset_system_request_model_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_model_loaded_callback callback);
+KAPI kasset_model *asset_system_request_model_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_model_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_model* asset_system_request_model_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_model *asset_system_request_model_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_model(struct asset_system_state* state, kasset_model* asset);
+KAPI void asset_system_release_model (struct asset_system_state *state, kasset_model *asset);
 
 // ////////////////////////////////////
 // HEIGHTMAP TERRAIN ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_heightmap_terrain_loaded_callback)(void* listener, kasset_heightmap_terrain* asset);
+typedef void (*PFN_kasset_heightmap_terrain_loaded_callback)(void *listener, kasset_heightmap_terrain *asset);
 
 // async load from game package.
-KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_heightmap_terrain_loaded_callback callback);
+KAPI kasset_heightmap_terrain *asset_system_request_heightmap_terrain (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_heightmap_terrain_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_heightmap_terrain *asset_system_request_heightmap_terrain_sync (struct asset_system_state *state, const char *name);
 // async load from specific package.
-KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_heightmap_terrain_loaded_callback callback);
+KAPI kasset_heightmap_terrain *asset_system_request_heightmap_terrain_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_heightmap_terrain_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_heightmap_terrain* asset_system_request_heightmap_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_heightmap_terrain *asset_system_request_heightmap_terrain_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_heightmap_terrain(struct asset_system_state* state, kasset_heightmap_terrain* asset);
+KAPI void asset_system_release_heightmap_terrain (struct asset_system_state *state, kasset_heightmap_terrain *asset);
 
 // ////////////////////////////////////
 // HEIGHTFIELD TERRAIN ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_hf_terrain_loaded_callback)(void* listener, kasset_hf_terrain* asset);
-KAPI kasset_hf_terrain* asset_system_request_hf_terrain(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback);
-KAPI kasset_hf_terrain* asset_system_request_hf_terrain_sync(struct asset_system_state* state, const char* name);
-KAPI kasset_hf_terrain* asset_system_request_hf_terrain_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_hf_terrain_loaded_callback callback);
-KAPI kasset_hf_terrain* asset_system_request_hf_terrain_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
-KAPI void asset_system_release_hf_terrain(struct asset_system_state* state, kasset_hf_terrain* asset);
+typedef void (*PFN_kasset_hf_terrain_loaded_callback)(void *listener, kasset_hf_terrain *asset);
+KAPI kasset_hf_terrain *asset_system_request_hf_terrain (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_hf_terrain_loaded_callback callback);
+KAPI kasset_hf_terrain *asset_system_request_hf_terrain_sync (struct asset_system_state *state, const char *name);
+KAPI kasset_hf_terrain *asset_system_request_hf_terrain_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_hf_terrain_loaded_callback callback);
+KAPI kasset_hf_terrain *asset_system_request_hf_terrain_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
+KAPI void asset_system_release_hf_terrain (struct asset_system_state *state, kasset_hf_terrain *asset);
 
 // ////////////////////////////////////
 // MATERIAL ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_material_loaded_callback)(void* listener, kasset_material* asset);
+typedef void (*PFN_kasset_material_loaded_callback)(void *listener, kasset_material *asset);
 
 // async load from game package.
-KAPI kasset_material* asset_system_request_material(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_material_loaded_callback callback);
+KAPI kasset_material *asset_system_request_material (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_material_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_material* asset_system_request_material_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_material *asset_system_request_material_sync (struct asset_system_state *state, const char *name);
 // async load from specific package.
-KAPI kasset_material* asset_system_request_material_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_material_loaded_callback callback);
+KAPI kasset_material *asset_system_request_material_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_material_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_material* asset_system_request_material_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_material *asset_system_request_material_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_material(struct asset_system_state* state, kasset_material* asset);
+KAPI void asset_system_release_material (struct asset_system_state *state, kasset_material *asset);
 
 // ////////////////////////////////////
 // AUDIO ASSETS
 // ////////////////////////////////////
 
-typedef void (*PFN_kasset_audio_loaded_callback)(void* listener, kasset_audio* asset);
+typedef void (*PFN_kasset_audio_loaded_callback)(void *listener, kasset_audio *asset);
 
 // async load from game package.
-KAPI kasset_audio* asset_system_request_audio(struct asset_system_state* state, const char* name, void* listener, PFN_kasset_audio_loaded_callback callback);
+KAPI kasset_audio *asset_system_request_audio (struct asset_system_state *state, const char *name, void *listener, PFN_kasset_audio_loaded_callback callback);
 // sync load from game package.
-KAPI kasset_audio* asset_system_terrain_request_audio_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_audio *asset_system_terrain_request_audio_sync (struct asset_system_state *state, const char *name);
 // async load from specific package.
-KAPI kasset_audio* asset_system_request_audio_from_package(struct asset_system_state* state, const char* package_name, const char* name, void* listener, PFN_kasset_audio_loaded_callback callback);
+KAPI kasset_audio *asset_system_request_audio_from_package (struct asset_system_state *state, const char *package_name, const char *name, void *listener, PFN_kasset_audio_loaded_callback callback);
 // sync load from specific package.
-KAPI kasset_audio* asset_system_request_audio_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_audio *asset_system_request_audio_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_audio(struct asset_system_state* state, kasset_audio* asset);
+KAPI void asset_system_release_audio (struct asset_system_state *state, kasset_audio *asset);
 
 // ////////////////////////////////////
 // SHADER ASSETS
 // ////////////////////////////////////
 
 // sync load from game package.
-KAPI kasset_shader* asset_system_terrain_request_shader_sync(struct asset_system_state* state, const char* name);
+KAPI kasset_shader *asset_system_terrain_request_shader_sync (struct asset_system_state *state, const char *name);
 
 // sync load from specific package.
-KAPI kasset_shader* asset_system_request_shader_from_package_sync(struct asset_system_state* state, const char* package_name, const char* name);
+KAPI kasset_shader *asset_system_request_shader_from_package_sync (struct asset_system_state *state, const char *package_name, const char *name);
 
-KAPI void asset_system_release_shader(struct asset_system_state* state, kasset_shader* asset);
+KAPI void asset_system_release_shader (struct asset_system_state *state, kasset_shader *asset);
 
-KAPI b8 asset_system_shader_watch(struct asset_system_state* state, kasset_shader* shader, const char* package_name, const char* name, u32* out_watch_id);
+KAPI b8 asset_system_shader_watch (struct asset_system_state *state, kasset_shader *shader, const char *package_name, const char *name, u32 *out_watch_id);

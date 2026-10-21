@@ -1,3 +1,3 @@
 #pragma once
 
-void array_register_tests(void);
+void array_register_tests (void);

@@ -7,14 +7,15 @@
 #include <systems/kshader_system.h>
 #include <systems/texture_system.h>
 
+#include "core_render_types.h"
 #include "debug/kassert.h"
 #include "kui_defines.h"
 #include "kui_types.h"
 
-b8 kui_renderer_create(kui_renderer* out_renderer) {
+b8 kui_renderer_create (kui_renderer *out_renderer) {
 
 	// Pointer to the renderer system state.
-	const engine_system_states* systems = engine_systems_get();
+	const engine_system_states *systems = engine_systems_get();
 	out_renderer->renderer_state = systems->renderer_system;
 
 	out_renderer->standard_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
@@ -28,19 +29,24 @@ b8 kui_renderer_create(kui_renderer* out_renderer) {
 	return true;
 }
 
-void kui_renderer_destroy(kui_renderer* renderer) {
+void kui_renderer_destroy (kui_renderer *renderer) {
 	if (renderer) {
 		// TODO: do the thing
 	}
 }
 
-static void set_render_state_defaults(rect_2di vp_rect) {
-	renderer_begin_debug_label("frame defaults", vec3_zero());
+static void set_render_state_defaults (rect_2di vp_rect) {
+	/* renderer_begin_debug_label("frame defaults", KCOLOUR4_BLACK); */
 
 	renderer_set_depth_test_enabled(false);
 	renderer_set_depth_write_enabled(false);
 	renderer_set_stencil_test_enabled(false);
 	renderer_set_stencil_compare_mask(0);
+	renderer_set_stencil_op(
+		RENDERER_STENCIL_OP_KEEP,
+		RENDERER_STENCIL_OP_KEEP,
+		RENDERER_STENCIL_OP_KEEP,
+		RENDERER_COMPARE_OP_EQUAL);
 	renderer_set_depth_bias_enabled(false);
 	renderer_set_depth_bias(0.0f, 0.0f, 0.0f);
 
@@ -54,26 +60,26 @@ static void set_render_state_defaults(rect_2di vp_rect) {
 	rect_2di scissor_rect = {vp_rect.x, vp_rect.y, vp_rect.width, vp_rect.height};
 	renderer_scissor_set(scissor_rect);
 
-	renderer_end_debug_label();
+	/* renderer_end_debug_label(); */
 }
 
-b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, kui_render_data* render_data) {
-	renderer_begin_debug_label("sui", (vec3){0.5f, 0.5f, 0.5});
+b8 kui_renderer_render_frame (kui_renderer *renderer, frame_data *p_frame_data, kui_render_data *render_data) {
+	renderer_begin_debug_label("sui", (colour4){0.5f, 0.5f, 0.5f, 1.0f});
 
 	rect_2di vp_rect = {0};
-	if (!texture_dimensions_get(render_data->colour_buffer, (u32*)&vp_rect.width, (u32*)&vp_rect.height)) {
+	if (!texture_dimensions_get(render_data->colour_buffer, (u32 *)&vp_rect.width, (u32 *)&vp_rect.height)) {
 		return false;
 	}
 
 	// SUI begin render
 	renderer_begin_rendering(renderer->renderer_state, p_frame_data, vp_rect, 1, &render_data->colour_buffer, render_data->depth_stencil_buffer, 0);
-	set_render_state_defaults(vp_rect);
 
 	// Renderables
 	if (!kshader_system_use(renderer->kui_pass.kui_shader, 0)) {
 		KERROR("Failed to use StandardUI shader. Render frame failed.");
 		return false;
 	}
+	set_render_state_defaults(vp_rect);
 
 	// Make sure depth test/write is disabled for this pass.
 	renderer_set_depth_test_enabled(false);
@@ -102,7 +108,7 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 
 	u32 renderable_count = render_data->renderable_count;
 	for (u32 i = 0; i < renderable_count; ++i) {
-		kui_renderable* renderable = &render_data->renderables[i];
+		kui_renderable *renderable = &render_data->renderables[i];
 
 		// Per-control binding set.
 		ktexture atlas = renderable->atlas_override != INVALID_KTEXTURE ? renderable->atlas_override : render_data->ui_atlas;
@@ -116,7 +122,7 @@ b8 kui_renderer_render_frame(kui_renderer* renderer, frame_data* p_frame_data, k
 		if (renderable->type == KUI_RENDERABLE_TYPE_STENCIL_CLIP_BEGIN) {
 			KASSERT(!clip_mask_active);
 			clip_mask_active = true;
-			renderer_begin_debug_label("clip_mask", (vec3){0, 1, 0});
+			renderer_begin_debug_label("clip_mask", KCOLOUR4_GREEN);
 			// Enable writing, disable test.
 			renderer_set_stencil_test_enabled(true);
 			renderer_set_depth_test_enabled(false);

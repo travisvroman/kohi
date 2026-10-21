@@ -9,7 +9,6 @@ layout(location = 2) in vec4 in_tangent;
 // Inputs
 // =========================================================
 
-const uint KMATERIAL_UBO_MAX_VIEWS = 16;
 const uint HF_TERRAIN_MAX_MATERIAL_COUNT = 5;
 const uint KMATERIAL_UBO_MAX_SHADOW_CASCADES = 4;
 
@@ -24,11 +23,7 @@ struct light_data {
 
 // Global settings for the scene.
 layout(std140, set = 0, binding = 0) uniform terrain_settings_ubo {
-    mat4 views[KMATERIAL_UBO_MAX_VIEWS];
-    mat4 projection;
-
     mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
-    vec4 view_positions[KMATERIAL_UBO_MAX_VIEWS]; // indexed by in_dto.view_index
     vec4 cascade_splits;                                         // 16 bytes
 
     float delta_time;
@@ -46,11 +41,21 @@ layout(std140, set = 0, binding = 0) uniform terrain_settings_ubo {
     float fog_start;
     float fog_end;
     float near_clip;
+
     float far_clip;
+	// Offsets into the matrix SSBO per type.
+	uint mat_ssbo_view_offset;
+	uint mat_ssbo_proj_offset;
+	uint padding;
 } global_settings;
 
+// All matrices
+layout(std430, set = 0, binding = 1) readonly buffer global_matrix_ssbo {
+	mat4 matrices[]; // indexed by immediate.transform_index
+} global_matrices;
+
 // All lighting
-layout(std430, set = 0, binding = 1) readonly buffer global_lighting_ssbo {
+layout(std430, set = 0, binding = 2) readonly buffer global_lighting_ssbo {
     light_data lights[]; // indexed by immediate.packed_point_light_indices (needs unpacking to 16x u8s)
 } global_lighting;
 
@@ -102,16 +107,21 @@ const mat4 ndc_to_uvw = mat4(
 );
 
 void main() {
-    mat4 view = global_settings.views[immediate.view_index];
+	mat4 view = global_matrices.matrices[global_settings.mat_ssbo_view_offset + immediate.view_index];
+	mat4 projection = global_matrices.matrices[global_settings.mat_ssbo_proj_offset + immediate.projection_index];
 	out_dto.tex_coord = vec2(in_position.w, in_normal.w);
+
+	mat4 inv_view = inverse(view);
+	vec3 view_position = vec3(inv_view[3]);
+
 	// Fragment position in world space.
 	// Copy the normal over.
 	out_dto.normal = normalize(in_normal.xyz);
 	out_dto.tangent = normalize(in_tangent);
 	out_dto.frag_position = vec4(in_position.xyz, 1.0);
-    vec4 view_position = view * out_dto.frag_position;
-    out_dto.view_depth = -view_position.z;
-    gl_Position = global_settings.projection * view * vec4(in_position.xyz, 1.0);
+    vec4 view_fragpos = view * out_dto.frag_position;
+    out_dto.view_depth = -view_fragpos.z;
+    gl_Position = projection * view * vec4(in_position.xyz, 1.0);
 
 	// Apply clipping plane
 	gl_ClipDistance[0] = dot(out_dto.frag_position, immediate.clipping_plane);
@@ -121,5 +131,5 @@ void main() {
 	    out_dto.light_space_frag_pos[i] = (ndc_to_uvw * global_settings.directional_light_spaces[i]) * out_dto.frag_position;
     }
 
-	out_dto.world_to_camera = global_settings.view_positions[immediate.view_index].xyz - out_dto.frag_position.xyz;
+	out_dto.world_to_camera = view_position.xyz - out_dto.frag_position.xyz;
 }

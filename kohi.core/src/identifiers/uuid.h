@@ -14,11 +14,11 @@ typedef struct uuid {
  *
  * @param seed The seed value.
  */
-KAPI void uuid_seed(u64 seed);
+KAPI void uuid_seed (u64 seed);
 
 /**
  * @brief Generates a universally unique identifier (UUID).
  *
  * @return a newly-generated UUID.
  */
-KAPI uuid uuid_generate(void);
+KAPI uuid uuid_generate (void);

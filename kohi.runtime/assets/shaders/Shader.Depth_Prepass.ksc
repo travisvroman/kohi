@@ -52,23 +52,23 @@ pipelines = [
 ]
 
 binding_sets = [
-    {
-        name = "depth prepass model global binding set"
-        max_instance_count = 1
-        bindings = [
-            {
-                name = "depth prepass model global UBO"
-                type = "UBO"
-                data_size = 128
-            }
-            {
-                name = "Kohi.StorageBuffer.TransformsGlobal"
-                type = "SSBO"
-            }
-            {
-                name = "Kohi.StorageBuffer.AnimationsGlobal"
-                type = "SSBO"
-            }
-        ]
-    }
+	{
+		name = "depth prepass model global binding set"
+		max_instance_count = 1
+		bindings = [
+			{
+				name = "depth prepass model global UBO"
+				type = "UBO"
+				data_size = 16
+			}
+			{
+				name = "Kohi.StorageBuffer.MatrixGlobal"
+				type = "storage"
+			}
+			{
+				name = "Kohi.StorageBuffer.AnimationsGlobal"
+				type = "SSBO"
+			}
+		]
+	}
 ]

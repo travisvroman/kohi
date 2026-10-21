@@ -1,4 +1,4 @@
 
 #pragma once
 
-void darray_register_tests(void);
+void darray_register_tests (void);

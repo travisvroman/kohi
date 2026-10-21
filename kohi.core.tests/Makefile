@@ -3,14 +3,14 @@
 ASSEMBLY_NAME=kohi.core.tests
 
 # All compiler flags/rules used across the board.
-CFLAGS =-std=gnu11 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
+CFLAGS =-std=c99 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
 CFLAGS +=-Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -Wstrict-prototypes -Wno-unused-parameter 
 CFLAGS +=-Wno-missing-field-initializers -Wno-tautological-compare 
 # NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say otherwise are exported (i.e. via KAPI).
 CFLAGS +=-fvisibility=hidden
 
 # Base linker flags
-LDFLAGS = -Lbin -Llib -L../kohi.core/bin -lkohi.core 
+LDFLAGS = -Lbin -Llib -L../kohi.core/bin -L. -lkohi.core 
 
 # Base include flags
 INCLUDE_FLAGS = -Isrc -I../kohi.core/src 
@@ -40,6 +40,7 @@ else ifeq ($(UNAME_S),Linux)
 	SRC_FILES := $(shell find src -name "*.c")
 	DIRECTORIES := $(shell find src -type d)
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	LDFLAGS += -Wl,-rpath='$$ORIGIN'
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
 	SRC_FILES := $(shell find src -type f \( -name "*.c" -o -name "*.m" \))
@@ -57,8 +58,8 @@ endif
 .PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
 .PHONY: link link-win32 link-linux link-macos
 
-all-release: scaffold gen_compile_flags-release flags-release compile link genversion
-all-debug: scaffold gen_compile_flags-debug flags-debug compile link genversion
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer

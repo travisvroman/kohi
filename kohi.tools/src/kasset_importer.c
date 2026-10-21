@@ -26,40 +26,40 @@ kohi.tools -t "./assets/images/orange_lines_512.kbi" -s "./assets/images/source/
 */
 
 // Returns the index of the option. -1 if not found.
-static i16 get_option_index(const char* name, u8 option_count, const import_option* options);
-static const char* get_option_value(const char* name, u8 option_count, const import_option* options);
-static b8 extension_is_audio(const char* extension);
-static b8 extension_is_image(const char* extension);
+static i16 get_option_index (const char *name, u8 option_count, const import_option *options);
+static const char *get_option_value (const char *name, u8 option_count, const import_option *options);
+static b8 extension_is_audio (const char *extension);
+static b8 extension_is_image (const char *extension);
 
-b8 source_audio_2_kaf(const char* source_path, const char* target_path) {
+b8 source_audio_2_kaf (const char *source_path, const char *target_path) {
 	KDEBUG("Executing %s...", __FUNCTION__);
 	return kasset_audio_import(source_path, target_path);
 }
 
 // if output_format is set, force that format. Otherwise use source file format.
-b8 source_image_2_kbi(const char* source_path, const char* target_path, b8 flip_y, kpixel_format output_format) {
+b8 source_image_2_kbi (const char *source_path, const char *target_path, b8 flip_y, kpixel_format output_format) {
 	KDEBUG("Executing %s... (flip_y=%s)", __FUNCTION__, flip_y ? "yes" : "no");
 	return kasset_image_import(source_path, target_path, flip_y, output_format);
 }
 
-b8 fnt_2_kbf(const char* source_path, const char* target_path) {
+b8 fnt_2_kbf (const char *source_path, const char *target_path) {
 	KDEBUG("Executing %s...", __FUNCTION__);
 	return kasset_bitmap_font_fnt_import(source_path, target_path);
 }
 
-b8 assimp_2_k3d(const char* source_path, const char* target_path, const char* material_target_dir, const char* package_name) {
+b8 assimp_2_k3d (const char *source_path, const char *target_path, const char *material_target_dir, const char *package_name) {
 	KDEBUG("Executing %s...", __FUNCTION__);
 	return kasset_model_assimp_import(source_path, target_path, material_target_dir, package_name);
 }
 
-b8 import_from_path(const char* source_path, const char* target_path, u8 option_count, const import_option* options) {
+b8 import_from_path (const char *source_path, const char *target_path, u8 option_count, const import_option *options) {
 	if (!source_path || !string_length(source_path)) {
 		KERROR("Path is required. Import failed.");
 		return false;
 	}
 
 	// The source file extension dictates what importer is used.
-	const char* source_extension = string_extension_from_path(source_path, true);
+	const char *source_extension = string_extension_from_path(source_path, true);
 	if (!source_extension) {
 		return false;
 	}
@@ -69,7 +69,7 @@ b8 import_from_path(const char* source_path, const char* target_path, u8 option_
 		return false;
 	} */
 
-	const char* target_filename = string_filename_no_extension_from_path(target_path);
+	const char *target_filename = string_filename_no_extension_from_path(target_path);
 	if (!target_filename) {
 		return false;
 	}
@@ -86,12 +86,12 @@ b8 import_from_path(const char* source_path, const char* target_path, u8 option_
 		kpixel_format output_format = KPIXEL_FORMAT_UNKNOWN;
 
 		// Extract optional properties.
-		const char* flip_y_str = get_option_value("flip_y", option_count, options);
+		const char *flip_y_str = get_option_value("flip_y", option_count, options);
 		if (flip_y_str) {
 			string_to_bool(flip_y_str, &flip_y);
 		}
 
-		const char* output_format_str = get_option_value("output_format", option_count, options);
+		const char *output_format_str = get_option_value("output_format", option_count, options);
 		if (output_format_str) {
 			output_format = string_to_kpixel_format(output_format_str);
 		}
@@ -106,9 +106,9 @@ b8 import_from_path(const char* source_path, const char* target_path, u8 option_
 	} else if (strings_equali(source_extension, ".dae") || strings_equali(source_extension, ".fbx") || strings_equali(source_extension, ".obj")) {
 		// TODO: add other extensions to this check
 		// TODO: required?
-		const char* mtl_target_dir = get_option_value("material_target_path", option_count, options);
+		const char *mtl_target_dir = get_option_value("material_target_path", option_count, options);
 		// TODO: required?
-		const char* package_name = get_option_value("package_name", option_count, options);
+		const char *package_name = get_option_value("package_name", option_count, options);
 
 		if (!assimp_2_k3d(source_path, target_path, mtl_target_dir, package_name)) {
 			goto import_from_path_cleanup;
@@ -130,19 +130,19 @@ import_from_path_cleanup:
 }
 
 // FIXME: unify this and the above function to use the same code path, ya dingus!
-b8 import_all_from_manifest(const char* manifest_path, kimport_flag_bits flags) {
+b8 import_all_from_manifest (const char *manifest_path, kimport_flag_bits flags) {
 	if (!manifest_path) {
 		return false;
 	}
 
-	const char* asset_base_directory = string_directory_from_path(manifest_path);
+	const char *asset_base_directory = string_directory_from_path(manifest_path);
 	if (!asset_base_directory) {
 		KERROR("Failed to obtain base directory of manifest file. See logs for details.");
 		return false;
 	}
 
 	// Read and deserialize the manifest first.
-	const char* manifest_content = filesystem_read_entire_text_file(manifest_path);
+	const char *manifest_content = filesystem_read_entire_text_file(manifest_path);
 	if (!manifest_content) {
 		KERROR("Failed to read manifest file. See logs for details.");
 		return false;
@@ -159,7 +159,7 @@ b8 import_all_from_manifest(const char* manifest_path, kimport_flag_bits flags) 
 	KINFO("Asset manifest '%s' has a total listing of %u assets.", manifest_path, asset_count);
 
 	for (u32 i = 0; i < asset_count; ++i) {
-		asset_manifest_asset* asset = &manifest.assets[i];
+		asset_manifest_asset *asset = &manifest.assets[i];
 		if (!asset->source_path) {
 			KTRACE("Asset '%s' (%s) does NOT have a source_path. Nothing to import.", kname_string_get(asset->name), asset->path);
 		} else {
@@ -176,15 +176,15 @@ b8 import_all_from_manifest(const char* manifest_path, kimport_flag_bits flags) 
 			KINFO("Asset '%s' (%s) DOES have a source_path of '%s'. Importing...", kname_string_get(asset->name), asset->path, asset->source_path);
 
 			// The source file extension dictates what importer is used.
-			const char* source_extension = string_extension_from_path(asset->source_path, true);
+			const char *source_extension = string_extension_from_path(asset->source_path, true);
 			if (!source_extension) {
 				KWARN("Unable to determine source extension for path '%s'. Skipping import.", asset->source_path);
 				continue;
 			}
 
 			if (strings_equali(source_extension, ".dae") || strings_equali(source_extension, ".fbx") || strings_equali(source_extension, ".obj")) {
-				const char* mtl_target_dir = string_format("%s/%s", manifest.path, "assets/materials/");
-				const char* package_name = kname_string_get(manifest.name);
+				const char *mtl_target_dir = string_format("%s/%s", manifest.path, "assets/materials/");
+				const char *package_name = kname_string_get(manifest.name);
 
 				if (!assimp_2_k3d(asset->source_path, asset->path, mtl_target_dir, package_name)) {
 					goto import_all_from_manifest_cleanup;
@@ -224,7 +224,7 @@ b8 import_all_from_manifest(const char* manifest_path, kimport_flag_bits flags) 
 }
 
 // Returns the index of the option. -1 if not found.
-static i16 get_option_index(const char* name, u8 option_count, const import_option* options) {
+static i16 get_option_index (const char *name, u8 option_count, const import_option *options) {
 	if (!name || !option_count || !options) {
 		return -1;
 	}
@@ -238,7 +238,7 @@ static i16 get_option_index(const char* name, u8 option_count, const import_opti
 	return -1;
 }
 
-static const char* get_option_value(const char* name, u8 option_count, const import_option* options) {
+static const char *get_option_value (const char *name, u8 option_count, const import_option *options) {
 	i16 index = get_option_index(name, option_count, options);
 	if (index < 0) {
 		return 0;
@@ -247,8 +247,8 @@ static const char* get_option_value(const char* name, u8 option_count, const imp
 	return options[index].value;
 }
 
-static b8 extension_is_audio(const char* extension) {
-	const char* extensions[3] = {".mp3", ".ogg", ".wav"};
+static b8 extension_is_audio (const char *extension) {
+	const char *extensions[3] = {".mp3", ".ogg", ".wav"};
 	for (u8 i = 0; i < 3; ++i) {
 		if (strings_equali(extension, extensions[i])) {
 			return true;
@@ -258,8 +258,8 @@ static b8 extension_is_audio(const char* extension) {
 	return false;
 }
 
-static b8 extension_is_image(const char* extension) {
-	const char* extensions[5] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
+static b8 extension_is_image (const char *extension) {
+	const char *extensions[5] = {".jpg", ".jpeg", ".png", ".tga", ".bmp"};
 	for (u8 i = 0; i < 5; ++i) {
 		if (strings_equali(extension, extensions[i])) {
 			return true;

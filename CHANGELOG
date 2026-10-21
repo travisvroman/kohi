@@ -1,4 +1,37 @@
 Changelog
+
+- 0.13.0 IMPORTANT! Run `make setup` again before attempting to build.
+  - Project now uses C99 (with POSIX.1-2008 for time, threads, etc. on GNU/Linux and MacOS). As a result, a full clean/rebuild should be done when updating to this version.
+  - Due to the above, darray_push and darray_insert_at both now require pointers to data being inserted, and no longer accept rvalues. The entire codebase has been updated to reflect this.
+  - Ran formatting pass across the entire codebase to fix various formatting issues (i.e. idiot stars)
+  - Cleaned up low-level "free" APIs to no longer require type or size information when freeing, instead deriving this from the already-stored data in the allocator.
+  - Fixed various issues around frustum culling and re-enabled in some parts. There are a few more places this still needs doing.
+  - Added vector hypot() functions.
+  - Fixed naming issue with darray pop function.
+  - Fixed key input modifier bug where modifiers (ctrl, shift, etc.) weren't being taken into account for key mappings.
+  - Added kmatrix system, which manages matrices in a global SSBO on the GPU. The transform system registers its world matrices with this system.
+  - Updated various shaders to pull transforms, projection, and view matrices from the new global matrix SSBO.
+  - Fixed several issues around raycasting and the bounding volume hierarchy (BVH).
+  - Added ability to register callbacks with the forward renderer for different stages of rendering (for now the "standard forward" pass, refraction, and reflection).
+  - Added ability to register various callbacks with kscene for various stages of loading.
+  - Added ability to register/unregister for external asset loads, or external, non-Kohi (game-specific) asset loads that must take place before a scene can be marked as loaded.
+  - Fixed an issue that caused a segfault when a binary asset is not found.
+  - In a step towards eliminating dependency on the C standard lib, replaced sprintf and variants with stb_sprintf. Also replaced many string handling functions with custom versions.
+  - Removed useless platform abstraction for memory copy/set/zero. The logic for these now resides in kmemory.c.
+  - Several math lib updates, including reduction in reliance on libm.
+  - Updated `make setup` to automatically gather required dependencies for supported platforms.
+  - Added timestamps to renderer for use with frame metrics.
+  - Consolidated a few straggler types from extraneous header files into more core header files.
+  - Changed KNULL to actually be of type ((void *)0) instead of just 0 for more type safety. Fixed a few issues in the codebase that arose from this.
+  - Fixed an issue where platform-specific return types were ignored for thread function pointers at the platform layer.
+  - Added a u32_bst for situations that don't need such a large key. Functionally identical to u64_bst, but half-sized storage.
+  - Decoupled shader binding_set_instance_id from material, is now tracked by material renderer, which also now fires an event on (un)load so multiple systems can handle it as well.
+  - Removed unused kmaterial_data_index refrences from shaders and code.
+  - Removed systemd dependencies on Linux for open file dialog and replaced with lower-level dbus implementation.
+  - Added a few utility functions to the string and math libs for decoding file:/// uris.
+  - Open File dialog now offers a bit more context in its reporting. User cancellation is handled separately from an error state now.
+  - Made several tweaks to various systems to improve startup time - initial benchmarks show a ~300% decrease when testing illumina.
+
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.
   - Added editor for Heightfield Terrains.

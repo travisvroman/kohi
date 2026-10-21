@@ -5,15 +5,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-void print_use(void) {
+void print_use (void) {
 	printf(
 		"Kohi Compile Flags Generator Utility\n"
 		"   usage: 'cfgen -outfile=<out_file_path> <args>'\n"
 		"NOTE: All args passed must be surrounded in quotes if they contain spaces.\n");
 }
 
-int main(int argc, const char** argv) {
-	char* out_file = 0;
+int main (int argc, const char **argv) {
+	char *out_file = 0;
 
 	// Account for null terminator
 	if (argc >= 3) {
@@ -27,7 +27,7 @@ int main(int argc, const char** argv) {
 		return 1;
 	}
 
-	FILE* wf = fopen(out_file, "w");
+	FILE *wf = fopen(out_file, "w");
 	for (int i = 2; i < argc; ++i) {
 		fwrite(argv[i], strlen(argv[i]), 1, wf);
 		fwrite("\n", 1, 1, wf);

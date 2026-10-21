@@ -11,13 +11,13 @@
 
 #include "serializers/fnt_serializer.h"
 
-b8 kasset_bitmap_font_fnt_import(const char* source_path, const char* target_path) {
+b8 kasset_bitmap_font_fnt_import (const char *source_path, const char *target_path) {
 	if (!source_path || !target_path) {
 		KERROR("%s requires valid source_path and target_path.", __FUNCTION__);
 		return false;
 	}
 
-	const char* data = filesystem_read_entire_text_file(source_path);
+	const char *data = filesystem_read_entire_text_file(source_path);
 	if (!data) {
 		KERROR("Error reading source bitmap font file (%s). See logs for details.", source_path);
 		return false;
@@ -55,13 +55,13 @@ b8 kasset_bitmap_font_fnt_import(const char* source_path, const char* target_pat
 
 	// Cleanup fnt asset.
 	if (fnt_asset.pages) {
-		KFREE_TYPE_CARRAY(fnt_asset.pages, kasset_bitmap_font_page, fnt_asset.page_count);
+		kfree(fnt_asset.pages);
 	}
 	if (fnt_asset.glyphs) {
-		KFREE_TYPE_CARRAY(fnt_asset.glyphs, kasset_bitmap_font_glyph, fnt_asset.glyph_count);
+		kfree(fnt_asset.glyphs);
 	}
 	if (fnt_asset.kernings) {
-		KFREE_TYPE_CARRAY(fnt_asset.kernings, kasset_bitmap_font_kerning, fnt_asset.kerning_count);
+		kfree(fnt_asset.kernings);
 	}
 	if (fnt_asset.face_name) {
 		string_free(fnt_asset.face_name);
@@ -69,7 +69,7 @@ b8 kasset_bitmap_font_fnt_import(const char* source_path, const char* target_pat
 
 	// Serialize data and write out kbf file (binary Kohi Bitmap Font).
 	u64 serialized_size = 0;
-	void* serialized_data = kasset_bitmap_font_serialize(&asset, &serialized_size);
+	void *serialized_data = kasset_bitmap_font_serialize(&asset, &serialized_size);
 	if (!serialized_data || !serialized_size) {
 		KERROR("Failed to serialize binary Kohi Bitmap Font.");
 		return false;
@@ -83,7 +83,7 @@ b8 kasset_bitmap_font_fnt_import(const char* source_path, const char* target_pat
 	}
 
 	if (serialized_data) {
-		kfree(serialized_data, serialized_size, MEMORY_TAG_SERIALIZER);
+		kfree(serialized_data);
 	}
 
 	return success;

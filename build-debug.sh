@@ -1,6 +1,9 @@
 #!/bin/bash
 
-time make all-debug
+# HACK: This is required for the Vulkan portion to work.
+source ./vendor/vulkan/1.*/setup-env.sh
+
+time make build-debug
 
 ERRORLEVEL=$?
 if [ $ERRORLEVEL -ne 0 ]

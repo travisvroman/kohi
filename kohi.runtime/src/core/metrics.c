@@ -12,15 +12,15 @@ typedef struct metrics_state {
 	f64 fps;
 } metrics_state;
 
-static metrics_state* state_ptr = 0;
+static metrics_state *state_ptr = 0;
 
-void metrics_initialize(void) {
+void metrics_initialize (void) {
 	if (!state_ptr) {
 		state_ptr = kallocate(sizeof(metrics_state), MEMORY_TAG_ENGINE);
 	}
 }
 
-void metrics_update(f64 frame_elapsed_time) {
+void metrics_update (f64 frame_elapsed_time) {
 	if (!state_ptr) {
 		return;
 	}
@@ -50,7 +50,7 @@ void metrics_update(f64 frame_elapsed_time) {
 	state_ptr->frames++;
 }
 
-f64 metrics_fps(void) {
+f64 metrics_fps (void) {
 	if (!state_ptr) {
 		return 0;
 	}
@@ -58,7 +58,7 @@ f64 metrics_fps(void) {
 	return state_ptr->fps;
 }
 
-f64 metrics_frame_time(void) {
+f64 metrics_frame_time (void) {
 	if (!state_ptr) {
 		return 0;
 	}
@@ -66,7 +66,7 @@ f64 metrics_frame_time(void) {
 	return state_ptr->ms_avg;
 }
 
-void metrics_frame(f64* out_fps, f64* out_frame_ms) {
+void metrics_frame (f64 *out_fps, f64 *out_frame_ms) {
 	if (!state_ptr) {
 		*out_fps = 0;
 		*out_frame_ms = 0;
