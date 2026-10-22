@@ -5,7 +5,12 @@
 #include "debug/kassert.h"
 #include "defines.h"
 #include "math/math_types.h"
-#include "math/mtwister.h" // for 64-bit RNG
+#include "math/mtwister.h" // for 64-bit rng_u64
+
+#if !KOHI_DEBUG
+// For random seeding
+#	include "platform/platform.h"
+#endif
 
 #define KMATH_USE_CUSTOM_RAND 1
 #if KMATH_USE_CUSTOM_RAND

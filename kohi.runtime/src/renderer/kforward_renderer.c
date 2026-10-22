@@ -146,7 +146,9 @@ b8 kforward_renderer_create (struct application *app, ktexture colour_buffer, kt
 	out_renderer->standard_vertex_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_VERTEX_STANDARD));
 	out_renderer->index_buffer = renderer_renderbuffer_get(out_renderer->renderer_state, kname_create(KRENDERBUFFER_NAME_INDEX_STANDARD));
 
+#if KOHI_DEBUG
 	out_renderer->debug_identity_matrix = kmatrix_system_add(out_renderer->matrix_system, KMATRIX_TYPE_TRANSFORM, mat4_identity());
+#endif
 
 	out_renderer->current_terrain = KNULL;
 	out_renderer->hf_terrain_instance_ids = darray_create(u32);

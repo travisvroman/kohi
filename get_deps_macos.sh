@@ -30,7 +30,7 @@ install_macos_deps() {
 	# Update package cache
 	sudo brew update >/dev/null 2>&1 || true
 
-	if ! sudo brew install git make assimp openal-soft; then
+	if ! sudo brew install make assimp openal-soft; then
 		echo "Error: Failed to install dependencies for Fedora."
 		return 1
 	fi

@@ -72,88 +72,90 @@ series on my Twitch/YouTube channels as well.
 
 ## Platform support
 
-Windows, GNU/Linux and macOS are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
+Windows, GNU/Linux and macOS desktops are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
 
-## Prerequisites
+### A note on compilers
+This codebase is written to work with the most recent versions of clang. Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup). A MSVC/Visual Studio solution setup will not be included with this project.
+
+<a name="initial_setup_and_building"></a>
+## Initial Setup and Building
 
 While the highest effort is made to reduce dependencies, each platform has things that _must_ be installed for this to work.
 
-Immediately after cloning, run `make setup`. If you don't have make, run the `get_deps_<platform>.sh|bat` first, then try again.
+### Windows
 
-### Prerequisites for Windows
+0. **Install Version Control** You will need ***one*** of these programs:
+    - <u>Subversion/SVN via TortoiseSVN</u> (recommended): 
+      - `winget install -e --id TortoiseSVN.TortoiseSVN`
+    - <u>Git For Windows</u>: 
+      - `winget install git.git`
+1. **Get The Code:** checkout or clone the repo
+    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
+    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
+2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_win32.bat` first, which will install it for you, then try running `get_deps_win32.bat` again. *This process needs to be done once, unless you download an update that requires it be run again.*
+3. **Get Assimp:** NOTE: Unfortunately, Assimp must still be installed this way for now on Windows. More work will be done to automate this in the future. It is required for asset imports.
+    - Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
+    - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
+    - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
+4. **Build:** Run `build-debug.bat` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.bat` instead.
+5. **Import All Assets:** Finally, you will need to run `import-updated-assets.bat` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
-NOTE: This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
+#### Additional notes on Windows
+- This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
+- See the [setup video for Windows](https://www.youtube.com/watch?v=F6_WdnzQIQ4) for details. 
 
-Running `make setup` now gathers the required dependencies automatically for Windows via the `get_deps_win32.bat` script.
+### GNU/Linux
 
-NOTE: Assimp must still be installed this way for now on Windows. More work will be done to automate this in the future.
+0. **Install Version Control:** You will need ***one*** of these programs:
+    - <u>Subversion/SVN</u> (recommended):
+      - Fedora/RHEL: `sudo dnf install subversion` or `sudo yum install subversion`
+      - Arch: `sudo pacman -S subversion`
+      - Ubuntu/Debian: `sudo apt-get install -y subversion`
+    - <u>Git</u>:
+      - Fedora/RHEL: `sudo dnf install git` or `sudo yum install git`
+      - Arch: `sudo pacman -S git`
+      - Ubuntu/Debian: `sudo apt-get install -y git`
+1. **Get The Code:** checkout or clone the repo
+    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
+    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
+2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_linux.sh` first, which will install it for you, then try running `get_deps_linux.sh` again. *This process needs to be done once, unless you download an update that requires it be run again.*
+3. **Build:** Run `build-debug.sh` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.sh` instead.
+4. **Import All Assets:** Finally, you will need to run `import-updated-assets.sh` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
-- Assimp: Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
-  - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
-  - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
+#### Additional notes on GNU/Linux
+- Wayland is not natively supported (yet), but Kohi runs fine via xwayland.
+- See the [setup video for GNU/Linux](https://www.youtube.com/watch?v=NIv1mygBOcg) for details. 
 
-### Prerequisites for GNU/Linux
+###  macOS
+0. **Install Version Control:** You will need ***one*** of these programs:
+    - <u>Subversion/SVN</u> (recommended): 
+      - `sudo brew install subversion`
+    - <u>Git</u>: 
+      - `sudo brew install git`
+1. **Get The Code:** checkout or clone the repo
+    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
+    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
+2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_macos.sh` first, which will install it for you, then try running `get_deps_macos.sh` again. *This process needs to be done once, unless you download an update that requires it be run again.*
+3. **Vulkan SDK:** NOTE: For the time being, this still requires manual installation on macOS.
+    - <b>IMPORTANT:</b> Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
+    - Download and install it from https://vulkan.lunarg.com/
+4. **Build:** Run `build-debug.sh` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.sh` instead.
+5. **Import All Assets:** Finally, you will need to run `import-updated-assets.sh` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
-Update!
+#### Additional notes on macOS
+- If you want a newer version of clang, you can also do `brew install llvm` and point to it when compiling.
+- On newer macOS environments, `/usr/local/lib` isn't automaticaly searched for when resolving dependencies. A quick fix for now is to symlink any missing libraries in the `bin` folder so they resolve. This will be fixed in a future version of the engine. **Only do this if you have problems with this:**
+  - For vulkan: run `ln -s /usr/local/lib/vulkan.1.dylib vulkan.1.dylib`
+  - For shaderc: run `ln -s /usr/local/lib/libshaderc_shared.1.dylib libshaderc_shared.1.dylib`
+- macOS setup happens significantly later in the series at [video 76](https://www.youtube.com/watch?v=g9tvP4qf5sA), when support is officially added for that platform.
 
-Running `make setup` now gathers the required dependencies automatically for Debian/Ubuntu, Arch, and Fedora via the `get_deps_linux.sh` script. Other distros to come in the future.
+# Running the engine
 
-NOTE: Wayland not natively supported (yet)
-
-### Prerequisites for macOS
-
-Running `make setup` now gathers the required dependencies automatically for MacOS via the `get_deps_macos.sh` script.
-
-The Vulkan SDK
-
-NOTE: for the time being, this still needs manual installation.
-
-- Vulkan SDK: download from https://vulkan.lunarg.com/
-  - NOTE: Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
-
-NOTE: If you want a newer version of clang, you can also do `brew install llvm` and point to it when compiling.
-
-NOTE: On newer macOS environments, `/usr/local/lib` isn't automaticaly searched for when resolving dependencies. A quick fix for now is to symlink any missing libraries in the
-`bin` folder so they resolve. This will be fixed in a future version of the engine. To do this, simply run the following:
-
-For vulkan:
-`ln -s /usr/local/lib/vulkan.1.dylib vulkan.1.dylib`
-
-For shaderc:
-`ln -s /usr/local/lib/libshaderc_shared.1.dylib libshaderc_shared.1.dylib`
-
-**Only do this when and where needed.**
-
-### Cross-Platform Prerequisites:
-
-## Audio Plugin Prerequisites
-
-The audio plugin requires an installatiion of OpenAL.
-
-- GNU/Linux: use a package manager to install OpenAL, if not already installed via `make setup`.
-- macOS: use a homebrew to install OpenAL-Soft, if not already installed via `make setup`. Note on M1 macs this installs to `/opt/homebrew/opt/openal-soft/`, where the `include`, `lib`, and `'bin` directories can be found. The `build-all.sh` script accounts for this version of the install.
-- Windows: If not already installed via `make setup`, Install the SDK from here: https://www.openal.org/downloads/
-
-# Start
-
-To get started, get all of the prerequisites for your current platform (see above).
-NOTE: Kohi's tools (i.e. importers) now requires Assimp. The runtime does not require this, however. In the future the tools will likely be split into a separate repo to avoid this dependency in the main repo.
-After this, clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
-
-Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup).
-
-See the setup videos in the series for Windows or GNU/Linux for details. macOS setup happens significantly later in the series at video 76, when support is officially added for that platform.
+Once everything in [Initial Setup and Building](#initial_setup_and_building) is finished, you will want to run the Testbed, which is Kohi's test driver application and example of how a game/application uses the engine. There are a few ways to do this:
+- <b>From the console:</b> From the project folder, `cd bin` and then run `testbed.kapp` (Linux/macOS) or `testbed.kapp.exe` (Windows). **IMPORTANT! You _must_ be within the `bin` working directory for pathing to work properly when loading assets!**
+- <b>From VSCode:</b> If you use VS Code, you can simply select the `Launch TestBed` option from the debugger and press `F5`. A full VS Code configuration is included with the project.
 
 # Building
-
-## Initial build
-
-The first time you build, it's a good idea to run the 'setup' first. There are things in place to _try_ checking for this,
-but at the moment they don't always work. This needs to be done once (unless there is a major update that specifies it should
-be done again).
-
-- All that needs to be done for this is to run `make setup` from the project root.
-
 ## General builds
 
 There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
@@ -173,10 +175,6 @@ So, to re-import only assets which have been updated or not-yet imported, you co
 
 You can also run all module/plugin asset imports at once by running the `import-updated-assets.sh` (MacOS and GNU/Linux) or `import-updated-assets.bat` (Windows).
 There is also a task available in the VSCode config for this called "Import ALL updated assets for all modules".
-
-# Running
-
-At the moment, "Testbed" is the executable that uses Kohi. It should be run with the working directory of `/bin`. In command prompt/Powershell in Windows, or a terminal in and GNU/Linux and macOS, `cd bin` to get into the bin folder, then run `testbed.exe` on Windows or just `testbed` for GNU/Linux and macOS.
 
 # Project Structure
 
@@ -234,4 +232,3 @@ I am developing Kohi in my spare time. I don't have any sponsors at the moment. 
 I would also greatly appreciate follows/subscriptions on YouTube and Twitch. Please spread the word!
 
 Your support is greatly appreciated and will be re-invested back into the project.
-
