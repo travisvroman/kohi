@@ -83,6 +83,7 @@ typedef struct engine_state_t {
 
 	// darray List of created windows.
 	kwindow *windows;
+	int test;
 
 } engine_state_t;
 
@@ -134,6 +135,11 @@ static void on_memory_dump (console_command_context context) {
 	char *mem_usage = get_memory_usage_str();
 	KINFO(mem_usage);
 	string_free(mem_usage);
+}
+
+// TODO: remove this
+static void test (const char *app_config_path, void *unused) {
+	KASSERT(app_config_path);
 }
 
 b8 engine_create (application *app, const char *app_config_path, const char *game_lib_name) {

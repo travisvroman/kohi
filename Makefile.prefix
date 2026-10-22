@@ -1,0 +1,220 @@
+# Kohi.Core makefile
+
+# Must come from including file before this is loaded
+# ASSEMBLY_NAME=kohi.core
+# ASSEMBLY_IS_SHARED=true/false
+# ADDL_DEFINES=
+# ADDL_CFLAGS=
+# ADDL_INCLUDES=
+# ADDL_LDFLAGS=
+
+# These are filled out based on platform detection
+ASSEMBLY_EXT=
+ASSEMBLY_PREFIX=
+ASSEMBLY_OUTPUT_LOC=bin
+DIR_SLASH=
+TOOLS_EXT=
+
+# All compiler flags/rules used across the board.
+CFLAGS =-std=c99 -Wall -Wextra -Werror -Wno-error=deprecated-declarations -Wno-error=unused-function 
+CFLAGS +=-Wvla -Werror=vla -Wgnu-folding-constant -Wno-missing-braces -Wstrict-prototypes -Wno-unused-parameter 
+CFLAGS +=-Wno-missing-field-initializers -Wno-tautological-compare 
+# NOTE: -fvisibility=hidden hides all symbols by default, and only those that explicitly say otherwise are exported (i.e. via KAPI).
+CFLAGS +=-fvisibility=hidden
+
+# Base linker flags
+LDFLAGS = -Lbin -Llib
+
+# Base include flags
+INCLUDE_FLAGS = -Isrc
+
+# Flags only used in-editor (these get added to compile_flags.txt)
+EDITOR_FLAGS = -ferror-limit=0 -Wunused-parameter
+
+DEFINES=
+
+OUTPUT_NAME =
+
+BUILD_TYPE =U
+
+
+UNAME_S := 
+UNAME_M :=
+ifneq ($(OS),Windows_NT)
+	UNAME_S = $(shell uname -s)
+endif
+
+ifeq ($(OS),Windows_NT)
+# 	begin Win32 platform
+	PLATFORM := win32
+	DIR_SLASH=\
+	TOOLS_EXT=.exe
+
+# 	Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
+	rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+	DIR := $(subst /,\,${CURDIR})
+	SRC_FILES := $(call rwildcard,src,*.c)
+	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
+	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
+	LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL
+ifeq ($(ASSEMBLY_IS_SHARED),true)
+	ASSEMBLY_EXT=.dll
+	LDFLAGS+= -shared
+	DEFINES += -DKEXPORT
+else
+	ASSEMBLY_EXT=.exe
+	DEFINES += -DKIMPORT
+endif
+	DEFINES += $(ADDL_WIN32_DEFINES)
+	CFLAGS += $(ADDL_WIN32_CFLAGS)
+	INCLUDE_FLAGS += $(ADDL_WIN32_INCLUDES)
+	LDFLAGS += $(ADDL_WIN32_LDFLAGS)
+# end Win32 platform
+else ifeq ($(UNAME_S),Linux)
+# 	begin Linux platform
+	PLATFORM := linux
+	DIR_SLASH=/
+	SRC_FILES := $(shell find src -name "*.c")
+	DIRECTORIES := $(shell find src -type d)
+	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	LDFLAGS += -Wl,--no-undefined,--no-allow-shlib-undefined,-rpath='$$ORIGIN'
+# 		NOTE: --no-undefined and --no-allow-shlib-undefined ensure that symbols linking against are resolved.
+# 		These are linux-specific, as the default behaviour is the opposite of this, allowing code to compile 
+# 		here that would not on other platforms from not being exported (i.e. Windows)
+# 		Discovered the solution here for this: https://github.com/ziglang/zig/issues/8180
+	CFLAGS += -Wno-cast-function-type-mismatch -fPIC -pthread
+	DEFINES += $(ADDL_LINUX_DEFINES)
+	CFLAGS += $(ADDL_LINUX_CFLAGS)
+	INCLUDE_FLAGS += $(ADDL_LINUX_INCLUDES)
+	LDFLAGS += $(ADDL_LINUX_LDFLAGS)
+ifeq ($(ASSEMBLY_IS_SHARED),true)
+	ASSEMBLY_EXT=.so
+	ASSEMBLY_PREFIX=lib
+	LDFLAGS+= -shared
+	DEFINES += -DKEXPORT
+else
+	DEFINES += -DKIMPORT
+endif
+# end Linux platform
+else ifeq ($(UNAME_S),Darwin)
+# 	begin Darwin platform
+    PLATFORM := macos
+	DIR_SLASH=/
+	SRC_FILES := $(shell find src -type f \( -name "*.c" -o -name "*.m" \))
+	DIRECTORIES := $(shell find src -type d)
+	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
+	# TODO: not sure if we are going to bother supporting intel macs, but if we do, 
+	# this will need to hinge off of that
+	UNAME_M = $(shell uname -m)
+	CFLAGS += -pthread
+ifeq ($(ASSEMBLY_IS_SHARED),true)
+	ASSEMBLY_EXT=.dylib
+	ASSEMBLY_PREFIX=lib
+	LDFLAGS += -dynamiclib -shared -install_name @rpath/$(ASSEMBLY_PREFIX)$(ASSEMBLY_NAME)$(ASSEMBLY_EXT)
+	DEFINES += -DKEXPORT
+else
+	DEFINES += -DKIMPORT
+	LDFLAGS += -Wl,-rpath,.
+endif
+	DEFINES += $(ADDL_DARWIN_DEFINES)
+	CFLAGS += $(ADDL_DARWIN_CFLAGS)
+	INCLUDE_FLAGS += $(ADDL_DARWIN_INCLUDES)
+	LDFLAGS += $(ADDL_DARWIN_LDFLAGS)
+ifeq ($(UNAME_M),arm64)
+	CFLAGS +=-arch arm64
+	LDFLAGS +=-arch arm64
+	CFLAGS +=-target arm64-apple-darwin
+	LDFLAGS +=-target arm64-apple-darwin
+endif 
+# end Darwin platform
+else
+    $(error Unsupported platform)
+# end unsupported platform
+endif
+
+OUTPUT_NAME = $(ASSEMBLY_OUTPUT_LOC)$(DIR_SLASH)$(ASSEMBLY_PREFIX)$(ASSEMBLY_NAME)$(ASSEMBLY_EXT)
+
+# =========================================================
+# BEGIN TARGET RECIPES
+# =========================================================
+.PHONY: all-release all-debug flags-debug flags-release 
+.PHONY: genversion genversion-win32 genversion-linux genversion-macos 
+.PHONY: scaffold scaffold-win32 scaffold-linux scaffold-macos 
+.PHONY: link link-win32 link-linux link-macos
+.PHONY: clean clean-win32 clean-linux clean-macos
+
+all-release: scaffold genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
+
+flags-prereq: link compile genversion
+
+flags-debug: DEFINES += -D_DEBUG
+flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
+flags-debug: LDFLAGS += -g
+flags-debug: BUILD_TYPE=D
+flags-debug: flags-prereq
+
+flags-release: DEFINES += -DKOHI_RELEASE
+flags-release: CFLAGS += -MD -O2
+flags-release: LDFLAGS += 
+flags-release: BUILD_TYPE=R
+flags-release: flags-prereq
+
+scaffold: scaffold-$(PLATFORM)
+.NOTPARALLEL: scaffold
+
+scaffold-win32:
+	-@mkdir $(addprefix obj\\, $(DIRECTORIES)) 2>nul
+	@if not exist bin mkdir bin
+
+scaffold-linux scaffold-macos:
+	@mkdir -p bin
+	@mkdir -p $(addprefix obj/,$(DIRECTORIES))
+	
+genversion:
+	@..$(DIR_SLASH)misc$(DIR_SLASH)versiongen$(TOOLS_EXT) version.txt -outfile=src$(DIR_SLASH)$(ASSEMBLY_NAME)_version.h -build_type=$(BUILD_TYPE)
+
+.PHONY: clean
+clean:    clean-$(PLATFORM)
+
+clean-win32:
+	@echo -- Cleaning --
+	if exist bin del /s /q bin\*.*
+	if exist obj del /s /q obj\*.*
+
+clean-linux clean-macos:
+	@rm -rf bin/*
+	@rm -rf obj/*
+
+link: $(OBJ_FILES)
+	@clang $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS) $(ADDL_LDFLAGS)
+
+.PHONY: compile
+compile:
+-include $(OBJ_FILES:.o=.d)
+
+
+# compile .c to .o object for windows, linux and mac
+obj/%.c.o: %.c 
+	@echo   $<...
+	@clang $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(ADDL_INCLUDES)
+
+# compile .m to .o object only for macos
+obj/%.m.o: %.m
+	@echo   $<...
+	@clang $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(ADDL_INCLUDES)
+
+-include $(OBJ_FILES:.o=.d)
+
+.PHONY: gen_compile_flags-debug
+gen_compile_flags-debug: DEFINES += -D_DEBUG
+gen_compile_flags-debug: gen_compile_flags
+
+.PHONY: gen_compile_flags-release
+gen_compile_flags-release: DEFINES += -DKOHI_RELEASE
+gen_compile_flags-release: gen_compile_flags
+
+.PHONY: gen_compile_flags
+gen_compile_flags:
+	@..$(DIR_SLASH)misc$(DIR_SLASH)cfgen$(TOOLS_EXT) -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) $(CFLAGS) $(EDITOR_FLAGS)
