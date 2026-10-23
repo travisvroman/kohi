@@ -29,7 +29,7 @@ LDFLAGS = -Lbin -Llib
 INCLUDE_FLAGS = -Isrc
 
 # Flags only used in-editor (these get added to compile_flags.txt)
-EDITOR_FLAGS = -ferror-limit=0 -Wunused-parameter
+EDITOR_FLAGS = -ferror-limit=0 -Wunused-parameter -Wno-error=unused-parameter
 
 DEFINES=
 
