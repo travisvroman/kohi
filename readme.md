@@ -245,3 +245,5 @@ I am developing Kohi in my spare time. I don't have any sponsors at the moment. 
 I would also greatly appreciate follows/subscriptions on YouTube and Twitch. Please spread the word!
 
 Your support is greatly appreciated and will be re-invested back into the project.
+
+
