@@ -2,17 +2,19 @@
 
 The items in this list are not in any particular order. This list will be updated occasionally as development progresses.
 
-## 0.13.0 Release
+## 0.14.0 Release
+
+- [ ] Vendor lib inclusion
+  - [ ] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
+    - [ ] Assimp
+    - [ ] OpenAL
+
+## 0.15.0 Release
 
 - [ ] Collision meshes
   - [ ] Collision meshes will be handled exclusively by the scene. They can be added explicitly via scene config or extracted from mesh data by name (i.e. something named "col-xyz" will cause it to be used as a collision mesh).
   - [ ] Debug renderer to show collision meshes (instead of just rendering a mesh) - include ability to turn off depth
   - [ ] Ability to retrieve collision meshes from scene (as a list and individually by name).
-- [ ] UI Controls:
-  - [ ] Dropdown with variable content (text, text/image, image)
-  - [ ] Windows with standard min/max/close controls, titlebar, resizing
-  - [ ] Dialog/MessageBox that steals focus and has to be interacted with (i.e. to report errors, etc.)
-  - [ ] Horizontal/Vertical flow control.
 - [ ] Editor enhancements
   - [ ] HFTerrain->Chunk editor: Material selector dropdown
   - [ ] Generic scene - edit other global scene properties (shadow/directional light, fog dist/falloff, etc.)
@@ -32,13 +34,6 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Stability pass
   - [ ] Ensure both debug AND release builds work as expected.
   - [ ] Address sanitizer bug resolution, etc.
-- [ ] Vendor lib inclusion
-  - [ ] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
-    - [ ] Assimp
-    - [ ] OpenAL
-
-## 0.14.0 Release
-
 - [ ] HF Terrain
   - [ ] Doodads - a "thing" that exists alongside/within a terrain chunk. When the terrain chunk is culled, so too are these.
     - [ ] Instanced object rendering.
@@ -47,6 +42,10 @@ The items in this list are not in any particular order. This list will be update
     - [ ] Property to control distance-based rendering (i.e rocks/fine details only show at closest chunks, grass is closest & med. dist, nothing far away)
 - [?] Move avatars to engine?
 - [ ] KUI
+  - [ ] Dropdown with variable content (text, text/image, image)
+  - [ ] Windows with standard min/max/close controls, titlebar, resizing
+  - [ ] Dialog/MessageBox that steals focus and has to be interacted with (i.e. to report errors, etc.)
+  - [ ] Horizontal/Vertical flow control.
   - [ ] Horizontal layout panel with alignment (left, right, center, justify/evenly spaced)
   - [ ] Vertical layout panel with alignment (top, bottom, middle, justify/evenly spaced)
 - [ ] Investigate and reduce startup time
@@ -436,6 +435,7 @@ The items in this list are not in any particular order. This list will be update
 - [x] Virtual file system (VFS)
   - [x] Sits on top of and manages packages, doles out requests to loaded packages, etc.
 - [x] Remove geometry system
+
   - [x] Rename geometry->kgeometry
   - [x] Move creation of geometries to geometry.h/c
   - [x] Add geometry_type:
@@ -448,6 +448,7 @@ The items in this list are not in any particular order. This list will be update
     - [x] CUSTOM - User-defined geometry type. Vertex/index size will only be looked at for this type.
 
 - [x] New Resource System
+
   - [x] Remove old resource system after it is decomissioned.
   - [x] New replacement Resource System will not only replace old system but also all resource types within the engine to standardize resource handling.
         New system will make requests to new Asset System asynchronously, and be responsible for all reference counting and auto-releasing.

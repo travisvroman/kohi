@@ -31,6 +31,8 @@ Changelog
   - Added a few utility functions to the string and math libs for decoding file:/// uris.
   - Open File dialog now offers a bit more context in its reporting. User cancellation is handled separately from an error state now.
   - Made several tweaks to various systems to improve startup time - initial benchmarks show a ~300% decrease when testing illumina.
+  - Various improvements to the build system. Most makefiles now reference a Makefile.prefix file that does all the work; Makefiles now just set some properties before including the prefix.
+
 
 - 0.12.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Added Heightfield Terrain (HF Terrain), a non-movable type of terrain designed for quick rendering and interaction.
