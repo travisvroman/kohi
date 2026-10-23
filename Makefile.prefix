@@ -1,4 +1,4 @@
-# Kohi.Core makefile
+# Included makefile - used by all makefiles in the repo
 
 # Must come from including file before this is loaded
 # ASSEMBLY_NAME=kohi.core
@@ -217,4 +217,4 @@ gen_compile_flags-release: gen_compile_flags
 
 .PHONY: gen_compile_flags
 gen_compile_flags:
-	@..$(DIR_SLASH)misc$(DIR_SLASH)cfgen$(TOOLS_EXT) -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(DEFINES) $(CFLAGS) $(EDITOR_FLAGS)
+	@..$(DIR_SLASH)misc$(DIR_SLASH)cfgen$(TOOLS_EXT) -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(ADDL_INCLUDES) $(DEFINES) $(ADDL_DEFINES) $(CFLAGS) $(ADDL_CFLAGS) $(EDITOR_FLAGS)
