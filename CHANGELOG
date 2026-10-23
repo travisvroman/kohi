@@ -1,5 +1,7 @@
 Changelog
 
+- 0.14.0
+
 - 0.13.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Project now uses C99 (with POSIX.1-2008 for time, threads, etc. on GNU/Linux and MacOS). As a result, a full clean/rebuild should be done when updating to this version.
   - Due to the above, darray_push and darray_insert_at both now require pointers to data being inserted, and no longer accept rvalues. The entire codebase has been updated to reflect this.
