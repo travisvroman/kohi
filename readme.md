@@ -13,10 +13,11 @@ The original YouTube series is located here: https://www.youtube.com/watch?v=dHP
 The Twitch stream happens here: https://twitch.tv/travisvroman.
 
 # <span style="color:#ff6600">IMPORTANT UPDATE FOR SOURCE CONTROL!</span>
+
 <span style="color:#ff6600">**The repository for Kohi is being migrated away from GitHub (and Git) to a new Subversion/SVN server.**</span>
 
 <ins>From this point forward, the GitHub repo will simply act as a mirror of the SVN repo, and will only
-be updated periodically.</ins> Therefore, the SVN repo will now be the _single source of truth_. 
+be updated periodically.</ins> Therefore, the SVN repo will now be the _single source of truth_.
 
 **If you are looking for the bleeding-edge code, look at the SVN repo, in `trunk`.**
 
@@ -28,14 +29,15 @@ See [Project Links](#project-links) below.
 
 Also See [Contributions](#contributions) below.
 
-
 ![Screenshot of Kohi](/images/kohi_screenshot_2.png?raw=true "Screenshot of Kohi")
 ![Screenshot of Kohi](/images/kohi_screenshot.png?raw=true "Screenshot of Kohi")
 
 ## Important Links
 
 <a name="project-links"></a>
+
 ### Project Links
+
 - [![Subversion](https://img.shields.io/badge/Kohi%20on%20SVN--green.svg?style=social&logo=subversion)](https://svn.kohiengine.com/svn/kohi) The bleeding edge code is now here! See `trunk`.
 - [![GitHub](https://img.shields.io/badge/Kohi%20on%20GitHub--green.svg?style=social&logo=Github)](https://github.com/travisvroman/kohi) GitHub is now treated as a mirror and is updated from SVN every so often.
 - [![Website](https://img.shields.io/badge/Website-0066ff)](https://kohiengine.com) Additional info about the engine.
@@ -50,7 +52,6 @@ Also See [Contributions](#contributions) below.
 [![Youtube](https://img.shields.io/badge/TravisVroman--red.svg?style=social&logo=youtube)](https://www.youtube.com/travisvroman)
 [![Discord](https://img.shields.io/badge/TravisVroman%20Server--blue.svg?style=social&logo=Discord)](https://discord.gg/YBMH9Em)
 [![Patreon](https://img.shields.io/badge/travisvroman--green.svg?style=social&logo=Patreon)](https://patreon.com/travisvroman)
-
 
 ## Goal
 
@@ -75,74 +76,80 @@ series on my Twitch/YouTube channels as well.
 Windows, GNU/Linux and macOS desktops are all officially supported. Other platforms such as Android and iOS runtime support may also be added down the road.
 
 ### A note on compilers
+
 This codebase is written to work with the most recent versions of clang. Note that you are free to use other compilers (such as gcc), but they are not officially supported at this time (although it shouldn't be much work to get them setup). A MSVC/Visual Studio solution setup will not be included with this project.
 
 <a name="initial_setup_and_building"></a>
+
 ## Initial Setup and Building
 
 While the highest effort is made to reduce dependencies, each platform has things that _must_ be installed for this to work.
 
 ### Windows
 
-0. **Install Version Control** You will need ***one*** of these programs:
-    - <u>Subversion/SVN via TortoiseSVN</u> (recommended): 
-      - `winget install -e --id TortoiseSVN.TortoiseSVN`
-    - <u>Git For Windows</u>: 
-      - `winget install git.git`
+0. **Install Version Control** You will need **_one_** of these programs:
+   - <u>Subversion/SVN via TortoiseSVN</u> (recommended):
+     - `winget install -e --id TortoiseSVN.TortoiseSVN`
+   - <u>Git For Windows</u>:
+     - `winget install git.git`
 1. **Get The Code:** checkout or clone the repo
-    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
-    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
-2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_win32.bat` first, which will install it for you, then try running `get_deps_win32.bat` again. *This process needs to be done once, unless you download an update that requires it be run again.*
+   - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
+   - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
+2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_win32.bat` first, which will install it for you, then try running `get_deps_win32.bat` again. _This process needs to be done once, unless you download an update that requires it be run again._
 3. **Get Assimp:** NOTE: Unfortunately, Assimp must still be installed this way for now on Windows. More work will be done to automate this in the future. It is required for asset imports.
-    - Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
-    - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
-    - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
+   - Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
+   - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
+   - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
 4. **Build:** Run `build-debug.bat` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.bat` instead.
 5. **Import All Assets:** Finally, you will need to run `import-updated-assets.bat` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
 #### Additional notes on Windows
+
 - This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
-- See the [setup video for Windows](https://www.youtube.com/watch?v=F6_WdnzQIQ4) for details. 
+- See the [setup video for Windows](https://www.youtube.com/watch?v=F6_WdnzQIQ4) for details.
 
 ### GNU/Linux
 
-0. **Install Version Control:** You will need ***one*** of these programs:
-    - <u>Subversion/SVN</u> (recommended):
-      - Fedora/RHEL: `sudo dnf install subversion` or `sudo yum install subversion`
-      - Arch: `sudo pacman -S subversion`
-      - Ubuntu/Debian: `sudo apt-get install -y subversion`
-    - <u>Git</u>:
-      - Fedora/RHEL: `sudo dnf install git` or `sudo yum install git`
-      - Arch: `sudo pacman -S git`
-      - Ubuntu/Debian: `sudo apt-get install -y git`
+0. **Install Version Control:** You will need **_one_** of these programs:
+   - <u>Subversion/SVN</u> (recommended):
+     - Fedora/RHEL: `sudo dnf install subversion` or `sudo yum install subversion`
+     - Arch: `sudo pacman -S subversion`
+     - Ubuntu/Debian: `sudo apt-get install -y subversion`
+   - <u>Git</u>:
+     - Fedora/RHEL: `sudo dnf install git` or `sudo yum install git`
+     - Arch: `sudo pacman -S git`
+     - Ubuntu/Debian: `sudo apt-get install -y git`
 1. **Get The Code:** checkout or clone the repo
-    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
-    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
-2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_linux.sh` first, which will install it for you, then try running `get_deps_linux.sh` again. *This process needs to be done once, unless you download an update that requires it be run again.*
+   - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
+   - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
+2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_linux.sh` first, which will install it for you, then try running `get_deps_linux.sh` again. _This process needs to be done once, unless you download an update that requires it be run again._
 3. **Build:** Run `build-debug.sh` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.sh` instead.
 4. **Import All Assets:** Finally, you will need to run `import-updated-assets.sh` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
 #### Additional notes on GNU/Linux
-- Wayland is not natively supported (yet), but Kohi runs fine via xwayland.
-- See the [setup video for GNU/Linux](https://www.youtube.com/watch?v=NIv1mygBOcg) for details. 
 
-###  macOS
-0. **Install Version Control:** You will need ***one*** of these programs:
-    - <u>Subversion/SVN</u> (recommended): 
-      - `sudo brew install subversion`
-    - <u>Git</u>: 
-      - `sudo brew install git`
+- Wayland is not natively supported (yet), but Kohi runs fine via xwayland.
+- See the [setup video for GNU/Linux](https://www.youtube.com/watch?v=NIv1mygBOcg) for details.
+
+### macOS
+
+0. **Install Version Control:** You will need **_one_** of these programs:
+   - <u>Subversion/SVN</u> (recommended):
+     - `sudo brew install subversion`
+   - <u>Git</u>:
+     - `sudo brew install git`
 1. **Get The Code:** checkout or clone the repo
-    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
-    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
-2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_macos.sh` first, which will install it for you, then try running `get_deps_macos.sh` again. *This process needs to be done once, unless you download an update that requires it be run again.*
+   - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
+   - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
+2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_macos.sh` first, which will install it for you, then try running `get_deps_macos.sh` again. _This process needs to be done once, unless you download an update that requires it be run again._
 3. **Vulkan SDK:** NOTE: For the time being, this still requires manual installation on macOS.
-    - <b>IMPORTANT:</b> Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
-    - Download and install it from https://vulkan.lunarg.com/
+   - <b>IMPORTANT:</b> Ensure the 'global install' option is selected, which places a copy of the files in `/usr/local/lib`.
+   - Download and install it from https://vulkan.lunarg.com/
 4. **Build:** Run `build-debug.sh` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.sh` instead.
 5. **Import All Assets:** Finally, you will need to run `import-updated-assets.sh` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
 #### Additional notes on macOS
+
 - If you want a newer version of clang, you can also do `brew install llvm` and point to it when compiling.
 - On newer macOS environments, `/usr/local/lib` isn't automaticaly searched for when resolving dependencies. A quick fix for now is to symlink any missing libraries in the `bin` folder so they resolve. This will be fixed in a future version of the engine. **Only do this if you have problems with this:**
   - For vulkan: run `ln -s /usr/local/lib/vulkan.1.dylib vulkan.1.dylib`
@@ -152,10 +159,12 @@ While the highest effort is made to reduce dependencies, each platform has thing
 # Running the engine
 
 Once everything in [Initial Setup and Building](#initial_setup_and_building) is finished, you will want to run the Testbed, which is Kohi's test driver application and example of how a game/application uses the engine. There are a few ways to do this:
+
 - <b>From the console:</b> From the project folder, `cd bin` and then run `testbed.kapp` (Linux/macOS) or `testbed.kapp.exe` (Windows). **IMPORTANT! You _must_ be within the `bin` working directory for pathing to work properly when loading assets!**
 - <b>From VSCode:</b> If you use VS Code, you can simply select the `Launch TestBed` option from the debugger and press `F5`. A full VS Code configuration is included with the project.
 
 # Building
+
 ## General builds
 
 There are 2 build types available, Debug and Release. Debug includes debug symbols and is optimal for development and exploration, while Release is ideal for performance. There is also a "clean" available to clean out the built files, which is useful when switching between Debug/Release, or when strange linking errors occur because of missing files (i.e. switching branches).
@@ -198,16 +207,20 @@ This structure breakdown is based on the root folder of the repository. Some fil
 See [here](TODO.md).
 
 <a name="contributions"></a>
+
 ## Contributions
 
 <span style="color:#ff6600;">**IMPORTANT UPDATE!**</span>
 
-**Issues and Pull Requests will no longer be accepted or reviewed via GitHub.** 
+**Issues and Pull Requests will no longer be accepted or reviewed via GitHub.**
 
-Instead, they must be submitted [here](https://bugs.kohiengine.com/) instead. All prior issues 
+Instead, they must be submitted [here](https://bugs.kohiengine.com/) instead. All prior issues
 located on the GitHub repo were moved and are now tracked there.
 
+The process for submitting contributions has been detailed [here](https://travisvroman.com/articles/how_to_submit_patches.html).
+
 To contribute a fix or enhancement, submit a patch file as an attachment to a new issue [here](https://bugs.kohiengine.com/). It will be reviewed at some point whereafter it will either be:
+
 - Accepted as-is
 - Changes are requested before it is accepted
 - Declined with a reason.
