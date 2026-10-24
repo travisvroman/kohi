@@ -415,8 +415,14 @@ static b8 scene_pass (
 		do_depth_prepass = false;
 	}
 
-	// HACK: turning off depth prepass for now.
-	/* do_depth_prepass = false; */
+#if KPLATFORM_APPLE
+	// FIXME: turning off depth prepass for macOS since it doesn't seem to like it.
+	// It seems the depth buffer is z-fighting, but only happens via MoltenVK.
+	// This is technically a renderer backend issue, but this has to be stopped from
+	// running here, so that's why it's turned off here.
+	// This needs to be fixed in the future.
+	do_depth_prepass = false;
+#endif
 
 	// Clear the textures
 	renderer_clear_colour(renderer->renderer_state, colour_handle);

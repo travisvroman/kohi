@@ -144,8 +144,8 @@ OUTPUT_NAME = $(ASSEMBLY_OUTPUT_LOC)$(DIR_SLASH)$(ASSEMBLY_PREFIX)$(ASSEMBLY_NAM
 .PHONY: link link-win32 link-linux link-macos
 .PHONY: clean clean-win32 clean-linux clean-macos
 
-all-release: scaffold genversion gen_compile_flags-release flags-release compile link
-all-debug: scaffold genversion gen_compile_flags-debug flags-debug compile link
+all-release: scaffold flags-release genversion gen_compile_flags-release flags-release compile link
+all-debug: scaffold flags-debug genversion gen_compile_flags-debug flags-debug compile link
 
 flags-prereq: link compile genversion
 
