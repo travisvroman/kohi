@@ -28,10 +28,10 @@ install_macos_deps() {
 	xcode-select --install
 
 	# Update package cache
-	sudo brew update >/dev/null 2>&1 || true
+	brew update >/dev/null 2>&1 || true
 
-	if ! sudo brew install make assimp openal-soft; then
-		echo "Error: Failed to install dependencies for Fedora."
+	if ! brew install make assimp openal-soft; then
+		echo "Error: Failed to install dependencies for macOS."
 		return 1
 	fi
 
