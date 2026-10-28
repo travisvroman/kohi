@@ -1,3 +1,8 @@
+/**
+ * @file kstring.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "strings/kstring.h"
 
 #define STB_SPRINTF_IMPLEMENTATION

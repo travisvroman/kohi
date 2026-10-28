@@ -1,3 +1,8 @@
+/**
+ * @file terrain.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "terrain.h"
 
 #include <assets/kasset_types.h>

@@ -7,7 +7,7 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Vendor lib inclusion
   - [ ] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
     - [ ] Assimp
-    - [ ] OpenAL
+    - [*] OpenAL (macOS complete, others needed)
 
 ## 0.15.0 Release
 

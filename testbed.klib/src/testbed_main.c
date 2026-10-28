@@ -1,3 +1,8 @@
+/**
+ * @file testbed_main.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "testbed_main.h"
 
 #include <assets/kasset_types.h>

@@ -1,3 +1,8 @@
+/**
+ * @file debug_line3d.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "debug_line3d.h"
 
 #include "math/geometry.h"

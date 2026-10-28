@@ -1,3 +1,8 @@
+/**
+ * @file pool_allocator.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "pool_allocator.h"
 #include "debug/kassert.h"
 #include "memory/kmemory.h"

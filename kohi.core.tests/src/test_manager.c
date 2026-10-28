@@ -1,3 +1,8 @@
+/**
+ * @file test_manager.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "test_manager.h"
 
 #include <containers/darray.h>

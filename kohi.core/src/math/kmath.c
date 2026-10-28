@@ -1,3 +1,8 @@
+/**
+ * @file kmath.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kmath.h"
 
 #include <math.h> // for sinf, cosf, etc.

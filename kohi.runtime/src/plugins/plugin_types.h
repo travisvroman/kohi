@@ -1,3 +1,14 @@
+/**
+ * @file plugin_types.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Base types for use with Kohi Plugins.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #ifndef _KOHI_PLUGIN_TYPES_H_
 #define _KOHI_PLUGIN_TYPES_H_
 

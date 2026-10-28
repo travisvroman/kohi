@@ -1,3 +1,8 @@
+/**
+ * @file vulkan_platform_win32.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include <platform/platform.h>
 // Windows platform layer.
 #if KPLATFORM_WINDOWS

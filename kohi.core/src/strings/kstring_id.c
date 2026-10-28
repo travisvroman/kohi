@@ -1,3 +1,8 @@
+/**
+ * @file kstring_id.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kstring_id.h"
 
 #include "containers/u64_bst.h"

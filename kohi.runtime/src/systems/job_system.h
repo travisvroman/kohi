@@ -1,3 +1,15 @@
+/**
+ * @file job_system.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Interface to the Job System, used to asynchronously perform work on
+ * other job threads with a notification upon completion or failure.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include "defines.h"

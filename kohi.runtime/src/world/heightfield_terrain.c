@@ -1,3 +1,8 @@
+/**
+ * @file heightfield_terrain.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "heightfield_terrain.h"
 
 #include "assets/kasset_types.h"

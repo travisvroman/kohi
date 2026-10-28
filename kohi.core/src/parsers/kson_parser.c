@@ -1,3 +1,8 @@
+/**
+ * @file kson_parser.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kson_parser.h"
 
 #include "containers/darray.h"

@@ -1,3 +1,8 @@
+/**
+ * @file tools_main.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include <containers/darray.h>
 #include <defines.h>
 #include <kasset_image_utils.h>

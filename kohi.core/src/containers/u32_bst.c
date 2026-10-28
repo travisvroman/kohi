@@ -1,3 +1,8 @@
+/**
+ * @file u32_bst.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "u32_bst.h"
 #include "defines.h"
 #include "memory/kmemory.h"

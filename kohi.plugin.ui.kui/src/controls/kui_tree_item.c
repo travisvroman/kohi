@@ -1,3 +1,8 @@
+/**
+ * @file kui_tree_item.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kui_tree_item.h"
 #include "controls/kui_button.h"
 #include "controls/kui_label.h"

@@ -1,3 +1,15 @@
+/**
+ * @file kbinary_writer.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Contains an implementation of a binary writer, responsible for writing binary data 
+ * into chunks of memory.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include <defines.h>

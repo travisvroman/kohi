@@ -1,3 +1,8 @@
+/**
+ * @file nine_slice.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "nine_slice.h"
 
 #include "core/engine.h"

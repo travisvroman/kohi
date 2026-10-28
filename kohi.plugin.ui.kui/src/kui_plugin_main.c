@@ -1,3 +1,8 @@
+/**
+ * @file kui_plugin_main.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kui_plugin_main.h"
 
 #include "kohi.plugin.ui.kui_version.h"

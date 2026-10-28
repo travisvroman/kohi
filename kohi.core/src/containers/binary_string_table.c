@@ -1,3 +1,8 @@
+/**
+ * @file binary_string_table.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "binary_string_table.h"
 #include "darray.h"
 #include "debug/kassert.h"

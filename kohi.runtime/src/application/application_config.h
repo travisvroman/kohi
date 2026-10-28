@@ -1,3 +1,14 @@
+/**
+ * @file application_config.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Base types for Kohi Applications to use for configuration.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #ifndef _KOHI_APPLICATION_CONFIG_H_
 #define _KOHI_APPLICATION_CONFIG_H_
 

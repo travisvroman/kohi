@@ -1,3 +1,8 @@
+/**
+ * @file world_utils.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "world/world_utils.h"
 
 #include "world/world_types.h"

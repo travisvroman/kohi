@@ -1,3 +1,8 @@
+/**
+ * @file application_config.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "application_config.h"
 #include "containers/darray.h"
 #include "debug/kassert.h"

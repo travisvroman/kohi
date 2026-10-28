@@ -1,3 +1,8 @@
+/**
+ * @file console.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "console.h"
 
 #include "containers/darray.h"

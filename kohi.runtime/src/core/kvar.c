@@ -1,3 +1,8 @@
+/**
+ * @file kvar.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kvar.h"
 
 #include "core/event.h"

@@ -1,3 +1,15 @@
+/**
+ * @file kscene.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief An implementation of a scene, which is used for organization of entities in
+ * the world as well as grouping, culling, selection, filtering, etc.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include <core/frame_data.h>

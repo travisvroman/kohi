@@ -1,3 +1,8 @@
+/**
+ * @file texture_system.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "texture_system.h"
 
 #include <containers/u64_bst.h>

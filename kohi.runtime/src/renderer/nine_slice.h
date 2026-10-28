@@ -1,3 +1,14 @@
+/**
+ * @file nine_slice.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief An implementation of a nine-slice. Typically (but not always) used in UI.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include "math/geometry.h"

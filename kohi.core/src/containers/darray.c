@@ -1,3 +1,8 @@
+/**
+ * @file darray.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "containers/darray.h"
 
 #include "debug/kassert.h"

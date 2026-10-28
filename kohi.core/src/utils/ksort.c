@@ -1,3 +1,8 @@
+/**
+ * @file ksort.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "ksort.h"
 
 #include "memory/kmemory.h"

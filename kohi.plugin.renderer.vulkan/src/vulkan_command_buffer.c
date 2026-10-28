@@ -1,3 +1,8 @@
+/**
+ * @file vulkan_command_buffer.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "vulkan_command_buffer.h"
 
 #include <logger.h>

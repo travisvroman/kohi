@@ -1,3 +1,8 @@
+/**
+ * @file job_system.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "job_system.h"
 
 #include "containers/ring_queue.h"

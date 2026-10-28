@@ -1,3 +1,8 @@
+/**
+ * @file vulkan_device.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "vulkan_device.h"
 
 #include <containers/darray.h>

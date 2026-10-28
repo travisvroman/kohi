@@ -1,3 +1,8 @@
+/**
+ * @file kasset_image_utils.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 
 #include <containers/darray.h>
 #include <core_render_types.h>

@@ -1,3 +1,8 @@
+/**
+ * @file debug_box3d.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "debug_box3d.h"
 
 #include "defines.h"

@@ -1,3 +1,15 @@
+/**
+ * @file kasset_importer.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief An asset importer tool which handles the import of many asset types.
+ * Also used to import all assets listed in a manifest file.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include <defines.h>

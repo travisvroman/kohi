@@ -1,3 +1,8 @@
+/**
+ * @file dynamic_allocator.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "memory/allocators/dynamic_allocator.h"
 
 #include "containers/freelist.h"

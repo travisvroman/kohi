@@ -1,3 +1,8 @@
+/**
+ * @file plugin_audio_main.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "plugin_audio_main.h"
 
 #include <audio/kaudio_types.h>

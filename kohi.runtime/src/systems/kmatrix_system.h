@@ -1,3 +1,15 @@
+/**
+ * @file kmatrix_system.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief A system which manages matrices, and also handles the upload of 
+ * matrix data to the GPU via a storage buffer (SSBO).
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include <math/math_types.h>

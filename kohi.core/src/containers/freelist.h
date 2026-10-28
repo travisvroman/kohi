@@ -5,7 +5,7 @@
  * @version 0.1
  * @date 2022-01-12
  *
- * @copyright Copyright (c) 2022
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  */
 

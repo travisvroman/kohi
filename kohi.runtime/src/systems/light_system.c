@@ -1,3 +1,8 @@
+/**
+ * @file light_system.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "light_system.h"
 
 #include "core/engine.h"

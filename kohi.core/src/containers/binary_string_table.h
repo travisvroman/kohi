@@ -14,7 +14,7 @@
  * @version 1.0
  * @date 2025-10-21
  *
- * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2025
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
  *
  */
 #pragma once

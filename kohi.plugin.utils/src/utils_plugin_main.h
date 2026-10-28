@@ -1,3 +1,14 @@
+/**
+ * @file utils_plugin_main.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Main interface for the utils plugin.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #include <defines.h>
 
 struct kruntime_plugin;

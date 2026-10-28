@@ -1,3 +1,8 @@
+/**
+ * @file kui_textbox.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kui_textbox.h"
 
 #include <containers/darray.h>

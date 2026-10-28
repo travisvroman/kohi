@@ -1,3 +1,14 @@
+/**
+ * @file heightfield_terrain.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief A heightfield terrain, different from a heightmap terrain. Can be generated and edited.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include "core_render_types.h"

@@ -1,3 +1,14 @@
+/**
+ * @file geometry_2d.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Functions related to 2D geometry.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #ifndef _KOHI_MATH_GEOMETRY_2D_H_
 #define _KOHI_MATH_GEOMETRY_2D_H_
 

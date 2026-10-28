@@ -1,3 +1,8 @@
+/**
+ * @file hashtable_tests.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "hashtable_tests.h"
 #include "../expect.h"
 #include "../test_manager.h"

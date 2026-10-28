@@ -1,3 +1,8 @@
+/**
+ * @file kasset_shader_serializer.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kasset_shader_serializer.h"
 
 #include "assets/kasset_types.h"

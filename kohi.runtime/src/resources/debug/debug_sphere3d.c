@@ -1,3 +1,8 @@
+/**
+ * @file debug_sphere3d.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "debug_sphere3d.h"
 
 #include "defines.h"

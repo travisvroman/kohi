@@ -1,3 +1,8 @@
+/**
+ * @file vulkan_renderer_plugin_main.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "vulkan_renderer_plugin_main.h"
 
 #include <logger.h>

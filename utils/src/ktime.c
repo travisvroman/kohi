@@ -1,3 +1,8 @@
+/**
+ * @file ktime.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #define WIN32_LEAN_AND_MEAN
 #include <stdio.h>
 #include <windows.h>

@@ -1,3 +1,8 @@
+/**
+ * @file kasset_importer_audio.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kasset_importer_audio.h"
 
 #include <assets/kasset_types.h>

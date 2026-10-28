@@ -1,3 +1,8 @@
+/**
+ * @file stackarray.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "stackarray.h"
 
 stackarray_iterator stackarray_iterator_begin (stackarray_base *arr) {

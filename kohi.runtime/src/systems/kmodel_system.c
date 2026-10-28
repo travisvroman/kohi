@@ -1,3 +1,8 @@
+/**
+ * @file kmodel_system.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kmodel_system.h"
 
 #include "assets/kasset_types.h"

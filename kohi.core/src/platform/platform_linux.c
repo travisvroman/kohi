@@ -1,3 +1,8 @@
+/**
+ * @file platform_linux.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "platform.h" // must be included here to get platform selection below.
 
 // Linux platform layer.

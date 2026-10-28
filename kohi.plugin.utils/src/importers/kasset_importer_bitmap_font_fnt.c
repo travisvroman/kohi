@@ -1,3 +1,8 @@
+/**
+ * @file kasset_importer_bitmap_font_fnt.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "importers/kasset_importer_bitmap_font_fnt.h"
 
 #include <assets/kasset_types.h>

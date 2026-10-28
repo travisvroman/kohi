@@ -1,3 +1,8 @@
+/**
+ * @file openal_backend.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "openal_backend.h"
 #include "audio/audio_frontend.h"
 #include "core/engine.h"

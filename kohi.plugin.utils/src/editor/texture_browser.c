@@ -1,3 +1,8 @@
+/**
+ * @file texture_browser.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include <containers/darray.h>
 #include <controls/checkbox_control.h>
 #include <controls/image_box_control.h>

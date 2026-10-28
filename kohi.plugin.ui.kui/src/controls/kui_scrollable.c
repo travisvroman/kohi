@@ -1,3 +1,8 @@
+/**
+ * @file kui_scrollable.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kui_scrollable.h"
 
 #include <containers/darray.h>

@@ -1,3 +1,8 @@
+/**
+ * @file kui_label.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kui_label.h"
 #include "kui_types.h"
 

@@ -1,3 +1,8 @@
+/**
+ * @file audio_utils.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "audio_utils.h"
 #include "core_audio_types.h"
 #include "math/kmath.h"

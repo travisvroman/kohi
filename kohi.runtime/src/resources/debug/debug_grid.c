@@ -1,3 +1,8 @@
+/**
+ * @file debug_grid.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "debug_grid.h"
 
 #include "defines.h"

@@ -1,3 +1,8 @@
+/**
+ * @file kmatrix_system.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kmatrix_system.h"
 #include "core/engine.h"
 #include "debug/kassert.h"

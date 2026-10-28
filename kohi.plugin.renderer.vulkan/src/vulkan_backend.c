@@ -1,3 +1,8 @@
+/**
+ * @file vulkan_backend.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 // #pragma pack(8)
 
 #include "vulkan_backend.h"

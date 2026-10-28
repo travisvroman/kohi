@@ -1,3 +1,14 @@
+/**
+ * @file renderer_types.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Renderer types associated with the Kohi Runtime.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include <containers/freelist.h>

@@ -1,3 +1,14 @@
+/**
+ * @file testbed_types.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Types pertaining to the Kohi Testbed.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #pragma once
 
 #include "core/keymap.h"

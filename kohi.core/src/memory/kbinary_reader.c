@@ -1,3 +1,8 @@
+/**
+ * @file kbinary_reader.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kbinary_reader.h"
 #include "debug/kassert.h"
 #include "memory/kmemory.h"

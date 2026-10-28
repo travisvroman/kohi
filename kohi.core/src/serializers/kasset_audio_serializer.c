@@ -1,3 +1,8 @@
+/**
+ * @file kasset_audio_serializer.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kasset_audio_serializer.h"
 
 #include "assets/kasset_types.h"

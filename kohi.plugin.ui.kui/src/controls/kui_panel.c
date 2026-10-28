@@ -1,3 +1,8 @@
+/**
+ * @file kui_panel.c
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ */
+
 #include "kui_panel.h"
 
 #include <containers/darray.h>

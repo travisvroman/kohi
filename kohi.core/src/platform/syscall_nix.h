@@ -1,3 +1,14 @@
+/**
+ * @file syscall_nix.h
+ * @author Travis Vroman (travis@kohiengine.com)
+ * @brief Interface for syscalls on macOS and GNU/Linux platforms.
+ * @version 1.0
+ * @date 2026-10-28
+ *
+ * @copyright Kohi Game Engine is Copyright (c) Travis Vroman 2021-2026
+ *
+ */
+
 #ifndef KOHI_INCLUDE_SYSCALL_NIX_H
 #define KOHI_INCLUDE_SYSCALL_NIX_H
 
