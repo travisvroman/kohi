@@ -391,7 +391,7 @@ assets = [
 		name = "Woodland Fantasy mono"
 		type = "audio"
 		path = "./assets/music/Woodland Fantasy mono.kaf"
-		source_path = "./assets/music/source/Woodland Fantasy mono.mp3"
+		source_path = "./assets/music/source/Woodland Fantasy mono.ogg"
 	}
 	{
 		name = "FireLoop"
@@ -421,7 +421,7 @@ assets = [
 		name = "Unlock"
 		type = "audio"
 		path = "./assets/sounds/Unlock.kaf"
-		source_path = "./assets/sounds/source/Unlock.ogg"
+		source_path = "./assets/sounds/source/Unlock.mp3"
 	}
 	{
 		name = "test_scene"

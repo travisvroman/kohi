@@ -159,11 +159,14 @@ b8 import_all_from_manifest (const char *manifest_path, kimport_flag_bits flags)
 		return false;
 	}
 
+	b8 result = false;
+
 	u32 asset_count = darray_length(manifest.assets);
 
 	KINFO("Asset manifest '%s' has a total listing of %u assets.", manifest_path, asset_count);
 
 	for (u32 i = 0; i < asset_count; ++i) {
+		result = false;
 		asset_manifest_asset *asset = &manifest.assets[i];
 		if (!asset->source_path) {
 			KTRACE("Asset '%s' (%s) does NOT have a source_path. Nothing to import.", kname_string_get(asset->name), asset->path);
@@ -217,10 +220,14 @@ b8 import_all_from_manifest (const char *manifest_path, kimport_flag_bits flags)
 				goto import_all_from_manifest_cleanup;
 			}
 
+		result = true;
 		import_all_from_manifest_cleanup:
 
 			if (source_extension) {
 				string_free(source_extension);
+				if(!result) {
+					return false;
+				}
 			}
 		}
 	}

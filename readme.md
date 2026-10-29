@@ -96,12 +96,8 @@ While the highest effort is made to reduce dependencies, each platform has thing
    - Subversion (recommended): checkout the repository: `svn checkout https://svn.kohiengine.com/svn/kohi/trunk kohi`
    - Git (mirror only): clone the repository recursively: `git clone --recurse-submodules https://github.com/travisvroman/kohi`.
 2. **First-time setup:** Immediately after checkout/cloning, run `make setup`. If you don't have Make installed, run `get_deps_win32.bat` first, which will install it for you, then try running `get_deps_win32.bat` again. _This process needs to be done once, unless you download an update that requires it be run again._
-3. **Get Assimp:** NOTE: Unfortunately, Assimp must still be installed this way for now on Windows. More work will be done to automate this in the future. It is required for asset imports.
-   - Go here to get an installer: `https://www.assimp.org/`, then downloads. Yes it takes you to an itch.io page, but it's legit.
-   - After the installer runs, reboot, then add the install dir to PATH (probably `C:\Program Files\Assimp`)
-   - Also create a system-level environment variable called ASSIMP with this same path as its value. Work will be done in the future to remove this requirement.
-4. **Build:** Run `build-debug.bat` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.bat` instead.
-5. **Import All Assets:** Finally, you will need to run `import-updated-assets.bat` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
+3. **Build:** Run `build-debug.bat` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.bat` instead.
+4. **Import All Assets:** Finally, you will need to run `import-updated-assets.bat` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
 #### Additional notes on Windows
 

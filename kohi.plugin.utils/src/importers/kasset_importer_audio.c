@@ -80,7 +80,7 @@ b8 kasset_audio_import (const char *source_path, const char *target_path) {
 		i16 *decoded_pcm_data = 0;
 		i32 total_samples = stb_vorbis_decode_memory(data, data_size, &asset.channels, (i32 *)&asset.sample_rate, &decoded_pcm_data);
 		if (!decoded_pcm_data || total_samples < 0) {
-			KERROR("Failed to import OGG Vorbis file.");
+			KERROR("Failed to import OGG Vorbis file.(decoded_pcm_data=0x%p, total_samples=%i", decoded_pcm_data, total_samples);
 			goto kasset_importer_audio_cleanup;
 		}
 		// Make sure this is a multiple of 4. If not, loading into the buffer can fail.

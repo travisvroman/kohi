@@ -14,8 +14,8 @@ ADDL_LDFLAGS= -L../kohi.core/bin -L../kohi.runtime/bin -lkohi.core -lkohi.runtim
 # Win32
 ADDL_WIN32_DEFINES=
 ADDL_WIN32_CFLAGS=
-ADDL_WIN32_INCLUDES= -I'C:\Program Files (x86)\OpenAL 1.1 SDK\include'
-ADDL_WIN32_LDFLAGS= -L"C:\Program Files (x86)\OpenAL 1.1 SDK\libs\Win64" -lopenal32
+ADDL_WIN32_INCLUDES= -I..\deps\openal\include\ 
+ADDL_WIN32_LDFLAGS= -L..\deps\openal\lib\Win64 -lopenal32
 # Linux
 ADDL_LINUX_DEFINES=
 ADDL_LINUX_CFLAGS=

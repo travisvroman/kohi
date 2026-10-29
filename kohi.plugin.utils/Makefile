@@ -13,9 +13,9 @@ ADDL_LDFLAGS= -L../kohi.core/bin -L../kohi.runtime/bin -L../kohi.plugin.ui.kui/b
 # Leave these blank if not using them.
 # Win32
 ADDL_WIN32_DEFINES=
-ADDL_WIN32_CFLAGS=
-ADDL_WIN32_INCLUDES= -I'$(ASSIMP)\include'
-ADDL_WIN32_LDFLAGS= -L'$(ASSIMP)\lib\x64\' -lassimp-vc143-mt
+ADDL_WIN32_CFLAGS= -msse2
+ADDL_WIN32_INCLUDES= -I..\deps\assimp\include\ 
+ADDL_WIN32_LDFLAGS= -L..\deps\assimp\lib\x64\ -lassimp-vc143-mt
 # Linux
 ADDL_LINUX_DEFINES=
 ADDL_LINUX_CFLAGS=

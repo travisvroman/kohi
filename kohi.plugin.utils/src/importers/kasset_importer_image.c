@@ -15,11 +15,15 @@
 #include <serializers/kasset_image_serializer.h>
 #include <strings/kstring.h>
 #include <utils/render_type_utils.h>
+#include <defines.h>
 
 /* #define STB_IMAGE_IMPLEMENTATION
 // Using our own filesystem.
 #define STBI_NO_STDIO */
 // NOTE: defined in tools_main.c
+#if KPLATFORM_WINDOWS
+#define STBI_NO_SIMD
+#endif
 #include "vendor/stb_image.h"
 
 b8 kasset_image_import (const char *source_path, const char *target_path, b8 flip_y, kpixel_format output_format) {

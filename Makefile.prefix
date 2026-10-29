@@ -37,6 +37,8 @@ OUTPUT_NAME =
 
 BUILD_TYPE =U
 
+CC = clang
+
 
 UNAME_S := 
 UNAME_M :=
@@ -46,8 +48,9 @@ endif
 
 ifeq ($(OS),Windows_NT)
 # 	begin Win32 platform
+	SHELL := cmd.exe
 	PLATFORM := win32
-	DIR_SLASH=\
+	DIR_SLASH=$(subst /,\,/)
 	TOOLS_EXT=.exe
 
 # 	Make does not offer a recursive wildcard function, and Windows needs one, so here it is:
@@ -57,7 +60,47 @@ ifeq ($(OS),Windows_NT)
 	DIRECTORIES := \src $(subst $(DIR),,$(shell dir src /S /AD /B | findstr /i src)) 
 	OBJ_FILES := $(SRC_FILES:%=obj/%.o)
 	DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
-	LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL
+	LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -Xlinker /INCREMENTAL $(SYS_LDFLAGS)
+	DEFINES += $(ADDL_WIN32_DEFINES)
+	CFLAGS += $(ADDL_WIN32_CFLAGS)
+	INCLUDE_FLAGS += $(ADDL_WIN32_INCLUDES)
+	LDFLAGS += $(ADDL_WIN32_LDFLAGS)
+#	1. Ask Clang exactly where its built-in headers reside
+    CLANG_BUILTIN_DIR := $(shell clang -print-resource-dir)
+    CLANG_INC := $(CLANG_BUILTIN_DIR)\include
+
+	 # 2. Extract Visual Studio directory
+    VS_RAW := $(shell "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
+    
+    # 3. Find the newest MSVC tool version directory
+    MSVC_VER := $(shell dir /B /O:N "$(VS_RAW)\VC\Tools\MSVC" | findstr /R "^[0-9]")
+    MSVC_DIR := $(VS_RAW)\VC\Tools\MSVC\$(lastword $(MSVC_VER))
+    MSVC_INC := $(MSVC_DIR)\include
+    # Target x64 libraries (change to \x86 if building a 32-bit binary)
+    MSVC_LIB := $(MSVC_DIR)\lib\x64
+
+    # 4. Pull the official Windows SDK location out of the Registry
+    SDK_RAW  := $(shell reg query "HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots" /v "KitsRoot10" 2>NUL | findstr KitsRoot10)
+    SDK_DIR  := $(wordlist 3, $(words $(SDK_RAW)), $(SDK_RAW))
+    
+    # 5. Extract the newest SDK release iteration
+    SDK_VER  := $(shell dir /B /O:N "$(SDK_DIR)\Include" | findstr /R "^10\.")
+    SDK_BASE := $(SDK_DIR)Include\$(lastword $(SDK_VER))
+    # Target SDK library base
+    SDK_LIB_BASE := $(SDK_DIR)Lib\$(lastword $(SDK_VER))
+
+    # 6. Build Include Flags
+    SYS_INCLUDES := -isystem "$(CLANG_INC)" \
+					-isystem "$(MSVC_INC)" \
+                    -isystem "$(SDK_BASE)\ucrt" \
+                    -isystem "$(SDK_BASE)\shared" \
+                    -isystem "$(SDK_BASE)\um"
+
+    # 7. Build Linker Flags (Passes paths down through Clang to lld-link)
+    SYS_LDFLAGS  := -Xlinker /libpath:"$(MSVC_LIB)" \
+                    -Xlinker /libpath:"$(SDK_LIB_BASE)\ucrt\x64" \
+                    -Xlinker /libpath:"$(SDK_LIB_BASE)\um\x64" 
+#					-Xlinker /subsystem:console
 ifeq ($(ASSEMBLY_IS_SHARED),true)
 	ASSEMBLY_EXT=.dll
 	LDFLAGS+= -shared
@@ -66,13 +109,11 @@ else
 	ASSEMBLY_EXT=.exe
 	DEFINES += -DKIMPORT
 endif
-	DEFINES += $(ADDL_WIN32_DEFINES)
-	CFLAGS += $(ADDL_WIN32_CFLAGS)
-	INCLUDE_FLAGS += $(ADDL_WIN32_INCLUDES)
-	LDFLAGS += $(ADDL_WIN32_LDFLAGS)
 # end Win32 platform
 else ifeq ($(UNAME_S),Linux)
 # 	begin Linux platform
+	SYS_INCLUDES :=
+    SYS_LDFLAGS  :=
 	PLATFORM := linux
 	DIR_SLASH=/
 	SRC_FILES := $(shell find src -name "*.c")
@@ -99,6 +140,8 @@ endif
 # end Linux platform
 else ifeq ($(UNAME_S),Darwin)
 # 	begin Darwin platform
+	SYS_INCLUDES :=
+    SYS_LDFLAGS  :=
     PLATFORM := macos
 	DIR_SLASH=/
 	SRC_FILES := $(shell find src -type f \( -name "*.c" -o -name "*.m" \))
@@ -147,7 +190,7 @@ OUTPUT_NAME = $(ASSEMBLY_OUTPUT_LOC)$(DIR_SLASH)$(ASSEMBLY_PREFIX)$(ASSEMBLY_NAM
 all-release: scaffold flags-release genversion gen_compile_flags-release flags-release compile link
 all-debug: scaffold flags-debug genversion gen_compile_flags-debug flags-debug compile link
 
-flags-prereq: link compile genversion
+flags-prereq: genversion link compile
 
 flags-debug: DEFINES += -D_DEBUG
 flags-debug: CFLAGS += -g -MD -O0 -fno-omit-frame-pointer
@@ -188,7 +231,7 @@ clean-linux clean-macos:
 	@rm -rf obj/*
 
 link: $(OBJ_FILES)
-	@clang $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS) $(ADDL_LDFLAGS)
+	$(CC) $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS) $(ADDL_LDFLAGS) $(SYS_LDFLAGS)
 
 .PHONY: compile
 compile:
@@ -198,12 +241,12 @@ compile:
 # compile .c to .o object for windows, linux and mac
 obj/%.c.o: %.c 
 	@echo   $<...
-	@clang $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(ADDL_INCLUDES)
+	$(CC) $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES) $(ADDL_INCLUDES)
 
 # compile .m to .o object only for macos
 obj/%.m.o: %.m
 	@echo   $<...
-	@clang $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(ADDL_INCLUDES)
+	$(CC) $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES) $(ADDL_INCLUDES)
 
 -include $(OBJ_FILES:.o=.d)
 

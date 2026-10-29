@@ -71,7 +71,7 @@ scaffold-linux scaffold-macos:
 copy-utils: copy-utils-$(PLATFORM)
 
 copy-utils-win32:
-	copy utils\bin\* misc
+	-copy utils\bin\* misc
 
 ifeq ($(filter Linux Darwin,$(UNAME_S)),$(UNAME_S))
 ifeq ($(wildcard utils/bin/versiongen),)
@@ -97,7 +97,7 @@ copy-top-level-win32: copy-utils
 	copy kohi.tools\bin\* bin
 	copy testbed.klib\bin\* bin
 	copy testbed.kapp\bin\* bin
-	copy "$(ASSIMP)\bin\x64\*assimp*.dll" bin
+	copy deps\assimp\bin\x64\assimp*.dll bin
 
 copy-top-level-nix: copy-utils
 	cp kohi.core/bin/* bin

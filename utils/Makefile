@@ -29,12 +29,48 @@ ifneq ($(OS),Windows_NT)
 endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
+	 # 2. Extract Visual Studio directory
+    VS_RAW := $(shell "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
+    
+    # 3. Find the newest MSVC tool version directory
+    MSVC_VER := $(shell dir /B /O:N "$(VS_RAW)\VC\Tools\MSVC" | findstr /R "^[0-9]")
+    MSVC_DIR := $(VS_RAW)\VC\Tools\MSVC\$(lastword $(MSVC_VER))
+    MSVC_INC := $(MSVC_DIR)\include
+    # Target x64 libraries (change to \x86 if building a 32-bit binary)
+    MSVC_LIB := $(MSVC_DIR)\lib\x64
+
+    # 4. Pull the official Windows SDK location out of the Registry
+    SDK_RAW  := $(shell reg query "HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots" /v "KitsRoot10" 2>NUL | findstr KitsRoot10)
+    SDK_DIR  := $(wordlist 3, $(words $(SDK_RAW)), $(SDK_RAW))
+    
+    # 5. Extract the newest SDK release iteration
+    SDK_VER  := $(shell dir /B /O:N "$(SDK_DIR)\Include" | findstr /R "^10\.")
+    SDK_BASE := $(SDK_DIR)Include\$(lastword $(SDK_VER))
+    # Target SDK library base
+    SDK_LIB_BASE := $(SDK_DIR)Lib\$(lastword $(SDK_VER))
+
+    # 6. Build Include Flags
+    SYS_INCLUDES := -isystem "$(MSVC_INC)" \
+                    -isystem "$(SDK_BASE)\ucrt" \
+                    -isystem "$(SDK_BASE)\shared" \
+                    -isystem "$(SDK_BASE)\um"
+
+    # 7. Build Linker Flags (Passes paths down through Clang to lld-link)
+    SYS_LDFLAGS  := -Xlinker /libpath:"$(MSVC_LIB)" \
+                    -Xlinker /libpath:"$(SDK_LIB_BASE)\ucrt\x64" \
+                    -Xlinker /libpath:"$(SDK_LIB_BASE)\um\x64"
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
+	SYS_INCLUDES :=
+    SYS_LDFLAGS  :=
 else ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
+	SYS_INCLUDES :=
+    SYS_LDFLAGS  :=
 else
     $(error Unsupported platform)
+	SYS_INCLUDES :=
+    SYS_LDFLAGS  :=
 endif
 
 # =========================================================
@@ -84,7 +120,7 @@ clean-linux clean-macos:
 
 link: link-$(PLATFORM)
 
-link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -luser32 -lgdi32 -lwinmm -Xlinker /INCREMENTAL 
+link-win32: LDFLAGS += -fdeclspec -Wno-cast-function-type-mismatch -luser32 -lgdi32 -lwinmm -Xlinker /INCREMENTAL $(SYS_LDFLAGS)
 link-win32: DEFINES += -D_CRT_SECURE_NO_WARNINGS -DUNICODE
 link-win32: VG_OUTPUT_NAME = bin\$(VG_ASSEMBLY_NAME).exe
 link-win32: CFG_OUTPUT_NAME = bin\$(CFG_ASSEMBLY_NAME).exe
@@ -125,9 +161,9 @@ compile: compile-$(PLATFORM)
 compile-macos compile-linux: compile-common
 
 compile-win32: compile-common
-	clang src/ktime.c $(CFLAGS) -c -o obj/ktime.c.o $(DEFINES) $(INCLUDE_FLAGS)
+	clang src/ktime.c $(CFLAGS) -c -o obj/ktime.c.o $(DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES)
 
 compile-common:
-	clang src/versiongen.c $(CFLAGS) -c -o obj/versiongen.c.o $(DEFINES) $(INCLUDE_FLAGS)
-	clang src/cfgen.c $(CFLAGS) -c -o obj/cfgen.c.o $(DEFINES) $(INCLUDE_FLAGS)
+	clang src/versiongen.c $(CFLAGS) -c -o obj/versiongen.c.o $(DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES)
+	clang src/cfgen.c $(CFLAGS) -c -o obj/cfgen.c.o $(DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES)
 

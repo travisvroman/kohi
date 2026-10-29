@@ -1,3 +1,4 @@
+@echo off
 
 REM Testbed
 bin\kohi.tools.exe importmanifest testbed.kapp\asset_manifest.kson --updated-only
@@ -15,4 +16,5 @@ REM Kohi Utils
 bin\kohi.tools.exe importmanifest kohi.plugin.utils\asset_manifest.kson --updated-only
 IF %ERRORLEVEL% NEQ 0 (echo Error:%ERRORLEVEL% && exit)
 
-ECHO "All assets imported \033[0;32msuccessfully\033[0m.\n"
+for /F %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
+echo All assets imported %ESC%[32msuccessfully%ESC%[0m.
