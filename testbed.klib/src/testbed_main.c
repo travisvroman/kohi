@@ -178,6 +178,11 @@ b8 application_initialize (struct application *app) {
 		return false;
 	}
 
+	// Update the window title to include the version.
+	const char *formatted_title = string_format("%s %s (%s)", app->app_config.name, KVERSION, KBUILDTYPE);
+	platform_window_title_set(current_window, formatted_title);
+	string_free(formatted_title);
+
 #if KOHI_DEBUG
 	if (!debug_console_create(app->state->kui_state, &app->state->debug_console)) {
 		KERROR("Failed to create debug console.");

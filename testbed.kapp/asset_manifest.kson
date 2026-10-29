@@ -429,9 +429,9 @@ assets = [
 		path = "./assets/scenes/test_scene.ksn"
 	}
 	{
-		name = "test_terrain"
-		type = "hm_terrain"
-		path = "./assets/terrains/test_terrain.ktn"
+		name = "test_scene_terrain"
+		type = "hf_terrain"
+		path = "./assets/terrains/test_scene_terrain.khft"
 	}
 	{
 		name = "background"

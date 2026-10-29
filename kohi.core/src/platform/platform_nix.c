@@ -415,9 +415,11 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 	const char *prefix = platform_dynamic_library_prefix();
 
 	const char *filename = string_format("%s%s%s", prefix, name, extension);
+	// const char *filename_no_ext = string_format("%s%s", prefix, name);
 	/* KTRACE("Trying local path '%s' first.", filename); */
 
-	const char *formats[10] = {
+	const char *formats[11] = {
+		"%s",
 		"./%s",
 		"/lib/%s",
 		"/usr/local/lib/%s",
@@ -432,12 +434,21 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 
 	void *library = KNULL;
 	const char *cur_path = KNULL;
-	for (u8 i = 0; i < 10; ++i) {
+	for (u8 i = 0; i < 11; ++i) {
 		string_free(cur_path);
 		cur_path = string_format(formats[i], filename);
 		library = dlopen(cur_path, RTLD_NOW);
 		if (!library) {
 			/* KTRACE("Dynamic lib path '%s' failed to load because of error: '%s'", cur_path, dlerror()); */
+			// Try without the filename extension or prefix too.
+			string_free(cur_path);
+			cur_path = string_format(formats[i], name);
+			library = dlopen(cur_path, RTLD_NOW);
+			if (!library) {
+				/* KTRACE("Dynamic lib path '%s' failed to load because of error: '%s'", cur_path, dlerror()); */
+			} else {
+				break;
+			}
 		} else {
 			break;
 		}

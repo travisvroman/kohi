@@ -1,11 +1,16 @@
 Changelog
 
 - 0.14.0
+  - OpenAL plugin now dynamically links OpenAL.
+  - Added build version and build type to Testbed window title.
+  - Fixed an issue where a call to platform_window_title_set() would not update the window title properly on Win32.
 
 - 0.13.1 IMPORTANT! Run `make setup` again before attempting to build.
   - Contains enhancements and fixes for broken Win32 build process:
     - OpenAL include and lib now bundled in a new `deps` folder, eliminating the need to install the SDK. Binary is included with the OpenAL installer as part of `get_deps_win32.bat`.
     - Assimp include, lib, and dll now bundled in `deps` folder, eliminating assimp as a dependency (i.e. it no longer needs to be installed)
+  - Fixed an issue where newly-generated terrains could not be saved due to lack of material names being present.
+  - Added a terrain asset to testbed's test_scene so it doesn't need to be regenerated every time. Also eliminates the non-existant error from the logs.
 
 - 0.13.0 IMPORTANT! Run `make setup` again before attempting to build.
   - Project now uses C99 (with POSIX.1-2008 for time, threads, etc. on GNU/Linux and MacOS). As a result, a full clean/rebuild should be done when updating to this version.

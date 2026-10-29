@@ -297,34 +297,41 @@ hf_terrain hf_terrain_generate (u16 blocks_x, u16 blocks_z) {
 		t.mra_package_names[i] = INVALID_KNAME;
 	}
 
-	// TODO: use some default textures that are included with the engine.
+	// Use some default textures that are included with the engine.
 	t.albedo_asset_names[0] = kname_create("dirtRocks_grass_mix");
 	t.normal_asset_names[0] = kname_create("dirtRocks_grass_mix_NORM");
 	t.mra_asset_names[0] = kname_create("dirtRocks_grass_mix_MRA");
+	t.material_names[0] = kstring_id_create("dirtRocks_grass_mix");
 
 	t.albedo_asset_names[1] = kname_create("dirtRocks_dark");
 	t.normal_asset_names[1] = kname_create("dirtRocks_dark_NORM");
 	t.mra_asset_names[1] = kname_create("dirtRocks_dark_MRA");
+	t.material_names[1] = kstring_id_create("dirtRocks_dark");
 
 	t.albedo_asset_names[2] = kname_create("paverPath");
 	t.normal_asset_names[2] = kname_create("paverPath_NORM");
 	t.mra_asset_names[2] = kname_create("paverPath_MRA");
+	t.material_names[2] = kstring_id_create("paverPath");
 
 	t.albedo_asset_names[3] = kname_create("lushGrass");
 	t.normal_asset_names[3] = kname_create("lushGrass_NORM");
 	t.mra_asset_names[3] = kname_create("lushGrass_MRA");
+	t.material_names[3] = kstring_id_create("lushGrass");
 
 	t.albedo_asset_names[4] = kname_create("yellowFlowers");
 	t.normal_asset_names[4] = kname_create("yellowFlowers_NORM");
 	t.mra_asset_names[4] = kname_create("yellowFlowers_MRA");
+	t.material_names[4] = kstring_id_create("yellowFlowers");
 
 	t.albedo_asset_names[5] = kname_create("lushGrass_dry");
 	t.normal_asset_names[5] = kname_create("lushGrass_dry_NORM");
 	t.mra_asset_names[5] = kname_create("lushGrass_dry_MRA");
+	t.material_names[5] = kstring_id_create("lushGrass_dry");
 
 	t.albedo_asset_names[6] = kname_create("squarepaverpath_angled");
 	t.normal_asset_names[6] = kname_create("squarepaverpath_angled_NORM");
 	t.mra_asset_names[6] = kname_create("squarepaverpath_angled_MRA");
+	t.material_names[6] = kstring_id_create("squarepaverpath_angled");
 
 	t.albedo_texture_array = texture_acquire_layered_sync(kname_create("hf_terrain_albedo_tex_array"), HF_TERRAIN_MAX_MATERIALS, t.albedo_asset_names, t.albedo_package_names);
 	t.normal_texture_array = texture_acquire_layered_sync(kname_create("hf_terrain_normal_tex_array"), HF_TERRAIN_MAX_MATERIALS, t.normal_asset_names, t.normal_package_names);

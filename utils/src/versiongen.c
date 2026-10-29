@@ -2,6 +2,8 @@
  * Kohi Version Generator.
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -155,16 +157,6 @@ int main (int argc, const char **argv) {
 	}
 	return 0;
 }
-
-#include <ctype.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef _WIN32
-#	define popen _popen
-#	define pclose _pclose
-#endif
 
 int svn_get_revision (int *revision) {
 	FILE *pipe;

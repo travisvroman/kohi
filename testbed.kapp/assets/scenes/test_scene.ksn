@@ -73,10 +73,9 @@ entities = [
 		]
 	}
 	{
-		name = "test_terrain"
-		comment = "set this to heightmap_terrain when terrains are working again"
+		name = "test_scene_terrain"
 		transform = "-50.000000 -3.900000 -50.000000 0.000000 0.000000 0.000000 1.000000 1.000000 1.000000 1.000000"
-		asset_name = "test_terrain"
+		asset_name = "test_scene_terrain"
 		asset_package_name = "Testbed"
 	}
 	{
