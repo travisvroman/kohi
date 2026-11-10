@@ -19,6 +19,7 @@ ifneq ($(OS),Windows_NT)
 endif
 ifeq ($(OS),Windows_NT)
 	PLATFORM := win32
+	SHELL := cmd.exe
 else ifeq ($(UNAME_S),Linux)
 	PLATFORM := linux
 else ifeq ($(UNAME_S),Darwin)
@@ -97,7 +98,7 @@ copy-top-level-win32: copy-utils
 	copy kohi.tools\bin\* bin
 	copy testbed.klib\bin\* bin
 	copy testbed.kapp\bin\* bin
-	copy deps\assimp\bin\x64\assimp*.dll bin
+	copy deps\assimp\bin\win32\x64\assimp*.dll bin
 
 copy-top-level-nix: copy-utils
 	cp kohi.core/bin/* bin

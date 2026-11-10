@@ -28,6 +28,7 @@ ifneq ($(OS),Windows_NT)
 	UNAME_S = $(shell uname -s)
 endif
 ifeq ($(OS),Windows_NT)
+	SHELL := cmd.exe
 	PLATFORM := win32
 	 # 2. Extract Visual Studio directory
     VS_RAW := $(shell "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)
