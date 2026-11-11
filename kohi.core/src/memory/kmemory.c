@@ -263,11 +263,11 @@ void kreallocate_report (u64 old_size, u64 new_size, memory_tag tag) {
 	kallocate_report(new_size, tag);
 }
 
-void kfree (void *block) {
+void kfree (const void *block) {
 	kfree_aligned(block);
 }
 
-void kfree_aligned (void *block) {
+void kfree_aligned (const void *block) {
 	if (!block) {
 		// Don't treat this as an error anymore, just roll with it.
 		/* KFATAL("%s tried to free null block of memory. Check application logic.", __FUNCTION__); */

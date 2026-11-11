@@ -231,7 +231,7 @@ clean-linux clean-macos:
 	@rm -rf obj/*
 
 link: $(OBJ_FILES)
-	$(CC) $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS) $(ADDL_LDFLAGS) $(SYS_LDFLAGS)
+	@$(CC) $(OBJ_FILES) -o $(OUTPUT_NAME) $(LDFLAGS) $(ADDL_LDFLAGS) $(SYS_LDFLAGS)
 
 .PHONY: compile
 compile:
@@ -241,12 +241,12 @@ compile:
 # compile .c to .o object for windows, linux and mac
 obj/%.c.o: %.c 
 	@echo   $<...
-	$(CC) $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES) $(ADDL_INCLUDES)
+	@$(CC) $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES) $(ADDL_INCLUDES)
 
 # compile .m to .o object only for macos
 obj/%.m.o: %.m
 	@echo   $<...
-	$(CC) $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES) $(ADDL_INCLUDES)
+	@$(CC) $< $(CFLAGS) $(ADDL_CFLAGS) -c -o $@ $(DEFINES) $(ADDL_DEFINES) $(INCLUDE_FLAGS) $(SYS_INCLUDES) $(ADDL_INCLUDES)
 
 -include $(OBJ_FILES:.o=.d)
 
@@ -260,4 +260,4 @@ gen_compile_flags-release: gen_compile_flags
 
 .PHONY: gen_compile_flags
 gen_compile_flags:
-	@..$(DIR_SLASH)misc$(DIR_SLASH)cfgen$(TOOLS_EXT) -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(ADDL_INCLUDES) $(DEFINES) $(ADDL_DEFINES) $(CFLAGS) $(ADDL_CFLAGS) $(EDITOR_FLAGS)
+	@..$(DIR_SLASH)misc$(DIR_SLASH)cfgen$(TOOLS_EXT) -outfile=compile_flags.txt $(INCLUDE_FLAGS) $(ADDL_INCLUDES) $(SYS_INCLUDES) $(DEFINES) $(ADDL_DEFINES) $(CFLAGS) $(ADDL_CFLAGS) $(EDITOR_FLAGS)

@@ -63,7 +63,7 @@ binding_sets = [
 			{
 				type = "ubo"
 				name = "terrain global_ubo_data"
-				data_size = 336
+				data_size = 352
 				offset = 0
 			}
 			{

@@ -204,11 +204,11 @@ void *dynamic_allocator_allocate_aligned (dynamic_allocator *allocator, u64 size
 	return 0;
 }
 
-b8 dynamic_allocator_free (dynamic_allocator *allocator, void *block, u64 size, u8 tag) {
+b8 dynamic_allocator_free (dynamic_allocator *allocator, const void *block, u64 size, u8 tag) {
 	return dynamic_allocator_free_aligned(allocator, block, tag);
 }
 
-b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, void *block, u8 tag) {
+b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, const void *block, u8 tag) {
 	if (!allocator || !block) {
 		KERROR("dynamic_allocator_free_aligned requires both a valid allocator (0x%p) and a block (0x%p) to be freed.", allocator, block);
 		return false;
@@ -247,7 +247,7 @@ b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, void *block, u8
 	return true;
 }
 
-b8 dynamic_allocator_get_size_alignment (dynamic_allocator *allocator, void *block, u64 *out_size, u16 *out_alignment, u8 *out_tag) {
+b8 dynamic_allocator_get_size_alignment (dynamic_allocator *allocator, const void *block, u64 *out_size, u16 *out_alignment, u8 *out_tag) {
 	dynamic_allocator_state *state = allocator->memory;
 	if (block < state->memory_block || block >= ((void *)((u8 *)state->memory_block) + state->total_size)) {
 		// Not owned by this block.
@@ -273,7 +273,7 @@ b8 dynamic_allocator_get_size_alignment (dynamic_allocator *allocator, void *blo
 }
 
 #if KOHI_DEBUG
-const char *dynamic_allocator_get_file (dynamic_allocator *allocator, void *block) {
+const char *dynamic_allocator_get_file (dynamic_allocator *allocator, const void *block) {
 	dynamic_allocator_state *state = allocator->memory;
 	if (block < state->memory_block || block >= ((void *)((u8 *)state->memory_block) + state->total_size)) {
 		// Not owned by this block.
@@ -293,7 +293,7 @@ const char *dynamic_allocator_get_file (dynamic_allocator *allocator, void *bloc
 
 	return header->file;
 }
-u32 dynamic_allocator_get_line (dynamic_allocator *allocator, void *block) {
+u32 dynamic_allocator_get_line (dynamic_allocator *allocator, const void *block) {
 	dynamic_allocator_state *state = allocator->memory;
 	if (block < state->memory_block || block >= ((void *)((u8 *)state->memory_block) + state->total_size)) {
 		// Not owned by this block.

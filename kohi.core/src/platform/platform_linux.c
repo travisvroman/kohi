@@ -1025,7 +1025,7 @@ void *platform_allocate (u64 size, b8 aligned) {
 
 	return p;
 }
-void platform_free (void *block, b8 aligned, u64 size) {
+void platform_free (const void *block, b8 aligned, u64 size) {
 	if (block) {
 		syscall2(SYS_munmap, (i64)block, (i64)size);
 	}

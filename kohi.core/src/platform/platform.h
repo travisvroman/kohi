@@ -305,7 +305,7 @@ KAPI void *platform_allocate (u64 size, b8 aligned);
  * @param aligned Indicates if the block of memory is aligned.
  * @param size of the block to be freed.
  */
-KAPI void platform_free (void *block, b8 aligned, u64 size);
+KAPI void platform_free (const void *block, b8 aligned, u64 size);
 
 /**
  * @brief Performs platform-specific printing to the console of the given
@@ -522,3 +522,5 @@ typedef struct platform_open_file_dialog_result {
 } platform_open_file_dialog_result;
 
 KAPI platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options);
+
+KAPI b8 platform_initialize_input (void);

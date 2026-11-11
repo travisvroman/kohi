@@ -66,7 +66,7 @@ KAPI void *dynamic_allocator_allocate_aligned (dynamic_allocator *allocator, u64
  * @param size The size of the block.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_free (dynamic_allocator *allocator, void *block, u64 size, u8 tag);
+KAPI b8 dynamic_allocator_free (dynamic_allocator *allocator, const void *block, u64 size, u8 tag);
 
 /**
  * @brief Frees the given block of aligned memory. Technically the same as calling
@@ -76,7 +76,7 @@ KAPI b8 dynamic_allocator_free (dynamic_allocator *allocator, void *block, u64 s
  * @param block The block to be freed. Must have been allocated by the provided allocator.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, void *block, u8 tag);
+KAPI b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, const void *block, u8 tag);
 
 /**
  * @brief Obtains the size and alignment of the given block of memory. Can fail if
@@ -88,11 +88,11 @@ KAPI b8 dynamic_allocator_free_aligned (dynamic_allocator *allocator, void *bloc
  * @param out_alignment A pointer to hold the alignment.
  * @return True on success; otherwise false.
  */
-KAPI b8 dynamic_allocator_get_size_alignment (dynamic_allocator *allocator, void *block, u64 *out_size, u16 *out_alignment, u8 *out_tag);
+KAPI b8 dynamic_allocator_get_size_alignment (dynamic_allocator *allocator, const void *block, u64 *out_size, u16 *out_alignment, u8 *out_tag);
 
 #if KOHI_DEBUG
-KAPI const char *dynamic_allocator_get_file (dynamic_allocator *allocator, void *block);
-KAPI u32 dynamic_allocator_get_line (dynamic_allocator *allocator, void *block);
+KAPI const char *dynamic_allocator_get_file (dynamic_allocator *allocator, const void *block);
+KAPI u32 dynamic_allocator_get_line (dynamic_allocator *allocator, const void *block);
 #endif
 /**
  * @brief Obtains the amount of free space left in the provided allocator.

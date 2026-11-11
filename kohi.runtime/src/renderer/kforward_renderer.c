@@ -85,6 +85,7 @@ typedef struct depth_prepass_immediate_data {
 typedef struct hf_terrain_global_ubo {
 	mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
 	vec4 cascade_splits;											  // 16 bytes
+	vec4 fog_colour;
 
 	f32 delta_time;
 	f32 game_time;
@@ -97,16 +98,16 @@ typedef struct hf_terrain_global_ubo {
 	f32 shadow_fade_distance;
 	f32 shadow_split_mult;
 
-	vec4 fog_colour;
 	f32 fog_start;
 	f32 fog_end;
 	f32 near_clip;
-
 	f32 far_clip;
+
 	// Offsets into the matrix SSBO per type.
 	u32 mat_ssbo_view_offset;
 	u32 mat_ssbo_proj_offset;
 	u32 padding;
+	u32 padding2;
 } hf_terrain_global_ubo;
 
 typedef struct hf_terrain_immediate_data {

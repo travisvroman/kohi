@@ -13,6 +13,7 @@
 #include "input_types.h"
 #include "logger.h"
 #include "memory/kmemory.h"
+#include "platform/platform.h"
 
 typedef struct keyboard_state {
 	b8 keys[256];
@@ -58,6 +59,11 @@ b8 input_system_initialize (u64 *memory_requirement, void *state, void *config, 
 
 	state_ptr->allow_key_repeats = false;
 	state_ptr->app = app;
+
+	if (!platform_initialize_input()) {
+		KERROR("Failed to initialize platform input. See logs for details.");
+		return false;
+	}
 
 	KINFO("Input subsystem initialized.");
 
@@ -168,11 +174,11 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 		//     KINFO("Right ctrl %s.", pressed ? "pressed" : "released");
 		// }
 
-		// if (key == KEY_LSHIFT) {
-		//     KINFO("Left shift %s.", pressed ? "pressed" : "released");
-		// } else if (key == KEY_RSHIFT) {
-		//     KINFO("Right shift %s.", pressed ? "pressed" : "released");
-		// }
+		if (key == KEY_LSHIFT) {
+			KINFO("Left shift %s.", pressed ? "pressed" : "released");
+		} else if (key == KEY_RSHIFT) {
+			KINFO("Right shift %s.", pressed ? "pressed" : "released");
+		}
 
 		// Check for key bindings
 		// Iterate keymaps top-down on the stack.
@@ -213,6 +219,13 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 		context.data.u16[0] = key;
 		context.data.u16[1] = is_repeat ? 1 : 0;
 		event_fire(pressed ? EVENT_CODE_KEY_PRESSED : EVENT_CODE_KEY_RELEASED, 0, context);
+	} else {
+		KINFO("changed=%u, repeats_allowed=%u", changed, state_ptr->allow_key_repeats);
+		if (key == KEY_LSHIFT) {
+			KINFO("Left shift %s. (1)", pressed ? "pressed" : "released");
+		} else if (key == KEY_RSHIFT) {
+			KINFO("Right shift %s. (1)", pressed ? "pressed" : "released");
+		}
 	}
 }
 

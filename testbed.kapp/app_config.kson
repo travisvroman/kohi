@@ -5,12 +5,12 @@ app_frame_data_size = 128
 manifest_file_path = "../testbed.kapp/asset_manifest.kson"
 default_package_name = "Testbed"
 windows = [
-   {
+	{
 	resolution = "1920 1080"
 	position="100 100"
 	name="main_window"
 	title = "Testbed Main Window (コーヒー)"
-   }
+	}
 ]
 package_config = {
 	packages = [
@@ -73,7 +73,7 @@ systems = [
 	{
 		name="renderer"
 		config = {
-			vsync=false
+			vsync=true
 			power_saving=true
 			enable_validation=false
 			backend_plugin_name = "kohi.plugin.renderer.vulkan"
@@ -116,8 +116,8 @@ systems = [
 		}
 	}
 	{
-	   name="plugin_system"
-	   config = {
+		name="plugin_system"
+		config = {
 			plugins = [
 				{
 					 name = "kohi.plugin.ui.kui"

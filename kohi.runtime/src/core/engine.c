@@ -150,13 +150,6 @@ static void test (const char *app_config_path, void *unused) {
 b8 engine_create (application *app, const char *app_config_path, const char *game_lib_name) {
 	KASSERT(app_config_path);
 
-	// Startup clock, but created here until engine state exists.
-	// Doing this here so that this begins timing as soon as possible within the application.
-	// Technically there are a couple small operations that begin before this, but the timing
-	// of those should be negligible.
-	kclock temp_clock = {0};
-	kclock_start(&temp_clock);
-
 	if (app->engine_state) {
 		KERROR("engine_create called more than once.");
 		return false;
@@ -183,7 +176,6 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 	engine_state->app = app;
 	engine_state->is_running = false;
 	engine_state->is_suspended = false;
-	engine_state->startup_clock = temp_clock; // Set the already-started clock.
 
 	// Setup a registry for external systems to register themselves to.
 	kregistry_create(&engine_state->external_systems_registry);
@@ -203,6 +195,14 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 			return false;
 		}
 	}
+
+	// Startup clock, but created here until engine state exists.
+	// Doing this here so that this begins timing as soon as possible within the application.
+	// Technically there are a couple small operations that begin before this, but the timing
+	// of those should be negligible.
+	// No clocks can be started before this point since the platform is only initialized here.
+	engine_state->startup_clock = (kclock){0};
+	kclock_start(&engine_state->startup_clock);
 
 	// Event system needs to be setup as early as possible so other systems can register with it.
 	{

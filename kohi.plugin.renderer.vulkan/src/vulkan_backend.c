@@ -879,7 +879,7 @@ b8 vulkan_renderer_frame_command_list_end (renderer_backend_interface *backend, 
 	// Now do the blit operation from the source image to the target image
 	{
 		VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "blit", vec4_one());
-		VkImageBlit blit_region = {};
+		VkImageBlit blit_region = {0};
 		blit_region.srcOffsets[0] = (VkOffset3D){0, 0, 0};										// Starting coordinates in the source image
 		blit_region.srcOffsets[1] = (VkOffset3D){source_image->width, source_image->height, 1}; // Ending coordinates in the source image
 		blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1948,6 +1948,7 @@ b8 vulkan_renderer_texture_resources_acquire (renderer_backend_interface *backen
 
 	VkImageUsageFlagBits usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	VkImageAspectFlagBits aspect = 0;
+	VkFormatFeatureFlags required_features = VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
 	VkFormat image_format;
 	b8 is_depth = FLAG_GET(flags, KTEXTURE_FLAG_DEPTH);
 	b8 is_stencil = FLAG_GET(flags, KTEXTURE_FLAG_STENCIL);
@@ -1960,10 +1961,23 @@ b8 vulkan_renderer_texture_resources_acquire (renderer_backend_interface *backen
 			aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
 		}
 		image_format = context->device.depth_format;
+		required_features |= VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	} else {
 		usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_format = channel_count_to_format(channel_count, VK_FORMAT_R8G8B8A8_UNORM);
+		required_features |= VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT;
+	}
+
+	// Ensure the format supports the required features for optimal tiling, otherwise fall back to linear.
+	VkFormatProperties fp;
+	context->rhi.kvkGetPhysicalDeviceFormatProperties(context->device.physical_device, image_format, &fp);
+
+	VkImageTiling tiling;
+	if ((fp.optimalTilingFeatures & required_features) == required_features) {
+		tiling = VK_IMAGE_TILING_OPTIMAL;
+	} else {
+		tiling = VK_IMAGE_TILING_LINEAR;
 	}
 
 	// Create the required number of images.
@@ -1972,7 +1986,7 @@ b8 vulkan_renderer_texture_resources_acquire (renderer_backend_interface *backen
 		char *image_name = string_format("%s_vkimage_%d", name, i);
 		vulkan_image_create(
 			context, type, width, height, array_size, image_format,
-			VK_IMAGE_TILING_OPTIMAL, usage,
+			tiling, usage,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, aspect,
 			image_name, mip_levels, &texture_data->images[i]);
 
@@ -2291,7 +2305,7 @@ b8 vulkan_renderer_texture_blit_2d (renderer_backend_interface *backend, ktextur
 	// Now do the blit operation from the source image to the target image
 	{
 		/* VK_BEGIN_DEBUG_LABEL(context, command_buffer->handle, "blit", vec4_one()); */
-		VkImageBlit blit_region = {};
+		VkImageBlit blit_region = {0};
 		blit_region.srcOffsets[0] = (VkOffset3D){source_offset.x, source_offset.y, 0}; // Starting coordinates in the source image
 		blit_region.srcOffsets[1] = (VkOffset3D){source_size.x, source_size.y, 1};	   // Ending coordinates in the source image
 		blit_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

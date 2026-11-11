@@ -133,59 +133,17 @@ b8 vulkan_device_create (vulkan_context *context, b8 require_discrete_gpu) {
 	extension_names[ext_idx] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 	ext_idx++;
 
-	// Dynamic indexing. NOTE: not needed for 1.2+
-	/* extension_names[ext_idx] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
-	ext_idx++; */
-
 	// If portability is required (i.e. mac), add it.
 	if (portability_required) {
 		extension_names[ext_idx] = "VK_KHR_portability_subset";
 		ext_idx++;
 	}
 
-	// If dynamic topology isn't supported natively but *is* supported via extension,
-	// include the extension.
-	if (
-		((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) == 0) &&
-		((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) != 0)) {
-		extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
-		ext_idx++;
-		extension_names[ext_idx] = VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME;
-		ext_idx++;
-	}
 	// If smooth lines are supported, load the extension.
 	if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT)) {
 		extension_names[ext_idx] = VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME;
 		ext_idx++;
 	}
-
-	// NOTE: Request supported device features.
-	VkPhysicalDeviceFeatures2 device_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR};
-
-	// Native features
-	device_features.features.samplerAnisotropy = context->device.features.samplerAnisotropy; // Request anistrophy
-	device_features.features.fillModeNonSolid = context->device.features.fillModeNonSolid;
-	// Support for clipping planes.
-	device_features.features.shaderClipDistance = context->device.features.shaderClipDistance;
-	if (!device_features.features.shaderClipDistance) {
-		KERROR("shaderClipDistance not supported by Vulkan device '%s'!", context->device.properties.deviceName);
-	}
-
-	// Dynamic rendering.
-	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_ext = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES};
-	dynamic_rendering_ext.dynamicRendering = VK_TRUE;
-	device_features.pNext = &dynamic_rendering_ext;
-
-	// VK_EXT_extended_dynamic_state
-	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT};
-	extended_dynamic_state.extendedDynamicState = VK_TRUE;
-	dynamic_rendering_ext.pNext = &extended_dynamic_state;
-
-	// VK_EXT_descriptor_indexing
-	VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT};
-	// Partial binding is required for descriptor aliasing.
-	descriptor_indexing_features.descriptorBindingPartiallyBound = VK_FALSE; // Don't use this.
-	extended_dynamic_state.pNext = &descriptor_indexing_features;
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
 	// NOTE: On macOS set environment variable to configure MoltenVK for using Metal argument buffers (needed for descriptor indexing).
@@ -193,12 +151,38 @@ b8 vulkan_device_create (vulkan_context *context, b8 require_discrete_gpu) {
 	setenv("MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS", "1", 1);
 #endif
 
+	// NOTE: Request supported device features.
+	VkPhysicalDeviceVulkan12Features device_features_1_2 = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+		.pNext = NULL,
+		.descriptorBindingPartiallyBound = VK_TRUE // was VK_EXT_descriptor_indexing
+	};
+
+	VkPhysicalDeviceVulkan13Features device_features_1_3 = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+		.pNext = &device_features_1_2,
+		.synchronization2 = VK_TRUE,
+		.dynamicRendering = VK_TRUE, // was VK_EXT_extended_dynamic_state NOTE: extendedDynamicState is always required, and is no longer needed.
+	};
+
+	VkPhysicalDeviceFeatures2 device_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
+		// Native features
+		.features.samplerAnisotropy = context->device.features.samplerAnisotropy, // Request anistrophy
+		.features.fillModeNonSolid = context->device.features.fillModeNonSolid,
+		.features.shaderClipDistance = context->device.features.shaderClipDistance, // Support for clipping planes.
+		.pNext = &device_features_1_3};
+
+	if (!device_features.features.shaderClipDistance) {
+		KERROR("shaderClipDistance not supported by Vulkan device '%s'!", context->device.properties.deviceName);
+	}
+
 	// Smooth line rasterisation, if supported.
 	VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_ext = {0};
 	if (context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT) {
 		line_rasterization_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
 		line_rasterization_ext.smoothLines = VK_TRUE;
-		descriptor_indexing_features.pNext = &line_rasterization_ext;
+		device_features_1_2.pNext = &line_rasterization_ext;
 	}
 
 	// #if defined(VK_USE_PLATFORM_MACOS_MVK)

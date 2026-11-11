@@ -212,12 +212,12 @@ KAPI void kreallocate_report (u64 old_size, u64 new_size, memory_tag tag);
  * @brief Frees the given block, and internally untracks its size from the given tag.
  * @param block A pointer to the block of memory to be freed.
  */
-KAPI void kfree (void *block);
+KAPI void kfree (const void *block);
 
 /**
  * @brief Frees the given block, and internally untracks its size from the given tag.
  */
-KAPI void kfree_aligned (void *block);
+KAPI void kfree_aligned (const void *block);
 
 /**
  * @brief Reports a free associated with the application, but made externally.

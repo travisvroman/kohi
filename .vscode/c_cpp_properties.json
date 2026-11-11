@@ -1,27 +1,36 @@
 {
+    "env": {
+        "kohiSharedIncludes": [
+            "${workspaceFolder}/kohi.core/src/**",
+            "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
+            "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
+            "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
+            "${workspaceFolder}/kohi.plugin.utils/src/**",
+            "${workspaceFolder}/kohi.runtime/src/**",
+            "${workspaceFolder}/testbed.klib/src/**",
+            "${VULKAN_SDK}/include"
+        ],
+        "kohiSharedDefines": [
+            "UNICODE",
+            "_UNICODE",
+            "KEXPORT"
+        ]
+    },
     "configurations": [
         {
-            "name": "Linux",
+            "name": "Linux-Debug",
             "includePath": [
-                "${workspaceFolder}/kohi.core/src/**",
-                "${workspaceFolder}/kohi.runtime/src/**",
-                "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
-                "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
-                "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
-                "${workspaceFolder}/testbed.klib/src/**",
-                "${VULKAN_SDK}/include",
+                "${kohiSharedIncludes}",
                 "/usr/include/dbus-1.0",
                 "/usr/lib64/dbus-1.0/include"
             ],
             "defines": [
                 "_DEBUG",
-                "UNICODE",
-                "_UNICODE",
-                "KEXPORT",
+                "${kohiSharedDefines}",
                 "_GNU_SOURCE"
             ],
             "compilerPath": "/usr/bin/clang",
-            "cStandard": "c17",
+            "cStandard": "c99",
             "cppStandard": "c++17",
             "intelliSenseMode": "clang-x64",
             "browse": {
@@ -29,53 +38,91 @@
                     "${workspaceRoot}",
                     "/usr/lib/"
                 ],
-                "limitSymbolsToIncludedHeaders": false,
+                "limitSymbolsToIncludedHeaders": false
             }
         },
         {
-            "name": "Mac",
+            "name": "Linux-Release",
             "includePath": [
-                "${workspaceFolder}/kohi.core/src/**",
-                "${workspaceFolder}/kohi.runtime/src/**",
-                "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
-                "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
-                "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
-                "${workspaceFolder}/testbed.klib/src/**",
-                "${VULKAN_SDK}/include"
+                "${kohiSharedIncludes}",
+                "/usr/include/dbus-1.0",
+                "/usr/lib64/dbus-1.0/include"
+            ],
+            "defines": [
+                "${kohiSharedDefines}",
+                "_GNU_SOURCE"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "${workspaceRoot}",
+                    "/usr/lib/"
+                ],
+                "limitSymbolsToIncludedHeaders": false
+            }
+        },
+        {
+            "name": "macOS-Debug",
+            "includePath": [
+                "${kohiSharedIncludes}"
             ],
             "defines": [
                 "_DEBUG",
-                "UNICODE",
-                "_UNICODE",
-                "KEXPORT"
+                "${kohiSharedDefines}"
             ],
             "compilerPath": "/usr/bin/clang",
-            "cStandard": "c17",
+            "cStandard": "c99",
             "cppStandard": "c++17",
             "intelliSenseMode": "clang-x64"
         },
         {
-            "name": "Win32",
+            "name": "macOS-Release",
             "includePath": [
-                "${workspaceFolder}/kohi.core/src/**",
-                "${workspaceFolder}/kohi.runtime/src/**",
-                "${workspaceFolder}/kohi.plugin.renderer.vulkan/src/**",
-                "${workspaceFolder}/kohi.plugin.ui.kui/src/**",
-                "${workspaceFolder}/kohi.plugin.audio.openal/src/**",
-                "${workspaceFolder}/testbed.klib/src/**",
-                "${VULKAN_SDK}/include"
+                "${kohiSharedIncludes}"
+            ],
+            "defines": [
+                "${kohiSharedDefines}"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        },
+        {
+            "name": "Win32-Debug",
+            "includePath": [
+                "${kohiSharedIncludes}"
             ],
             "defines": [
                 "_DEBUG",
-                "UNICODE",
-                "_UNICODE",
-                "KEXPORT"
+                "${kohiSharedDefines}"
             ],
-            "windowsSdkVersion": "10.0.18362.0",
             "compilerPath": "C:\\Program Files\\LLVM\\bin\\clang.exe",
-            "cStandard": "c17",
+            "cStandard": "c99",
             "cppStandard": "c++17",
-            "intelliSenseMode": "clang-x64"
+            "intelliSenseMode": "windows-clang-x64",
+            "compilerArgs": [
+                "-target x86_64-pc-windows-msvc"
+            ]
+        },
+        {
+            "name": "Win32-Release",
+            "includePath": [
+                "${kohiSharedIncludes}"
+            ],
+            "defines": [
+                "${kohiSharedDefines}"
+            ],
+            "compilerPath": "C:\\Program Files\\LLVM\\bin\\clang.exe",
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-clang-x64",
+            "compilerArgs": [
+                "-target x86_64-pc-windows-msvc"
+            ]
         }
     ],
     "version": 4

@@ -6,7 +6,7 @@
 #include "platform/platform.h"
 
 // Windows platform layer.
-#if _WIN32 // KPLATFORM_WINDOWS // FIXME: macro doesn't highlight correctly in vscode
+#if KPLATFORM_WINDOWS
 
 #	define WIN32_LEAN_AND_MEAN
 #	include <windows.h>
@@ -28,6 +28,12 @@
 #	include <winnls.h>
 #	include <winuser.h>
 #	include <commdlg.h>
+#	include <fileapi.h>
+#	include <handleapi.h>
+
+// HID devices
+#	include <hidusage.h>
+#	include <hidsdi.h>
 
 #	include "containers/darray.h"
 #	include "logger.h"
@@ -47,6 +53,7 @@
 #	pragma comment(lib, "kernel32.lib")
 #	pragma comment(lib, "ntdll.lib")
 #	pragma comment(lib, "comdlg32.lib")
+#	pragma comment(lib, "hid.lib")
 
 typedef LONG NTSTATUS;
 
@@ -99,38 +106,102 @@ typedef struct platform_state {
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
 	platform_clipboard_on_paste_callback on_paste;
+
+	// Clock
+	f64 tick_duration;
+	UINT min_period;
+	LARGE_INTEGER start_time;
 } platform_state;
 
-static platform_state *state_ptr;
-
-// Clock
-static f64 clock_frequency;
-static UINT min_period;
-static LARGE_INTEGER start_time;
-
-// FIXME: Brought up by a comment on YT - Check this on other platforms as well. Absolute time should be based on application start time.
-// 1. Here and also in the more recent code updates I see you query the static start_time with QueryPerformanceCounter()
-// but you don't use it anywhere? Do you want as in this case the absolute time since the system started counting, and
-// not the time since the engine was initialized ( returning    (now_time.QuadPart - start_time.QuadPart) * clock_frequency
-// in platform_get_absolute_time() ) ?
-// 2. Is the clock_frequency the right name since it assigns the inverse of frequency.QuadPart, maybe it should be
-// something like tick_duration ?
+static platform_state *state_ptr = KNULL;
 
 static void platform_update_watches (void);
 LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 static LPCWSTR cstr_to_wcstr (const char *str);
-static void wcstr_free (LPCWSTR wstr);
 static const char *wcstr_to_cstr (LPCWSTR wstr);
+
+static b8 register_raw_input_device (HWND hwnd) {
+	RAWINPUTDEVICE *device = kallocate_aligned(sizeof(RAWINPUTDEVICE), 32, MEMORY_TAG_PLATFORM);
+	device->usUsagePage = HID_USAGE_PAGE_GENERIC; // possibly HID_USAGE_PAGE_GAME ?
+	device->usUsage = HID_USAGE_GENERIC_KEYBOARD;
+	device->dwFlags = RIDEV_DEVNOTIFY;
+	device->hwndTarget = hwnd;
+
+	b8 result = RegisterRawInputDevices(device, 1, sizeof(*device));
+
+	return result;
+}
+typedef struct win32_device_info {
+	char manufacturer[128];
+	char product[128];
+	input_device_type type;
+	u16 version;
+	u16 vendor_id;
+	u16 product_id;
+	union {
+		struct {
+			u8 button_count;
+			u32 sample_rate;
+			b8 has_horizontal_wheel;
+		} mouse;
+		struct {
+			u32 key_count;
+			u32 fn_key_count;
+			u32 mode;
+		} keyboard;
+		struct {
+			u32 usage_page;
+			u32 usage;
+		} hid;
+	};
+} win32_device_info;
+
+b8 get_hid_device_info (const WCHAR *device_name, win32_device_info *out_device_info) {
+	if (!device_name || !out_device_info) {
+		return false;
+	}
+
+	kzero_memory(out_device_info, sizeof(win32_device_info));
+
+	HANDLE file = CreateFileW(device_name, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, KNULL, OPEN_EXISTING, 0, KNULL);
+	if (file == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+
+	WCHAR wbuf[128];
+	BOOLEAN got_prod = HidD_GetProductString(file, wbuf, sizeof(wbuf));
+	if (WideCharToMultiByte(CP_UTF8, 0, wbuf, -1, out_device_info->product, 126, NULL, NULL) == 0) {
+		return false;
+	}
+	kzero_memory(wbuf, sizeof(wbuf));
+
+	BOOLEAN got_manu = HidD_GetManufacturerString(file, wbuf, sizeof(wbuf));
+	if (WideCharToMultiByte(CP_UTF8, 0, wbuf, -1, out_device_info->manufacturer, 126, NULL, NULL) == 0) {
+		return false;
+	}
+
+	HIDD_ATTRIBUTES attr = {0};
+	BOOLEAN got_attr = HidD_GetAttributes(file, &attr);
+	if (got_attr) {
+		out_device_info->version = attr.VersionNumber;
+		out_device_info->vendor_id = attr.VendorID;
+		out_device_info->product_id = attr.ProductID;
+	}
+
+	CloseHandle(file);
+
+	return (got_prod || got_manu || got_attr);
+}
 
 void clock_setup (void) {
 	LARGE_INTEGER frequency;
 	QueryPerformanceFrequency(&frequency);
-	clock_frequency = 1.0 / (f64)frequency.QuadPart;
-	QueryPerformanceCounter(&start_time);
+	state_ptr->tick_duration = 1.0 / (f64)frequency.QuadPart;
+	QueryPerformanceCounter(&state_ptr->start_time);
 
 	TIMECAPS tc;
 	timeGetDevCaps(&tc, sizeof(tc));
-	min_period = tc.wPeriodMin;
+	state_ptr->min_period = tc.wPeriodMin;
 }
 
 b8 platform_system_startup (u64 *memory_requirement, platform_state *state, platform_system_config *config) {
@@ -192,7 +263,7 @@ b8 platform_system_startup (u64 *memory_requirement, platform_state *state, plat
 			MessageBoxW(NULL, wmessage, L"Error!", MB_ICONEXCLAMATION | MB_OK);
 			KFATAL(message);
 			string_free(message);
-			wcstr_free(wmessage);
+			kfree(wmessage);
 		} else {
 			MessageBoxW(0, L"Window registration failed", L"Error", MB_ICONEXCLAMATION | MB_OK);
 			KFATAL("Window registration failed!");
@@ -266,18 +337,12 @@ b8 platform_window_create (const kwindow_config *config, struct kwindow *window,
 	window->platform_state = kallocate(sizeof(kwindow_platform_state), MEMORY_TAG_PLATFORM);
 
 	// Convert to wide character string first.
-	// LPCWSTR wtitle = cstr_to_wcstr(window->title);
-	// FIXME: For some reason using the above causes renderdoc to fail to open the window,
-	// but using the below does not...
-	WCHAR wtitle[256];
-	int len = MultiByteToWideChar(CP_UTF8, 0, window->title, -1, wtitle, 256);
-	if (!len) {
-	}
+	LPCWSTR wtitle = cstr_to_wcstr(window->title);
 	window->platform_state->hwnd = CreateWindowExW(
 		window_ex_style, L"kohi_window_class", wtitle,
 		window_style, window_x, window_y, window_width, window_height,
 		0, 0, state_ptr->handle.h_instance, 0);
-	// wcstr_free(wtitle);
+	kfree(wtitle);
 
 	if (window->platform_state->hwnd == 0) {
 		DWORD last_error = GetLastError();
@@ -297,7 +362,7 @@ b8 platform_window_create (const kwindow_config *config, struct kwindow *window,
 			MessageBoxW(NULL, wmessage, L"Error!", MB_ICONEXCLAMATION | MB_OK);
 			KFATAL(message);
 			string_free(message);
-			wcstr_free(wmessage);
+			kfree(wmessage);
 		} else {
 			MessageBoxW(NULL, L"Window creation failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
 			KFATAL("Window creation failed!");
@@ -373,10 +438,9 @@ b8 platform_window_title_set (struct kwindow *window, const char *title) {
 	}
 
 	LPCWSTR wtitle = cstr_to_wcstr(title);
-
 	// If the function succeeds, the return value is nonzero.
-	b8 result = (SetWindowText(window->platform_state->hwnd, wtitle) != 0);
-	wcstr_free(wtitle);
+	b8 result = (SetWindowTextW(window->platform_state->hwnd, wtitle) != 0);
+	kfree(wtitle);
 	return result;
 }
 
@@ -396,8 +460,8 @@ void *platform_allocate (u64 size, b8 aligned) {
 	return (void *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
-void platform_free (void *block, b8 aligned, u64 size) {
-	HeapFree(GetProcessHeap(), 0, block);
+void platform_free (const void *block, b8 aligned, u64 size) {
+	HeapFree(GetProcessHeap(), 0, (void *)block);
 }
 
 void platform_console_write (struct platform_state *platform, log_level level, const char *message) {
@@ -419,27 +483,27 @@ void platform_console_write (struct platform_state *platform, log_level level, c
 	u64 length = lstrlen(wmessage); // strlen(message);
 	DWORD number_written = 0;
 	WriteConsoleW(console_handle, wmessage, (DWORD)length, &number_written, 0);
-	wcstr_free(wmessage);
+	kfree(wmessage);
 
 	SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
 f64 platform_get_absolute_time (void) {
-	if (!clock_frequency) {
+	if (!state_ptr->tick_duration) {
 		clock_setup();
 	}
 
 	LARGE_INTEGER now_time;
 	QueryPerformanceCounter(&now_time);
-	return (f64)now_time.QuadPart * clock_frequency;
+	return (f64)(now_time.QuadPart - state_ptr->start_time.QuadPart) * state_ptr->tick_duration;
 }
 
 void platform_sleep (u64 ms) {
 	kclock clock;
 	kclock_start(&clock);
-	timeBeginPeriod(min_period);
-	Sleep(ms - min_period);
-	timeEndPeriod(min_period);
+	timeBeginPeriod(state_ptr->min_period);
+	Sleep(ms - state_ptr->min_period);
+	timeEndPeriod(state_ptr->min_period);
 
 	kclock_update(&clock);
 	f64 observed = clock.elapsed * 1000.0;
@@ -722,7 +786,7 @@ b8 platform_dynamic_library_load (const char *name, dynamic_library *out_library
 
 	LPCWSTR wfilename = cstr_to_wcstr(out_library->filename);
 	HMODULE library = LoadLibraryW(wfilename);
-	wcstr_free(wfilename);
+	kfree(wfilename);
 	if (!library) {
 		return false;
 	}
@@ -748,11 +812,11 @@ b8 platform_dynamic_library_unload (dynamic_library *library) {
 	}
 
 	if (library->name) {
-		kfree((void *)library->name);
+		kfree(library->name);
 	}
 
 	if (library->filename) {
-		kfree((void *)library->filename);
+		kfree(library->filename);
 	}
 
 	if (library->functions) {
@@ -760,7 +824,7 @@ b8 platform_dynamic_library_unload (dynamic_library *library) {
 		for (u32 i = 0; i < count; ++i) {
 			dynamic_library_function *f = &library->functions[i];
 			if (f->name) {
-				kfree((void *)f->name);
+				kfree(f->name);
 			}
 		}
 
@@ -840,8 +904,8 @@ platform_error_code platform_copy_file (const char *source, const char *dest, b8
 	LPCWSTR wsource = cstr_to_wcstr(source);
 	LPCWSTR wdest = cstr_to_wcstr(dest);
 	BOOL result = CopyFileW(wsource, wdest, !overwrite_if_exists);
-	wcstr_free(wsource);
-	wcstr_free(wdest);
+	kfree(wsource);
+	kfree(wdest);
 	if (!result) {
 		DWORD err = GetLastError();
 		if (err == ERROR_FILE_NOT_FOUND) {
@@ -879,7 +943,7 @@ static b8 register_watch (
 	WIN32_FIND_DATAW data;
 	LPCWSTR wfile_path = cstr_to_wcstr(file_path);
 	HANDLE file_handle = FindFirstFileW(wfile_path, &data);
-	wcstr_free(wfile_path);
+	kfree(wfile_path);
 	if (file_handle == INVALID_HANDLE_VALUE) {
 		return false;
 	}
@@ -928,7 +992,7 @@ static b8 unregister_watch (u32 watch_id) {
 
 	win32_file_watch *w = &state_ptr->watches[watch_id];
 	w->id = INVALID_ID;
-	kfree((void *)w->file_path);
+	kfree(w->file_path);
 	w->file_path = 0;
 	kzero_memory(&w->last_write_time, sizeof(FILETIME));
 
@@ -970,7 +1034,7 @@ static void platform_update_watches (void) {
 
 			LPCWSTR wfile_path = cstr_to_wcstr(f->file_path);
 			HANDLE file_handle = FindFirstFileW(wfile_path, &data);
-			wcstr_free(wfile_path);
+			kfree(wfile_path);
 			if (file_handle == INVALID_HANDLE_VALUE) {
 				// This means the file has been deleted, remove from watch.
 				if (f->watcher_deleted_callback) {
@@ -1032,7 +1096,7 @@ kunix_time_ns platform_get_file_mtime (const char *path) {
 		ret = unix_time_from_filetime(data.ftLastWriteTime);
 	}
 
-	wcstr_free(wfile_path);
+	kfree(wfile_path);
 
 	return ret;
 }
@@ -1522,10 +1586,21 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 
 	if (options.title) {
 		// Free converted string if applicable.
-		wcstr_free(ofn.lpstrTitle);
+		kfree(ofn.lpstrTitle);
 	}
 
 	return result;
+}
+
+b8 platform_initialize_input (void) {
+	platform_state *state = state_ptr;
+
+	// Register keyboard raw input device.
+	register_raw_input_device(state->windows[0]->platform_state->hwnd);
+
+	KINFO("Windows platform input initialized.");
+
+	return true;
 }
 
 static kwindow *window_from_handle (HWND hwnd) {
@@ -1541,6 +1616,8 @@ static kwindow *window_from_handle (HWND hwnd) {
 
 LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
 	switch (msg) {
+	case WM_CREATE:
+		return 0;
 	case WM_ERASEBKGND:
 		// Notify the OS that erasing will be handled by the application to prevent flicker.
 		return 1;
@@ -1628,10 +1705,12 @@ LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPAR
 			if (w_param == VK_MENU) {
 				key = is_extended ? KEY_RALT : KEY_LALT;
 			} else if (w_param == VK_SHIFT) {
-				// Annoyingly, KF_EXTENDED is not set for shift keys.
+				// NOTE: Since this method doesn't handle multiple shift keys pressed at once well, don't process it here.
+				return 0;
+				/* // Annoyingly, KF_EXTENDED is not set for shift keys.
 				u32 left_shift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
 				u32 scancode = ((l_param & (0xFF << 16)) >> 16);
-				key = scancode == left_shift ? KEY_LSHIFT : KEY_RSHIFT;
+				key = scancode == left_shift ? KEY_LSHIFT : KEY_RSHIFT; */
 			} else if (w_param == VK_CONTROL) {
 				key = is_extended ? KEY_RCONTROL : KEY_LCONTROL;
 			}
@@ -1646,6 +1725,110 @@ LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPAR
 
 			// Return 0 to prevent default window behaviour for some keypresses, such as alt.
 		}
+		return 0;
+	}
+	case WM_INPUT_DEVICE_CHANGE: {
+		// RawInput - handle device connect/disconnect.
+		HANDLE device = (HANDLE)l_param;
+
+		if (w_param == GIDC_REMOVAL) {
+			// Device disconnected.
+			KINFO("Device disconnected.");
+		} else if (w_param == GIDC_ARRIVAL) {
+			// Device connected.
+			KINFO("Device connected (0x%X).", device);
+
+			// Get device interface name.
+			u32 char_count = 0;
+			i32 di_result = GetRawInputDeviceInfoW(device, RIDI_DEVICENAME, KNULL, &char_count); // should be 0
+			if (di_result != 0) {
+				KERROR("Failed to get device info/name length");
+				return 0;
+			}
+			WCHAR *di_name = kallocate_aligned(sizeof(WCHAR) * char_count, 16, MEMORY_TAG_ARRAY);
+			di_result = GetRawInputDeviceInfoW(device, RIDI_DEVICENAME, di_name, &char_count); // should be bytes copied
+			DWORD err2 = GetLastError();
+			if (di_result < 1) {
+				KERROR("Failed to get device info name string - err = %lld", err2);
+				kfree(di_name);
+				return 0;
+			}
+
+			// Use the device string to get the product details.
+			win32_device_info di = {0};
+			get_hid_device_info(di_name, &di);
+
+			RID_DEVICE_INFO device_info = {0};
+			device_info.cbSize = sizeof(RID_DEVICE_INFO);
+			u32 di_size = sizeof(RID_DEVICE_INFO);
+
+			di_result = GetRawInputDeviceInfoW(device, RIDI_DEVICEINFO, &device_info, &di_size);
+			char *type_str = "";
+			switch (device_info.dwType) {
+			case RIM_TYPEMOUSE:
+				di.type = INPUT_DEVICE_TYPE_MOUSE;
+				di.mouse.button_count = device_info.mouse.dwNumberOfButtons;
+				di.mouse.sample_rate = device_info.mouse.dwSampleRate;
+				di.mouse.has_horizontal_wheel = device_info.mouse.fHasHorizontalWheel;
+				type_str = "Mouse";
+				break;
+			case RIM_TYPEKEYBOARD:
+				di.type = INPUT_DEVICE_TYPE_KEYBOARD;
+				di.keyboard.key_count = device_info.keyboard.dwNumberOfKeysTotal;
+				di.keyboard.fn_key_count = device_info.keyboard.dwNumberOfFunctionKeys;
+				di.keyboard.mode = device_info.keyboard.dwKeyboardMode;
+				type_str = "Keyboard";
+				break;
+			case RIM_TYPEHID:
+				di.type = INPUT_DEVICE_TYPE_HID;
+				di.hid.usage_page = device_info.hid.usUsagePage;
+				di.hid.usage = device_info.hid.usUsage;
+				type_str = "HID device";
+				break;
+			default:
+				// Unknown
+				di.type = INPUT_DEVICE_TYPE_UNKNOWN;
+				type_str = "Unknown";
+				break;
+			}
+
+			//
+			KINFO("Device acquired (0x%X, 0x%X): type='%s' manufacturer='%s', product='%s', version=%hu", di.vendor_id, di.product_id, type_str, di.manufacturer, di.product, di.version);
+
+			kfree(di_name);
+		}
+
+		return 0;
+	}
+	case WM_INPUT: {
+		RAWINPUT input = {0};
+		UINT size = sizeof(input);
+
+		GetRawInputData((HRAWINPUT)l_param, RID_INPUT, &input, &size, sizeof(RAWINPUTHEADER));
+
+		if (input.header.dwType == RIM_TYPEKEYBOARD) {
+			const RAWKEYBOARD *keyboard = &input.data.keyboard;
+
+			b8 pressed = !(keyboard->Flags & RI_KEY_BREAK);
+			char *key_str = "";
+			keys key;
+			if (keyboard->MakeCode == 0x2A) {
+				key_str = "left_shift";
+				key = KEY_LSHIFT;
+			} else if (keyboard->MakeCode == 0x36) {
+				key_str = "right_shift";
+				key = KEY_RSHIFT;
+			} else {
+				return 0;
+			}
+			KINFO("RAWINPUT - '%s' key %s", key_str, pressed ? "pressed" : "released");
+			state_ptr->process_key(key, pressed, false);
+
+			// keyboard->MakeCode identifies the physical scan code.
+			// 0x2A = Left Shift
+			// 0x36 = Right Shift
+		}
+
 		return 0;
 	}
 	case WM_MOUSEMOVE: {
@@ -1720,25 +1903,27 @@ static LPCWSTR cstr_to_wcstr (const char *str) {
 		return 0;
 	}
 
-	i32 len = MultiByteToWideChar(CP_UTF8, 0, str, -1, 0, 0);
+	i32 len = MultiByteToWideChar(CP_UTF8, 0, str, -1, KNULL, 0);
 	if (len == 0) {
-		return 0;
+		return KNULL;
 	}
-	LPWSTR wstr = kallocate(sizeof(WCHAR) * len, MEMORY_TAG_STRING);
-	if (!wstr) {
-		return 0;
-	}
-	if (MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len) == 0) {
-		kfree(wstr);
-		return 0;
-	}
-	return wstr;
-}
 
-static void wcstr_free (LPCWSTR wstr) {
-	if (wstr) {
-		kfree((WCHAR *)wstr);
+	// NOTE: The alignment here is important! Not doing this occasionally/randomly
+	// causes functions (such as SetWindowTitle()) to silently fail (though report
+	// success) and there's _no_ tracability of it. Aligning this allocation seems
+	// to fix all of these issues.
+	LPWSTR wstr = kallocate_aligned(sizeof(WCHAR) * len, 16, MEMORY_TAG_STRING);
+	if (!wstr) {
+		return KNULL;
 	}
+
+	i32 result = MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, len);
+	if (result == 0) {
+		kfree(wstr);
+		return KNULL;
+	}
+
+	return wstr;
 }
 
 static const char *wcstr_to_cstr (LPCWSTR wstr) {
@@ -1755,7 +1940,7 @@ static const char *wcstr_to_cstr (LPCWSTR wstr) {
 		return 0;
 	}
 	if (WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, length, NULL, NULL) == 0) {
-		kfree((char *)str);
+		kfree(str);
 		return 0;
 	}
 

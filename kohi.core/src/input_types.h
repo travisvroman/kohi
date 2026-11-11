@@ -13,6 +13,14 @@
 
 #include "defines.h"
 
+typedef enum input_device_type {
+	INPUT_DEVICE_TYPE_UNKNOWN,
+	INPUT_DEVICE_TYPE_KEYBOARD,
+	INPUT_DEVICE_TYPE_MOUSE,
+	INPUT_DEVICE_TYPE_HID,
+	INPUT_DEVICE_TYPE_GAMEPAD,
+} input_device_type;
+
 /**
  * @brief Represents available mouse buttons.
  */

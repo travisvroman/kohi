@@ -24,6 +24,7 @@ struct light_data {
 layout(std140, set = 0, binding = 0) uniform terrain_settings_ubo {
 	mat4 directional_light_spaces[KMATERIAL_UBO_MAX_SHADOW_CASCADES]; // 256 bytes
 	vec4 cascade_splits;										 // 16 bytes
+	vec4 fog_colour;
 
 	float delta_time;
 	float game_time;
@@ -36,16 +37,16 @@ layout(std140, set = 0, binding = 0) uniform terrain_settings_ubo {
 	float shadow_fade_distance;
 	float shadow_split_mult;
 
-	vec4 fog_colour;
 	float fog_start;
 	float fog_end;
 	float near_clip;
-
 	float far_clip;
+
 	// Offsets into the matrix SSBO per type.
 	uint mat_ssbo_view_offset;
 	uint mat_ssbo_proj_offset;
 	uint padding;
+	uint padding2;
 } global_settings;
 
 // All matrices
