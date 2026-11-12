@@ -153,7 +153,6 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 	if (!state_ptr) {
 		return;
 	}
-	KINFO("Key pressed: '%c'.", (char)key);
 	// keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
 
 	// Only handle this if the state actually changed, or if repeats are allowed.
@@ -221,7 +220,6 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 		context.data.u16[1] = is_repeat ? 1 : 0;
 		event_fire(pressed ? EVENT_CODE_KEY_PRESSED : EVENT_CODE_KEY_RELEASED, 0, context);
 	} else {
-		KINFO("changed=%u, repeats_allowed=%u", changed, state_ptr->allow_key_repeats);
 		if (key == K_KEY_LSHIFT) {
 			KINFO("Left shift %s. (1)", pressed ? "pressed" : "released");
 		} else if (key == K_KEY_RSHIFT) {

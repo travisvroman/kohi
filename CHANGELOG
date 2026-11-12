@@ -17,6 +17,7 @@ Changelog
   - Added gamepad support for Windows, GNU/Linux and macOS. Tested with various controllers. See readme for details.
   - Renamed keys enum members to be prepended with a K_ (i.e. K_KEY_A) to eliminate collisions with other headers, such as <linux/input-event-codes.h>.
   - Reworked hashtable to better handle collisions (thank you, Nyvyme!).
+  - Fixed a crash due to a race condition when setting up semaphores concurrently for job threads.
 
 - 0.13.1 IMPORTANT! Run `make setup` again before attempting to build.
   - Contains enhancements and fixes for broken Win32 build process:
