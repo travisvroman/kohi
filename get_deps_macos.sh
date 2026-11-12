@@ -30,7 +30,7 @@ install_macos_deps() {
 	# Update package cache
 	brew update >/dev/null 2>&1 || true
 
-	if ! brew install make assimp openal-soft; then
+	if ! brew install make openal-soft; then
 		echo "Error: Failed to install dependencies for macOS."
 		return 1
 	fi

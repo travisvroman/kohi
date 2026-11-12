@@ -502,7 +502,7 @@ static void texture_browser_search_textbox_on_key (kui_state *state, kui_control
 
 		texture_browser *tb = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER) {
+		if (key_code == K_KEY_ENTER) {
 			// Clear current search text.
 			string_free(tb->search_text);
 			tb->search_text = KNULL;

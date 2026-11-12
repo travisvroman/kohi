@@ -4,6 +4,7 @@
  */
 
 #include "testbed_main.h"
+#include "input/gamepad.h"
 
 #include <assets/kasset_types.h>
 #include <core/keymap.h>
@@ -218,7 +219,7 @@ b8 application_initialize (struct application *app) {
 	// Editor mode keymap
 	editor_setup_keymaps(app->state->editor);
 
-	keymap_binding_add(&app->state->editor->editor_keymap, KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_EDITOR_CLOSE);
+	keymap_binding_add(&app->state->editor->editor_keymap, K_KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_EDITOR_CLOSE);
 #endif
 
 	// Setup some UI elements
@@ -235,6 +236,19 @@ b8 application_initialize (struct application *app) {
 	// Move debug text to new bottom of screen.
 	kui_control_position_set(kui_state, app->state->debug_text_shadow, vec3_create(20, app->state->height - 75, 0));
 	kui_control_position_set(kui_state, app->state->debug_text, vec3_create(21, app->state->height - 74, 0));
+
+	// Debug gamepad text
+	{
+		app->state->debug_gamepad_text_shadow = kui_label_control_create(kui_state, "testbed_mono_debug_gamepad_text_shadow", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!");
+		kui_label_colour_set(kui_state, app->state->debug_gamepad_text_shadow, (vec4){0, 0, 0, 1});
+		KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, app->state->debug_gamepad_text_shadow));
+
+		app->state->debug_gamepad_text = kui_label_control_create(kui_state, "testbed_mono_debug_gamepad_text", FONT_TYPE_BITMAP, kname_create("Ubuntu Mono 21px"), 21, "test text 123,\n\tyo!");
+		KASSERT(kui_system_control_add_child(kui_state, INVALID_KUI_CONTROL, app->state->debug_gamepad_text));
+		// Move debug text to new bottom of screen.
+		kui_control_position_set(kui_state, app->state->debug_gamepad_text_shadow, vec3_create(20, app->state->height - 175, 0));
+		kui_control_position_set(kui_state, app->state->debug_gamepad_text, vec3_create(21, app->state->height - 174, 0));
+	}
 
 	// Context-sensitive text
 	app->state->context_sensitive_text = kui_label_control_create(kui_state, "testbed_UTF_test_sys_text", FONT_TYPE_SYSTEM, kname_create("Noto Sans CJK JP"), 31, "");
@@ -421,6 +435,75 @@ FAllocP: %.2f%s/%.2f%s (%.3f %%)",
 		// Update the text control.
 		kui_label_text_set(app->state->kui_state, app->state->debug_text, text_buffer);
 		kui_label_text_set(app->state->kui_state, app->state->debug_text_shadow, text_buffer);
+
+		{
+			// Update gamepad debug text.
+			u8 player_index = 0;
+			char *debug_gamepad_text_buf = KNULL;
+
+			if (!gamepad_is_connected(player_index)) {
+				debug_gamepad_text_buf = string_format("Player (%u) not connected", player_index);
+
+				kui_label_text_set(app->state->kui_state, app->state->debug_gamepad_text, debug_gamepad_text_buf);
+				kui_label_text_set(app->state->kui_state, app->state->debug_gamepad_text_shadow, debug_gamepad_text_buf);
+			} else {
+				const char *gp_desc = gamepad_get_desc(player_index);
+				i32 vendor_id = 0, product_id = 0;
+				gamepad_get_device_info(player_index, &vendor_id, &product_id, KNULL, KNULL);
+
+				b8 dpad_l = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_DPAD_LEFT);
+				b8 dpad_u = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_DPAD_UP);
+				b8 dpad_r = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_DPAD_RIGHT);
+				b8 dpad_d = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_DPAD_DOWN);
+
+				b8 nd = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_NORTH);
+				b8 sd = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_SOUTH);
+				b8 ed = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_EAST);
+				b8 wd = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_WEST);
+
+				b8 l1 = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_L1);
+				b8 l3 = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_L3);
+				b8 r1 = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_R1);
+				b8 r3 = gamepad_is_button_pressed(player_index, GAMEPAD_BUTTON_R3);
+
+				vec3 left, right;
+				left.x = gamepad_get_axis_state(player_index, GAMEPAD_AXIS_LX);
+				left.y = gamepad_get_axis_state(player_index, GAMEPAD_AXIS_LY);
+				left.z = gamepad_get_axis_state(player_index, GAMEPAD_AXIS_LZ);
+				right.x = gamepad_get_axis_state(player_index, GAMEPAD_AXIS_RX);
+				right.y = gamepad_get_axis_state(player_index, GAMEPAD_AXIS_RY);
+				right.z = gamepad_get_axis_state(player_index, GAMEPAD_AXIS_RZ);
+
+				char *debug_gamepad_text_buf = string_format(
+					"Player (%u) - %s (0x%X,0x%X)\n"
+					"%s=%u, %s=%u, %s=%u, %s=%u\n"						 // dpad
+					"%s=%u, %s=%u, %s=%u, %s=%u\n"						 // face buttons
+					"Joysticks: L=%V3.3f R=%V3.3f\n"					 // joysticks
+					"%s=%u, %s=%2.2f, %s=%u, %s=%u, %s=%2.2f, %s=%.u\n", // R/l 1-3
+					player_index, gp_desc, vendor_id, product_id,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_DPAD_LEFT), dpad_l,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_DPAD_UP), dpad_u,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_DPAD_RIGHT), dpad_r,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_DPAD_DOWN), dpad_d,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_NORTH), nd,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_SOUTH), sd,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_EAST), ed,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_WEST), wd,
+					&left, &right,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_L1), l1,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_L2), left.z,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_L3), l3,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_R1), r1,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_R2), right.z,
+					gamepad_get_button_desc(player_index, GAMEPAD_BUTTON_R3), r3);
+
+				kui_label_text_set(app->state->kui_state, app->state->debug_gamepad_text, debug_gamepad_text_buf);
+				kui_label_text_set(app->state->kui_state, app->state->debug_gamepad_text_shadow, debug_gamepad_text_buf);
+
+				string_free(gp_desc);
+			}
+			string_free(debug_gamepad_text_buf);
+		}
 		string_free(text_buffer);
 		string_free(time_str);
 	}
@@ -572,6 +655,10 @@ void application_on_window_resize (struct application *app, const struct kwindow
 	// Move debug text to new bottom of screen.
 	kui_control_position_set(app->state->kui_state, app->state->debug_text, vec3_create(20, app->state->height - 136, 0));
 	kui_control_position_set(app->state->kui_state, app->state->debug_text_shadow, vec3_create(21, app->state->height - 135, 0));
+
+	// Move gamepad debug text to new bottom of screen.
+	kui_control_position_set(app->state->kui_state, app->state->debug_gamepad_text, vec3_create(20, app->state->height - 256, 0));
+	kui_control_position_set(app->state->kui_state, app->state->debug_gamepad_text_shadow, vec3_create(21, app->state->height - 255, 0));
 
 	kui_control_position_set(app->state->kui_state, app->state->context_sensitive_text, vec3_create(21, app->state->height - 170, 0));
 }
@@ -882,45 +969,45 @@ static void setup_keymaps (application *app) {
 
 	// Global keymap
 	app->state->global_keymap = keymap_create();
-	keymap_binding_add(&app->state->global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_QUIT);
-	keymap_binding_add(&app->state->global_keymap, KEY_V, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_VSYNC_TOGGLE);
+	keymap_binding_add(&app->state->global_keymap, K_KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_QUIT);
+	keymap_binding_add(&app->state->global_keymap, K_KEY_V, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_VSYNC_TOGGLE);
 #if KOHI_DEBUG
-	keymap_binding_add(&app->state->global_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
+	keymap_binding_add(&app->state->global_keymap, K_KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
 #endif
 
-	keymap_binding_add(&app->state->global_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOAD_TEST_SCENE);
-	keymap_binding_add(&app->state->global_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_UNLOAD_SCENE);
+	keymap_binding_add(&app->state->global_keymap, K_KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOAD_TEST_SCENE);
+	keymap_binding_add(&app->state->global_keymap, K_KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_UNLOAD_SCENE);
 
 	// World mode keymap
 	{
 		app->state->world_keymap = keymap_create();
 #if TESTBED_EDITOR
-		keymap_binding_add(&app->state->world_keymap, KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_EDITOR_OPEN);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_F11, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_EDITOR_OPEN);
 #endif
 
-		keymap_binding_add(&app->state->world_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_LEFT);
-		keymap_binding_add(&app->state->world_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_LEFT);
-		keymap_binding_add(&app->state->world_keymap, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_LEFT);
-		keymap_binding_add(&app->state->world_keymap, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_LEFT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_LEFT);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_RIGHT);
-		keymap_binding_add(&app->state->world_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_RIGHT);
-		keymap_binding_add(&app->state->world_keymap, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_RIGHT);
-		keymap_binding_add(&app->state->world_keymap, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_TURN_RIGHT);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOOK_UP);
-		keymap_binding_add(&app->state->world_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_LOOK_UP);
-		keymap_binding_add(&app->state->world_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOOK_DOWN);
-		keymap_binding_add(&app->state->world_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_LOOK_DOWN);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOOK_UP);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_LOOK_UP);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_LOOK_DOWN);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_LOOK_DOWN);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_FORWARD);
-		keymap_binding_add(&app->state->world_keymap, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_SPRINT_FORWARD);
-		keymap_binding_add(&app->state->world_keymap, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_BACKWARD);
-		keymap_binding_add(&app->state->world_keymap, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_LEFT);
-		keymap_binding_add(&app->state->world_keymap, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_RIGHT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_FORWARD);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, GAME_ACTION_SPRINT_FORWARD);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_BACKWARD);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_LEFT);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_RIGHT);
 
-		keymap_binding_add(&app->state->world_keymap, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_UP);
-		keymap_binding_add(&app->state->world_keymap, KEY_Z, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_DOWN);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_UP);
+		keymap_binding_add(&app->state->world_keymap, K_KEY_Z, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_MOVE_DOWN);
 	}
 
 	// A console-specific keymap. Is not pushed by default.
@@ -928,16 +1015,16 @@ static void setup_keymaps (application *app) {
 #if KOHI_DEBUG
 		app->state->console_keymap = keymap_create();
 		app->state->console_keymap.overrides_all = true;
-		keymap_binding_add(&app->state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
-		keymap_binding_add(&app->state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_VIS);
 
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_UP);
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_DOWN);
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_UP);
-		keymap_binding_add(&app->state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_DOWN);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_UP);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_DOWN);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_UP);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_SCROLL_DOWN);
 
-		keymap_binding_add(&app->state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_HISTORY_BACK);
-		keymap_binding_add(&app->state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_HISTORY_FORWARD);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_HISTORY_BACK);
+		keymap_binding_add(&app->state->console_keymap, K_KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, GAME_ACTION_CONSOLE_HISTORY_FORWARD);
 #endif
 	}
 

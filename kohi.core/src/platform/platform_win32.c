@@ -31,6 +31,21 @@
 #	include <fileapi.h>
 #	include <handleapi.h>
 
+// DirectInput
+/* #	define _WIN32_WINNT 0x0501 */
+#	define INITGUID
+#	define DIRECTINPUT_VERSION 0x0800
+#	include <libloaderapi.h>
+#	include <Dbt.h>
+#	include <RegStr.h>
+#	include <dinput.h>
+#	include <combaseapi.h>
+#	include <objbase.h>
+#	include <winerror.h>
+#	define INPUT_QUEUE_SIZE 32
+#	define AXIS_MIN -32768
+#	define AXIS_MAX 32767
+
 // HID devices
 #	include <hidusage.h>
 #	include <hidsdi.h>
@@ -45,6 +60,8 @@
 #	include "time/kclock.h"
 #	include "platform/kfeatures_runtime.h"
 #	include "input_types.h"
+#	include "math/kmath.h"
+#	include "utils/input_utils.h"
 
 #	define UNIX_EPOCH_TO_FILETIME_NS 116444736000000000ULL
 #	define FILETIME_TICK_NS 100ULL
@@ -90,7 +107,71 @@ typedef struct kwindow_platform_state {
 	f32 device_pixel_ratio;
 } kwindow_platform_state;
 
+#	define PLATFORM_GAMEPAD_MAX_AXES 128
+#	define PLATFORM_GAMEPAD_MAX_BUTTONS 128
+
+typedef struct diAxisInfo {
+	DWORD offset;
+	b8 is_pov;
+	b8 is_pov_second_axis;
+	gamepad_axis axis;
+} diAxisInfo;
+
+typedef HRESULT(WINAPI *PFN_DirectInput8Create)(HINSTANCE, DWORD, REFIID, LPVOID *, LPUNKNOWN);
+
+typedef struct platform_gamepad_device {
+	u32 device_id;
+	char *description;
+	i32 vendor_id;
+	i32 product_id;
+	u8 axis_count;
+	u8 button_count;
+	f32 axis_states[PLATFORM_GAMEPAD_MAX_AXES];
+	u32 button_states;
+
+	// DirectInput
+	GUID guid_instance;
+	IDirectInputDevice8 *device_interface;
+	b8 buffered;
+	u32 slider_count;
+	u32 pov_count;
+	diAxisInfo *axis_info;
+	DWORD *button_offsets;
+	gamepad_button *buttons; // maps alongside button_offsets
+
+} platform_gamepad_device;
+
+typedef enum platform_gamepad_state_flags {
+	PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT = 0x01,
+	PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT = 0x02,
+	PLATFORM_GAMEPAD_STATE_WINDOWS_DEVICE_CHANGED = 0x04,
+	PLATFORM_GAMEPAD_STATE_DIRECTINPUT_AVAILABLE = 0x08,
+} platform_gamepad_state_flags;
+
+typedef u32 platform_gamepad_state_flag_bits;
+
+typedef struct __attribute__((aligned(8))) platform_gamepad_state {
+	HRESULT co_initialized;
+	HDEVNOTIFY h_notify;
+
+	// darray
+	platform_gamepad_device **devices;
+	u32 next_device_id;
+
+	platform_gamepad_state_flag_bits flags;
+
+	HMODULE direct_input_lib;
+	LPDIRECTINPUT direct_input_iface;
+	PFN_DirectInput8Create kDirectInput8Create;
+
+	PRAWINPUTDEVICELIST raw_dev_list;
+	UINT raw_dev_list_count;
+
+	f64 start_time;
+} platform_gamepad_state;
+
 typedef struct platform_state {
+	WNDCLASSEXW wc;
 	win32_handle_info handle;
 	CONSOLE_SCREEN_BUFFER_INFO std_output_csbi;
 	CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
@@ -107,6 +188,9 @@ typedef struct platform_state {
 	platform_process_mouse_wheel process_mouse_wheel;
 	platform_clipboard_on_paste_callback on_paste;
 
+	platform_gamepad_callbacks gamepad_callbacks;
+	platform_gamepad_state *gamepad_state;
+
 	// Clock
 	f64 tick_duration;
 	UINT min_period;
@@ -119,6 +203,11 @@ static void platform_update_watches (void);
 LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 static LPCWSTR cstr_to_wcstr (const char *str);
 static const char *wcstr_to_cstr (LPCWSTR wstr);
+static void detect_gamepad_devices (platform_state *state);
+static void process_gamepad_events (platform_state *state);
+static platform_gamepad_device *get_gamepad_device_by_id (u32 device_id);
+static gamepad_axis gamepad_get_axis (u16 vendor_id, u16 product_id, u8 axis_id);
+static gamepad_button gamepad_get_button (u16 vendor_id, u16 product_id, u8 button_id);
 
 static b8 register_raw_input_device (HWND hwnd) {
 	RAWINPUTDEVICE *device = kallocate_aligned(sizeof(RAWINPUTDEVICE), 32, MEMORY_TAG_PLATFORM);
@@ -232,21 +321,21 @@ b8 platform_system_startup (u64 *memory_requirement, platform_state *state, plat
 
 	// Setup and register window class. This can be done at platform init and be reused.
 	HICON icon = LoadIconW(state_ptr->handle.h_instance, IDI_APPLICATION);
-	WNDCLASSEXW wc = {0};
-	wc.cbSize = sizeof(WNDCLASSEXW);
-	wc.style = CS_DBLCLKS; // Get double-clicks
-	wc.lpfnWndProc = win32_process_message;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = state_ptr->handle.h_instance;
-	wc.hIcon = icon;
-	wc.hIconSm = icon;
-	wc.hCursor = LoadCursorW(NULL, IDC_ARROW); // NULL; // Manage the cursor manually
-	wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-	wc.lpszClassName = L"kohi_window_class";
-	wc.lpszMenuName = 0;
+	kzero_memory(&state_ptr->wc, sizeof(WNDCLASSEXW));
+	state->wc.cbSize = sizeof(WNDCLASSEXW);
+	state->wc.style = CS_DBLCLKS; // Get double-clicks
+	state->wc.lpfnWndProc = win32_process_message;
+	state->wc.cbClsExtra = 0;
+	state->wc.cbWndExtra = 0;
+	state->wc.hInstance = state_ptr->handle.h_instance;
+	state->wc.hIcon = icon;
+	state->wc.hIconSm = icon;
+	state->wc.hCursor = LoadCursorW(NULL, IDC_ARROW); // NULL; // Manage the cursor manually
+	state->wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+	state->wc.lpszClassName = L"kohi_window_class";
+	state->wc.lpszMenuName = 0;
 
-	if (!RegisterClassExW(&wc)) {
+	if (!RegisterClassExW(&state->wc)) {
 		DWORD last_error = GetLastError();
 		LPWSTR wmessage_buf = 0;
 
@@ -276,16 +365,33 @@ b8 platform_system_startup (u64 *memory_requirement, platform_state *state, plat
 }
 
 void platform_system_shutdown (struct platform_state *state) {
-	if (state && state->windows) {
-		u32 len = darray_length(state->windows);
-		for (u32 i = 0; i < len; ++i) {
-			if (state->windows[i]) {
-				platform_window_destroy(state->windows[i]);
-				state->windows[i] = 0;
+	if (state) {
+		// Gamepad shutdown.
+		if (state->gamepad_state) {
+			kzero_memory(&state->gamepad_callbacks, sizeof(state->gamepad_callbacks));
+			if (FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+				if (state->gamepad_state->h_notify) {
+					UnregisterDeviceNotification(state->gamepad_state->h_notify);
+					state->gamepad_state->h_notify = KNULL;
+				}
+				UnregisterClass(state->wc.lpszClassName, state->wc.hInstance);
+				if (state->gamepad_state->co_initialized == S_OK) {
+					CoUninitialize();
+				}
 			}
 		}
-		darray_destroy(state->windows);
-		state->windows = 0;
+
+		if (state->windows) {
+			u32 len = darray_length(state->windows);
+			for (u32 i = 0; i < len; ++i) {
+				if (state->windows[i]) {
+					platform_window_destroy(state->windows[i]);
+					state->windows[i] = 0;
+				}
+			}
+			darray_destroy(state->windows);
+			state->windows = 0;
+		}
 	}
 }
 
@@ -453,6 +559,17 @@ b8 platform_pump_messages (void) {
 		}
 	}
 	platform_update_watches();
+
+	// Check every so often for new controllers.
+	static u32 next_poll = 0;
+	next_poll++;
+	if (next_poll >= 30) {
+		detect_gamepad_devices(state_ptr);
+		next_poll = 0;
+	}
+
+	// Also process gamepad events.
+	process_gamepad_events(state_ptr);
 	return true;
 }
 
@@ -900,6 +1017,10 @@ void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_cal
 	state_ptr->on_paste = callback;
 }
 
+void platform_register_gamepad_callbacks (platform_gamepad_callbacks callbacks) {
+	state_ptr->gamepad_callbacks = callbacks;
+}
+
 platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
 	LPCWSTR wsource = cstr_to_wcstr(source);
 	LPCWSTR wdest = cstr_to_wcstr(dest);
@@ -1218,12 +1339,7 @@ static u32 windows_get_cpu_base_clock_mhz (void) {
 	DWORD mhz = 0;
 	DWORD size = sizeof(DWORD);
 
-	if (RegOpenKeyExA(
-			HKEY_LOCAL_MACHINE,
-			"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
-			0,
-			KEY_READ,
-			&key) != ERROR_SUCCESS) {
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &key) != ERROR_SUCCESS) {
 		return 0;
 	}
 
@@ -1282,10 +1398,7 @@ static void windows_query_storage (ksystem_info *s) {
 b8 platform_system_info_collect (ksystem_info *out_info) {
 	// CPU
 	HKEY key;
-	RegOpenKeyExA(
-		HKEY_LOCAL_MACHINE,
-		"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
-		0, KEY_READ, &key);
+	RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &key);
 
 	DWORD size = sizeof(out_info->cpu_name);
 	RegQueryValueExA(key, "ProcessorNameString", KNULL, KNULL, (LPBYTE)out_info->cpu_name, &size);
@@ -1703,21 +1816,21 @@ LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPAR
 
 			// Keypress only determines if _any_ alt/ctrl/shift key is pressed. Determine which one if so.
 			if (w_param == VK_MENU) {
-				key = is_extended ? KEY_RALT : KEY_LALT;
+				key = is_extended ? K_KEY_RALT : K_KEY_LALT;
 			} else if (w_param == VK_SHIFT) {
 				// NOTE: Since this method doesn't handle multiple shift keys pressed at once well, don't process it here.
 				return 0;
 				/* // Annoyingly, KF_EXTENDED is not set for shift keys.
 				u32 left_shift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
 				u32 scancode = ((l_param & (0xFF << 16)) >> 16);
-				key = scancode == left_shift ? KEY_LSHIFT : KEY_RSHIFT; */
+				key = scancode == left_shift ? K_KEY_LSHIFT : K_KEY_RSHIFT; */
 			} else if (w_param == VK_CONTROL) {
-				key = is_extended ? KEY_RCONTROL : KEY_LCONTROL;
+				key = is_extended ? K_KEY_RCONTROL : K_KEY_LCONTROL;
 			}
 
 			// HACK: This is gross windows keybind crap.
 			if (key == VK_OEM_1) {
-				key = KEY_SEMICOLON;
+				key = K_KEY_SEMICOLON;
 			}
 
 			// Pass to the input subsystem for processing.
@@ -1810,23 +1923,18 @@ LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPAR
 			const RAWKEYBOARD *keyboard = &input.data.keyboard;
 
 			b8 pressed = !(keyboard->Flags & RI_KEY_BREAK);
-			char *key_str = "";
+
+			// For now, only making use of RawInput to handle the double shift press issue.
 			keys key;
+			// keyboard->MakeCode identifies the physical scan code.
 			if (keyboard->MakeCode == 0x2A) {
-				key_str = "left_shift";
-				key = KEY_LSHIFT;
+				key = K_KEY_LSHIFT;
 			} else if (keyboard->MakeCode == 0x36) {
-				key_str = "right_shift";
-				key = KEY_RSHIFT;
+				key = K_KEY_RSHIFT;
 			} else {
 				return 0;
 			}
-			KINFO("RAWINPUT - '%s' key %s", key_str, pressed ? "pressed" : "released");
 			state_ptr->process_key(key, pressed, false);
-
-			// keyboard->MakeCode identifies the physical scan code.
-			// 0x2A = Left Shift
-			// 0x36 = Right Shift
 		}
 
 		return 0;
@@ -1893,6 +2001,23 @@ LRESULT CALLBACK win32_process_message (HWND hwnd, u32 msg, WPARAM w_param, LPAR
 			return 0;
 		}
 	} break;
+
+	case WM_DEVICECHANGE: {
+		// Gamepad Support
+		switch (w_param) {
+		case DBT_DEVICEARRIVAL:
+			if (((DEV_BROADCAST_HDR *)l_param)->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+				FLAG_SET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_WINDOWS_DEVICE_CHANGED, true);
+			}
+			break;
+		case DBT_DEVICEREMOVECOMPLETE:
+			if (((DEV_BROADCAST_HDR *)l_param)->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+				FLAG_SET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_WINDOWS_DEVICE_CHANGED, true);
+			}
+			break;
+		}
+		return 0;
+	}
 	}
 
 	return DefWindowProcW(hwnd, msg, w_param, l_param);
@@ -1945,6 +2070,1212 @@ static const char *wcstr_to_cstr (LPCWSTR wstr) {
 	}
 
 	return str;
+}
+
+void platform_gamepads_initialize (void) {
+	platform_state *state = state_ptr;
+	state->gamepad_state = kallocate_aligned(sizeof(platform_gamepad_state), 8, MEMORY_TAG_PLATFORM);
+
+	// Load DirectInput
+	state->gamepad_state->direct_input_lib = LoadLibraryW(L"DINPUT8.dll");
+	if (state->gamepad_state->direct_input_lib == KNULL) {
+		KINFO("Unable to load DINPUT8.dll.");
+		FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_DIRECTINPUT_AVAILABLE, false);
+		return;
+	}
+
+	FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_DIRECTINPUT_AVAILABLE, true);
+	state->gamepad_state->kDirectInput8Create = (PFN_DirectInput8Create)GetProcAddress(state->gamepad_state->direct_input_lib, "DirectInput8Create");
+	HRESULT result = state->gamepad_state->kDirectInput8Create(GetModuleHandleW(KNULL), DIRECTINPUT_VERSION, &IID_IDirectInput8, (void **)&state->gamepad_state->direct_input_iface, KNULL);
+	if (result != S_OK) {
+		KERROR("DirectInput8Create returned 0x%X", (u32)result);
+	}
+
+	state->gamepad_state->devices = darray_reserve(platform_gamepad_device *, 4);
+
+	FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT, true);
+	FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_WINDOWS_DEVICE_CHANGED, true);
+
+	detect_gamepad_devices(state);
+
+	state->gamepad_state->co_initialized = CoInitializeEx(KNULL, COINIT_APARTMENTTHREADED);
+	if (state->gamepad_state->co_initialized == RPC_E_CHANGED_MODE) {
+		state->gamepad_state->co_initialized = CoInitializeEx(KNULL, COINIT_MULTITHREADED);
+	}
+
+	GUID GUID_DEVINTERFACE_HID = {0x4D1E55B2L, 0xF16F, 0x11CF, {0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30}};
+	DEV_BROADCAST_DEVICEINTERFACE dbh = {0};
+	kzero_memory(&dbh, sizeof(dbh));
+	dbh.dbcc_size = sizeof(dbh);
+	dbh.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+	dbh.dbcc_classguid = GUID_DEVINTERFACE_HID;
+
+	// HACK: send all messages through the first window.
+	kwindow *first_window = state->windows[0];
+	state->gamepad_state->h_notify = RegisterDeviceNotification(first_window->platform_state->hwnd, &dbh, DEVICE_NOTIFY_WINDOW_HANDLE);
+	if (!state->gamepad_state->h_notify) {
+		KFATAL("Unable to setup gamepad device notification.");
+		return;
+	}
+}
+
+u32 platform_gamepad_device_count (void) {
+	return darray_length(state_ptr->gamepad_state->devices);
+}
+
+u32 platform_gamepad_deviceid_at_index (u32 device_index) {
+	if (device_index >= darray_length(state_ptr->gamepad_state->devices)) {
+		return INVALID_ID_U32;
+	}
+	return state_ptr->gamepad_state->devices[device_index]->device_id;
+}
+
+b8 platform_gamepad_get_device_index (u32 device_id, u8 *out_index) {
+	u32 len = darray_length(state_ptr->gamepad_state->devices);
+	for (u8 i = 0; i < len; ++i) {
+		if (!state_ptr->gamepad_state->devices[i]) {
+			continue;
+		}
+		if (state_ptr->gamepad_state->devices[i]->device_id == device_id) {
+			*out_index = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+b8 platform_gamepad_get_device_info (u32 device_id, i32 *out_vendor_id, i32 *out_product_id, u32 *out_button_count, u32 *out_axis_count) {
+	u8 device_index = INVALID_ID_U8;
+	if (!platform_gamepad_get_device_index(device_id, &device_index)) {
+		return false;
+	}
+	platform_gamepad_device *device = state_ptr->gamepad_state->devices[device_index];
+	if (out_vendor_id) {
+		*out_vendor_id = device->vendor_id;
+	}
+	if (out_product_id) {
+		*out_product_id = device->product_id;
+	}
+	if (out_button_count) {
+		*out_button_count = device->button_count;
+	}
+	if (out_axis_count) {
+		*out_axis_count = device->axis_count;
+	}
+	return true;
+}
+
+// index must be [0-3]. Otherwise will be ignored. Returns true if set successfully; otherwise false.
+b8 platform_gamepad_set_device_player_index (u32 device_id, u8 player_index) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	if (player_index < 0 || player_index > 3) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	// TODO: Set device LED.
+
+	/* if (device->input_path != KNULL && device->input_name != KNULL) {
+		if (!gamepad_try_set_player_index_led(device, player_index)) {
+			KWARN("Failed to set LED player index for gamepad '%s'. Numeric index still set though.", device->description);
+		}
+	} */
+
+	return true;
+}
+
+b8 platform_gamepad_is_button_pressed (u32 device_id, gamepad_button button) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	return FLAG_GET(device->button_states, (u32)button);
+}
+
+f32 platform_gamepad_get_axis_state (u32 device_id, gamepad_axis axis) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	return device->axis_states[axis];
+}
+
+// NOTE: allocates a new string that should be freed by the caller.
+const char *platform_gamepad_get_device_desc (u32 device_id) {
+	u8 device_index = INVALID_ID_U8;
+	if (!platform_gamepad_get_device_index(device_id, &device_index)) {
+		return false;
+	}
+	platform_gamepad_device *device = state_ptr->gamepad_state->devices[device_index];
+	return string_duplicate(device->description);
+}
+
+static void cleanup_gamepad_device (platform_gamepad_device *device) {
+	IDirectInputDevice8_Release(device->device_interface);
+	kfree(device->axis_info);
+	kfree(device->button_offsets);
+	kfree(device->description);
+
+	kzero_memory(device, sizeof(platform_gamepad_device));
+	kfree(device);
+}
+
+static BOOL CALLBACK count_axes_callback (LPCDIDEVICEOBJECTINSTANCE instance, LPVOID context) {
+	platform_gamepad_device *device = context;
+
+	device->axis_count++;
+	if (instance->dwType & DIDFT_POV) {
+		device->axis_count++;
+	}
+	return DIENUM_CONTINUE;
+}
+
+static BOOL CALLBACK count_buttons_callback (LPCDIDEVICEOBJECTINSTANCE instance, LPVOID context) {
+	platform_gamepad_device *device = context;
+
+	device->button_count++;
+	return DIENUM_CONTINUE;
+}
+
+static BOOL CALLBACK enum_axes_callback (LPCDIDEVICEOBJECTINSTANCE instance, LPVOID context) {
+	platform_gamepad_device *device = context;
+
+	DWORD offset;
+	device->axis_count++;
+	if (instance->dwType & DIDFT_POV) {
+		offset = DIJOFS_POV(device->pov_count);
+		device->axis_info[device->axis_count - 1].offset = offset;
+		device->axis_info[device->axis_count - 1].is_pov = true;
+		device->axis_info[device->axis_count - 1].axis = gamepad_get_axis(device->vendor_id, device->product_id, device->axis_count - 1);
+		device->axis_count++;
+		device->axis_info[device->axis_count - 1].offset = offset;
+		device->axis_info[device->axis_count - 1].is_pov = true;
+		device->axis_info[device->axis_count - 1].axis = gamepad_get_axis(device->vendor_id, device->product_id, device->axis_count - 1);
+		device->pov_count++;
+	} else {
+		if (!memcmp(&instance->guidType, &GUID_XAxis, sizeof(instance->guidType))) {
+			offset = DIJOFS_X;
+		} else if (!memcmp(&instance->guidType, &GUID_YAxis, sizeof(instance->guidType))) {
+			offset = DIJOFS_Y;
+		} else if (!memcmp(&instance->guidType, &GUID_ZAxis, sizeof(instance->guidType))) {
+			offset = DIJOFS_Z;
+		} else if (!memcmp(&instance->guidType, &GUID_RxAxis, sizeof(instance->guidType))) {
+			offset = DIJOFS_RX;
+		} else if (!memcmp(&instance->guidType, &GUID_RyAxis, sizeof(instance->guidType))) {
+			offset = DIJOFS_RY;
+		} else if (!memcmp(&instance->guidType, &GUID_RzAxis, sizeof(instance->guidType))) {
+			offset = DIJOFS_RZ;
+		} else if (!memcmp(&instance->guidType, &GUID_Slider, sizeof(instance->guidType))) {
+			offset = DIJOFS_SLIDER(device->slider_count++);
+		} else {
+			offset = -1;
+		}
+
+		device->axis_info[device->axis_count - 1].offset = offset;
+		device->axis_info[device->axis_count - 1].is_pov = false;
+		device->axis_info[device->axis_count - 1].axis = gamepad_get_axis(device->vendor_id, device->product_id, device->axis_count - 1);
+
+		DIPROPRANGE range = {0};
+		range.diph.dwSize = sizeof(range);
+		range.diph.dwHeaderSize = sizeof(range.diph);
+		range.diph.dwObj = instance->dwType;
+		range.diph.dwHow = DIPH_BYID;
+		range.lMin = AXIS_MIN;
+		range.lMax = AXIS_MAX;
+
+		HRESULT result = IDirectInputDevice8_SetProperty(device->device_interface, DIPROP_RANGE, &range.diph);
+		if (result != DI_OK) {
+			KERROR("IDirectInputDevice8_SetProperty returned 0x%X", (u32)result);
+		}
+
+		DIPROPDWORD dead_zone = {0};
+		dead_zone.diph.dwSize = sizeof(dead_zone);
+		dead_zone.diph.dwHeaderSize = sizeof(dead_zone.diph);
+		dead_zone.diph.dwObj = instance->dwType;
+		dead_zone.diph.dwHow = DIPH_BYID;
+		dead_zone.dwData = 0;
+		result = IDirectInputDevice8_SetProperty(device->device_interface, DIPROP_DEADZONE, &dead_zone.diph);
+		if (result != DI_OK) {
+			KERROR("IDirectInputDevice8_SetProperty returned 0x%X", (u32)result);
+		}
+	}
+
+	return DIENUM_CONTINUE;
+}
+
+static BOOL CALLBACK enum_buttons_callback (LPCDIDEVICEOBJECTINSTANCE instance, LPVOID context) {
+	platform_gamepad_device *device = context;
+
+	device->button_offsets[device->button_count] = DIJOFS_BUTTON(device->button_count);
+	device->buttons[device->button_count] = gamepad_get_button(device->vendor_id, device->product_id, device->button_count);
+	device->button_count++;
+	return DIENUM_CONTINUE;
+}
+
+#	ifndef DIDFT_OPTIONAL
+#		define DIDFT_OPTIONAL 0x80000000
+#	endif
+
+/* Taken from Wine - Thanks! */
+DIOBJECTDATAFORMAT dfDIJoystick2[] = {
+	{&GUID_XAxis, DIJOFS_X, DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_YAxis, DIJOFS_Y, DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_ZAxis, DIJOFS_Z, DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RxAxis, DIJOFS_RX, DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RyAxis, DIJOFS_RY, DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RzAxis, DIJOFS_RZ, DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, DIJOFS_SLIDER(0), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, DIJOFS_SLIDER(1), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_POV, DIJOFS_POV(0), DIDFT_OPTIONAL | DIDFT_POV | DIDFT_ANYINSTANCE, 0},
+	{&GUID_POV, DIJOFS_POV(1), DIDFT_OPTIONAL | DIDFT_POV | DIDFT_ANYINSTANCE, 0},
+	{&GUID_POV, DIJOFS_POV(2), DIDFT_OPTIONAL | DIDFT_POV | DIDFT_ANYINSTANCE, 0},
+	{&GUID_POV, DIJOFS_POV(3), DIDFT_OPTIONAL | DIDFT_POV | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(0), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(1), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(2), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(3), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(4), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(5), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(6), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(7), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(8), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(9), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(10), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(11), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(12), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(13), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(14), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(15), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(16), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(17), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(18), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(19), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(20), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(21), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(22), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(23), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(24), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(25), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(26), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(27), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(28), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(29), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(30), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(31), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(32), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(33), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(34), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(35), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(36), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(37), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(38), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(39), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(40), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(41), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(42), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(43), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(44), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(45), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(46), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(47), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(48), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(49), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(50), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(51), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(52), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(53), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(54), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(55), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(56), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(57), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(58), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(59), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(60), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(61), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(62), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(63), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(64), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(65), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(66), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(67), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(68), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(69), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(70), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(71), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(72), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(73), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(74), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(75), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(76), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(77), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(78), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(79), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(80), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(81), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(82), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(83), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(84), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(85), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(86), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(87), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(88), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(89), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(90), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(91), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(92), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(93), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(94), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(95), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(96), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(97), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(98), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(99), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(100), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(101), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(102), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(103), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(104), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(105), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(106), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(107), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(108), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(109), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(110), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(111), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(112), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(113), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(114), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(115), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(116), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(117), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(118), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(119), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(120), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(121), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(122), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(123), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(124), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(125), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(126), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{NULL, DIJOFS_BUTTON(127), DIDFT_OPTIONAL | DIDFT_BUTTON | DIDFT_ANYINSTANCE, 0},
+	{&GUID_XAxis, FIELD_OFFSET(DIJOYSTATE2, lVX), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_YAxis, FIELD_OFFSET(DIJOYSTATE2, lVY), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_ZAxis, FIELD_OFFSET(DIJOYSTATE2, lVZ), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RxAxis, FIELD_OFFSET(DIJOYSTATE2, lVRx), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RyAxis, FIELD_OFFSET(DIJOYSTATE2, lVRy), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RzAxis, FIELD_OFFSET(DIJOYSTATE2, lVRz), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, FIELD_OFFSET(DIJOYSTATE2, rglVSlider[0]), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, FIELD_OFFSET(DIJOYSTATE2, rglVSlider[1]), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_XAxis, FIELD_OFFSET(DIJOYSTATE2, lAX), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_YAxis, FIELD_OFFSET(DIJOYSTATE2, lAY), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_ZAxis, FIELD_OFFSET(DIJOYSTATE2, lAZ), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RxAxis, FIELD_OFFSET(DIJOYSTATE2, lARx), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RyAxis, FIELD_OFFSET(DIJOYSTATE2, lARy), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RzAxis, FIELD_OFFSET(DIJOYSTATE2, lARz), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, FIELD_OFFSET(DIJOYSTATE2, rglASlider[0]), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, FIELD_OFFSET(DIJOYSTATE2, rglASlider[1]), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_XAxis, FIELD_OFFSET(DIJOYSTATE2, lFX), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_YAxis, FIELD_OFFSET(DIJOYSTATE2, lFY), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_ZAxis, FIELD_OFFSET(DIJOYSTATE2, lFZ), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RxAxis, FIELD_OFFSET(DIJOYSTATE2, lFRx), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RyAxis, FIELD_OFFSET(DIJOYSTATE2, lFRy), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_RzAxis, FIELD_OFFSET(DIJOYSTATE2, lFRz), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, FIELD_OFFSET(DIJOYSTATE2, rglFSlider[0]), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+	{&GUID_Slider, FIELD_OFFSET(DIJOYSTATE2, rglFSlider[1]), DIDFT_OPTIONAL | DIDFT_AXIS | DIDFT_ANYINSTANCE, 0},
+};
+
+const DIDATAFORMAT c_dfDIJoystick2 = {
+	sizeof(DIDATAFORMAT),
+	sizeof(DIOBJECTDATAFORMAT),
+	DIDF_ABSAXIS,
+	sizeof(DIJOYSTATE2),
+	sizeof(dfDIJoystick2) / sizeof(dfDIJoystick2[0]),
+	dfDIJoystick2};
+
+static BOOL CALLBACK enum_devices_callback (const DIDEVICEINSTANCE *instance, LPVOID context) {
+	platform_state *state = state_ptr;
+	b8 buffered = true;
+
+	u32 len = darray_length(state->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		if (!state->gamepad_state->devices[i]) {
+			continue;
+		}
+		if (!memcmp(&state->gamepad_state->devices[i]->guid_instance, &instance->guidInstance, sizeof(GUID))) {
+			return DIENUM_CONTINUE;
+		}
+	}
+
+	IDirectInputDevice *di_device;
+	IDirectInputDevice8 *di8_device;
+	HRESULT result = IDirectInput8_CreateDevice(state->gamepad_state->direct_input_iface, &instance->guidInstance, &di_device, KNULL);
+	if (result != DI_OK) {
+		KERROR("IDirectInput8_CreateDevice returned 0x%X.", (u32)result);
+	}
+	result = IDirectInputDevice8_QueryInterface(di_device, &IID_IDirectInputDevice8, (LPVOID *)&di8_device);
+	if (result != DI_OK) {
+		KERROR("IDirectInputDevice8_QueryInterface returned 0x%X.", (u32)result);
+	}
+	IDirectInputDevice8_Release(di_device);
+
+	result = IDirectInputDevice8_SetCooperativeLevel(di8_device, GetActiveWindow(), DISCL_NONEXCLUSIVE | DISCL_BACKGROUND);
+	if (result != DI_OK) {
+		KERROR("IDirectInputDevice8_SetCooperativeLevel returned 0x%X.", (u32)result);
+	}
+
+	result = IDirectInputDevice8_SetDataFormat(di8_device, &c_dfDIJoystick2);
+	if (result != DI_OK) {
+		KERROR("IDirectInputDevice8_SetDataFormat returned 0x%X.", (u32)result);
+	}
+
+	DIPROPDWORD buffer_size_prop = {0};
+	buffer_size_prop.diph.dwSize = sizeof(DIPROPDWORD);
+	buffer_size_prop.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	buffer_size_prop.diph.dwObj = 0;
+	buffer_size_prop.diph.dwHow = DIPH_DEVICE;
+	buffer_size_prop.dwData = INPUT_QUEUE_SIZE;
+	result = IDirectInputDevice8_SetProperty(di8_device, DIPROP_BUFFERSIZE, &buffer_size_prop.diph);
+	if (result == DI_POLLEDDEVICE) {
+		buffered = false;
+	} else if (result != DI_OK) {
+		KERROR("IDirectInputDevice8_SetDataProperty returned 0x%X.", (u32)result);
+	}
+
+	platform_gamepad_device *device = KALLOC_TYPE(platform_gamepad_device, MEMORY_TAG_PLATFORM);
+	device->guid_instance = instance->guidInstance;
+	device->device_interface = di8_device;
+	device->buffered = buffered;
+	device->slider_count = 0;
+	device->pov_count = 0;
+	device->device_id = state->gamepad_state->next_device_id++;
+
+	device->description = (char *)wcstr_to_cstr(instance->tszProductName);
+	device->vendor_id = instance->guidProduct.Data1 & 0xFFFF;
+	device->product_id = instance->guidProduct.Data1 >> 16 & 0xFFFF;
+
+	// Get axis and button counts.
+	device->axis_count = 0;
+	IDirectInputDevice8_EnumObjects(di8_device, count_axes_callback, device, DIDFT_AXIS | DIDFT_POV);
+	device->button_count = 0;
+	IDirectInputDevice8_EnumObjects(di8_device, count_buttons_callback, device, DIDFT_BUTTON);
+	kzero_memory(device->axis_states, sizeof(device->axis_states));
+	/* kzero_memory(device->button_states, sizeof(device->button_states)); */
+
+	device->axis_info = KALLOC_TYPE_CARRAY(diAxisInfo, device->axis_count);
+	device->button_offsets = KALLOC_TYPE_CARRAY(DWORD, device->button_count);
+	device->buttons = KALLOC_TYPE_CARRAY(gamepad_button, device->button_count);
+
+	// Enumerate them.
+	device->axis_count = 0;
+	IDirectInputDevice8_EnumObjects(di8_device, enum_axes_callback, device, DIDFT_AXIS | DIDFT_POV);
+	device->button_count = 0;
+	IDirectInputDevice8_EnumObjects(di8_device, enum_buttons_callback, device, DIDFT_BUTTON);
+
+	darray_push(state->gamepad_state->devices, &device);
+
+	if (state->gamepad_callbacks.on_attached) {
+		state->gamepad_callbacks.on_attached(device->device_id);
+	}
+
+	return DIENUM_CONTINUE;
+}
+
+static void remove_gamepad_device (u32 device_index) {
+	platform_state *state = state_ptr;
+	if (state->gamepad_callbacks.on_detached) {
+		state->gamepad_callbacks.on_detached(state->gamepad_state->devices[device_index]->device_id);
+	}
+
+	cleanup_gamepad_device(state->gamepad_state->devices[device_index]);
+	darray_pop_at(state->gamepad_state->devices, device_index, KNULL);
+}
+
+void detect_gamepad_devices (platform_state *state) {
+	if (FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_WINDOWS_DEVICE_CHANGED)) {
+		HRESULT result = IDirectInput_EnumDevices(
+			state->gamepad_state->direct_input_iface,
+			DI8DEVCLASS_GAMECTRL,
+			enum_devices_callback,
+			KNULL,
+			DIEDFL_ALLDEVICES);
+		if (result != S_OK) {
+			KERROR("IDirectInput_EnumDevices returned with 0x%X", (u32)result);
+		}
+		FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_WINDOWS_DEVICE_CHANGED, false);
+	}
+}
+
+static void gamepad_update_button_value (platform_gamepad_device *device, gamepad_button button, b8 pressed, f64 timestamp) {
+	if (pressed != FLAG_GET(device->button_states, (u32)button)) {
+		FLAG_SET(device->button_states, (u32)button, pressed);
+		if (pressed && state_ptr->gamepad_callbacks.on_button_pressed) {
+			state_ptr->gamepad_callbacks.on_button_pressed(device->device_id, button, timestamp);
+		} else if (!pressed && state_ptr->gamepad_callbacks.on_button_released) {
+			state_ptr->gamepad_callbacks.on_button_released(device->device_id, button, timestamp);
+		}
+	}
+}
+
+static void gamepad_update_axis_value_f32 (platform_gamepad_device *device, gamepad_axis axis, f32 value, f64 timestamp) {
+	f32 last_value = device->axis_states[axis];
+	if (axis == GAMEPAD_AXIS_IGNORE) {
+		// Boot, treat as processed.
+		return;
+	}
+	if (value != last_value) {
+		if (axis == GAMEPAD_AXIS_DPAD_LR || axis == GAMEPAD_AXIS_DPAD_UD) {
+			// Axis represents a d-pad and needs to be remapped.
+			b8 pressed = value != 0;
+			f32 val = pressed ? value : last_value;
+			gamepad_button mapped_button;
+			if (val < 0) {
+				mapped_button = (axis == GAMEPAD_AXIS_DPAD_UD) ? GAMEPAD_BUTTON_DPAD_UP : GAMEPAD_BUTTON_DPAD_LEFT;
+			} else {
+				mapped_button = (axis == GAMEPAD_AXIS_DPAD_UD) ? GAMEPAD_BUTTON_DPAD_DOWN : GAMEPAD_BUTTON_DPAD_RIGHT;
+			}
+
+			gamepad_update_button_value(device, mapped_button, pressed, timestamp);
+		} else {
+			if (axis == GAMEPAD_AXIS_LRZ) {
+				// The z axes are combined and must be split.
+				// NOTE: Making the assumption here that left is >0 and right is <0
+				// May need a way to flip this.
+				if (value > 0) {
+					axis = GAMEPAD_AXIS_LZ;
+				} else if (value < 0) {
+					axis = GAMEPAD_AXIS_RZ;
+				}
+
+				// Normalize it to [0-1]
+				value = kabs(value);
+				last_value = kabs(last_value);
+
+			} else if (axis == GAMEPAD_AXIS_LZ || axis == GAMEPAD_AXIS_RZ) {
+				// If axis is not split, convert z axes to a range of [0-1].
+				value = (value + 1.0f) * 0.5f;
+				last_value = (last_value + 1.0f) * 0.5f;
+			}
+			if (state_ptr->gamepad_callbacks.on_axis_changed) {
+				state_ptr->gamepad_callbacks.on_axis_changed(device->device_id, axis, value, last_value, timestamp);
+			}
+		}
+
+		device->axis_states[axis] = value;
+	}
+}
+static void gamepad_update_axis_value (platform_gamepad_device *device, gamepad_axis axis, i32 value, f64 timestamp) {
+	gamepad_update_axis_value_f32(device, axis, (value - AXIS_MIN) / (f32)(AXIS_MAX - AXIS_MIN) * 2.0f - 1.0f, timestamp);
+}
+
+#	define POV_UP 0
+#	define POV_RIGHT 9000
+#	define POV_DOWN 18000
+#	define POV_LEFT 27000
+
+static void pov_to_xy (DWORD pov, f32 *out_x, f32 *out_y) {
+	if (LOWORD(pov) == 0xFFFF) {
+		*out_x = *out_y = 0.0f;
+	} else {
+		if (pov > POV_UP && pov < POV_DOWN) {
+			*out_x = 1.0f;
+		} else if (pov > POV_DOWN) {
+			*out_x = -1.0f;
+		} else {
+			*out_x = 0.0f;
+		}
+
+		if (pov > POV_LEFT || pov < POV_RIGHT) {
+			*out_y = -1.0f;
+		} else if (pov > POV_RIGHT && pov < POV_LEFT) {
+			*out_y = 1.0f;
+		} else {
+			*out_y = 0.0f;
+		}
+	}
+}
+
+static void gamepad_update_pov_axis_values (platform_gamepad_device *device, u32 axis_index, DWORD ivalue, f64 timestamp) {
+	f32 x = 0.0f, y = 0.0f;
+
+	pov_to_xy(ivalue, &x, &y);
+	gamepad_update_axis_value_f32(device, axis_index, x, timestamp);
+	gamepad_update_axis_value_f32(device, axis_index + 1, y, timestamp);
+}
+
+void process_gamepad_events (platform_state *state) {
+	if (!FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return;
+	}
+	if (FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT)) {
+		return;
+	}
+
+	FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT, true);
+	u32 len = darray_length(state->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		platform_gamepad_device *device = state->gamepad_state->devices[i];
+
+		// Device likely in the middle of being destroyed.
+		if (!device->device_interface) {
+			continue;
+		}
+
+		// DirectInput
+		HRESULT result = IDirectInputDevice8_Poll(device->device_interface);
+		if (result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED) {
+			if (IDirectInputDevice8_Acquire(device->device_interface) == DI_OK) {
+				IDirectInputDevice8_Poll(device->device_interface);
+			}
+		}
+
+		if (device->buffered) {
+			DWORD event_count = INPUT_QUEUE_SIZE;
+			DIDEVICEOBJECTDATA events[INPUT_QUEUE_SIZE];
+
+			result = IDirectInputDevice8_GetDeviceData(device->device_interface, sizeof(DIDEVICEOBJECTDATA), events, &event_count, 0);
+			if (result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED) {
+				IDirectInputDevice8_Acquire(device->device_interface);
+				result = IDirectInputDevice8_GetDeviceData(device->device_interface, sizeof(DIDEVICEOBJECTDATA), events, &event_count, 0);
+			}
+
+			if (!SUCCEEDED(result)) {
+				remove_gamepad_device(i);
+				i--;
+				continue;
+			}
+			for (u32 j = 0; j < event_count; ++j) {
+
+				// Update buttons
+				for (u32 b = 0; b < device->button_count; ++b) {
+					if (events[j].dwOfs == device->button_offsets[b]) {
+						gamepad_update_button_value(device, device->buttons[b], !!events[j].dwData, events[j].dwTimeStamp / 1000.0f);
+					}
+				}
+
+				// Update axes
+				for (u32 a = 0; a < device->axis_count; ++a) {
+					if (events[j].dwOfs == device->axis_info[a].offset) {
+						if (device->axis_info[a].is_pov) {
+							gamepad_update_pov_axis_values(device, device->axis_info[a].axis, events[j].dwData, events[j].dwTimeStamp / 1000.0f);
+							a++;
+						} else {
+							gamepad_update_axis_value(device, device->axis_info[a].axis, events[j].dwData, events[j].dwTimeStamp / 1000.0f);
+						}
+					}
+				}
+			}
+		} else {
+			// not buffered.
+			DIJOYSTATE2 j_state;
+
+			result = IDirectInputDevice8_GetDeviceState(device->device_interface, sizeof(DIJOYSTATE2), &j_state);
+			if (result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED) {
+				IDirectInputDevice8_Acquire(device->device_interface);
+				result = IDirectInputDevice8_GetDeviceState(device->device_interface, sizeof(DIJOYSTATE2), &j_state);
+			}
+
+			if (result != DI_OK) {
+				remove_gamepad_device(i);
+				i--;
+				continue;
+			}
+
+			// Update buttons.
+			for (u8 b = 0; b < device->button_count; ++b) {
+				gamepad_update_button_value(device, device->buttons[b], j_state.rgbButtons[b], platform_get_absolute_time());
+			}
+
+			// Update axes.
+			for (u8 a = 0; a < device->axis_count; ++a) {
+				gamepad_axis axis = device->axis_info[a].axis;
+				switch (device->axis_info[a].offset) {
+				case DIJOFS_X:
+					gamepad_update_axis_value(device, axis, j_state.lX, platform_get_absolute_time());
+					break;
+				case DIJOFS_Y:
+					gamepad_update_axis_value(device, axis, j_state.lY, platform_get_absolute_time());
+					break;
+				case DIJOFS_Z:
+					gamepad_update_axis_value(device, axis, j_state.lZ, platform_get_absolute_time());
+					break;
+				case DIJOFS_RX:
+					gamepad_update_axis_value(device, axis, j_state.lRx, platform_get_absolute_time());
+					break;
+				case DIJOFS_RY:
+					gamepad_update_axis_value(device, axis, j_state.lRy, platform_get_absolute_time());
+					break;
+				case DIJOFS_RZ:
+					gamepad_update_axis_value(device, axis, j_state.lRz, platform_get_absolute_time());
+					break;
+				case DIJOFS_SLIDER(0):
+					gamepad_update_axis_value(device, axis, j_state.rglSlider[0], platform_get_absolute_time());
+					break;
+				case DIJOFS_SLIDER(1):
+					gamepad_update_axis_value(device, axis, j_state.rglSlider[1], platform_get_absolute_time());
+					break;
+				case DIJOFS_POV(0):
+					gamepad_update_pov_axis_values(device, axis, j_state.rgdwPOV[0], platform_get_absolute_time());
+					a++;
+					break;
+				case DIJOFS_POV(1):
+					gamepad_update_pov_axis_values(device, axis, j_state.rgdwPOV[1], platform_get_absolute_time());
+					a++;
+					break;
+				case DIJOFS_POV(2):
+					gamepad_update_pov_axis_values(device, axis, j_state.rgdwPOV[2], platform_get_absolute_time());
+					a++;
+					break;
+				case DIJOFS_POV(3):
+					gamepad_update_pov_axis_values(device, axis, j_state.rgdwPOV[3], platform_get_absolute_time());
+					a++;
+					break;
+				}
+			}
+		}
+	}
+
+	FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT, false);
+}
+
+platform_gamepad_device *get_gamepad_device_by_id (u32 device_id) {
+	u32 len = darray_length(state_ptr->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		if (state_ptr->gamepad_state->devices[i]->device_id == device_id) {
+			// Found it.
+			return state_ptr->gamepad_state->devices[i];
+		}
+	}
+
+	return KNULL;
+}
+
+static gamepad_axis gamepad_get_axis_microsoft (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	default:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_0:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER_PACC:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_2015:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_ELITE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_S_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_SXS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ELITE_SERIES_2_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_1:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 1:
+			return GAMEPAD_AXIS_LX;
+		case 0:
+			return GAMEPAD_AXIS_LY;
+		case 4:
+			// These are a single axis on there. L>0, R<0
+			return GAMEPAD_AXIS_LRZ; // LT and RT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 2:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 6:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_sony (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 9:
+			return GAMEPAD_AXIS_LX;
+		case 8:
+			return GAMEPAD_AXIS_LY;
+		case 3:
+			return GAMEPAD_AXIS_LZ; // L2
+		case 7:
+			return GAMEPAD_AXIS_RX;
+		case 6:
+			return GAMEPAD_AXIS_RY;
+		case 2:
+			return GAMEPAD_AXIS_RZ; // R2
+		case 0:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 1:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	default:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 3:
+			return GAMEPAD_AXIS_LX;
+		case 2:
+			return GAMEPAD_AXIS_LY;
+		case 7:
+			return GAMEPAD_AXIS_LZ; // L2
+		case 1:
+			return GAMEPAD_AXIS_RX;
+		case 0:
+			return GAMEPAD_AXIS_RY;
+		case 6:
+			return GAMEPAD_AXIS_RZ; // R2
+		case 4:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 5:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 5:
+			return GAMEPAD_AXIS_LX;
+		case 4:
+			return GAMEPAD_AXIS_LY;
+		case 1:
+			return GAMEPAD_AXIS_LZ; // L2
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 2:
+			return GAMEPAD_AXIS_RY;
+		case 0:
+			return GAMEPAD_AXIS_RZ; // R2
+		case 6:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 7:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_nintendo (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	default:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_default (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	default:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_microsoft (u16 product_id, u8 button_id) {
+	switch (product_id) {
+	default:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_0:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER_PACC:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_2015:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_ELITE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_S_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_SXS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ELITE_SERIES_2_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_1:
+		switch (button_id) {
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_WEST;
+		case 3:
+			return GAMEPAD_BUTTON_NORTH;
+		case 4:
+			return GAMEPAD_BUTTON_L1; // LB
+		case 5:
+			return GAMEPAD_BUTTON_R1; // RB
+		case 6:
+			return GAMEPAD_BUTTON_SELECT; // back
+		case 7:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 8:
+			return GAMEPAD_BUTTON_L3;
+		case 9:
+			return GAMEPAD_BUTTON_R3;
+		case 11:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 12:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		default:
+			return GAMEPAD_BUTTON_UNKNOWN;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_sony (u16 product_id, u8 button_id) {
+	switch (product_id) {
+	case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+		switch (button_id) {
+		case 2:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 0:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 6:
+			return GAMEPAD_BUTTON_L1;
+		case 7:
+			return GAMEPAD_BUTTON_R1;
+		case 4:
+			return GAMEPAD_BUTTON_L2;
+		case 5:
+			return GAMEPAD_BUTTON_R2;
+		case 9:
+			return GAMEPAD_BUTTON_SELECT;
+		case 8:
+			return GAMEPAD_BUTTON_START;
+		case 12:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 10:
+			return GAMEPAD_BUTTON_L3;
+		case 11:
+			return GAMEPAD_BUTTON_R3;
+			// These are axes on PS3 and not mapped to button ids.
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		default:
+			return GAMEPAD_BUTTON_UNKNOWN;
+		}
+	default:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+		switch (button_id) {
+		case 1:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 2:
+			return GAMEPAD_BUTTON_EAST;
+		case 3:
+			return GAMEPAD_BUTTON_NORTH;
+		case 0:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 12:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 10:
+			return GAMEPAD_BUTTON_L3;
+		case 11:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			// touchpad click
+			return GAMEPAD_BUTTON_ADDL0;
+		case 14:
+			// PS5 mic mute button
+			return GAMEPAD_BUTTON_ADDL1;
+		default:
+			return GAMEPAD_BUTTON_UNKNOWN;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_nintendo (u16 product_id, u8 button_id) {
+	switch (product_id) {
+
+	default:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_default (u16 product_id, u8 button_id) {
+	switch (product_id) {
+
+	default:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+gamepad_axis gamepad_get_axis (u16 vendor_id, u16 product_id, u8 axis_id) {
+	switch (vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		return gamepad_get_axis_microsoft(product_id, axis_id);
+	case USB_VENDOR_ID_SONY:
+		return gamepad_get_axis_sony(product_id, axis_id);
+	case USB_VENDOR_ID_NINTENDO:
+		return gamepad_get_axis_nintendo(product_id, axis_id);
+	default:
+		return gamepad_get_axis_default(product_id, axis_id);
+	}
+}
+
+gamepad_button gamepad_get_button (u16 vendor_id, u16 product_id, u8 button_id) {
+	switch (vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		return gamepad_get_button_microsoft(product_id, button_id);
+	case USB_VENDOR_ID_SONY:
+		return gamepad_get_button_sony(product_id, button_id);
+	case USB_VENDOR_ID_NINTENDO:
+		return gamepad_get_button_nintendo(product_id, button_id);
+	default:
+		return gamepad_get_button_default(product_id, button_id);
+	}
 }
 
 #endif // KPLATFORM_WINDOWS

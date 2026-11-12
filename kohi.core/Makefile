@@ -15,7 +15,7 @@ ADDL_LDFLAGS=
 ADDL_WIN32_DEFINES=
 ADDL_WIN32_CFLAGS=
 ADDL_WIN32_INCLUDES=
-ADDL_WIN32_LDFLAGS= -luser32 -lgdi32 -lwinmm
+ADDL_WIN32_LDFLAGS= -luser32 -lgdi32 -lwinmm -lole32
 # Linux
 ADDL_LINUX_DEFINES=
 ADDL_LINUX_CFLAGS=
@@ -25,7 +25,7 @@ ADDL_LINUX_LDFLAGS= -lxcb -lX11 -lX11-xcb -lxkbcommon -lxcb-xkb -lm -ldl -L/usr/
 ADDL_DARWIN_DEFINES=
 ADDL_DARWIN_CFLAGS=
 ADDL_DARWIN_INCLUDES=
-ADDL_DARWIN_LDFLAGS= -lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation -framework UniformTypeIdentifiers
+ADDL_DARWIN_LDFLAGS= -lobjc -framework AppKit -framework QuartzCore -framework DiskArbitration -framework CoreFoundation -framework UniformTypeIdentifiers -framework IOKit
 
 
 # Include the base makefile, which actually does all the work.

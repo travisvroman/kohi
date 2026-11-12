@@ -24,8 +24,8 @@ ADDL_LINUX_LDFLAGS= -lm -lassimp -L/usr/lib/ -L/usr/lib/x86_64-linux-gnu/
 # Darwin/macOS
 ADDL_DARWIN_DEFINES=
 ADDL_DARWIN_CFLAGS=
-ADDL_DARWIN_INCLUDES= -I/opt/homebrew/opt/assimp/include
-ADDL_DARWIN_LDFLAGS= -L/opt/homebrew/opt/assimp/lib -lassimp
+ADDL_DARWIN_INCLUDES= -I../deps/assimp/include/
+ADDL_DARWIN_LDFLAGS= -L../deps/assimp/lib/macos/ -lassimp -Wl,-rpath,.
 
 
 # Include the base makefile, which actually does all the work.

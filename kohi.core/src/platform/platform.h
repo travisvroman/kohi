@@ -209,6 +209,19 @@ typedef void (*platform_process_mouse_button)(mouse_buttons button, b8 pressed);
 typedef void (*platform_process_mouse_move)(i16 x, i16 y);
 typedef void (*platform_process_mouse_wheel)(i8 z_delta);
 typedef void (*platform_clipboard_on_paste_callback)(kclipboard_context context);
+typedef void (*platform_gamepad_attached_callback)(u8 device_id);
+typedef void (*platform_gamepad_detached_callback)(u8 device_id);
+typedef void (*platform_gamepad_button_pressed_callback)(u8 device_id, gamepad_button button, f32 timestamp);
+typedef void (*platform_gamepad_button_released_callback)(u8 device_id, gamepad_button button, f32 timestamp);
+typedef void (*platform_gamepad_axis_changed_callback)(u8 device_id, gamepad_axis axis, f32 value, f32 last_value, f32 timestamp);
+
+typedef struct platform_gamepad_callbacks {
+	platform_gamepad_attached_callback on_attached;
+	platform_gamepad_detached_callback on_detached;
+	platform_gamepad_button_pressed_callback on_button_pressed;
+	platform_gamepad_button_released_callback on_button_released;
+	platform_gamepad_axis_changed_callback on_axis_changed;
+} platform_gamepad_callbacks;
 
 /**
  * @brief Performs startup routines within the platform layer. Should be called twice,
@@ -454,6 +467,13 @@ KAPI void platform_register_process_mouse_wheel_callback (platform_process_mouse
 KAPI void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback);
 
 /**
+ * @brief Registers the system-level callbacks for a gamepad events.
+ *
+ * @param callback A pointer to the callback function.
+ */
+KAPI void platform_register_gamepad_callbacks (platform_gamepad_callbacks callbacks);
+
+/**
  * @brief Watch a file at the given path.
  *
  * @param file_path The file path. Required.
@@ -522,5 +542,22 @@ typedef struct platform_open_file_dialog_result {
 } platform_open_file_dialog_result;
 
 KAPI platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_file_dialog_options options);
+
+// initialize/detect gamepads and prepare for input.
+KAPI void platform_gamepads_initialize (void);
+
+KAPI u32 platform_gamepad_device_count (void);
+
+KAPI b8 platform_gamepad_get_device_info (u32 device_id, i32 *out_vendor_id, i32 *out_product_id, u32 *out_button_count, u32 *out_axis_count);
+
+// NOTE: allocates a new string that should be freed by the caller.
+KAPI const char *platform_gamepad_get_device_desc (u32 device_id);
+
+// index must be [0-3]. Otherwise will be ignored. Returns true if set successfully; otherwise false.
+KAPI b8 platform_gamepad_set_device_player_index (u32 device_id, u8 player_index);
+
+KAPI b8 platform_gamepad_is_button_pressed (u32 device_id, gamepad_button button);
+
+KAPI f32 platform_gamepad_get_axis_state (u32 device_id, gamepad_axis axis);
 
 KAPI b8 platform_initialize_input (void);

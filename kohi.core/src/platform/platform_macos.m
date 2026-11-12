@@ -1,4 +1,7 @@
+#include "defines.h"
+#include "input_types.h"
 #include "platform/platform.h"
+#include "utils/input_utils.h"
 
 #if defined(KPLATFORM_APPLE)
 
@@ -20,6 +23,22 @@
 #	include <CoreFoundation/CoreFoundation.h>
 #	include <DiskArbitration/DiskArbitration.h>
 #	include <IOKit/IOKitLib.h>
+#	include <IOKit/hid/IOHIDLib.h>
+#	include <CoreFoundation/CFArray.h>
+#	include <CoreFoundation/CFBase.h>
+#	include <CoreFoundation/CFDictionary.h>
+#	include <CoreFoundation/CFNumber.h>
+#	include <CoreFoundation/CFRunLoop.h>
+#	include <CoreFoundation/CFString.h>
+#	include <IOKit/IOReturn.h>
+#	include <IOKit/hid/IOHIDBase.h>
+#	include <IOKit/hid/IOHIDDevice.h>
+#	include <IOKit/hid/IOHIDDeviceTypes.h>
+#	include <IOKit/hid/IOHIDElement.h>
+#	include <IOKit/hid/IOHIDKeys.h>
+#	include <IOKit/hid/IOHIDManager.h>
+#	include <IOKit/hid/IOHIDUsageTables.h>
+#	include <IOKit/hid/IOHIDValue.h>
 #	include <AppKit/AppKit.h>
 #	include <sys/mount.h>
 #	include <sys/mman.h> // mmap/munmap
@@ -29,6 +48,10 @@
 #	import <QuartzCore/CAMetalLayer.h>
 #	import <QuartzCore/QuartzCore.h>
 #	import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+
+#	include "math/kmath.h"
+
+#	define GAMEPAD_RUN_LOOP_MODE CFSTR("GamepadRunLoopMode")
 
 @class ApplicationDelegate;
 @class WindowDelegate;
@@ -57,6 +80,92 @@ typedef struct kwindow_platform_state {
 	f32 device_pixel_ratio;
 } kwindow_platform_state;
 
+enum macos_modifier_keys {
+	MACOS_MODIFIER_KEY_LSHIFT = 0x01,
+	MACOS_MODIFIER_KEY_RSHIFT = 0x02,
+	MACOS_MODIFIER_KEY_LCTRL = 0x04,
+	MACOS_MODIFIER_KEY_RCTRL = 0x08,
+	MACOS_MODIFIER_KEY_LOPTION = 0x10,
+	MACOS_MODIFIER_KEY_ROPTION = 0x20,
+	MACOS_MODIFIER_KEY_LCOMMAND = 0x40,
+	MACOS_MODIFIER_KEY_RCOMMAND = 0x80
+} macos_modifier_keys;
+
+typedef struct hid_gamepad_axis {
+	IOHIDElementCookie cookie;
+	gamepad_axis axis;
+	CFIndex logical_min;
+	CFIndex logical_max;
+	b8 has_null_state;
+	b8 is_hat_switch;
+	b8 is_hat_switch_second_axis;
+} hid_gamepad_axis;
+
+typedef struct hid_gamepad_button {
+	IOHIDElementCookie cookie;
+	gamepad_button button;
+} hid_gamepad_button;
+
+typedef enum platform_gamepad_event_type {
+	PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_ATTACHED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_DETACHED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_PRESSED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_RELEASED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_AXIS_CHANGED
+} platform_gamepad_event_type;
+
+typedef enum platform_gamepad_connection_type {
+	PLATFORM_GAMEPAD_CONNECTION_TYPE_UNKNOWN,
+	PLATFORM_GAMEPAD_CONNECTION_TYPE_WIRED_USB,
+	PLATFORM_GAMEPAD_CONNECTION_TYPE_WIRELESS_BT
+} platform_gamepad_connection_type;
+
+typedef struct platform_gamepad_event {
+	u32 device_id;
+	platform_gamepad_event_type type;
+	gamepad_button button;
+	gamepad_axis axis;
+	b8 is_down;
+	u8 unused;
+	f32 timestamp;
+	f32 value;
+	f32 last_value;
+} platform_gamepad_event;
+
+#	define PLATFORM_GAMEPAD_MAX_AXES 128
+#	define PLATFORM_GAMEPAD_MAX_BUTTONS 128
+
+typedef struct platform_gamepad_device {
+	u32 device_id;
+	const char *description;
+	i32 vendor_id;
+	i32 product_id;
+	platform_gamepad_connection_type connection_type;
+	u8 axis_count;
+	u8 button_count;
+	f32 axis_states[PLATFORM_GAMEPAD_MAX_AXES];
+	// Bit flags - 1 = pressed, 0 = released.
+	u32 button_states;
+
+	IOHIDDeviceRef device_ref;
+	hid_gamepad_axis *axis_elements;
+	hid_gamepad_button *button_elements;
+} platform_gamepad_device;
+
+typedef struct platform_gamepad_state {
+	IOHIDManagerRef hid_manager;
+
+	// darray
+	platform_gamepad_device **devices;
+	u32 next_device_id;
+
+	// darray
+	platform_gamepad_event *input_event_queue;
+	platform_gamepad_event *device_event_queue;
+
+	f64 start_time;
+} platform_gamepad_state;
+
 typedef struct platform_state {
 	ApplicationDelegate *app_delegate;
 	macos_handle_info handle;
@@ -74,18 +183,10 @@ typedef struct platform_state {
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
 	platform_clipboard_on_paste_callback on_paste;
-} platform_state;
 
-enum macos_modifier_keys {
-	MACOS_MODIFIER_KEY_LSHIFT = 0x01,
-	MACOS_MODIFIER_KEY_RSHIFT = 0x02,
-	MACOS_MODIFIER_KEY_LCTRL = 0x04,
-	MACOS_MODIFIER_KEY_RCTRL = 0x08,
-	MACOS_MODIFIER_KEY_LOPTION = 0x10,
-	MACOS_MODIFIER_KEY_ROPTION = 0x20,
-	MACOS_MODIFIER_KEY_LCOMMAND = 0x40,
-	MACOS_MODIFIER_KEY_RCOMMAND = 0x80
-} macos_modifier_keys;
+	platform_gamepad_callbacks gamepad_callbacks;
+	platform_gamepad_state *gamepad_state;
+} platform_state;
 
 static platform_state *state_ptr;
 
@@ -96,6 +197,12 @@ static keys translate_keycode (u32 ns_keycode);
 // Modifier key handling
 static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags);
 static void platform_update_watches (void);
+
+static gamepad_axis gamepad_get_axis (u16 vendor_id, u16 product_id, u8 axis_id, platform_gamepad_connection_type connection_type);
+static gamepad_button gamepad_get_button (u16 vendor_id, u16 product_id, u8 button_id, platform_gamepad_connection_type connection_type);
+static platform_gamepad_device *get_gamepad_device_by_id (u32 device_id);
+static void detect_gamepad_devices (void);
+static void process_gamepad_events (void);
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
   @public
@@ -683,6 +790,17 @@ b8 platform_pump_messages (void) {
 
 		platform_update_watches();
 
+		// Check every so often for new controllers.
+		static u32 next_poll = 30;
+		next_poll--;
+		if (next_poll == 0) {
+			detect_gamepad_devices();
+			next_poll = 30;
+		}
+
+		// Also process gamepad events.
+		process_gamepad_events();
+
 		return !state_ptr->quit_flagged;
 	}
 	return true;
@@ -706,7 +824,7 @@ void *platform_allocate (u64 size, b8 aligned) {
 
 void platform_free (const void *block, b8 aligned, u64 size) {
 	if (block) {
-		munmap(block, size);
+		munmap((void *)block, size);
 	}
 }
 
@@ -797,6 +915,10 @@ void platform_register_process_mouse_wheel_callback (platform_process_mouse_whee
 }
 void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback) {
 	state_ptr->on_paste = callback;
+}
+
+void platform_register_gamepad_callbacks (platform_gamepad_callbacks callbacks) {
+	state_ptr->gamepad_callbacks = callbacks;
 }
 
 platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
@@ -1403,6 +1525,599 @@ platform_open_file_dialog_result platform_open_file_dialog_open (platform_open_f
 	}
 }
 
+// NOTE: gamepad implementation
+static void hat_value_to_xy (CFIndex value, CFIndex range, i32 *out_x, i32 *out_y) {
+	if (value == range) {
+		*out_x = *out_y = 0;
+	} else {
+		if (value > 0 && value < range / 2) {
+			*out_x = 1;
+		} else if (value > range / 2) {
+			*out_x = -1;
+		} else {
+			*out_x = 0;
+		}
+
+		if (value > range / 4 * 3 || value < range / 4) {
+			*out_y = -1;
+		} else if (value > range / 4 && value < range / 4 * 3) {
+			*out_y = 1;
+		} else {
+			*out_y = 0;
+		}
+	}
+}
+
+static void queue_axis_event (platform_gamepad_device *device, f32 timestamp, gamepad_axis axis, f32 value, f32 last_value) {
+	platform_gamepad_event queued_event = {
+		.device_id = device->device_id,
+		.type = PLATFORM_GAMEPAD_EVENT_TYPE_AXIS_CHANGED,
+		.timestamp = timestamp,
+		.axis = axis,
+		.value = value,
+		.last_value = last_value};
+
+	darray_push(state_ptr->gamepad_state->input_event_queue, &queued_event);
+}
+
+static void queue_button_event (platform_gamepad_device *device, f32 timestamp, gamepad_button button, b8 pressed) {
+	platform_gamepad_event queued_event = {
+		.device_id = device->device_id,
+		.type = pressed ? PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_PRESSED : PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_RELEASED,
+		.timestamp = timestamp,
+		.button = button};
+
+	darray_push(state_ptr->gamepad_state->input_event_queue, &queued_event);
+}
+
+static void on_device_value_changed (void *context, IOReturn result, void *sender, IOHIDValueRef value) {
+	static mach_timebase_info_data_t timebase_info;
+	if (timebase_info.denom == 0) {
+		mach_timebase_info(&timebase_info);
+	}
+
+	platform_gamepad_device *device = context;
+	IOHIDElementRef element = IOHIDValueGetElement(value);
+	IOHIDElementCookie cookie = IOHIDElementGetCookie(element);
+
+	f64 timestamp_64 = IOHIDValueGetTimeStamp(value) * timebase_info.numer / timebase_info.denom * 0.000000001;
+	f32 timestamp = (f32)timestamp_64;
+
+	// Handle axis updates
+	for (u32 i = 0; i < device->axis_count; ++i) {
+		hid_gamepad_axis *ae = &device->axis_elements[i];
+		gamepad_axis axis = ae->axis;
+		if (!ae->is_hat_switch_second_axis && ae->cookie == cookie) {
+			if (axis == GAMEPAD_AXIS_IGNORE) {
+				// Boot, treat as processed.
+				continue;
+			}
+			if (IOHIDValueGetLength(value) > 4) {
+				// NOTE: PS3 controller gives super high value here.
+				continue;
+			}
+			CFIndex int_val = IOHIDValueGetIntegerValue(value);
+
+			if (ae->is_hat_switch) {
+
+				hid_gamepad_axis *ae2 = &device->axis_elements[i + 1];
+				gamepad_axis axis2 = ae2->axis;
+
+				// Axis represents a d-pad and needs to be remapped.
+				/* f32 float_val = (int_val - ae->logical_min) / (f32)(ae->logical_max - ae->logical_min) * 2.0f - 1.0f; */
+
+				// Fix for Saitek X52
+				if (!ae->has_null_state) {
+					if (int_val < ae->logical_min) {
+						int_val = ae->logical_max - ae->logical_min + 1;
+					} else {
+						int_val--;
+					}
+				}
+
+				i32 x, y;
+				hat_value_to_xy(int_val, ae->logical_max - ae->logical_min + 1, &x, &y);
+
+				if (x != device->axis_states[i]) {
+					if (axis == GAMEPAD_AXIS_DPAD_LR) {
+						f32 float_val = x;
+						f32 last_value = device->axis_states[i];
+						b8 pressed = float_val != 0;
+						f32 val = pressed ? float_val : last_value;
+						gamepad_button mapped_button = (val < 0) ? GAMEPAD_BUTTON_DPAD_LEFT : GAMEPAD_BUTTON_DPAD_RIGHT;
+
+						queue_button_event(device, timestamp, mapped_button, pressed);
+						FLAG_SET(device->button_states, mapped_button, pressed);
+					} else {
+						queue_axis_event(device, timestamp, ae->axis, x, device->axis_states[i]);
+					}
+					device->axis_states[i] = x;
+				}
+				if (y != device->axis_states[i + 1]) {
+					if (axis2 == GAMEPAD_AXIS_DPAD_UD) {
+						f32 float_val = y;
+						f32 last_value = device->axis_states[i + 1];
+						b8 pressed = float_val != 0;
+						f32 val = pressed ? float_val : last_value;
+						gamepad_button mapped_button = (val < 0) ? GAMEPAD_BUTTON_DPAD_UP : GAMEPAD_BUTTON_DPAD_DOWN;
+
+						queue_button_event(device, timestamp, mapped_button, pressed);
+						FLAG_SET(device->button_states, mapped_button, pressed);
+					} else {
+						queue_axis_event(device, timestamp, ae2->axis, y, device->axis_states[i + 1]);
+					}
+					device->axis_states[i + 1] = y;
+				}
+			} else {
+				if (int_val < ae->logical_min) {
+					ae->logical_min = int_val;
+				}
+				if (int_val > ae->logical_max) {
+					ae->logical_max = int_val;
+				}
+				f32 float_val = (int_val - ae->logical_min) / (f32)(ae->logical_max - ae->logical_min) * 2.0f - 1.0f;
+				f32 last_value = device->axis_states[i];
+
+				if (axis == GAMEPAD_AXIS_DPAD_LR || axis == GAMEPAD_AXIS_DPAD_UD) {
+					// Axis represents a d-pad and needs to be remapped.
+					b8 pressed = float_val != 0;
+					f32 val = pressed ? float_val : last_value;
+					gamepad_button mapped_button;
+					if (val < 0) {
+						mapped_button = (axis == GAMEPAD_AXIS_DPAD_UD) ? GAMEPAD_BUTTON_DPAD_UP : GAMEPAD_BUTTON_DPAD_LEFT;
+					} else {
+						mapped_button = (axis == GAMEPAD_AXIS_DPAD_UD) ? GAMEPAD_BUTTON_DPAD_DOWN : GAMEPAD_BUTTON_DPAD_RIGHT;
+					}
+
+					queue_button_event(device, timestamp, mapped_button, pressed);
+				} else {
+					if (axis == GAMEPAD_AXIS_LRZ) {
+						// The z axes are combined and must be split.
+						// NOTE: Making the assumption here that left is >0 and right is <0
+						// May need a way to flip this.
+						if (value > 0) {
+							axis = GAMEPAD_AXIS_LZ;
+						} else if (value < 0) {
+							axis = GAMEPAD_AXIS_RZ;
+						}
+
+						// Normalize it to [0-1]
+						float_val = kabs(float_val);
+						// last_value = kabs(last_value);
+					} else if (axis == GAMEPAD_AXIS_LZ || axis == GAMEPAD_AXIS_RZ) {
+						// If axis is not split, convert z axes to a range of [0-1].
+						float_val = (float_val + 1.0f) * 0.5f;
+						// last_value = (last_value + 1.0f) * 0.5f;
+					}
+
+					queue_axis_event(device, timestamp, ae->axis, float_val, last_value);
+					device->axis_states[i] = float_val;
+				}
+			}
+
+			return;
+		}
+	}
+
+	// Handle button updates.
+	for (u32 i = 0; i < device->button_count; ++i) {
+		hid_gamepad_button *hbtn = &device->button_elements[i];
+		if (hbtn->cookie == cookie) {
+			b8 pressed = IOHIDValueGetIntegerValue(value);
+
+			queue_button_event(device, timestamp, hbtn->button, pressed);
+
+			FLAG_SET(device->button_states, hbtn->button, pressed);
+			return;
+		}
+	}
+}
+
+static i32 IOHIDDeviceGetIntProperty (IOHIDDeviceRef device_ref, CFStringRef key) {
+	CFTypeRef type_ref = IOHIDDeviceGetProperty(device_ref, key);
+	if (type_ref == KNULL || CFGetTypeID(type_ref) != CFNumberGetTypeID()) {
+		return 0;
+	}
+
+	i32 value;
+	CFNumberGetValue((CFNumberRef)type_ref, kCFNumberSInt32Type, &value);
+
+	return value;
+}
+
+static i32 IOHIDDeviceGetVendorID (IOHIDDeviceRef device_ref) {
+	return IOHIDDeviceGetIntProperty(device_ref, CFSTR(kIOHIDVendorIDKey));
+}
+
+static i32 IOHIDDeviceGetProductID (IOHIDDeviceRef device_ref) {
+	return IOHIDDeviceGetIntProperty(device_ref, CFSTR(kIOHIDProductIDKey));
+}
+
+static platform_gamepad_connection_type IOHIDDeviceGetConnectionType (IOHIDDeviceRef device_ref) {
+	CFStringRef transport_type = IOHIDDeviceGetProperty(device_ref, CFSTR(kIOHIDTransportKey));
+	NSString *transport_str = (NSString *)transport_type ?: @"Unknown Transport";
+	platform_gamepad_connection_type connection_type = PLATFORM_GAMEPAD_CONNECTION_TYPE_UNKNOWN;
+	if ([transport_str isEqualToString:@"USB"]) {
+		connection_type = PLATFORM_GAMEPAD_CONNECTION_TYPE_WIRED_USB;
+	} else if ([transport_str localizedCaseInsensitiveContainsString:@"Bluetooth"]) {
+		// Covers both "Bluetooth" and "BluetoothLowEnergy"
+		connection_type = PLATFORM_GAMEPAD_CONNECTION_TYPE_WIRELESS_BT;
+	}
+
+	return connection_type;
+}
+
+static void on_device_matched (void *context, IOReturn result, void *sender, IOHIDDeviceRef device_ref) {
+	platform_state *state = state_ptr;
+	platform_gamepad_device *device = KALLOC_TYPE(platform_gamepad_device, MEMORY_TAG_PLATFORM);
+	device->device_id = state->gamepad_state->next_device_id++;
+	device->vendor_id = IOHIDDeviceGetVendorID(device_ref);
+	device->product_id = IOHIDDeviceGetProductID(device_ref);
+	device->connection_type = IOHIDDeviceGetConnectionType(device_ref);
+
+	device->axis_count = 0;
+	device->button_count = 0;
+	device->device_ref = device_ref;
+	device->axis_elements = darray_reserve(hid_gamepad_axis, 32);
+	device->button_elements = darray_reserve(hid_gamepad_button, 32);
+
+	darray_push(state->gamepad_state->devices, &device);
+
+	CFStringRef cf_product_name = IOHIDDeviceGetProperty(device_ref, CFSTR(kIOHIDProductKey));
+	if (cf_product_name == KNULL || CFGetTypeID(cf_product_name) != CFStringGetTypeID()) {
+		device->description = string_duplicate("[Unknown]");
+	} else {
+		CFIndex length;
+		CFStringGetBytes(cf_product_name, CFRangeMake(0, CFStringGetLength(cf_product_name)), kCFStringEncodingUTF8, '?', false, KNULL, 100, &length);
+		device->description = kallocate(length, MEMORY_TAG_STRING);
+		CFStringGetBytes(cf_product_name, CFRangeMake(0, CFStringGetLength(cf_product_name)), kCFStringEncodingUTF8, '?', false, (u8 *)device->description, length + 1, KNULL);
+		((char *)device->description)[length] = 0;
+	}
+
+	CFArrayRef elements = IOHIDDeviceCopyMatchingElements(device_ref, KNULL, kIOHIDOptionsTypeNone);
+	for (CFIndex i = 0; i < CFArrayGetCount(elements); ++i) {
+		IOHIDElementRef element = (IOHIDElementRef)CFArrayGetValueAtIndex(elements, i);
+		IOHIDElementType type = IOHIDElementGetType(element);
+
+		if (type == kIOHIDElementTypeInput_Misc || type == kIOHIDElementTypeInput_Axis) {
+			hid_gamepad_axis e = {
+				.cookie = IOHIDElementGetCookie(element),
+				.axis = gamepad_get_axis(device->vendor_id, device->product_id, device->axis_count, device->connection_type),
+				.logical_min = IOHIDElementGetLogicalMin(element),
+				.logical_max = IOHIDElementGetLogicalMax(element),
+				.has_null_state = !!IOHIDElementHasNullState(element),
+				.is_hat_switch = IOHIDElementGetUsage(element) == kHIDUsage_GD_Hatswitch,
+				.is_hat_switch_second_axis = false};
+
+			u32 len = darray_length(device->axis_elements);
+			darray_push(device->axis_elements, &e);
+			device->axis_count++;
+			hid_gamepad_axis *axis = &device->axis_elements[len];
+
+			if (axis->is_hat_switch) {
+				hid_gamepad_axis e2 = {
+					.axis = gamepad_get_axis(device->vendor_id, device->product_id, device->axis_count, device->connection_type),
+					.is_hat_switch_second_axis = true};
+				darray_push(device->axis_elements, &e2);
+				device->axis_count++;
+			}
+		} else if (type == kIOHIDElementTypeInput_Button) {
+			gamepad_button button = gamepad_get_button(device->vendor_id, device->product_id, device->button_count, device->connection_type);
+			hid_gamepad_button b = {
+				.button = button,
+				.cookie = IOHIDElementGetCookie(element)};
+			darray_push(device->button_elements, &b);
+			device->button_count++;
+		}
+	}
+	CFRelease(elements);
+
+	IOHIDDeviceRegisterInputValueCallback(device_ref, on_device_value_changed, device);
+
+	platform_gamepad_event queued_event = {
+		.device_id = device->device_id,
+		.type = PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_ATTACHED};
+	darray_push(state->gamepad_state->device_event_queue, &queued_event);
+}
+
+static void cleanup_gamepad_device (platform_gamepad_device *device) {
+	IOHIDDeviceRegisterInputValueCallback(device->device_ref, KNULL, KNULL);
+
+	u32 input_len = darray_length(state_ptr->gamepad_state->input_event_queue);
+	for (u32 i = 0; i < input_len; ++i) {
+		if (state_ptr->gamepad_state->input_event_queue[i].device_id == device->device_id) {
+			darray_pop_at(state_ptr->gamepad_state->input_event_queue, i, KNULL);
+		}
+	}
+
+	u32 device_len = darray_length(state_ptr->gamepad_state->device_event_queue);
+	for (u32 i = 0; i < device_len; ++i) {
+		if (state_ptr->gamepad_state->device_event_queue[i].device_id == device->device_id) {
+			darray_pop_at(state_ptr->gamepad_state->device_event_queue, i, KNULL);
+		}
+	}
+
+	darray_destroy(device->axis_elements);
+	darray_destroy(device->button_elements);
+
+	string_free(device->description);
+
+	kfree(device);
+}
+
+static void on_device_removed (void *context, IOReturn result, void *sender, IOHIDDeviceRef device_ref) {
+	u32 len = darray_length(state_ptr->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		if (state_ptr->gamepad_state->devices[i]->device_ref == device_ref) {
+			if (state_ptr->gamepad_callbacks.on_detached) {
+				state_ptr->gamepad_callbacks.on_detached(state_ptr->gamepad_state->devices[i]->device_id);
+			}
+
+			cleanup_gamepad_device(state_ptr->gamepad_state->devices[i]);
+			darray_pop_at(state_ptr->gamepad_state->devices, i, KNULL);
+			return;
+		}
+	}
+}
+
+void platform_gamepads_initialize (void) {
+	platform_state *state = state_ptr;
+
+	state->gamepad_state = KALLOC_TYPE(platform_gamepad_state, MEMORY_TAG_PLATFORM);
+
+	state->gamepad_state->devices = darray_reserve(platform_gamepad_device *, 4);
+	state->gamepad_state->device_event_queue = darray_reserve(platform_gamepad_event, 64);
+	state->gamepad_state->input_event_queue = darray_reserve(platform_gamepad_event, 64);
+
+	if (state->gamepad_state->hid_manager == KNULL) {
+		state->gamepad_state->hid_manager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
+
+		CFStringRef keys[2] = {
+			CFSTR(kIOHIDDeviceUsagePageKey),
+			CFSTR(kIOHIDDeviceUsageKey)};
+
+		CFNumberRef values[2];
+		i32 value = kHIDPage_GenericDesktop;
+		values[0] = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &value);
+		value = kHIDUsage_GD_Joystick;
+		values[1] = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &value);
+		CFDictionaryRef dictionaries[3];
+		dictionaries[0] = CFDictionaryCreate(kCFAllocatorDefault, (const void **)keys, (const void **)values, 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+		CFRelease(values[0]);
+		CFRelease(values[1]);
+
+		value = kHIDPage_GenericDesktop;
+		values[0] = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &value);
+		value = kHIDUsage_GD_GamePad;
+		values[1] = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &value);
+		dictionaries[1] = CFDictionaryCreate(kCFAllocatorDefault, (const void **)keys, (const void **)values, 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+		CFRelease(values[0]);
+		CFRelease(values[1]);
+
+		value = kHIDPage_GenericDesktop;
+		values[0] = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &value);
+		value = kHIDUsage_GD_MultiAxisController;
+		values[1] = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &value);
+		dictionaries[2] = CFDictionaryCreate(kCFAllocatorDefault, (const void **)keys, (const void **)values, 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+		CFRelease(values[0]);
+		CFRelease(values[1]);
+
+		CFArrayRef array = CFArrayCreate(kCFAllocatorDefault, (const void **)dictionaries, 3, &kCFTypeArrayCallBacks);
+		CFRelease(dictionaries[0]);
+		CFRelease(dictionaries[1]);
+		CFRelease(dictionaries[2]);
+		IOHIDManagerSetDeviceMatchingMultiple(state_ptr->gamepad_state->hid_manager, array);
+		CFRelease(array);
+
+		IOHIDManagerRegisterDeviceMatchingCallback(state_ptr->gamepad_state->hid_manager, on_device_matched, KNULL);
+		IOHIDManagerRegisterDeviceRemovalCallback(state_ptr->gamepad_state->hid_manager, on_device_removed, KNULL);
+
+		IOHIDManagerOpen(state_ptr->gamepad_state->hid_manager, kIOHIDOptionsTypeNone);
+
+		IOHIDManagerScheduleWithRunLoop(state_ptr->gamepad_state->hid_manager, CFRunLoopGetCurrent(), GAMEPAD_RUN_LOOP_MODE);
+		CFRunLoopRunInMode(GAMEPAD_RUN_LOOP_MODE, 0, true);
+	}
+}
+
+u32 platform_gamepad_device_count (void) {
+	return darray_length(state_ptr->gamepad_state->devices);
+}
+
+u32 platform_gamepad_deviceid_at_index (u32 device_index) {
+	u32 device_id;
+	u32 count = darray_length(state_ptr->gamepad_state->devices);
+	if (device_index >= count) {
+		device_id = INVALID_ID_U32;
+	} else {
+		device_id = state_ptr->gamepad_state->devices[device_index]->device_id;
+	}
+	return device_id;
+}
+
+b8 platform_gamepad_get_device_index (u32 device_id, u8 *out_index) {
+	u32 device_count = darray_length(state_ptr->gamepad_state->devices);
+	for (u32 i = 0; i < device_count; ++i) {
+		platform_gamepad_device *device = state_ptr->gamepad_state->devices[i];
+		if (device->device_id == device_id) {
+			*out_index = (u8)i;
+			return true;
+		}
+	}
+	return false;
+}
+
+b8 platform_gamepad_get_device_info (u32 device_id, i32 *out_vendor_id, i32 *out_product_id, u32 *out_button_count, u32 *out_axis_count) {
+	if (!state_ptr->gamepad_state->devices) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	if (out_vendor_id) {
+		*out_vendor_id = device->vendor_id;
+	}
+	if (out_product_id) {
+		*out_product_id = device->product_id;
+	}
+	if (out_button_count) {
+		*out_button_count = device->button_count;
+	}
+	if (out_axis_count) {
+		*out_axis_count = device->axis_count;
+	}
+
+	return true;
+}
+
+const char *platform_gamepad_get_device_desc (u32 device_id) {
+	if (!state_ptr->gamepad_state->devices) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return KNULL;
+	}
+
+	return string_duplicate(device->description);
+}
+
+// index must be [0-3]. Otherwise will be ignored. Returns true if set successfully; otherwise false.
+b8 platform_gamepad_set_device_player_index (u32 device_id, u8 player_index) {
+	if (player_index < 0 || player_index > 3) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	if (device != KNULL) {
+		/* TODO: set player index LED via report. Note that the report needs to be appropriate for the device,
+		 * as it can break the device if not!
+		CFIndex report_id = 0;
+		u8 *report_data = KNULL;
+		CFIndex report_length = 0;
+		IOReturn result = IOHIDDeviceSetReport(device->device_ref, kIOHIDReportTypeOutput, report_id, report_data, report_length);
+		if (result != kIOReturnSuccess) {
+			KWARN("Failed to set LED player index for gamepad '%s'. Numeric index still set though.", device->description);
+		}
+		*/
+	}
+
+	return true;
+}
+
+b8 platform_gamepad_is_button_pressed (u32 device_id, gamepad_button button) {
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	return FLAG_GET(device->button_states, button);
+}
+
+f32 platform_gamepad_get_axis_state (u32 device_id, gamepad_axis axis) {
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	for (u32 i = 0; i < device->axis_count; ++i) {
+		if (device->axis_elements[i].axis == axis) {
+			return device->axis_states[i];
+		}
+	}
+
+	return 0.0f;
+}
+
+b8 platform_initialize_input (void) {
+	platform_state *state = state_ptr;
+	if (!state) {
+		return false;
+	}
+	// TODO: initialize keyboard and mouse devices. Gamepads handled separately.
+	KINFO("macOS platform input initialized.");
+
+	return true;
+}
+
+static void process_gamepad_event (platform_gamepad_event *event) {
+	platform_state *state = state_ptr;
+	platform_gamepad_device *device = get_gamepad_device_by_id(event->device_id);
+	switch (event->type) {
+	case PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_ATTACHED:
+		if (state->gamepad_callbacks.on_attached) {
+			state->gamepad_callbacks.on_attached(event->device_id);
+		}
+		break;
+	case PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_DETACHED:
+		if (state->gamepad_callbacks.on_detached) {
+			state->gamepad_callbacks.on_detached(event->device_id);
+		}
+		cleanup_gamepad_device(device);
+		break;
+	case PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_PRESSED:
+		if (state->gamepad_callbacks.on_button_pressed) {
+			state->gamepad_callbacks.on_button_pressed(event->device_id, event->button, event->timestamp);
+		}
+		break;
+	case PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_RELEASED:
+		if (state->gamepad_callbacks.on_button_released) {
+			state->gamepad_callbacks.on_button_released(event->device_id, event->button, event->timestamp);
+		}
+		break;
+	case PLATFORM_GAMEPAD_EVENT_TYPE_AXIS_CHANGED:
+		if (state->gamepad_callbacks.on_axis_changed) {
+			if (state_ptr->gamepad_callbacks.on_axis_changed) {
+				state_ptr->gamepad_callbacks.on_axis_changed(
+					device->device_id,
+					event->axis,
+					event->value,
+					event->last_value,
+					event->timestamp);
+			}
+		}
+		break;
+	}
+}
+
+static void detect_gamepad_devices (void) {
+	if (state_ptr->gamepad_state->hid_manager == KNULL) {
+		return;
+	}
+
+	CFRunLoopRunInMode(GAMEPAD_RUN_LOOP_MODE, 0, true);
+	u32 len = darray_length(state_ptr->gamepad_state->device_event_queue);
+	for (u32 i = 0; i < len; ++i) {
+		platform_gamepad_event *event = &state_ptr->gamepad_state->device_event_queue[i];
+		process_gamepad_event(event);
+	}
+	darray_clear(state_ptr->gamepad_state->device_event_queue);
+}
+
+static void process_gamepad_events (void) {
+	static b8 in_process_events = false;
+	if (state_ptr->gamepad_state->hid_manager == KNULL || in_process_events) {
+		return;
+	}
+
+	in_process_events = true;
+	CFRunLoopRunInMode(GAMEPAD_RUN_LOOP_MODE, 0, true);
+	u32 len = darray_length(state_ptr->gamepad_state->input_event_queue);
+	for (u32 i = 0; i < len; ++i) {
+		platform_gamepad_event *event = &state_ptr->gamepad_state->input_event_queue[i];
+		process_gamepad_event(event);
+	}
+	darray_clear(state_ptr->gamepad_state->input_event_queue);
+	in_process_events = false;
+}
+
 // NOTE: syscall implementation
 i64 syscall2 (i64 number, i64 arg0, i64 arg1) {
 #	if defined(__aarch64__)
@@ -1524,232 +2239,232 @@ static keys translate_keycode (u32 ns_keycode) {
 	// https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 	switch (ns_keycode) {
 	case 0x52:
-		return KEY_NUMPAD0;
+		return K_KEY_NUMPAD0;
 	case 0x53:
-		return KEY_NUMPAD1;
+		return K_KEY_NUMPAD1;
 	case 0x54:
-		return KEY_NUMPAD2;
+		return K_KEY_NUMPAD2;
 	case 0x55:
-		return KEY_NUMPAD3;
+		return K_KEY_NUMPAD3;
 	case 0x56:
-		return KEY_NUMPAD4;
+		return K_KEY_NUMPAD4;
 	case 0x57:
-		return KEY_NUMPAD5;
+		return K_KEY_NUMPAD5;
 	case 0x58:
-		return KEY_NUMPAD6;
+		return K_KEY_NUMPAD6;
 	case 0x59:
-		return KEY_NUMPAD7;
+		return K_KEY_NUMPAD7;
 	case 0x5B:
-		return KEY_NUMPAD8;
+		return K_KEY_NUMPAD8;
 	case 0x5C:
-		return KEY_NUMPAD9;
+		return K_KEY_NUMPAD9;
 
 	case 0x12:
-		return KEY_1;
+		return K_KEY_1;
 	case 0x13:
-		return KEY_2;
+		return K_KEY_2;
 	case 0x14:
-		return KEY_3;
+		return K_KEY_3;
 	case 0x15:
-		return KEY_4;
+		return K_KEY_4;
 	case 0x17:
-		return KEY_5;
+		return K_KEY_5;
 	case 0x16:
-		return KEY_6;
+		return K_KEY_6;
 	case 0x1A:
-		return KEY_7;
+		return K_KEY_7;
 	case 0x1C:
-		return KEY_8;
+		return K_KEY_8;
 	case 0x19:
-		return KEY_9;
+		return K_KEY_9;
 	case 0x1D:
-		return KEY_0;
+		return K_KEY_0;
 
 	case 0x00:
-		return KEY_A;
+		return K_KEY_A;
 	case 0x0B:
-		return KEY_B;
+		return K_KEY_B;
 	case 0x08:
-		return KEY_C;
+		return K_KEY_C;
 	case 0x02:
-		return KEY_D;
+		return K_KEY_D;
 	case 0x0E:
-		return KEY_E;
+		return K_KEY_E;
 	case 0x03:
-		return KEY_F;
+		return K_KEY_F;
 	case 0x05:
-		return KEY_G;
+		return K_KEY_G;
 	case 0x04:
-		return KEY_H;
+		return K_KEY_H;
 	case 0x22:
-		return KEY_I;
+		return K_KEY_I;
 	case 0x26:
-		return KEY_J;
+		return K_KEY_J;
 	case 0x28:
-		return KEY_K;
+		return K_KEY_K;
 	case 0x25:
-		return KEY_L;
+		return K_KEY_L;
 	case 0x2E:
-		return KEY_M;
+		return K_KEY_M;
 	case 0x2D:
-		return KEY_N;
+		return K_KEY_N;
 	case 0x1F:
-		return KEY_O;
+		return K_KEY_O;
 	case 0x23:
-		return KEY_P;
+		return K_KEY_P;
 	case 0x0C:
-		return KEY_Q;
+		return K_KEY_Q;
 	case 0x0F:
-		return KEY_R;
+		return K_KEY_R;
 	case 0x01:
-		return KEY_S;
+		return K_KEY_S;
 	case 0x11:
-		return KEY_T;
+		return K_KEY_T;
 	case 0x20:
-		return KEY_U;
+		return K_KEY_U;
 	case 0x09:
-		return KEY_V;
+		return K_KEY_V;
 	case 0x0D:
-		return KEY_W;
+		return K_KEY_W;
 	case 0x07:
-		return KEY_X;
+		return K_KEY_X;
 	case 0x10:
-		return KEY_Y;
+		return K_KEY_Y;
 	case 0x06:
-		return KEY_Z;
+		return K_KEY_Z;
 
 	case 0x27:
-		return KEY_APOSTROPHE;
+		return K_KEY_APOSTROPHE;
 	case 0x2A:
-		return KEY_BACKSLASH;
+		return K_KEY_BACKSLASH;
 	case 0x2B:
-		return KEY_COMMA;
+		return K_KEY_COMMA;
 	case 0x18:
-		return KEY_EQUAL; // Equal/Plus
+		return K_KEY_EQUAL; // Equal/Plus
 	case 0x32:
-		return KEY_GRAVE;
+		return K_KEY_GRAVE;
 	case 0x21:
-		return KEY_LBRACKET;
+		return K_KEY_LBRACKET;
 	case 0x1B:
-		return KEY_MINUS;
+		return K_KEY_MINUS;
 	case 0x2F:
-		return KEY_PERIOD;
+		return K_KEY_PERIOD;
 	case 0x1E:
-		return KEY_RBRACKET;
+		return K_KEY_RBRACKET;
 	case 0x29:
-		return KEY_SEMICOLON;
+		return K_KEY_SEMICOLON;
 	case 0x2C:
-		return KEY_SLASH;
+		return K_KEY_SLASH;
 	case 0x0A:
 		return KEYS_MAX_KEYS; // ?
 
 	case 0x33:
-		return KEY_BACKSPACE;
+		return K_KEY_BACKSPACE;
 	case 0x39:
-		return KEY_CAPITAL;
+		return K_KEY_CAPITAL;
 	case 0x75:
-		return KEY_DELETE;
+		return K_KEY_DELETE;
 	case 0x7D:
-		return KEY_DOWN;
+		return K_KEY_DOWN;
 	case 0x77:
-		return KEY_END;
+		return K_KEY_END;
 	case 0x24:
-		return KEY_ENTER;
+		return K_KEY_ENTER;
 	case 0x35:
-		return KEY_ESCAPE;
+		return K_KEY_ESCAPE;
 	case 0x7A:
-		return KEY_F1;
+		return K_KEY_F1;
 	case 0x78:
-		return KEY_F2;
+		return K_KEY_F2;
 	case 0x63:
-		return KEY_F3;
+		return K_KEY_F3;
 	case 0x76:
-		return KEY_F4;
+		return K_KEY_F4;
 	case 0x60:
-		return KEY_F5;
+		return K_KEY_F5;
 	case 0x61:
-		return KEY_F6;
+		return K_KEY_F6;
 	case 0x62:
-		return KEY_F7;
+		return K_KEY_F7;
 	case 0x64:
-		return KEY_F8;
+		return K_KEY_F8;
 	case 0x65:
-		return KEY_F9;
+		return K_KEY_F9;
 	case 0x6D:
-		return KEY_F10;
+		return K_KEY_F10;
 	case 0x67:
-		return KEY_F11;
+		return K_KEY_F11;
 	case 0x6F:
-		return KEY_F12;
+		return K_KEY_F12;
 	case 0x69:
-		return KEY_PRINT;
+		return K_KEY_PRINT;
 	case 0x6B:
-		return KEY_F14;
+		return K_KEY_F14;
 	case 0x71:
-		return KEY_F15;
+		return K_KEY_F15;
 	case 0x6A:
-		return KEY_F16;
+		return K_KEY_F16;
 	case 0x40:
-		return KEY_F17;
+		return K_KEY_F17;
 	case 0x4F:
-		return KEY_F18;
+		return K_KEY_F18;
 	case 0x50:
-		return KEY_F19;
+		return K_KEY_F19;
 	case 0x5A:
-		return KEY_F20;
+		return K_KEY_F20;
 	case 0x73:
-		return KEY_HOME;
+		return K_KEY_HOME;
 	case 0x72:
-		return KEY_INSERT;
+		return K_KEY_INSERT;
 	case 0x7B:
-		return KEY_LEFT;
+		return K_KEY_LEFT;
 	case 0x3A:
-		return KEY_LALT;
+		return K_KEY_LALT;
 	case 0x3B:
-		return KEY_LCONTROL;
+		return K_KEY_LCONTROL;
 	case 0x38:
-		return KEY_LSHIFT;
+		return K_KEY_LSHIFT;
 	case 0x37:
-		return KEY_LSUPER;
+		return K_KEY_LSUPER;
 	case 0x6E:
 		return KEYS_MAX_KEYS; // Menu
 	case 0x47:
-		return KEY_NUMLOCK;
+		return K_KEY_NUMLOCK;
 	case 0x79:
 		return KEYS_MAX_KEYS; // Page down
 	case 0x74:
 		return KEYS_MAX_KEYS; // Page up
 	case 0x7C:
-		return KEY_RIGHT;
+		return K_KEY_RIGHT;
 	case 0x3D:
-		return KEY_RALT;
+		return K_KEY_RALT;
 	case 0x3E:
-		return KEY_RCONTROL;
+		return K_KEY_RCONTROL;
 	case 0x3C:
-		return KEY_RSHIFT;
+		return K_KEY_RSHIFT;
 	case 0x36:
-		return KEY_RSUPER;
+		return K_KEY_RSUPER;
 	case 0x31:
-		return KEY_SPACE;
+		return K_KEY_SPACE;
 	case 0x30:
-		return KEY_TAB;
+		return K_KEY_TAB;
 	case 0x7E:
-		return KEY_UP;
+		return K_KEY_UP;
 
 	case 0x45:
-		return KEY_ADD;
+		return K_KEY_ADD;
 	case 0x41:
-		return KEY_DECIMAL;
+		return K_KEY_DECIMAL;
 	case 0x4B:
-		return KEY_DIVIDE;
+		return K_KEY_DIVIDE;
 	case 0x4C:
-		return KEY_ENTER;
+		return K_KEY_ENTER;
 	case 0x51:
-		return KEY_NUMPAD_EQUAL;
+		return K_KEY_NUMPAD_EQUAL;
 	case 0x43:
-		return KEY_MULTIPLY;
+		return K_KEY_MULTIPLY;
 	case 0x4E:
-		return KEY_SUBTRACT;
+		return K_KEY_SUBTRACT;
 
 	default:
 		return KEYS_MAX_KEYS;
@@ -1822,8 +2537,8 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		NSEventModifierFlagShift,
 		0x38,
 		0x3C,
-		KEY_LSHIFT,
-		KEY_RSHIFT,
+		K_KEY_LSHIFT,
+		K_KEY_RSHIFT,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LSHIFT,
 		MACOS_MODIFIER_KEY_RSHIFT,
@@ -1838,8 +2553,8 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		NSEventModifierFlagControl,
 		0x3B,
 		0x3E,
-		KEY_LCONTROL,
-		KEY_RCONTROL,
+		K_KEY_LCONTROL,
+		K_KEY_RCONTROL,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LCTRL,
 		MACOS_MODIFIER_KEY_RCTRL,
@@ -1852,8 +2567,8 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		NSEventModifierFlagOption,
 		0x3A,
 		0x3D,
-		KEY_LALT,
-		KEY_RALT,
+		K_KEY_LALT,
+		K_KEY_RALT,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LOPTION,
 		MACOS_MODIFIER_KEY_ROPTION,
@@ -1866,8 +2581,8 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		NSEventModifierFlagCommand,
 		0x37,
 		0x36,
-		KEY_LSUPER,
-		KEY_RSUPER,
+		K_KEY_LSUPER,
+		K_KEY_RSUPER,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LCOMMAND,
 		MACOS_MODIFIER_KEY_RCOMMAND,
@@ -1879,13 +2594,449 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		if (modifier_flags & NSEventModifierFlagCapsLock) {
 			// Report as a keypress. This notifies the system
 			// that caps lock has been turned on.
-			state_ptr->process_key(KEY_CAPITAL, true, false);
+			state_ptr->process_key(K_KEY_CAPITAL, true, false);
 		} else {
 			// Report as a release. This notifies the system
 			// that caps lock has been turned off.
-			state_ptr->process_key(KEY_CAPITAL, false, false);
+			state_ptr->process_key(K_KEY_CAPITAL, false, false);
 		}
 	}
+}
+
+static gamepad_axis gamepad_get_axis_microsoft (u16 product_id, u8 axis_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+	default:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_0:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER_PACC:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_2015:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_ELITE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_S_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_SXS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ELITE_SERIES_2_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_1:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 4:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 2:
+			return GAMEPAD_AXIS_RX;
+		case 3:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_sony (u16 product_id, u8 axis_id, platform_gamepad_connection_type connection_type) {
+	b8 wireless = connection_type == PLATFORM_GAMEPAD_CONNECTION_TYPE_WIRELESS_BT;
+	switch (product_id) {
+	case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 4:
+			return GAMEPAD_AXIS_LZ; // L2
+		case 2:
+			return GAMEPAD_AXIS_RX;
+		case 3:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // R2
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	default:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 7:
+			return wireless ? GAMEPAD_AXIS_RZ : GAMEPAD_AXIS_LZ;
+		case 2:
+			return GAMEPAD_AXIS_RX;
+		case 3:
+			return GAMEPAD_AXIS_RY;
+		case 8:
+			return GAMEPAD_AXIS_RZ; // R2
+		case 6:
+			return wireless ? GAMEPAD_AXIS_LZ : GAMEPAD_AXIS_IGNORE; // For some reason on macos this axis goes bananas when wired, and doesn't seem to contain any useful information.
+		case 4:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 5:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+		// For some reason, the mapping is different depending on the device being connected via USB vs wireless.
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 4:
+			return wireless ? GAMEPAD_AXIS_DPAD_LR : GAMEPAD_AXIS_LZ; // L2
+		case 2:
+			return GAMEPAD_AXIS_RX;
+		case 3:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return wireless ? GAMEPAD_AXIS_DPAD_UD : GAMEPAD_AXIS_RZ; // R2
+		case 6:
+			return wireless ? GAMEPAD_AXIS_LZ : GAMEPAD_AXIS_IGNORE; // For some reason on macos this axis goes bananas when wired, and doesn't seem to contain any useful information.
+		case 7:
+			return wireless ? GAMEPAD_AXIS_RZ : GAMEPAD_AXIS_DPAD_LR;
+		case 8:
+			return wireless ? GAMEPAD_AXIS_IGNORE : GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_nintendo (u16 product_id, u8 axis_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+	default:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_default (u16 product_id, u8 axis_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+	default:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_microsoft (u16 product_id, u8 button_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+	default:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_0:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER_PACC:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_2015:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_ELITE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_S_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_SXS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ELITE_SERIES_2_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_1:
+		switch (button_id) {
+		default:
+		case 16:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 17:
+			return GAMEPAD_BUTTON_EAST;
+		case 18:
+			return GAMEPAD_BUTTON_WEST;
+		case 19:
+			return GAMEPAD_BUTTON_NORTH;
+		case 13:
+			return GAMEPAD_BUTTON_L1; // LB
+		case 14:
+			return GAMEPAD_BUTTON_R1; // RB
+		case 10:
+			return GAMEPAD_BUTTON_SELECT; // back
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 15:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 5:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 6:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 7:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 8:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_sony (u16 product_id, u8 button_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+	case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+		switch (button_id) {
+		default:
+		case 14:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 13:
+			return GAMEPAD_BUTTON_EAST;
+		case 12:
+			return GAMEPAD_BUTTON_NORTH;
+		case 15:
+			return GAMEPAD_BUTTON_WEST;
+		case 10:
+			return GAMEPAD_BUTTON_L1;
+		case 11:
+			return GAMEPAD_BUTTON_R1;
+		case 8:
+			return GAMEPAD_BUTTON_L2;
+		case 9:
+			return GAMEPAD_BUTTON_R2;
+		case 0:
+			return GAMEPAD_BUTTON_SELECT;
+		case 3:
+			return GAMEPAD_BUTTON_START;
+		case 16:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 1:
+			return GAMEPAD_BUTTON_L3;
+		case 2:
+			return GAMEPAD_BUTTON_R3;
+			// These are axes on PS3 and not mapped to button ids.
+		case 4:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 6:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 7:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 5:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	default:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+		switch (button_id) {
+		default:
+		case 1:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 2:
+			return GAMEPAD_BUTTON_EAST;
+		case 3:
+			return GAMEPAD_BUTTON_NORTH;
+		case 0:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 12:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 10:
+			return GAMEPAD_BUTTON_L3;
+		case 11:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			// touchpad click
+			return GAMEPAD_BUTTON_ADDL0;
+		case 14:
+			// PS5 microphone button
+			return GAMEPAD_BUTTON_ADDL1;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_nintendo (u16 product_id, u8 button_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+
+	default:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_default (u16 product_id, u8 button_id, platform_gamepad_connection_type connection_type) {
+	switch (product_id) {
+
+	default:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+gamepad_axis gamepad_get_axis (u16 vendor_id, u16 product_id, u8 axis_id, platform_gamepad_connection_type connection_type) {
+	switch (vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		return gamepad_get_axis_microsoft(product_id, axis_id, connection_type);
+	case USB_VENDOR_ID_SONY:
+		return gamepad_get_axis_sony(product_id, axis_id, connection_type);
+	case USB_VENDOR_ID_NINTENDO:
+		return gamepad_get_axis_nintendo(product_id, axis_id, connection_type);
+	default:
+		return gamepad_get_axis_default(product_id, axis_id, connection_type);
+	}
+}
+
+gamepad_button gamepad_get_button (u16 vendor_id, u16 product_id, u8 button_id, platform_gamepad_connection_type connection_type) {
+	switch (vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		return gamepad_get_button_microsoft(product_id, button_id, connection_type);
+	case USB_VENDOR_ID_SONY:
+		return gamepad_get_button_sony(product_id, button_id, connection_type);
+	case USB_VENDOR_ID_NINTENDO:
+		return gamepad_get_button_nintendo(product_id, button_id, connection_type);
+	default:
+		return gamepad_get_button_default(product_id, button_id, connection_type);
+	}
+}
+
+platform_gamepad_device *get_gamepad_device_by_id (u32 device_id) {
+	u32 len = darray_length(state_ptr->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		if (state_ptr->gamepad_state->devices[i]->device_id == device_id) {
+			// Found it.
+			return state_ptr->gamepad_state->devices[i];
+		}
+	}
+
+	return KNULL;
 }
 
 #endif

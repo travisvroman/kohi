@@ -77,6 +77,14 @@ install_fedora_deps() {
 	popd
 	popd
 
+	echo "Installing udev rules..."
+	# copy udev rules for gamepad access.
+	sudo cp 99-kohi-input.rules /etc/udev/rules.d/99-kohi-input.rules
+	# Apply them
+	sudo udevadm control --reload-rules
+	sudo udevadm trigger --action=add --subsystem-match=leds
+	echo "Done."
+
 	return 0
 }
 
@@ -120,6 +128,14 @@ install_debian_deps() {
 	popd
 	popd
 
+	echo "Installing udev rules..."
+	# copy udev rules for gamepad access.
+	sudo cp 99-kohi-input.rules /etc/udev/rules.d/99-kohi-input.rules
+	# Apply them
+	sudo udevadm control --reload-rules
+	sudo udevadm trigger --action=add --subsystem-match=leds
+	echo "Done."
+
 	return 0
 }
 
@@ -132,6 +148,14 @@ install_arch_deps() {
 		echo "Error: Failed to install dependencies for Arch."
 		return 1
 	fi
+
+	echo "Installing udev rules..."
+	# copy udev rules for gamepad access.
+	sudo cp 99-kohi-input.rules /etc/udev/rules.d/99-kohi-input.rules
+	# Apply them
+	sudo udevadm control --reload-rules
+	sudo udevadm trigger --action=add --subsystem-match=leds
+	echo "Done."
 }
 
 if [ $pkg_mgr_type == "debian" ]; then

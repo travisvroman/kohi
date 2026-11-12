@@ -99,6 +99,25 @@ While the highest effort is made to reduce dependencies, each platform has thing
 3. **Build:** Run `build-debug.bat` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.bat` instead.
 4. **Import All Assets:** Finally, you will need to run `import-updated-assets.bat` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
+#### GamePad/Controller support on Windows
+
+The following controllers have been tested as working on Windows:
+
+- Xbox 360 wired controller
+- Xbox One (wired and wireless connection)
+- PS3 Controller - wired only
+- (PS4) Dualshock 4 Controller (wired and wireless connection)
+- (PS5) DualSense Controller (wired and wireless connection)
+
+##### A note about PS3 Controllers
+
+These are a bit tricky to get to work on Windows 11.
+To get the PS3 controller to work on Windows, you must download and install a driver [this](https://github.com/nefarius/DsHidMini/releases) (get the latest) which itself requires the .NET runtime 10 for windows [here](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-10.0.0-windows-x64-installer). Note that newer versions (i.e. 10.0.14) _don't_ seem to work. You _must_ use 10.0.0. Yes, it's legit. If you want to connect via Bluetooth, you will need [this](https://github.com/nefarius/BthPS3/releases/tag/setup-v3.2.1) too.
+
+From there, with the controller connected via USB, You will need to open DsHidMini, select "devices" on the left side, and choose the appropriate controller. It will probably be listed as "xinput", which is _not_ what you want. Choose the "configure" tab (next to Info at the top), change "settings mode" to "custom", then change "HID Emulation Mode" to "SXS" (for sixaxis) and press the "Apply changes" button at the bottom. If this is not done, the controller will show up twice in devices, once under xinput which maps it as an xbox controller, and once as a PS3 controller that is non-functional. This is not a bug in Kohi, but an issue with how Windows handles inputs. Steam has similar issues with this controller.
+
+Linux handles this fine, by the way.
+
 #### Additional notes on Windows
 
 - This project _does not_ work under WSL, nor will it in the forseeable future. Don't bother trying it. Even if you do get it working, it won't be supported.
@@ -122,6 +141,16 @@ While the highest effort is made to reduce dependencies, each platform has thing
 3. **Build:** Run `build-debug.sh` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.sh` instead.
 4. **Import All Assets:** Finally, you will need to run `import-updated-assets.sh` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
 
+#### GamePad/Controller support on GNU/Linux
+
+The following controllers have been tested as working on GNU/Linux:
+
+- Xbox 360 wired controller
+- Xbox One (wired and wireless connection)
+- PS3 Controller - wired only
+- (PS4) Dualshock 4 Controller (wired and wireless connection)
+- (PS5) DualSense Controller (wired and wireless connection)
+
 #### Additional notes on GNU/Linux
 
 - Wayland is not natively supported (yet), but Kohi runs fine via xwayland.
@@ -143,6 +172,20 @@ While the highest effort is made to reduce dependencies, each platform has thing
    - Download and install it from https://vulkan.lunarg.com/
 4. **Build:** Run `build-debug.sh` to build the source code and wait for it to complete. Debug is the recommended build until you are ready to release your project. To run a release build, execute `build-release.sh` instead.
 5. **Import All Assets:** Finally, you will need to run `import-updated-assets.sh` to convert all assets from their source formats to the Kohi-native ones. This will need to be done for any assets that are imported into a project as well.
+
+#### GamePad/Controller support on macOS
+
+The following controllers have been tested as working on macOS:
+
+- Xbox 360 wired controller
+- PS3 Controller - wired only
+- (PS4) Dualshock 4 Controller (wired and wireless connection)
+- (PS5) DualSense Controller (wired and wireless connection)
+
+##### Known Issues with controllers on macOS:
+
+- Xbox One controller will not work. Wired connects but does not function. Cannot connect via wireless.
+- PS3 Controller - L2 and R2 axes don't work, so pressure sensitivity doesn't work. A simple button press/release does, though.
 
 #### Additional notes on macOS
 

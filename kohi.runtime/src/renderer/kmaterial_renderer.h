@@ -170,6 +170,7 @@ typedef struct kmaterial_renderer {
 	// Runtime package name pre-hashed and kept here for convenience.
 	kname runtime_package_name;
 
+	// True=use skinned vertex layout; otherwise static vertex layout.
 	b8 current_uses_animated;
 } kmaterial_renderer;
 

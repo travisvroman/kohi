@@ -53,6 +53,9 @@ typedef struct event_context {
 		/** @brief An array of 16 8-bit unsigned integers. */
 		u8 u8[16];
 
+		/** @brief An array of booleans. */
+		b8 b8[16];
+
 		/**
 		 * @brief Allows a pointer to arbitrary data to be passed. Also includes size info.
 		 * NOTE: If used, should be freed by the sender or listener.
@@ -208,11 +211,58 @@ typedef enum system_event_code {
 	 */
 	EVENT_CODE_WINDOW_RESIZED = 0x0009,
 
+	/* A gamepad button event has occurred.
+	 * Data is packed as follows:
+	 * u8 device_id;
+	 * u8 button_id;
+	 * b8 is_down;
+	 * u8 unused;
+	 * f32 timestamp;
+	 * Therefore, context usage is:
+	 * u8 device_id = context.data.u8[0];
+	 * u8 button_id = context.data.u8[1];
+	 * b8 is_down = context.data.b8[2];
+	 * u8 unused = context.data.u8[3];
+	 * f32 timestamp = context.data.f32[1];
+	 */
+	EVENT_CODE_GAMEPAD_BUTTON_EVENT = 0x000A,
+
+	/* A gamepad axis event has occurred.
+	 * Data is packed as follows:
+	 * u8 device_id;
+	 * u8 axis_id;
+	 * u8 unused;
+	 * u8 unused;
+	 * f32 timestamp;
+	 * f32 value;
+	 * f32 last_value;
+	 * Therefore, context usage is:
+	 * u8 device_id = context.data.u8[0];
+	 * u8 axis_id = context.data.u8[1];
+	 * u8 unused = context.data.u8[2];
+	 * u8 unused = context.data.u8[3];
+	 * f32 timestamp = context.data.f32[1];
+	 * f32 value = context.data.f32[2];
+	 * f32 last_value = context.data.f32[3];
+	 */
+	EVENT_CODE_GAMEPAD_AXIS_EVENT = 0x000B,
+
+	/* A new gamepad has been attached.
+	 * Context usage:
+	 * u8 device_id = context.data.u8[0];
+	 */
+	EVENT_CODE_GAMEPAD_ATTACHED = 0x000C,
+	/* A new gamepad has been detached.
+	 * Context usage:
+	 * u8 device_id = context.data.u8[0];
+	 */
+	EVENT_CODE_GAMEPAD_DETACHED = 0x000D,
+
 	// Change the render mode for debugging purposes.
 	/* Context usage:
 	 * i32 mode = context.data.i32[0];
 	 */
-	EVENT_CODE_SET_RENDER_MODE = 0x000A,
+	EVENT_CODE_SET_RENDER_MODE = 0x000E,
 
 	/** @brief Clipboard content is ready to be retrieved.
 	 * NOTE: data is freed by the platform immediately after this event is fired.
@@ -220,7 +270,7 @@ typedef enum system_event_code {
 	 * Context usage:
 	 * struct clipboard_context* = context.data.custom_data.data, (sizeof clipboard_context)
 	 */
-	EVENT_CODE_CLIPBOARD_PASTE = 0x000B,
+	EVENT_CODE_CLIPBOARD_PASTE = 0x000F,
 
 	/** @brief Special-purpose debugging event. Context will vary over time. */
 	EVENT_CODE_DEBUG0 = 0x0010,

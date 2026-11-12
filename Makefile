@@ -118,6 +118,8 @@ copy-top-level-linux: copy-top-level-nix
 	cp ./vendor/vulkan/1.*/x86_64/lib/libshaderc_shared.so.1 bin
 
 copy-top-level-macos: copy-top-level-nix
+	cp -fP ./deps/assimp/lib/macos/libassimp*.dylib bin
+	(cd bin && install_name_tool -change "/opt/homebrew/opt/assimp/lib/libassimp.6.dylib" "@executable_path/libassimp.dylib" "libkohi.plugin.utils.dylib")
 
 copy-top-level-lib: copy-top-level-lib-$(PLATFORM)
 .NOTPARALLEL: copy-top-level-lib

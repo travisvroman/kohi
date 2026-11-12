@@ -22,6 +22,7 @@
 #include "core_render_types.h"
 #include "debug/kassert.h"
 #include "defines.h"
+#include "input/gamepad.h"
 #include "kohi.runtime_version.h"
 
 #include "application/application_config.h"
@@ -491,6 +492,27 @@ b8 engine_create (application *app, const char *app_config_path, const char *gam
 		platform_register_process_mouse_button_callback(engine_on_process_mouse_button);
 		platform_register_process_mouse_move_callback(engine_on_process_mouse_move);
 		platform_register_process_mouse_wheel_callback(engine_on_process_mouse_wheel);
+	}
+
+	// Gamepad input system.
+	{
+		gamepad_system_initialize(&systems->gamepad_system_memory_requirement, KNULL);
+		systems->gamepad_system = kallocate(systems->gamepad_system_memory_requirement, MEMORY_TAG_ENGINE);
+		if (!gamepad_system_initialize(&systems->gamepad_system_memory_requirement, systems->gamepad_system)) {
+			KERROR("Failed to initialize gamepad system.");
+			return false;
+		}
+	}
+	// Initialize gamepads at the platform level.
+	{
+		platform_gamepad_callbacks gamepad_callbacks = {
+			.on_attached = gamepad_on_attached,
+			.on_detached = gamepad_on_detached,
+			.on_button_pressed = gamepad_on_button_pressed,
+			.on_button_released = gamepad_on_button_released,
+			.on_axis_changed = gamepad_on_axis_changed};
+		platform_register_gamepad_callbacks(gamepad_callbacks);
+		platform_gamepads_initialize();
 	}
 
 	// Clipboard
@@ -989,6 +1011,7 @@ b8 engine_run (application *app) {
 			// As a safety, input is the last thing to be updated before
 			// this frame ends.
 			input_update(&engine_state->p_frame_data);
+			gamepad_system_update(engine_state->systems.gamepad_system, &engine_state->p_frame_data);
 
 			// Update last time
 			engine_state->last_time = current_time;

@@ -637,18 +637,18 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 
 	u16 key_code = context.data.u16[0];
 	if (code == EVENT_CODE_KEY_PRESSED) {
-		b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT);
+		b8 shift_held = input_is_key_down(K_KEY_LSHIFT) || input_is_key_down(K_KEY_RSHIFT) || input_is_key_down(K_KEY_SHIFT);
 #if KPLATFORM_APPLE
 		// On Apple, consider "command" as control.
 		// TODO: Need to think this through better for the future to not have platform code here.
-		b8 ctrl_held = input_is_key_down(KEY_LSUPER) || input_is_key_down(KEY_RSUPER);
+		b8 ctrl_held = input_is_key_down(K_KEY_LSUPER) || input_is_key_down(K_KEY_RSUPER);
 #else
-		b8 ctrl_held = input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL) || input_is_key_down(KEY_CONTROL);
+		b8 ctrl_held = input_is_key_down(K_KEY_LCONTROL) || input_is_key_down(K_KEY_RCONTROL) || input_is_key_down(K_KEY_CONTROL);
 #endif
 
 		const char *entry_control_text = kui_label_text_get(state, typed_data->content_label);
 		u32 len = string_length(entry_control_text);
-		if (key_code == KEY_BACKSPACE) {
+		if (key_code == K_KEY_BACKSPACE) {
 			if (len == 0) {
 				kui_label_text_set(state, typed_data->content_label, "");
 			} else if ((typed_data->cursor_position > 0 || typed_data->highlight_range.size > 0)) {
@@ -674,9 +674,9 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 				kfree((char *)str);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
-		} else if (key_code == KEY_DELETE) {
+		} else if (key_code == K_KEY_DELETE) {
 			kui_textbox_delete_at_cursor(state, typed_data->base.handle);
-		} else if (key_code == KEY_LEFT) {
+		} else if (key_code == K_KEY_LEFT) {
 			if (typed_data->cursor_position > 0) {
 				if (shift_held) {
 					if (typed_data->highlight_range.size == 0) {
@@ -701,7 +701,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 				kui_textbox_update_highlight_box(state, base);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
-		} else if (key_code == KEY_RIGHT) {
+		} else if (key_code == K_KEY_RIGHT) {
 			// NOTE: cursor position can go past the end of the str so backspacing works right.
 			if (typed_data->cursor_position < len) {
 				if (shift_held) {
@@ -728,7 +728,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 				kui_textbox_update_highlight_box(state, base);
 				kui_textbox_update_cursor_position(state, &typed_data->base);
 			}
-		} else if (key_code == KEY_HOME) {
+		} else if (key_code == K_KEY_HOME) {
 			if (shift_held) {
 				typed_data->highlight_range.offset = 0;
 				typed_data->highlight_range.size = typed_data->cursor_position;
@@ -739,7 +739,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 			typed_data->cursor_position = 0;
 			kui_textbox_update_highlight_box(state, base);
 			kui_textbox_update_cursor_position(state, &typed_data->base);
-		} else if (key_code == KEY_END) {
+		} else if (key_code == K_KEY_END) {
 			if (shift_held) {
 				typed_data->highlight_range.offset = typed_data->cursor_position;
 				typed_data->highlight_range.size = len - typed_data->cursor_position;
@@ -753,15 +753,15 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 		} else {
 			// Use A-Z and 0-9 as-is.
 			char char_code = key_code;
-			if ((key_code >= KEY_A && key_code <= KEY_Z)) {
+			if ((key_code >= K_KEY_A && key_code <= K_KEY_Z)) {
 				if (ctrl_held) {
-					if (key_code == KEY_A) {
+					if (key_code == K_KEY_A) {
 						char_code = 0;
 						kui_textbox_select_all(state, typed_data->base.handle);
 					}
 
 					// Paste
-					if (key_code == KEY_V) {
+					if (key_code == K_KEY_V) {
 						// Request a paste. This will consume the event.
 						event_register_single(EVENT_CODE_CLIPBOARD_PASTE, &typed_data->base, kui_textbox_on_paste);
 						platform_request_clipboard_content(engine_active_window_get());
@@ -769,7 +769,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 					}
 
 					// Copy/cut
-					if (key_code == KEY_C || key_code == KEY_X) {
+					if (key_code == K_KEY_C || key_code == K_KEY_X) {
 						if (typed_data->highlight_range.size > 0) {
 
 							// Copy the selected text to the clipboard, if any is selected.
@@ -785,7 +785,7 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 							platform_clipboard_content_set(engine_active_window_get(), KCLIPBOARD_CONTENT_TYPE_STRING, hl->size + 1, buf);
 
 							// If cutting, remove the selected text from the textbox.
-							if (key_code == KEY_X) {
+							if (key_code == K_KEY_X) {
 								kui_textbox_delete_at_cursor(state, typed_data->base.handle);
 							}
 						}
@@ -796,76 +796,76 @@ static b8 kui_textbox_on_key (u16 code, void *sender, void *listener_inst, event
 				if (!shift_held && !ctrl_held) {
 					char_code = key_code + 32;
 				}
-			} else if ((key_code >= KEY_0 && key_code <= KEY_9)) {
+			} else if ((key_code >= K_KEY_0 && key_code <= K_KEY_9)) {
 				if (shift_held) {
 					// NOTE: this handles US standard keyboard layouts.
 					// Will need to handle other layouts as well.
 					switch (key_code) {
-					case KEY_0:
+					case K_KEY_0:
 						char_code = ')';
 						break;
-					case KEY_1:
+					case K_KEY_1:
 						char_code = '!';
 						break;
-					case KEY_2:
+					case K_KEY_2:
 						char_code = '@';
 						break;
-					case KEY_3:
+					case K_KEY_3:
 						char_code = '#';
 						break;
-					case KEY_4:
+					case K_KEY_4:
 						char_code = '$';
 						break;
-					case KEY_5:
+					case K_KEY_5:
 						char_code = '%';
 						break;
-					case KEY_6:
+					case K_KEY_6:
 						char_code = '^';
 						break;
-					case KEY_7:
+					case K_KEY_7:
 						char_code = '&';
 						break;
-					case KEY_8:
+					case K_KEY_8:
 						char_code = '*';
 						break;
-					case KEY_9:
+					case K_KEY_9:
 						char_code = '(';
 						break;
 					}
 				}
 			} else {
 				switch (key_code) {
-				case KEY_SPACE:
+				case K_KEY_SPACE:
 					char_code = key_code;
 					break;
-				case KEY_MINUS:
+				case K_KEY_MINUS:
 					char_code = shift_held ? '_' : '-';
 					break;
-				case KEY_EQUAL:
+				case K_KEY_EQUAL:
 					char_code = shift_held ? '+' : '=';
 					break;
-				case KEY_PERIOD:
+				case K_KEY_PERIOD:
 					char_code = shift_held ? '>' : '.';
 					break;
-				case KEY_COMMA:
+				case K_KEY_COMMA:
 					char_code = shift_held ? '<' : ',';
 					break;
-				case KEY_SLASH:
+				case K_KEY_SLASH:
 					char_code = shift_held ? '?' : '/';
 					break;
-				case KEY_QUOTE:
+				case K_KEY_QUOTE:
 					char_code = shift_held ? '"' : '\'';
 					break;
-				case KEY_SEMICOLON:
+				case K_KEY_SEMICOLON:
 					char_code = shift_held ? ':' : ';';
 					break;
-				case KEY_LBRACKET:
+				case K_KEY_LBRACKET:
 					char_code = shift_held ? '{' : '[';
 					break;
-				case KEY_RBRACKET:
+				case K_KEY_RBRACKET:
 					char_code = shift_held ? '}' : ']';
 					break;
-				case KEY_BACKSLASH:
+				case K_KEY_BACKSLASH:
 					char_code = shift_held ? '|' : '\\';
 					break;
 

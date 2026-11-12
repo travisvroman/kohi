@@ -1491,39 +1491,39 @@ void editor_setup_keymaps (struct editor_state *state) {
 	keymap *km = &state->editor_keymap;
 	/* state->editor_keymap.overrides_all = true; */
 
-	keymap_binding_add(km, KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
-	keymap_binding_add(km, KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
+	keymap_binding_add(km, K_KEY_A, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
+	keymap_binding_add(km, K_KEY_LEFT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_LEFT);
 
-	keymap_binding_add(km, KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_RIGHT);
-	keymap_binding_add(km, KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_RIGHT);
+	keymap_binding_add(km, K_KEY_D, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_RIGHT);
+	keymap_binding_add(km, K_KEY_RIGHT, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_RIGHT);
 
-	keymap_binding_add(km, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_UP);
-	keymap_binding_add(km, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_DOWN);
+	keymap_binding_add(km, K_KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_UP);
+	keymap_binding_add(km, K_KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_LOOK_DOWN);
 
-	keymap_binding_add(km, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_FORWARD);
-	keymap_binding_add(km, KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, EDITOR_ACTION_SPRINT_FORWARD);
-	keymap_binding_add(km, KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_BACKWARD);
-	keymap_binding_add(km, KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_LEFT);
-	keymap_binding_add(km, KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_RIGHT);
-	keymap_binding_add(km, KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_UP);
-	keymap_binding_add(km, KEY_X, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_DOWN);
+	keymap_binding_add(km, K_KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_FORWARD);
+	keymap_binding_add(km, K_KEY_W, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_SHIFT_BIT, EDITOR_ACTION_SPRINT_FORWARD);
+	keymap_binding_add(km, K_KEY_S, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_BACKWARD);
+	keymap_binding_add(km, K_KEY_Q, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_LEFT);
+	keymap_binding_add(km, K_KEY_E, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_RIGHT);
+	keymap_binding_add(km, K_KEY_SPACE, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_UP);
+	keymap_binding_add(km, K_KEY_X, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_MOVE_DOWN);
 
-	keymap_binding_add(km, KEY_0, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_DEFAULT);
-	keymap_binding_add(km, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_LIGHTING);
-	keymap_binding_add(km, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_NORMALS);
-	keymap_binding_add(km, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_CASCADES);
-	keymap_binding_add(km, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_WIREFRAME);
+	keymap_binding_add(km, K_KEY_0, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_DEFAULT);
+	keymap_binding_add(km, K_KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_LIGHTING);
+	keymap_binding_add(km, K_KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_NORMALS);
+	keymap_binding_add(km, K_KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_CASCADES);
+	keymap_binding_add(km, K_KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_RENDER_MODE_WIREFRAME);
 
-	keymap_binding_add(km, KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_NONE);
-	keymap_binding_add(km, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_MOVE);
-	keymap_binding_add(km, KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_ROTATE);
-	keymap_binding_add(km, KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_SCALE);
-	keymap_binding_add(km, KEY_G, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_TOGGLE_ORIENTATION);
+	keymap_binding_add(km, K_KEY_1, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_NONE);
+	keymap_binding_add(km, K_KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_MOVE);
+	keymap_binding_add(km, K_KEY_3, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_ROTATE);
+	keymap_binding_add(km, K_KEY_4, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_MODE_SCALE);
+	keymap_binding_add(km, K_KEY_G, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_GIZMO_TOGGLE_ORIENTATION);
 
 	// ctrl s
-	keymap_binding_add(km, KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_SCENE_SAVE);
+	keymap_binding_add(km, K_KEY_S, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_CONTROL_BIT, EDITOR_ACTION_SCENE_SAVE);
 
-	keymap_binding_add(km, KEY_Z, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_ZOOM_EXTENTS);
+	keymap_binding_add(km, K_KEY_Z, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, EDITOR_ACTION_ZOOM_EXTENTS);
 }
 
 void editor_destroy_keymaps (struct editor_state *state) {
@@ -2730,7 +2730,7 @@ static b8 editor_on_button (u16 code, void *sender, void *listener_inst, event_c
 					rect_2di current_vp_rect = kcamera_get_vp_rect(state->editor_camera);
 
 					// Multi-select
-					b8 multiselect = (input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL));
+					b8 multiselect = (input_is_key_down(K_KEY_LCONTROL) || input_is_key_down(K_KEY_RCONTROL));
 
 					struct kscene *current_scene = state->edit_scene;
 					// Cast a ray into the scene and see if anything can be selected.
@@ -2797,7 +2797,7 @@ static void scene_name_textbox_on_key (kui_state *state, kui_control self, kui_k
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER) {
+		if (key_code == K_KEY_ENTER) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2831,7 +2831,7 @@ static void scene_fog_colour_textbox_on_key (kui_state *state, kui_control self,
 			KFATAL("Invalid control passed");
 		}
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2844,7 +2844,7 @@ static void scene_fog_colour_textbox_on_key (kui_state *state, kui_control self,
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, next_control);
 		}
 	}
@@ -2856,7 +2856,7 @@ static void entity_name_textbox_on_key (kui_state *state, kui_control self, kui_
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER) {
+		if (key_code == K_KEY_ENTER) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2872,7 +2872,7 @@ static void entity_position_x_textbox_on_key (kui_state *state, kui_control self
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2885,7 +2885,7 @@ static void entity_position_x_textbox_on_key (kui_state *state, kui_control self
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_position_y_textbox);
 		}
 	}
@@ -2896,7 +2896,7 @@ static void entity_position_y_textbox_on_key (kui_state *state, kui_control self
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2909,7 +2909,7 @@ static void entity_position_y_textbox_on_key (kui_state *state, kui_control self
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_position_z_textbox);
 		}
 	}
@@ -2920,7 +2920,7 @@ static void entity_position_z_textbox_on_key (kui_state *state, kui_control self
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2933,7 +2933,7 @@ static void entity_position_z_textbox_on_key (kui_state *state, kui_control self
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_position_x_textbox);
 		}
 	}
@@ -2945,7 +2945,7 @@ static void entity_orientation_x_textbox_on_key (kui_state *state, kui_control s
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2958,7 +2958,7 @@ static void entity_orientation_x_textbox_on_key (kui_state *state, kui_control s
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_orientation_y_textbox);
 		}
 	}
@@ -2969,7 +2969,7 @@ static void entity_orientation_y_textbox_on_key (kui_state *state, kui_control s
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -2982,7 +2982,7 @@ static void entity_orientation_y_textbox_on_key (kui_state *state, kui_control s
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_orientation_z_textbox);
 		}
 	}
@@ -2994,7 +2994,7 @@ static void entity_orientation_z_textbox_on_key (kui_state *state, kui_control s
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3007,7 +3007,7 @@ static void entity_orientation_z_textbox_on_key (kui_state *state, kui_control s
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_orientation_w_textbox);
 		}
 	}
@@ -3019,7 +3019,7 @@ static void entity_orientation_w_textbox_on_key (kui_state *state, kui_control s
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3032,7 +3032,7 @@ static void entity_orientation_w_textbox_on_key (kui_state *state, kui_control s
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_orientation_x_textbox);
 		}
 	}
@@ -3044,7 +3044,7 @@ static void entity_scale_x_textbox_on_key (kui_state *state, kui_control self, k
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3057,7 +3057,7 @@ static void entity_scale_x_textbox_on_key (kui_state *state, kui_control self, k
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_scale_y_textbox);
 		}
 	}
@@ -3068,7 +3068,7 @@ static void entity_scale_y_textbox_on_key (kui_state *state, kui_control self, k
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3081,7 +3081,7 @@ static void entity_scale_y_textbox_on_key (kui_state *state, kui_control self, k
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_scale_z_textbox);
 		}
 	}
@@ -3092,7 +3092,7 @@ static void entity_scale_z_textbox_on_key (kui_state *state, kui_control self, k
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3105,7 +3105,7 @@ static void entity_scale_z_textbox_on_key (kui_state *state, kui_control self, k
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->entity_scale_x_textbox);
 		}
 	}
@@ -3326,7 +3326,7 @@ static void hft_elevation_diameter_textbox_on_key (kui_state *state, kui_control
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3337,7 +3337,7 @@ static void hft_elevation_diameter_textbox_on_key (kui_state *state, kui_control
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->hft_elevation_amount_textbox);
 		}
 	}
@@ -3348,7 +3348,7 @@ static void hft_elevation_amount_textbox_on_key (kui_state *state, kui_control s
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3359,7 +3359,7 @@ static void hft_elevation_amount_textbox_on_key (kui_state *state, kui_control s
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->hft_elevation_diameter_textbox);
 		}
 	}
@@ -3445,7 +3445,7 @@ static void hft_chunk_material_textbox_on_key (kui_state *state, kui_control sel
 
 		hf_terrain_chunk_material_context *context = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3460,7 +3460,7 @@ static void hft_chunk_material_textbox_on_key (kui_state *state, kui_control sel
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			// TODO: focus next control
 			/* kui_system_focus_control(state, editor->hft_elevation_diameter_textbox); */
 		}
@@ -3532,7 +3532,7 @@ static void hft_paint_brush_diameter_textbox_on_key (kui_state *state, kui_contr
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3543,7 +3543,7 @@ static void hft_paint_brush_diameter_textbox_on_key (kui_state *state, kui_contr
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->hft_paint_brush_strength_textbox);
 		}
 	}
@@ -3554,7 +3554,7 @@ static void hft_paint_brush_strength_textbox_on_key (kui_state *state, kui_contr
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER || key_code == KEY_TAB) {
+		if (key_code == K_KEY_ENTER || key_code == K_KEY_TAB) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {
@@ -3569,7 +3569,7 @@ static void hft_paint_brush_strength_textbox_on_key (kui_state *state, kui_contr
 				}
 			}
 		}
-		if (key_code == KEY_TAB) {
+		if (key_code == K_KEY_TAB) {
 			kui_system_focus_control(state, editor->hft_paint_brush_diameter_textbox);
 		}
 	}
@@ -3580,7 +3580,7 @@ static void hft_paint_material_index_textbox_on_key (kui_state *state, kui_contr
 
 		editor_state *editor = kui_control_get_user_data(state, self);
 
-		if (key_code == KEY_ENTER) {
+		if (key_code == K_KEY_ENTER) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {

@@ -11,6 +11,9 @@
 // #include <xcb/xproto.h>
 #	define _POSIX_C_SOURCE 200809L
 
+// For realpath
+#	define _XOPEN_SOURCE 700
+
 #	ifndef XRANDR_ROTATION_LEFT
 #		define XRANDR_ROTATION_LEFT (1 << 1)
 #	endif
@@ -60,6 +63,15 @@
 #	include <dbus/dbus.h>
 #	include <dbus/dbus-protocol.h>
 
+// For gamepad support.
+#	include <linux/input-event-codes.h>
+#	include <linux/input.h>
+#	ifndef __USE_UNIX98
+#		define __USE_UNIX98
+#	endif
+#	include <bits/pthreadtypes.h>
+#	include <pthread.h>
+
 #	include "defines.h"
 #	include "containers/darray.h"
 #	include "debug/kassert.h"
@@ -68,6 +80,7 @@
 #	include "memory/kmemory.h"
 #	include "strings/kstring.h"
 #	include "platform/syscall_nix.h"
+#	include "math/kmath.h"
 
 #	include "kfeatures_runtime.h"
 
@@ -154,6 +167,86 @@ typedef void (*PFN_dbus_message_iter_get_basic)(DBusMessageIter *iter, void *val
 			return false;                                                                \
 		}
 
+// NOTE: to trace gamepad threading/mutex issues, uncomment the below line.
+/* #define TRACE_GAMEPAD_THREADING 1 */
+
+typedef enum platform_gamepad_event_type {
+	PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_ATTACHED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_DETACHED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_PRESSED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_RELEASED,
+	PLATFORM_GAMEPAD_EVENT_TYPE_AXIS_CHANGED
+} platform_gamepad_event_type;
+
+typedef struct platform_gamepad_event_data {
+	gamepad_button button;
+	gamepad_axis axis;
+	u8 device_id;
+	b8 is_down;
+	u8 unused;
+	f32 timestamp;
+	f32 value;
+	f32 last_value;
+} platform_gamepad_event_data;
+
+typedef struct platform_gamepad_event {
+	u32 device_id;
+	platform_gamepad_event_type type;
+	platform_gamepad_event_data data;
+} platform_gamepad_event;
+
+#	define PLATFORM_GAMEPAD_MAX_AXES 128
+#	define PLATFORM_GAMEPAD_MAX_BUTTONS 128
+
+typedef struct platform_gamepad_device {
+	u32 device_id;
+	const char *description;
+	i32 vendor_id;
+	i32 product_id;
+	u8 axis_count;
+	u8 button_count;
+	f32 axis_states[PLATFORM_GAMEPAD_MAX_AXES];
+	// Bit flags - 1 = pressed, 0 = released.
+	u32 button_states;
+
+	pthread_t thread;
+	i32 fd;
+	// evdev path
+	char *path;
+	// input path
+	char *input_path;
+	char *input_name;
+	// Driver button codes to internally-kept codes (which are indices into button_states)
+	i32 button_map[KEY_CNT - BTN_MISC];
+	i32 axis_map[ABS_CNT];
+	struct input_absinfo axis_info[ABS_CNT];
+} platform_gamepad_device;
+
+typedef enum platform_gamepad_state_flags {
+	PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT = 0x01,
+	PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT = 0x02,
+} platform_gamepad_state_flags;
+
+typedef u32 platform_gamepad_state_flag_bits;
+
+typedef struct __attribute__((aligned(8))) platform_gamepad_state {
+	// NOTE: Putting these first since the alignment here matters for mutexes.
+	pthread_mutex_t devices_mutex;
+	pthread_mutex_t event_queue_mutex;
+
+	// darray
+	platform_gamepad_device **devices;
+	u32 next_device_id;
+	time_t last_input_stat_time;
+
+	// darray
+	platform_gamepad_event *event_queue;
+
+	platform_gamepad_state_flag_bits flags;
+
+	f64 start_time;
+} platform_gamepad_state;
+
 typedef struct platform_state {
 	Display *display;
 	linux_handle_info handle;
@@ -174,6 +267,8 @@ typedef struct platform_state {
 	platform_process_mouse_move process_mouse_move;
 	platform_process_mouse_wheel process_mouse_wheel;
 	platform_clipboard_on_paste_callback on_paste;
+
+	platform_gamepad_callbacks gamepad_callbacks;
 
 	u8 last_keycode;
 	u32 last_key_time;
@@ -204,6 +299,8 @@ typedef struct platform_state {
 	KDECLARE_DBUS_PFN (dbus_message_iter_recurse);
 	KDECLARE_DBUS_PFN (dbus_message_iter_get_arg_type);
 	KDECLARE_DBUS_PFN (dbus_message_iter_get_basic);
+
+	platform_gamepad_state *gamepad_state;
 } platform_state;
 
 typedef struct ofd_file_filter {
@@ -212,7 +309,7 @@ typedef struct ofd_file_filter {
 	u64 pattern_count;
 } ofd_file_filter;
 
-static platform_state *state_ptr;
+static platform_state *state_ptr = KNULL;
 
 static void platform_update_watches (void);
 static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev);
@@ -293,6 +390,20 @@ static b8 enable_detectable_autorepeat (xcb_connection_t *conn) {
 	free(pfr);
 	return turned_on;
 }
+
+#	define test_bit(idx, array) ((array[(idx) / (sizeof(i32) * 8)] >> ((idx) % (sizeof(i32) * 8))) & 0x1)
+
+static void detect_gamepad_devices (struct platform_state *state);
+static void *gamepad_device_thread_do_work (void *context);
+static void gamepad_queue_event (u32 device_id, platform_gamepad_event_type type, platform_gamepad_event_data event_data);
+static void gamepad_queue_axis_event (platform_gamepad_device *device, f32 timestamp, gamepad_axis axis, f32 value, f32 last_value);
+static void gamepad_queue_button_event (platform_gamepad_device *device, f32 timestamp, gamepad_button button, b8 is_down);
+static void process_gamepad_events (platform_state *state);
+static void cleanup_gamepad_device (u32 device_id);
+static platform_gamepad_device *get_gamepad_device_by_id (u32 device_id);
+static gamepad_axis gamepad_get_axis (u16 vendor_id, u16 product_id, u8 axis_id);
+static gamepad_button gamepad_get_button (u16 vendor_id, u16 product_id, u32 button_id);
+static b8 gamepad_try_set_player_index_led (platform_gamepad_device *device, i32 index);
 
 b8 platform_system_startup (u64 *memory_requirement, struct platform_state *state, platform_system_config *config) {
 	*memory_requirement = sizeof(platform_state);
@@ -375,11 +486,36 @@ b8 platform_system_startup (u64 *memory_requirement, struct platform_state *stat
 		KERROR("Linux platform error: Unable to load sd-bus. Some platform functions (such as browsing for files) may not be available.");
 	}
 
+	// Gamepad initialization is called later via platform_gamepads_initialize().
+	state->gamepad_state = kallocate_aligned(sizeof(platform_gamepad_state), 8, MEMORY_TAG_PLATFORM);
+	kzero_memory(state->gamepad_state, sizeof(platform_gamepad_state));
+
 	return true;
 }
 
 void platform_system_shutdown (struct platform_state *state) {
 	if (state) {
+		// Gamepad shutdown.
+		kzero_memory(&state->gamepad_callbacks, sizeof(state->gamepad_callbacks));
+		if (FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+
+			pthread_mutex_lock(&state->gamepad_state->devices_mutex);
+			u32 device_count = darray_length(state->gamepad_state->devices);
+			for (u32 i = 0; i < device_count; ++i) {
+				platform_gamepad_device *device = state->gamepad_state->devices[i];
+				pthread_cancel(device->thread);
+				pthread_join(device->thread, KNULL);
+				cleanup_gamepad_device(device->device_id);
+			}
+			pthread_mutex_unlock(&state->gamepad_state->devices_mutex);
+
+			pthread_mutex_destroy(&state->gamepad_state->devices_mutex);
+			pthread_mutex_destroy(&state->gamepad_state->event_queue_mutex);
+			darray_destroy(state->gamepad_state->devices);
+
+			kzero_memory(state->gamepad_state, sizeof(*state->gamepad_state));
+		}
+
 		if (state->windows) {
 			u32 len = darray_length(state->windows);
 			for (u32 i = 0; i < len; ++i) {
@@ -736,7 +872,13 @@ b8 platform_pump_messages (void) {
 
 		// Poll for events until null is returned.
 		while ((event = xcb_poll_for_event(state_ptr->handle.connection))) {
-			// Input events
+			// Input events - The reason for the & ~0x80 being done on X11 events is that
+			// every event has an 8bit code, and the most significant bit in the code is set
+			// if the event was generated from a SendEvent request
+			// (like from a window manager vs the X server itself.)
+			// & ~0x80 = 0111 1111, so anding it to the event clears that top bit ensuring
+			// the event code will always match regardless of the event's origin.
+			// Perhaps just anding by 0x7F would be better?
 			switch (event->response_type & ~0x80) {
 			case XCB_KEY_PRESS:
 			case XCB_KEY_RELEASE: {
@@ -1001,8 +1143,19 @@ b8 platform_pump_messages (void) {
 		// Update watches.
 		platform_update_watches();
 
+		// Check every so often for new controllers.
+		static u32 next_poll = 30;
+		next_poll--;
+		if (next_poll == 0) {
+			detect_gamepad_devices(state_ptr);
+			next_poll = 30;
+		}
+
+		// Also process gamepad events.
+		process_gamepad_events(state_ptr);
+
 		return !quit_flagged;
-	}
+	};
 	return true;
 }
 
@@ -1114,6 +1267,10 @@ void platform_register_process_mouse_wheel_callback (platform_process_mouse_whee
 }
 void platform_register_clipboard_paste_callback (platform_clipboard_on_paste_callback callback) {
 	state_ptr->on_paste = callback;
+}
+
+void platform_register_gamepad_callbacks (platform_gamepad_callbacks callbacks) {
+	state_ptr->gamepad_callbacks = callbacks;
 }
 
 platform_error_code platform_copy_file (const char *source, const char *dest, b8 overwrite_if_exists) {
@@ -2095,6 +2252,143 @@ ofd_open_cleanup:
 	return result;
 }
 
+// NOTE: gamepad functions
+void platform_gamepads_initialize (void) {
+	platform_state *state = state_ptr;
+	state->gamepad_state->devices = darray_reserve(platform_gamepad_device *, 4);
+	state->gamepad_state->event_queue = darray_reserve(platform_gamepad_event, 64);
+#	if 1
+	pthread_mutexattr_t recursive_lock;
+	pthread_mutexattr_init(&recursive_lock);
+	pthread_mutexattr_settype(&recursive_lock, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&state->gamepad_state->devices_mutex, &recursive_lock);
+	pthread_mutex_init(&state->gamepad_state->event_queue_mutex, &recursive_lock);
+	pthread_mutexattr_destroy(&recursive_lock);
+#	else
+	pthread_mutex_init(&state->gamepad_state->devices_mutex, 0);
+	pthread_mutex_init(&state->gamepad_state->event_queue_mutex, 0);
+#	endif
+
+	// NOTE: using CLOCK_MONOTONIC here because platform_get_absolute_time uses CLOCK_MONOTONIC_RAW which has a
+	// different epoch.
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	state->gamepad_state->start_time = (f64)now.tv_sec + (f64)now.tv_nsec * 0.000000001;
+
+	FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT, true);
+	KINFO("Initializing gamepads at the platform level...");
+	detect_gamepad_devices(state);
+}
+
+u32 platform_gamepad_device_count (void) {
+	pthread_mutex_lock(&state_ptr->gamepad_state->devices_mutex);
+	u32 count = darray_length(state_ptr->gamepad_state->devices);
+	pthread_mutex_unlock(&state_ptr->gamepad_state->devices_mutex);
+	return count;
+}
+
+b8 platform_gamepad_get_device_info (u32 device_id, i32 *out_vendor_id, i32 *out_product_id, u32 *out_button_count, u32 *out_axis_count) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	pthread_mutex_lock(&state_ptr->gamepad_state->devices_mutex);
+	if (out_vendor_id) {
+		*out_vendor_id = device->vendor_id;
+	}
+	if (out_product_id) {
+		*out_product_id = device->product_id;
+	}
+	if (out_button_count) {
+		*out_button_count = device->button_count;
+	}
+	if (out_axis_count) {
+		*out_axis_count = device->axis_count;
+	}
+	pthread_mutex_unlock(&state_ptr->gamepad_state->devices_mutex);
+
+	return true;
+}
+
+const char *platform_gamepad_get_device_desc (u32 device_id) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return KNULL;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return KNULL;
+	}
+
+	return string_duplicate(device->description);
+}
+
+// index must be [0-3]. Otherwise will be ignored. Returns true if set successfully; otherwise false.
+b8 platform_gamepad_set_device_player_index (u32 device_id, u8 player_index) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	if (player_index < 0 || player_index > 3) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	if (device->input_path != KNULL && device->input_name != KNULL) {
+		if (!gamepad_try_set_player_index_led(device, player_index)) {
+			KWARN("Failed to set LED player index for gamepad '%s'. Numeric index still set though.", device->description);
+		}
+	}
+
+	return true;
+}
+
+b8 platform_gamepad_is_button_pressed (u32 device_id, gamepad_button button) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	return FLAG_GET(device->button_states, button);
+}
+
+f32 platform_gamepad_get_axis_state (u32 device_id, gamepad_axis axis) {
+	if (!FLAG_GET(state_ptr->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return false;
+	}
+
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (!device) {
+		return false;
+	}
+
+	return device->axis_states[axis];
+}
+
+b8 platform_initialize_input (void) {
+	platform_state *state = state_ptr;
+	if (!state) {
+		return false;
+	}
+	// TODO: initialize keyboard and mouse devices. Gamepads handled separately.
+	KINFO("GNU/Linux platform input initialized.");
+
+	return true;
+}
+
 // NOTE: syscall implementation
 i64 syscall2 (i64 number, i64 arg0, i64 arg1) {
 	i64 ret;
@@ -2209,301 +2503,301 @@ static b8 key_is_repeat (platform_state *state, const xcb_key_press_event_t *ev)
 static keys translate_keycode (u32 x_keycode) {
 	switch (x_keycode) {
 	case XK_BackSpace:
-		return KEY_BACKSPACE;
+		return K_KEY_BACKSPACE;
 	case XK_Return:
-		return KEY_ENTER;
+		return K_KEY_ENTER;
 	case XK_Tab:
-		return KEY_TAB;
-		// case XK_Shift: return KEY_SHIFT;
-		// case XK_Control: return KEY_CONTROL;
+		return K_KEY_TAB;
+		// case XK_Shift: return K_KEY_SHIFT;
+		// case XK_Control: return K_KEY_CONTROL;
 
 	case XK_Pause:
-		return KEY_PAUSE;
+		return K_KEY_PAUSE;
 	case XK_Caps_Lock:
-		return KEY_CAPITAL;
+		return K_KEY_CAPITAL;
 
 	case XK_Escape:
-		return KEY_ESCAPE;
+		return K_KEY_ESCAPE;
 
 		// Not supported
-		// case : return KEY_CONVERT;
-		// case : return KEY_NONCONVERT;
-		// case : return KEY_ACCEPT;
+		// case : return K_KEY_CONVERT;
+		// case : return K_KEY_NONCONVERT;
+		// case : return K_KEY_ACCEPT;
 
 	case XK_Mode_switch:
-		return KEY_MODECHANGE;
+		return K_KEY_MODECHANGE;
 
 	case XK_space:
-		return KEY_SPACE;
+		return K_KEY_SPACE;
 	case XK_Prior:
-		return KEY_PAGEUP;
+		return K_KEY_PAGEUP;
 	case XK_Next:
-		return KEY_PAGEDOWN;
+		return K_KEY_PAGEDOWN;
 	case XK_End:
-		return KEY_END;
+		return K_KEY_END;
 	case XK_Home:
-		return KEY_HOME;
+		return K_KEY_HOME;
 	case XK_Left:
-		return KEY_LEFT;
+		return K_KEY_LEFT;
 	case XK_Up:
-		return KEY_UP;
+		return K_KEY_UP;
 	case XK_Right:
-		return KEY_RIGHT;
+		return K_KEY_RIGHT;
 	case XK_Down:
-		return KEY_DOWN;
+		return K_KEY_DOWN;
 	case XK_Select:
-		return KEY_SELECT;
+		return K_KEY_SELECT;
 	case XK_Print:
-		return KEY_PRINT;
+		return K_KEY_PRINT;
 	case XK_Execute:
-		return KEY_EXECUTE;
-	// case XK_snapshot: return KEY_SNAPSHOT; // not supported
+		return K_KEY_EXECUTE;
+	// case XK_snapshot: return K_KEY_SNAPSHOT; // not supported
 	case XK_Insert:
-		return KEY_INSERT;
+		return K_KEY_INSERT;
 	case XK_Delete:
-		return KEY_DELETE;
+		return K_KEY_DELETE;
 	case XK_Help:
-		return KEY_HELP;
+		return K_KEY_HELP;
 
 	case XK_Meta_L:
 	case XK_Super_L:
 		// Treat the "meta" key (if mapped) as super
-		return KEY_LSUPER;
+		return K_KEY_LSUPER;
 	case XK_Meta_R:
 	case XK_Super_R:
 		// Treat the "meta" key (if mapped) as super
-		return KEY_RSUPER;
-		// case XK_apps: return KEY_APPS; // not supported
+		return K_KEY_RSUPER;
+		// case XK_apps: return K_KEY_APPS; // not supported
 
-		// case XK_sleep: return KEY_SLEEP; //not supported
+		// case XK_sleep: return K_KEY_SLEEP; //not supported
 
 	case XK_KP_0:
-		return KEY_NUMPAD0;
+		return K_KEY_NUMPAD0;
 	case XK_KP_1:
-		return KEY_NUMPAD1;
+		return K_KEY_NUMPAD1;
 	case XK_KP_2:
-		return KEY_NUMPAD2;
+		return K_KEY_NUMPAD2;
 	case XK_KP_3:
-		return KEY_NUMPAD3;
+		return K_KEY_NUMPAD3;
 	case XK_KP_4:
-		return KEY_NUMPAD4;
+		return K_KEY_NUMPAD4;
 	case XK_KP_5:
-		return KEY_NUMPAD5;
+		return K_KEY_NUMPAD5;
 	case XK_KP_6:
-		return KEY_NUMPAD6;
+		return K_KEY_NUMPAD6;
 	case XK_KP_7:
-		return KEY_NUMPAD7;
+		return K_KEY_NUMPAD7;
 	case XK_KP_8:
-		return KEY_NUMPAD8;
+		return K_KEY_NUMPAD8;
 	case XK_KP_9:
-		return KEY_NUMPAD9;
+		return K_KEY_NUMPAD9;
 	case XK_multiply:
-		return KEY_MULTIPLY;
+		return K_KEY_MULTIPLY;
 	case XK_KP_Add:
-		return KEY_ADD;
+		return K_KEY_ADD;
 	case XK_KP_Separator:
-		return KEY_SEPARATOR;
+		return K_KEY_SEPARATOR;
 	case XK_KP_Subtract:
-		return KEY_SUBTRACT;
+		return K_KEY_SUBTRACT;
 	case XK_KP_Decimal:
-		return KEY_DECIMAL;
+		return K_KEY_DECIMAL;
 	case XK_KP_Divide:
-		return KEY_DIVIDE;
+		return K_KEY_DIVIDE;
 	case XK_F1:
-		return KEY_F1;
+		return K_KEY_F1;
 	case XK_F2:
-		return KEY_F2;
+		return K_KEY_F2;
 	case XK_F3:
-		return KEY_F3;
+		return K_KEY_F3;
 	case XK_F4:
-		return KEY_F4;
+		return K_KEY_F4;
 	case XK_F5:
-		return KEY_F5;
+		return K_KEY_F5;
 	case XK_F6:
-		return KEY_F6;
+		return K_KEY_F6;
 	case XK_F7:
-		return KEY_F7;
+		return K_KEY_F7;
 	case XK_F8:
-		return KEY_F8;
+		return K_KEY_F8;
 	case XK_F9:
-		return KEY_F9;
+		return K_KEY_F9;
 	case XK_F10:
-		return KEY_F10;
+		return K_KEY_F10;
 	case XK_F11:
-		return KEY_F11;
+		return K_KEY_F11;
 	case XK_F12:
-		return KEY_F12;
+		return K_KEY_F12;
 	case XK_F13:
-		return KEY_F13;
+		return K_KEY_F13;
 	case XK_F14:
-		return KEY_F14;
+		return K_KEY_F14;
 	case XK_F15:
-		return KEY_F15;
+		return K_KEY_F15;
 	case XK_F16:
-		return KEY_F16;
+		return K_KEY_F16;
 	case XK_F17:
-		return KEY_F17;
+		return K_KEY_F17;
 	case XK_F18:
-		return KEY_F18;
+		return K_KEY_F18;
 	case XK_F19:
-		return KEY_F19;
+		return K_KEY_F19;
 	case XK_F20:
-		return KEY_F20;
+		return K_KEY_F20;
 	case XK_F21:
-		return KEY_F21;
+		return K_KEY_F21;
 	case XK_F22:
-		return KEY_F22;
+		return K_KEY_F22;
 	case XK_F23:
-		return KEY_F23;
+		return K_KEY_F23;
 	case XK_F24:
-		return KEY_F24;
+		return K_KEY_F24;
 
 	case XK_Num_Lock:
-		return KEY_NUMLOCK;
+		return K_KEY_NUMLOCK;
 	case XK_Scroll_Lock:
-		return KEY_SCROLL;
+		return K_KEY_SCROLL;
 
 	case XK_KP_Equal:
-		return KEY_NUMPAD_EQUAL;
+		return K_KEY_NUMPAD_EQUAL;
 
 	case XK_Shift_L:
-		return KEY_LSHIFT;
+		return K_KEY_LSHIFT;
 	case XK_Shift_R:
-		return KEY_RSHIFT;
+		return K_KEY_RSHIFT;
 	case XK_Control_L:
-		return KEY_LCONTROL;
+		return K_KEY_LCONTROL;
 	case XK_Control_R:
-		return KEY_RCONTROL;
+		return K_KEY_RCONTROL;
 	case XK_Alt_L:
-		return KEY_LALT;
+		return K_KEY_LALT;
 	case XK_Alt_R:
-		return KEY_RALT;
+		return K_KEY_RALT;
 
 	case XK_semicolon:
-		return KEY_SEMICOLON;
+		return K_KEY_SEMICOLON;
 	case XK_equal:
-		return KEY_EQUAL;
+		return K_KEY_EQUAL;
 	case XK_comma:
-		return KEY_COMMA;
+		return K_KEY_COMMA;
 	case XK_minus:
-		return KEY_MINUS;
+		return K_KEY_MINUS;
 	case XK_period:
-		return KEY_PERIOD;
+		return K_KEY_PERIOD;
 	case XK_slash:
-		return KEY_SLASH;
+		return K_KEY_SLASH;
 	case XK_grave:
-		return KEY_GRAVE;
+		return K_KEY_GRAVE;
 	case XK_bracketleft:
-		return KEY_LBRACKET;
+		return K_KEY_LBRACKET;
 	case XK_bracketright:
-		return KEY_RBRACKET;
+		return K_KEY_RBRACKET;
 	case XK_quotedbl:
 	case XK_quoteright:
 		// case XK_quoteleft: // NOTE: for some reason this code is the same as XK_grave???
 		// NOTE: Both of these are required since either can technically show up for this keypress,
-		return KEY_QUOTE;
+		return K_KEY_QUOTE;
 	case XK_backslash:
-		return KEY_BACKSLASH;
+		return K_KEY_BACKSLASH;
 
 	case XK_0:
-		return KEY_0;
+		return K_KEY_0;
 	case XK_1:
-		return KEY_1;
+		return K_KEY_1;
 	case XK_2:
-		return KEY_2;
+		return K_KEY_2;
 	case XK_3:
-		return KEY_3;
+		return K_KEY_3;
 	case XK_4:
-		return KEY_4;
+		return K_KEY_4;
 	case XK_5:
-		return KEY_5;
+		return K_KEY_5;
 	case XK_6:
-		return KEY_6;
+		return K_KEY_6;
 	case XK_7:
-		return KEY_7;
+		return K_KEY_7;
 	case XK_8:
-		return KEY_8;
+		return K_KEY_8;
 	case XK_9:
-		return KEY_9;
+		return K_KEY_9;
 
 	case XK_a:
 	case XK_A:
-		return KEY_A;
+		return K_KEY_A;
 	case XK_b:
 	case XK_B:
-		return KEY_B;
+		return K_KEY_B;
 	case XK_c:
 	case XK_C:
-		return KEY_C;
+		return K_KEY_C;
 	case XK_d:
 	case XK_D:
-		return KEY_D;
+		return K_KEY_D;
 	case XK_e:
 	case XK_E:
-		return KEY_E;
+		return K_KEY_E;
 	case XK_f:
 	case XK_F:
-		return KEY_F;
+		return K_KEY_F;
 	case XK_g:
 	case XK_G:
-		return KEY_G;
+		return K_KEY_G;
 	case XK_h:
 	case XK_H:
-		return KEY_H;
+		return K_KEY_H;
 	case XK_i:
 	case XK_I:
-		return KEY_I;
+		return K_KEY_I;
 	case XK_j:
 	case XK_J:
-		return KEY_J;
+		return K_KEY_J;
 	case XK_k:
 	case XK_K:
-		return KEY_K;
+		return K_KEY_K;
 	case XK_l:
 	case XK_L:
-		return KEY_L;
+		return K_KEY_L;
 	case XK_m:
 	case XK_M:
-		return KEY_M;
+		return K_KEY_M;
 	case XK_n:
 	case XK_N:
-		return KEY_N;
+		return K_KEY_N;
 	case XK_o:
 	case XK_O:
-		return KEY_O;
+		return K_KEY_O;
 	case XK_p:
 	case XK_P:
-		return KEY_P;
+		return K_KEY_P;
 	case XK_q:
 	case XK_Q:
-		return KEY_Q;
+		return K_KEY_Q;
 	case XK_r:
 	case XK_R:
-		return KEY_R;
+		return K_KEY_R;
 	case XK_s:
 	case XK_S:
-		return KEY_S;
+		return K_KEY_S;
 	case XK_t:
 	case XK_T:
-		return KEY_T;
+		return K_KEY_T;
 	case XK_u:
 	case XK_U:
-		return KEY_U;
+		return K_KEY_U;
 	case XK_v:
 	case XK_V:
-		return KEY_V;
+		return K_KEY_V;
 	case XK_w:
 	case XK_W:
-		return KEY_W;
+		return K_KEY_W;
 	case XK_x:
 	case XK_X:
-		return KEY_X;
+		return K_KEY_X;
 	case XK_y:
 	case XK_Y:
-		return KEY_Y;
+		return K_KEY_Y;
 	case XK_z:
 	case XK_Z:
-		return KEY_Z;
+		return K_KEY_Z;
 
 	default:
 		return 0;
@@ -2772,6 +3066,1115 @@ extract_selected_path_cleanup:
 	}
 
 	return out_paths;
+}
+
+static b8 path_is_ancestor (const char *parent, const char *child) {
+	u32 len = string_length(parent);
+
+	return strings_nequal(parent, child, len) && (child[len] == '\0' || child[len] == '/');
+}
+
+static b8 write_sysfs (const char *path, u32 value) {
+	i32 fd = open(path, O_WRONLY | O_CLOEXEC);
+	if (fd < 0) {
+		KDEBUG("Failed to open LED: %s\n", path);
+		if (errno == EACCES || errno == EPERM) {
+			KDEBUG("Insufficient access to brightness controls.");
+		} else {
+			KDEBUG("errno: %d (%s)\n", errno, strerror(errno));
+		}
+		return false;
+	}
+
+	char buffer[16];
+	i64 len = snprintf(buffer, sizeof(buffer), "%u\n", value);
+	i64 written = write(fd, buffer, (u64)len);
+	close(fd);
+
+	return written == len;
+}
+
+#	define SYSFS_INPUT "/sys/class/input"
+#	define SYSFS_LEDS "/sys/class/leds"
+
+// Resolves an evdev path to it's corresponding input device.
+//
+// ex: /dev/input/event5 -> /sys/devices/.../input/input12
+//
+// Also returns the input device name (ex: input12)
+static b8 get_input_device_path (const char *evdev_path, char **out_path, char **out_name) {
+	char event_name[NAME_MAX];
+	char path[PATH_MAX];
+	char *name;
+	char *slash;
+
+	name = strrchr(evdev_path, '/');
+	name = name ? name + 1 : (char *)evdev_path;
+
+	if (!strings_nequal(name, "event", 5)) {
+		return false;
+	}
+
+	if (ksnprintf(path, sizeof(path), SYSFS_INPUT "/%s/device", name) >= (i32)sizeof(path)) {
+		return false;
+	}
+
+	*out_path = realpath(path, *out_path);
+	if (!out_path) {
+		return false;
+	}
+
+	slash = strrchr(*out_path, '/');
+	if (!slash) {
+		return false;
+	}
+
+	name = slash + 1;
+
+	*out_name = string_duplicate(name);
+
+	(void)event_name;
+
+	return true;
+}
+
+static b8 sixaxis_get_led_device_path (const char *evdev_path, char **out_path, u32 index) {
+	char path[PATH_MAX];
+	char *name;
+
+	name = strrchr(evdev_path, '/');
+	name = name ? name + 1 : (char *)evdev_path;
+
+	if (ksnprintf(path, sizeof(path), SYSFS_INPUT "/%s/device", name) >= (i32)sizeof(path)) {
+		return false;
+	}
+
+	char *chopped_name = realpath(path, KNULL);
+	if (!out_path) {
+		return false;
+	}
+
+	// Get the slash just before the device name.
+	i32 last_slash = string_last_index_of(chopped_name, '/');
+	string_mid(chopped_name, chopped_name, last_slash + 1, -1);
+	*out_path = string_format("/sys/class/leds/%s::sony%u/brightness", chopped_name, index);
+
+	return true;
+}
+
+// Returns an xpad LED brightness sfs path belonging to the given input device.
+// Returns KNULL on error.
+static const char *find_xpad_led (const char *input_path) {
+	DIR *dir = opendir(SYSFS_LEDS);
+	if (!dir) {
+		return KNULL;
+	}
+
+	struct dirent *entry;
+	char device_path[PATH_MAX];
+	char resolved_path[PATH_MAX];
+	while ((entry = readdir(dir)) != KNULL) {
+		if (!strings_nequal(entry->d_name, "xpad", 4)) {
+			continue;
+		}
+
+		if (ksnprintf(device_path, sizeof(device_path), SYSFS_LEDS "/%s/device", entry->d_name) >= (i32)sizeof(device_path)) {
+			continue;
+		}
+
+		if (!realpath(device_path, resolved_path)) {
+			continue;
+		}
+
+		const char *out_path = string_format(SYSFS_LEDS "/%s/brightness", entry->d_name);
+
+		closedir(dir);
+
+		return out_path;
+	}
+
+	closedir(dir);
+	return KNULL;
+}
+
+// xpad devices
+/**
+ * xpad LED brightness commands:
+ * 0 = off
+ * 6 = player 1
+ * 7 = player 2
+ * 8 = player 3
+ * 9 = player 4
+ */
+static b8 xpad_set_player_index (const char *input_path, i32 index) {
+	const char *led_path = find_xpad_led(input_path);
+	if (led_path == KNULL) {
+		return false;
+	}
+
+	u32 command = index < 0 ? 0 : (u32)(6 + index);
+
+	b8 result = write_sysfs(led_path, command);
+	string_free(led_path);
+	return result;
+}
+
+/**
+ * DualShock 4 (PS4) has an RGB lightbar, not separate LEDs.
+ *
+ * inputN:red
+ * inputN:green
+ * inputN:blue
+ * inputN:global (enables/disables the light bar)
+ */
+static b8 dualshock4_set_player_index (const char *input_name, i32 index) {
+	static const u8 colours[4][3] = {
+		{0x00, 0x00, 0x40}, // Player 1 = blue
+		{0x40, 0x00, 0x00}, // Player 2 = red
+		{0x00, 0x40, 0x00}, // Player 3 = green
+		{0x20, 0x00, 0x20}	// Player 4 = pink
+	};
+	static const char *channels[4] = {
+		"red", "green", "blue", "global"};
+
+	u32 values[4];
+	if (index < 0) {
+		kzero_memory(values, sizeof(values));
+	} else {
+		for (u8 i = 0; i < 3; ++i) {
+			values[i] = colours[index][i];
+		}
+		values[3] = 1;
+	}
+
+	char path[PATH_MAX];
+	for (u8 i = 0; i < 4; ++i) {
+		if (ksnprintf(path, sizeof(path), SYSFS_LEDS "/%s:%s/brightness", input_name, channels[i]) >= (i32)sizeof(path)) {
+			return false;
+		}
+
+		if (!write_sysfs(path, values[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Dualsense (PS5) has *five* individial LEDs:
+ *
+ * Player 1: --x--
+ * Player 2: -x-x-
+ * Player 3: x-x-x
+ * Player 4: xx-xx
+ *
+ * inputN:white:player1
+ * inputN:white:player2
+ * inputN:white:player3
+ * inputN:white:player4
+ * inputN:white:player5
+ */
+static b8 dualsense_set_player_index (const char *input_name, i32 index) {
+	static const u8 patterns[4] = {
+		0x04, // --x--
+		0x0A, // -x-x-
+		0x15, // x-x-x
+		0x1B  // xx-xx
+	};
+
+	u32 pattern = index < 0 ? 0 : patterns[index];
+
+	char led_name[PATH_MAX];
+	for (u8 i = 0; i < 5; ++i) {
+		ksnprintf(led_name, sizeof(led_name), SYSFS_LEDS "/%s:white:player-%u/brightness", input_name, i + 1);
+
+		if (!write_sysfs(led_name, (pattern & (1u << i)) ? 1 : 0)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static b8 sixaxis_set_player_index (const char *input_path, i32 index) {
+
+	char *led_path = KNULL;
+	for (u8 i = 0; i < 4; ++i) {
+		sixaxis_get_led_device_path(input_path, &led_path, i + 1);
+
+		if (!write_sysfs(led_path, i == index ? 1 : 0)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static b8 gamepad_try_set_player_index_led (platform_gamepad_device *device, i32 index) {
+
+	b8 result = false;
+	switch (device->vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		result = xpad_set_player_index(device->input_path, index);
+		break;
+	case USB_VENDOR_ID_SONY:
+		switch (device->product_id) {
+		case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+			break;
+		case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+			result = sixaxis_set_player_index(device->input_path, index);
+			break;
+		default:
+		case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+		case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+		case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+			result = dualshock4_set_player_index(device->input_name, index);
+			break;
+		case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+		case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+			result = dualsense_set_player_index(device->input_name, index);
+			break;
+		}
+	case USB_VENDOR_ID_NINTENDO:
+	default:
+		break;
+	}
+
+	if (result) {
+		return true;
+	}
+
+	// If a bespoke method didn't work, try them all.
+	if (xpad_set_player_index(device->input_path, index)) {
+		return true;
+	}
+
+	if (dualsense_set_player_index(device->input_name, index)) {
+		return true;
+	}
+
+	if (dualshock4_set_player_index(device->input_name, index)) {
+		return true;
+	}
+
+	return false;
+}
+
+void detect_gamepad_devices (struct platform_state *state) {
+	if (!FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT)) {
+		return;
+	}
+
+	pthread_mutex_lock(&state->gamepad_state->devices_mutex);
+	DIR *dev_input = opendir("/dev/input");
+	time_t current_time = time(KNULL);
+	if (dev_input != KNULL) {
+		struct dirent *entity;
+		while ((entity = readdir(dev_input)) != KNULL) {
+			u32 chars_consumed = 0;
+			i32 num;
+			char file_name[PATH_MAX];
+			struct stat stat_buf;
+			if (sscanf(entity->d_name, "event%d%n", &num, &chars_consumed) && chars_consumed == string_length(entity->d_name)) {
+				ksnprintf(file_name, PATH_MAX, "/dev/input/%s", entity->d_name);
+				if (stat(file_name, &stat_buf) || stat_buf.st_mtime < state->gamepad_state->last_input_stat_time) {
+					continue;
+				}
+
+				b8 exists = false;
+				u32 device_count = darray_length(state->gamepad_state->devices);
+				for (u32 i = 0; i < device_count; ++i) {
+					if (strings_equal(state->gamepad_state->devices[i]->path, file_name)) {
+						exists = true;
+						break;
+					}
+				}
+				if (exists) {
+					continue;
+				}
+
+				i32 fd = open(file_name, O_RDONLY, 0);
+				i32 ev_cap_bits[(EV_CNT - 1) / sizeof(i32) * 8 + 1];
+				kzero_memory(ev_cap_bits, sizeof(ev_cap_bits));
+				i32 ev_key_bits[(KEY_CNT - 1) / sizeof(i32) * 8 + 1];
+				kzero_memory(ev_key_bits, sizeof(ev_key_bits));
+				i32 ev_abs_bits[(ABS_CNT - 1) / sizeof(i32) * 8 + 1];
+				kzero_memory(ev_abs_bits, sizeof(ev_abs_bits));
+
+				// Explicitly use CLOCK_MONOTONIC for timestamps.
+				i32 clock_id = CLOCK_MONOTONIC;
+				ioctl(fd, EVIOCSCLOCKID, &clock_id);
+				u32 evc_res = ioctl(fd, EVIOCGBIT(0, sizeof(ev_cap_bits)), ev_cap_bits);
+				u32 evk_res = ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(ev_key_bits)), ev_key_bits);
+				u32 eva_res = ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(ev_abs_bits)), ev_abs_bits);
+				if (evc_res < 0 || evk_res < 0 || eva_res < 0) {
+					close(fd);
+					continue;
+				}
+
+				if (!test_bit(EV_KEY, ev_cap_bits) || !test_bit(EV_ABS, ev_cap_bits) ||
+					!test_bit(ABS_X, ev_abs_bits) || !test_bit(ABS_Y, ev_abs_bits) ||
+					(!test_bit(BTN_TRIGGER, ev_key_bits) && !test_bit(BTN_A, ev_key_bits) && !test_bit(BTN_1, ev_key_bits))) {
+					close(fd);
+					continue;
+				}
+
+				// Add a new device to the collection.
+				platform_gamepad_device *n = KALLOC_TYPE(platform_gamepad_device, MEMORY_TAG_PLATFORM);
+				u32 dev_id = state->gamepad_state->next_device_id++;
+				u32 new_idx = darray_length(state->gamepad_state->devices);
+				darray_push(state->gamepad_state->devices, &n);
+				platform_gamepad_device *device = state->gamepad_state->devices[new_idx];
+
+				device->device_id = dev_id;
+				device->fd = fd;
+				device->path = string_duplicate(file_name);
+				if (!get_input_device_path(device->path, &device->input_path, &device->input_name)) {
+					KTRACE("Unable to get input device path for evdev '%s'. Controller player LEDs won't work.", device->path);
+					device->input_name = KNULL;
+					device->input_path = KNULL;
+				}
+
+				kset_memory(device->button_map, 0xFF, sizeof(device->button_map));
+				kset_memory(device->axis_map, 0xFF, sizeof(device->axis_map));
+
+				char name[128];
+				if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) > 0) {
+					device->description = string_duplicate(name);
+				} else {
+					device->description = string_duplicate(file_name);
+				}
+
+				struct input_id id;
+				if (!ioctl(fd, EVIOCGID, &id)) {
+					device->vendor_id = id.vendor;
+					device->product_id = id.product;
+				} else {
+					device->vendor_id = device->product_id = 0;
+				}
+
+				kzero_memory(ev_key_bits, sizeof(ev_key_bits));
+				ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(ev_key_bits)), ev_key_bits);
+				kzero_memory(ev_abs_bits, sizeof(ev_abs_bits));
+				ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(ev_abs_bits)), ev_abs_bits);
+
+				// Detect axes.
+				device->axis_count = 0;
+				for (i32 i = 0; i < ABS_CNT; ++i) {
+					if (test_bit(i, ev_abs_bits)) {
+						if (ioctl(fd, EVIOCGABS(i), &device->axis_info[i]) < 0 ||
+							device->axis_info[i].minimum == device->axis_info[i].maximum) {
+							continue;
+						}
+					}
+
+					// Store the event code as the index, and the button as its value.
+					gamepad_axis axis = gamepad_get_axis(device->vendor_id, device->product_id, device->axis_count);
+					device->axis_map[i] = axis;
+					device->axis_count++;
+				}
+
+				// Detect buttons.
+				device->button_count = 0;
+				for (i32 i = BTN_MISC; i < KEY_CNT; ++i) {
+					if (test_bit(i, ev_key_bits)) {
+
+						// Store the event code as the index, and the button as the value.
+						u32 button_code = i - BTN_MISC;
+						gamepad_button button = gamepad_get_button(device->vendor_id, device->product_id, device->button_count);
+						device->button_map[button_code] = button;
+						device->button_count++;
+					}
+				}
+
+				kzero_memory(device->axis_states, sizeof(device->axis_states));
+				/* kzero_memory(device->button_states, sizeof(device->button_states)); */
+				device->button_states = 0;
+
+				/* KTRACE(
+					"(Linux Platform) Gamepad detected: device_id=%u, desc='%s', path='%s', vendor_id=%d, product_id=%d, button_count=%u, axis_count=%u",
+					device->device_id,
+					device->description,
+					device->path,
+					device->vendor_id,
+					device->product_id,
+					device->button_count,
+					device->axis_count); */
+
+				// Invoke a callback to notify that a gamepad was attached.
+				if (state->gamepad_callbacks.on_attached) {
+					state->gamepad_callbacks.on_attached(device->device_id);
+				}
+
+				pthread_create(&device->thread, KNULL, gamepad_device_thread_do_work, device);
+			}
+		}
+
+		closedir(dev_input);
+	}
+
+	state->gamepad_state->last_input_stat_time = current_time;
+	pthread_mutex_unlock(&state->gamepad_state->devices_mutex);
+}
+
+void *gamepad_device_thread_do_work (void *context) {
+	platform_gamepad_device *device = context;
+	struct input_event event;
+
+	// While the device can be read, it is considered attached.
+	i64 rr;
+	while ((rr = read(device->fd, &event, sizeof(struct input_event))) > 0) {
+
+		f64 timestamp64 = ((f64)event.time.tv_sec - state_ptr->gamepad_state->start_time) + (f64)event.time.tv_usec * 0.000001;
+		f32 timestamp = (f32)timestamp64;
+
+		if (event.type == EV_ABS) {
+			// Axis move event.
+			if (event.code > ABS_MAX || device->axis_map[event.code] == -1) {
+				continue;
+			}
+
+			struct input_absinfo ai = device->axis_info[event.code];
+
+			gamepad_axis axis = (gamepad_axis)device->axis_map[event.code];
+			if (axis == GAMEPAD_AXIS_IGNORE) {
+				// Boot, treat as processed.
+				continue;
+			}
+
+			f32 value = (event.value - ai.minimum) / (f32)(ai.maximum - ai.minimum) * 2.0f - 1.0f;
+			f32 last_value = device->axis_states[device->axis_map[event.code]];
+
+			if (axis == GAMEPAD_AXIS_DPAD_LR || axis == GAMEPAD_AXIS_DPAD_UD) {
+				// Axis represents a d-pad and needs to be remapped.
+				b8 pressed = value != 0;
+				f32 val = pressed ? value : last_value;
+				gamepad_button mapped_button;
+				if (val < 0) {
+					mapped_button = (axis == GAMEPAD_AXIS_DPAD_UD) ? GAMEPAD_BUTTON_DPAD_UP : GAMEPAD_BUTTON_DPAD_LEFT;
+				} else {
+					mapped_button = (axis == GAMEPAD_AXIS_DPAD_UD) ? GAMEPAD_BUTTON_DPAD_DOWN : GAMEPAD_BUTTON_DPAD_RIGHT;
+				}
+
+				gamepad_queue_button_event(device, timestamp, mapped_button, pressed);
+				FLAG_SET(device->button_states, mapped_button, pressed);
+			} else {
+				if (axis == GAMEPAD_AXIS_LRZ) {
+					// The z axes are combined and must be split.
+					// NOTE: Making the assumption here that left is >0 and right is <0
+					// May need a way to flip this.
+					if (value > 0) {
+						axis = GAMEPAD_AXIS_LZ;
+					} else if (value < 0) {
+						axis = GAMEPAD_AXIS_RZ;
+					}
+
+					// Normalize it to [0-1]
+					value = kabs(value);
+					last_value = kabs(last_value);
+				} else if (axis == GAMEPAD_AXIS_LZ || axis == GAMEPAD_AXIS_RZ) {
+					// If axis is not split, convert z axes to a range of [0-1].
+					value = (value + 1.0f) * 0.5f;
+					last_value = (last_value + 1.0f) * 0.5f;
+				}
+
+				gamepad_queue_axis_event(device, timestamp, axis, value, last_value);
+			}
+
+			device->axis_states[device->axis_map[event.code]] = value;
+		} else if (event.type == EV_KEY) {
+			// Button press event.
+			i32 button_code = event.code - BTN_MISC;
+
+			if (event.code < BTN_MISC || event.code > KEY_MAX || device->button_map[button_code] == -1) {
+				continue;
+			}
+
+			gamepad_button button = (gamepad_button)device->button_map[button_code];
+			if (button == GAMEPAD_BUTTON_IGNORE) {
+				// Boot, treat as processed.
+				continue;
+			}
+			b8 pressed = (b8)(!!event.value);
+
+			gamepad_queue_button_event(device, timestamp, button, pressed);
+			FLAG_SET(device->button_states, button, pressed);
+		}
+	}
+
+	if (rr == -1) {
+		KDEBUG("read failed: errno=%d\n", errno);
+	}
+
+	// As soon as the device cannot be read, notify of a detachment.
+	platform_gamepad_event_data detach_event = {
+		.device_id = device->device_id};
+	gamepad_queue_event(device->device_id, PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_DETACHED, detach_event);
+
+	// Remove the device from the listing.
+	pthread_mutex_lock(&state_ptr->gamepad_state->devices_mutex);
+
+	i32 index = -1;
+	u32 len = darray_length(state_ptr->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		if (state_ptr->gamepad_state->devices[i]->device_id == device->device_id) {
+			// Found it.
+			index = (i32)i;
+			break;
+		}
+	}
+
+	KASSERT_MSG(index != -1, "Tried to remove gamepad that was not found (-1)");
+
+	// Pop out of that index.
+	darray_pop_at(state_ptr->gamepad_state->devices, index, KNULL);
+
+	pthread_mutex_unlock(&state_ptr->gamepad_state->devices_mutex);
+
+	return KNULL;
+}
+
+void gamepad_queue_event (u32 device_id, platform_gamepad_event_type type, platform_gamepad_event_data event_data) {
+	platform_gamepad_event queued_event = {
+		.device_id = device_id,
+		.type = type,
+		.data = event_data};
+
+#	if TRACE_GAMEPAD_THREADING
+	pthread_t thread = pthread_self();
+	KTRACE("Thread %lu locking event mutex\n", (unsigned long)thread);
+	KTRACE("Mutex address: %p\n", (void *)&state_ptr->gamepad_state->event_queue_mutex);
+#	endif
+	i32 code = pthread_mutex_lock(&state_ptr->gamepad_state->event_queue_mutex);
+	if (code != 0) {
+		KFATAL("pthread mutex lock failed: %d\n", code);
+	}
+#	if TRACE_GAMEPAD_THREADING
+	KTRACE("Thread %lu lock returned %d\n", (unsigned long)thread, code);
+#	endif
+
+	darray_push(state_ptr->gamepad_state->event_queue, &queued_event);
+
+	pthread_mutex_unlock(&state_ptr->gamepad_state->event_queue_mutex);
+
+#	if TRACE_GAMEPAD_THREADING
+	KTRACE("Thread %lu unlocking event mutex\n", (unsigned long)thread);
+#	endif
+}
+
+void gamepad_queue_axis_event (platform_gamepad_device *device, f32 timestamp, gamepad_axis axis, f32 value, f32 last_value) {
+	platform_gamepad_event_data event_data = {
+		.device_id = device->device_id,
+		.timestamp = timestamp,
+		.axis = axis,
+		.value = value,
+		.last_value = last_value};
+
+	gamepad_queue_event(device->device_id, PLATFORM_GAMEPAD_EVENT_TYPE_AXIS_CHANGED, event_data);
+}
+void gamepad_queue_button_event (platform_gamepad_device *device, f32 timestamp, gamepad_button button, b8 is_down) {
+	platform_gamepad_event_data event_data = {
+		.device_id = device->device_id,
+		.timestamp = timestamp,
+		.button = button,
+		.is_down = is_down};
+
+	platform_gamepad_event_type type = is_down ? PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_PRESSED : PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_RELEASED;
+
+	gamepad_queue_event(device->device_id, type, event_data);
+}
+
+void process_gamepad_events (platform_state *state) {
+	if (!FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_INITIALIZED_BIT) || FLAG_GET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT)) {
+		return;
+	}
+
+	if (!FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT, true)) {
+		return;
+	}
+
+#	if TRACE_GAMEPAD_THREADING
+	pthread_t thread = pthread_self();
+	KTRACE("Thread %lu locking event mutex\n", (unsigned long)thread);
+	KTRACE("Mutex address: %p\n", (void *)&state->gamepad_state->event_queue_mutex);
+#	endif
+	i32 code = pthread_mutex_lock(&state->gamepad_state->event_queue_mutex);
+	if (code != 0) {
+		KFATAL("pthread mutex lock failed: %d\n", code);
+	}
+#	if TRACE_GAMEPAD_THREADING
+	KTRACE("Thread %lu lock returned %d\n", (unsigned long)thread, code);
+#	endif
+
+	u32 count = darray_length(state->gamepad_state->event_queue);
+	for (u32 i = 0; i < count; ++i) {
+		platform_gamepad_event *event = &state->gamepad_state->event_queue[i];
+		platform_gamepad_device *device = get_gamepad_device_by_id(event->device_id);
+		switch (event->type) {
+		case PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_ATTACHED:
+			if (state->gamepad_callbacks.on_attached) {
+				state->gamepad_callbacks.on_attached(event->device_id);
+			}
+			break;
+		case PLATFORM_GAMEPAD_EVENT_TYPE_DEVICE_DETACHED:
+			if (state->gamepad_callbacks.on_detached) {
+				state->gamepad_callbacks.on_detached(event->device_id);
+			}
+			cleanup_gamepad_device(event->device_id);
+			break;
+		case PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_PRESSED:
+			if (state->gamepad_callbacks.on_button_pressed) {
+				state->gamepad_callbacks.on_button_pressed(
+					event->device_id,
+					event->data.button,
+					event->data.timestamp);
+			}
+			break;
+		case PLATFORM_GAMEPAD_EVENT_TYPE_BUTTON_RELEASED:
+			if (state->gamepad_callbacks.on_button_released) {
+				state->gamepad_callbacks.on_button_released(
+					event->device_id,
+					event->data.button,
+					event->data.timestamp);
+			}
+			break;
+		case PLATFORM_GAMEPAD_EVENT_TYPE_AXIS_CHANGED: {
+
+			if (state->gamepad_callbacks.on_axis_changed) {
+				state_ptr->gamepad_callbacks.on_axis_changed(
+					device->device_id,
+					event->data.axis,
+					event->data.value,
+					event->data.last_value,
+					event->data.timestamp);
+			}
+		} break;
+		}
+	}
+
+	darray_clear(state->gamepad_state->event_queue);
+
+	pthread_mutex_unlock(&state->gamepad_state->event_queue_mutex);
+
+#	if TRACE_GAMEPAD_THREADING
+	KTRACE("Thread %lu unlocking event mutex\n", (unsigned long)thread);
+#	endif
+
+	if (!FLAG_SET(state->gamepad_state->flags, PLATFORM_GAMEPAD_STATE_FLAG_PROCESSING_EVENTS_BIT, false)) {
+		return;
+	}
+}
+
+void cleanup_gamepad_device (u32 device_id) {
+	platform_gamepad_device *device = get_gamepad_device_by_id(device_id);
+	if (device) {
+		close(device->fd);
+		string_free(device->path);
+		string_free(device->description);
+	}
+}
+
+platform_gamepad_device *get_gamepad_device_by_id (u32 device_id) {
+	u32 len = darray_length(state_ptr->gamepad_state->devices);
+	for (u32 i = 0; i < len; ++i) {
+		if (state_ptr->gamepad_state->devices[i]->device_id == device_id) {
+			// Found it.
+			return state_ptr->gamepad_state->devices[i];
+		}
+	}
+
+	return KNULL;
+}
+
+static gamepad_axis gamepad_get_axis_microsoft (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	default:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_0:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER_PACC:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_2015:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_ELITE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_S_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_SXS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ELITE_SERIES_2_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_1:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_sony (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // L2
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // R2
+		}
+	default:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // L2
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // R2
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_nintendo (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	default:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_axis gamepad_get_axis_default (u16 product_id, u8 axis_id) {
+	switch (product_id) {
+	default:
+		switch (axis_id) {
+		default:
+			return GAMEPAD_AXIS_UNKNOWN;
+		case 0:
+			return GAMEPAD_AXIS_LX;
+		case 1:
+			return GAMEPAD_AXIS_LY;
+		case 2:
+			return GAMEPAD_AXIS_LZ; // LT
+		case 3:
+			return GAMEPAD_AXIS_RX;
+		case 4:
+			return GAMEPAD_AXIS_RY;
+		case 5:
+			return GAMEPAD_AXIS_RZ; // RT
+		case 16:
+			return GAMEPAD_AXIS_DPAD_LR;
+		case 17:
+			return GAMEPAD_AXIS_DPAD_UD;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_microsoft (u16 product_id, u32 button_id) {
+	switch (product_id) {
+	default:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_0:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_S_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER_PACC:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_2015:
+	case GAMEPAD_PRODUCT_ID_XBOX_360_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_ELITE_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_CONTROLLER_1:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_S_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ONE_SXS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_ELITE_SERIES_2_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_XBOX_CONTROLLER_1:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_WEST;
+		case 3:
+			return GAMEPAD_BUTTON_NORTH;
+		case 4:
+			return GAMEPAD_BUTTON_L1; // LB
+		case 5:
+			return GAMEPAD_BUTTON_R1; // RB
+		case 6:
+			return GAMEPAD_BUTTON_SELECT; // back
+		case 7:
+			return GAMEPAD_BUTTON_START;
+		case 8:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 9:
+			return GAMEPAD_BUTTON_L3;
+		case 10:
+			return GAMEPAD_BUTTON_R3;
+		case 11:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 12:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_sony (u16 product_id, u32 button_id) {
+	switch (product_id) {
+	case GAMEPAD_PRODUCT_ID_PS_CLASSIC_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS3_CONTROLLER:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+			// These are axes on PS3 and not mapped to button ids.
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	default:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_1:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_2:
+	case GAMEPAD_PRODUCT_ID_DUALSHOCK4_WIRELESS_ADAPTER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_WIRELESS_CONTROLLER:
+	case GAMEPAD_PRODUCT_ID_PS5_DUALSENSE_EDGE_WIRELESS_CONTROLLER:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			// touchpad click
+			return GAMEPAD_BUTTON_ADDL0;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_nintendo (u16 product_id, u32 button_id) {
+	switch (product_id) {
+
+	default:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+static gamepad_button gamepad_get_button_default (u16 product_id, u32 button_id) {
+	switch (product_id) {
+
+	default:
+		switch (button_id) {
+		default:
+		case 0:
+			return GAMEPAD_BUTTON_SOUTH;
+		case 1:
+			return GAMEPAD_BUTTON_EAST;
+		case 2:
+			return GAMEPAD_BUTTON_NORTH;
+		case 3:
+			return GAMEPAD_BUTTON_WEST;
+		case 4:
+			return GAMEPAD_BUTTON_L1;
+		case 5:
+			return GAMEPAD_BUTTON_R1;
+		case 6:
+			return GAMEPAD_BUTTON_L2;
+		case 7:
+			return GAMEPAD_BUTTON_R2;
+		case 8:
+			return GAMEPAD_BUTTON_SELECT;
+		case 9:
+			return GAMEPAD_BUTTON_START;
+		case 10:
+			return GAMEPAD_BUTTON_OEM_HOME;
+		case 11:
+			return GAMEPAD_BUTTON_L3;
+		case 12:
+			return GAMEPAD_BUTTON_R3;
+		case 13:
+			return GAMEPAD_BUTTON_DPAD_UP;
+		case 14:
+			return GAMEPAD_BUTTON_DPAD_DOWN;
+		case 15:
+			return GAMEPAD_BUTTON_DPAD_LEFT;
+		case 16:
+			return GAMEPAD_BUTTON_DPAD_RIGHT;
+		}
+	}
+}
+
+gamepad_axis gamepad_get_axis (u16 vendor_id, u16 product_id, u8 axis_id) {
+	switch (vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		return gamepad_get_axis_microsoft(product_id, axis_id);
+	case USB_VENDOR_ID_SONY:
+		return gamepad_get_axis_sony(product_id, axis_id);
+	case USB_VENDOR_ID_NINTENDO:
+		return gamepad_get_axis_nintendo(product_id, axis_id);
+	default:
+		return gamepad_get_axis_default(product_id, axis_id);
+	}
+}
+
+gamepad_button gamepad_get_button (u16 vendor_id, u16 product_id, u32 button_id) {
+	switch (vendor_id) {
+	case USB_VENDOR_ID_MICROSOFT:
+		return gamepad_get_button_microsoft(product_id, button_id);
+	case USB_VENDOR_ID_SONY:
+		return gamepad_get_button_sony(product_id, button_id);
+	case USB_VENDOR_ID_NINTENDO:
+		return gamepad_get_button_nintendo(product_id, button_id);
+	default:
+		return gamepad_get_button_default(product_id, button_id);
+	}
 }
 
 #endif

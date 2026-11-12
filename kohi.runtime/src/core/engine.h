@@ -26,6 +26,7 @@ struct console_state;
 struct kvar_state;
 struct event_state;
 struct input_state;
+struct gamepad_system_state;
 struct timeline_state;
 struct resource_state;
 struct shader_system_state;
@@ -62,6 +63,9 @@ typedef struct engine_system_states {
 
 	u64 input_system_memory_requirement;
 	struct input_state *input_system;
+
+	u64 gamepad_system_memory_requirement;
+	struct gamepad_system_state *gamepad_system;
 
 	u64 timeline_system_memory_requirement;
 	struct ktimeline_system_state *timeline_system;

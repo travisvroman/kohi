@@ -200,6 +200,8 @@ typedef struct application_state {
 	// Maybe we have a release-debug build that allows this?
 	kui_control debug_text;
 	kui_control debug_text_shadow;
+	kui_control debug_gamepad_text;
+	kui_control debug_gamepad_text_shadow;
 #if KOHI_DEBUG
 	debug_console_state debug_console;
 	keymap console_keymap;

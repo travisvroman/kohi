@@ -4,10 +4,13 @@ The items in this list are not in any particular order. This list will be update
 
 ## 0.14.0 Release
 
-- [ ] Vendor lib inclusion
-  - [ ] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
-    - [ ] Assimp
-    - [*] OpenAL (macOS complete, others needed)
+- [x] Vendor lib inclusion
+  - [x] Include already target-compiled libs (.so, .dylib, .dll) and include files in a vendor/ folder to avoid having to pull the dependency.
+    - [x] Assimp
+    - [x] OpenAL (macOS complete, others needed)
+- [x] Input:
+  - [x] Gamepad support (win32/macOS/linux)
+- [x] Rework hashtable to better handle collisions.
 
 ## 0.15.0 Release
 
@@ -108,7 +111,6 @@ The items in this list are not in any particular order. This list will be update
   - [x] Two-sided support
   - [ ] Additional texture channels:
     - [ ] Specular (scale specularity on non-metallic surfaces (0-1, default 0.5)) (PBR, Phong)
-- [ ] Rework hashtable to better handle collisions.
 - [ ] Custom cursor
   - [ ] Hardware cursor (i.e. from the windowing system)
   - [ ] Software cursor (i.e. a texture drawn at cursor pos)
@@ -140,7 +142,6 @@ The items in this list are not in any particular order. This list will be update
 - [ ] Multi-threaded logger
 - [ ] Input:
   - [ ] touch
-  - [ ] gamepad
   - [ ] keymaps/keybindings
     - [ ] I18n / keyboard layouts
 - [ ] Strings

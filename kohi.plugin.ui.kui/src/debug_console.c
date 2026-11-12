@@ -214,7 +214,7 @@ static void debug_console_entry_box_on_key (kui_state *state, kui_control self, 
 		u16 key_code = evt.key;
 		/* b8 shift_held = input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT) || input_is_key_down(KEY_SHIFT); */
 
-		if (key_code == KEY_ENTER) {
+		if (key_code == K_KEY_ENTER) {
 			const char *entry_control_text = kui_textbox_text_get(state, self);
 			u32 len = string_length(entry_control_text);
 			if (len > 0) {

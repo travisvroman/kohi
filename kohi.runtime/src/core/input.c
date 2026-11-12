@@ -118,30 +118,30 @@ void input_update (const struct frame_data *p_frame_data) {
 
 static b8 check_modifiers (keymap_modifier modifiers) {
 	if (modifiers & KEYMAP_MODIFIER_SHIFT_BIT) {
-		if (!input_is_key_down(KEY_SHIFT) && !input_is_key_down(KEY_LSHIFT) && !input_is_key_down(KEY_RSHIFT)) {
+		if (!input_is_key_down(K_KEY_SHIFT) && !input_is_key_down(K_KEY_LSHIFT) && !input_is_key_down(K_KEY_RSHIFT)) {
 			return false;
 		}
 	} else {
-		if (input_is_key_down(KEY_SHIFT) || input_is_key_down(KEY_LSHIFT) || input_is_key_down(KEY_RSHIFT)) {
+		if (input_is_key_down(K_KEY_SHIFT) || input_is_key_down(K_KEY_LSHIFT) || input_is_key_down(K_KEY_RSHIFT)) {
 			return false;
 		}
 	}
 	if (modifiers & KEYMAP_MODIFIER_CONTROL_BIT) {
-		if (!input_is_key_down(KEY_CONTROL) && !input_is_key_down(KEY_LCONTROL) && !input_is_key_down(KEY_RCONTROL)) {
+		if (!input_is_key_down(K_KEY_CONTROL) && !input_is_key_down(K_KEY_LCONTROL) && !input_is_key_down(K_KEY_RCONTROL)) {
 			return false;
 		}
 	} else {
-		if (input_is_key_down(KEY_CONTROL) || input_is_key_down(KEY_LCONTROL) || input_is_key_down(KEY_RCONTROL)) {
+		if (input_is_key_down(K_KEY_CONTROL) || input_is_key_down(K_KEY_LCONTROL) || input_is_key_down(K_KEY_RCONTROL)) {
 			return false;
 		}
 	}
 
 	if (modifiers & KEYMAP_MODIFIER_ALT_BIT) {
-		if (!input_is_key_down(KEY_LALT) && !input_is_key_down(KEY_RALT)) {
+		if (!input_is_key_down(K_KEY_LALT) && !input_is_key_down(K_KEY_RALT)) {
 			return false;
 		}
 	} else {
-		if (input_is_key_down(KEY_LALT) || input_is_key_down(KEY_RALT)) {
+		if (input_is_key_down(K_KEY_LALT) || input_is_key_down(K_KEY_RALT)) {
 			return false;
 		}
 	}
@@ -153,6 +153,7 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 	if (!state_ptr) {
 		return;
 	}
+	KINFO("Key pressed: '%c'.", (char)key);
 	// keymap_entry* map_entry = &state_ptr->active_keymap.entries[key];
 
 	// Only handle this if the state actually changed, or if repeats are allowed.
@@ -162,23 +163,23 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 		// Update internal state.
 		state_ptr->keyboard_current.keys[key] = pressed;
 
-		// if (key == KEY_LALT) {
+		// if (key == K_KEY_LALT) {
 		//     KINFO("Left alt %s.", pressed ? "pressed" : "released");
-		// } else if (key == KEY_RALT) {
+		// } else if (key == K_KEY_RALT) {
 		//     KINFO("Right alt %s.", pressed ? "pressed" : "released");
 		// }
 
-		// if (key == KEY_LCONTROL) {
+		// if (key == K_KEY_LCONTROL) {
 		//     KINFO("Left ctrl %s.", pressed ? "pressed" : "released");
-		// } else if (key == KEY_RCONTROL) {
+		// } else if (key == K_KEY_RCONTROL) {
 		//     KINFO("Right ctrl %s.", pressed ? "pressed" : "released");
 		// }
 
-		if (key == KEY_LSHIFT) {
-			KINFO("Left shift %s.", pressed ? "pressed" : "released");
-		} else if (key == KEY_RSHIFT) {
-			KINFO("Right shift %s.", pressed ? "pressed" : "released");
-		}
+		// if (key == K_KEY_LSHIFT) {
+		//     KINFO("Left shift %s.", pressed ? "pressed" : "released");
+		// } else if (key == K_KEY_RSHIFT) {
+		//     KINFO("Right shift %s.", pressed ? "pressed" : "released");
+		// }
 
 		// Check for key bindings
 		// Iterate keymaps top-down on the stack.
@@ -221,9 +222,9 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 		event_fire(pressed ? EVENT_CODE_KEY_PRESSED : EVENT_CODE_KEY_RELEASED, 0, context);
 	} else {
 		KINFO("changed=%u, repeats_allowed=%u", changed, state_ptr->allow_key_repeats);
-		if (key == KEY_LSHIFT) {
+		if (key == K_KEY_LSHIFT) {
 			KINFO("Left shift %s. (1)", pressed ? "pressed" : "released");
-		} else if (key == KEY_RSHIFT) {
+		} else if (key == K_KEY_RSHIFT) {
 			KINFO("Right shift %s. (1)", pressed ? "pressed" : "released");
 		}
 	}
@@ -430,276 +431,276 @@ void input_get_previous_mouse_position (i32 *x, i32 *y) {
 
 const char *input_keycode_str (keys key) {
 	switch (key) {
-	case KEY_BACKSPACE:
+	case K_KEY_BACKSPACE:
 		return "backspace";
-	case KEY_ENTER:
+	case K_KEY_ENTER:
 		return "enter";
-	case KEY_TAB:
+	case K_KEY_TAB:
 		return "tab";
-	case KEY_SHIFT:
+	case K_KEY_SHIFT:
 		return "shift";
-	case KEY_CONTROL:
+	case K_KEY_CONTROL:
 		return "ctrl";
-	case KEY_PAUSE:
+	case K_KEY_PAUSE:
 		return "pause";
-	case KEY_CAPITAL:
+	case K_KEY_CAPITAL:
 		return "capslock";
-	case KEY_ESCAPE:
+	case K_KEY_ESCAPE:
 		return "esc";
 
-	case KEY_CONVERT:
+	case K_KEY_CONVERT:
 		return "ime_convert";
-	case KEY_NONCONVERT:
+	case K_KEY_NONCONVERT:
 		return "ime_noconvert";
-	case KEY_ACCEPT:
+	case K_KEY_ACCEPT:
 		return "ime_accept";
-	case KEY_MODECHANGE:
+	case K_KEY_MODECHANGE:
 		return "ime_modechange";
 
-	case KEY_SPACE:
+	case K_KEY_SPACE:
 		return "space";
-	case KEY_PAGEUP:
+	case K_KEY_PAGEUP:
 		return "pageup";
-	case KEY_PAGEDOWN:
+	case K_KEY_PAGEDOWN:
 		return "pagedown";
-	case KEY_END:
+	case K_KEY_END:
 		return "end";
-	case KEY_HOME:
+	case K_KEY_HOME:
 		return "home";
-	case KEY_LEFT:
+	case K_KEY_LEFT:
 		return "left";
-	case KEY_UP:
+	case K_KEY_UP:
 		return "up";
-	case KEY_RIGHT:
+	case K_KEY_RIGHT:
 		return "right";
-	case KEY_DOWN:
+	case K_KEY_DOWN:
 		return "down";
-	case KEY_SELECT:
+	case K_KEY_SELECT:
 		return "select";
-	case KEY_PRINT:
+	case K_KEY_PRINT:
 		return "print";
-	case KEY_EXECUTE:
+	case K_KEY_EXECUTE:
 		return "execute";
-	case KEY_PRINTSCREEN:
+	case K_KEY_PRINTSCREEN:
 		return "printscreen";
-	case KEY_INSERT:
+	case K_KEY_INSERT:
 		return "insert";
-	case KEY_DELETE:
+	case K_KEY_DELETE:
 		return "delete";
-	case KEY_HELP:
+	case K_KEY_HELP:
 		return "help";
 
-	case KEY_0:
+	case K_KEY_0:
 		return "0";
-	case KEY_1:
+	case K_KEY_1:
 		return "1";
-	case KEY_2:
+	case K_KEY_2:
 		return "2";
-	case KEY_3:
+	case K_KEY_3:
 		return "3";
-	case KEY_4:
+	case K_KEY_4:
 		return "4";
-	case KEY_5:
+	case K_KEY_5:
 		return "5";
-	case KEY_6:
+	case K_KEY_6:
 		return "6";
-	case KEY_7:
+	case K_KEY_7:
 		return "7";
-	case KEY_8:
+	case K_KEY_8:
 		return "8";
-	case KEY_9:
+	case K_KEY_9:
 		return "9";
 
-	case KEY_A:
+	case K_KEY_A:
 		return "a";
-	case KEY_B:
+	case K_KEY_B:
 		return "b";
-	case KEY_C:
+	case K_KEY_C:
 		return "c";
-	case KEY_D:
+	case K_KEY_D:
 		return "d";
-	case KEY_E:
+	case K_KEY_E:
 		return "e";
-	case KEY_F:
+	case K_KEY_F:
 		return "f";
-	case KEY_G:
+	case K_KEY_G:
 		return "g";
-	case KEY_H:
+	case K_KEY_H:
 		return "h";
-	case KEY_I:
+	case K_KEY_I:
 		return "i";
-	case KEY_J:
+	case K_KEY_J:
 		return "j";
-	case KEY_K:
+	case K_KEY_K:
 		return "k";
-	case KEY_L:
+	case K_KEY_L:
 		return "l";
-	case KEY_M:
+	case K_KEY_M:
 		return "m";
-	case KEY_N:
+	case K_KEY_N:
 		return "n";
-	case KEY_O:
+	case K_KEY_O:
 		return "o";
-	case KEY_P:
+	case K_KEY_P:
 		return "p";
-	case KEY_Q:
+	case K_KEY_Q:
 		return "q";
-	case KEY_R:
+	case K_KEY_R:
 		return "r";
-	case KEY_S:
+	case K_KEY_S:
 		return "s";
-	case KEY_T:
+	case K_KEY_T:
 		return "t";
-	case KEY_U:
+	case K_KEY_U:
 		return "u";
-	case KEY_V:
+	case K_KEY_V:
 		return "v";
-	case KEY_W:
+	case K_KEY_W:
 		return "w";
-	case KEY_X:
+	case K_KEY_X:
 		return "x";
-	case KEY_Y:
+	case K_KEY_Y:
 		return "y";
-	case KEY_Z:
+	case K_KEY_Z:
 		return "z";
 
-	case KEY_LSUPER:
+	case K_KEY_LSUPER:
 		return "l_super";
-	case KEY_RSUPER:
+	case K_KEY_RSUPER:
 		return "r_super";
-	case KEY_APPS:
+	case K_KEY_APPS:
 		return "apps";
 
-	case KEY_SLEEP:
+	case K_KEY_SLEEP:
 		return "sleep";
 
 		// Numberpad keys
-	case KEY_NUMPAD0:
+	case K_KEY_NUMPAD0:
 		return "numpad_0";
-	case KEY_NUMPAD1:
+	case K_KEY_NUMPAD1:
 		return "numpad_1";
-	case KEY_NUMPAD2:
+	case K_KEY_NUMPAD2:
 		return "numpad_2";
-	case KEY_NUMPAD3:
+	case K_KEY_NUMPAD3:
 		return "numpad_3";
-	case KEY_NUMPAD4:
+	case K_KEY_NUMPAD4:
 		return "numpad_4";
-	case KEY_NUMPAD5:
+	case K_KEY_NUMPAD5:
 		return "numpad_5";
-	case KEY_NUMPAD6:
+	case K_KEY_NUMPAD6:
 		return "numpad_6";
-	case KEY_NUMPAD7:
+	case K_KEY_NUMPAD7:
 		return "numpad_7";
-	case KEY_NUMPAD8:
+	case K_KEY_NUMPAD8:
 		return "numpad_8";
-	case KEY_NUMPAD9:
+	case K_KEY_NUMPAD9:
 		return "numpad_9";
-	case KEY_MULTIPLY:
+	case K_KEY_MULTIPLY:
 		return "numpad_mult";
-	case KEY_ADD:
+	case K_KEY_ADD:
 		return "numpad_add";
-	case KEY_SEPARATOR:
+	case K_KEY_SEPARATOR:
 		return "numpad_sep";
-	case KEY_SUBTRACT:
+	case K_KEY_SUBTRACT:
 		return "numpad_sub";
-	case KEY_DECIMAL:
+	case K_KEY_DECIMAL:
 		return "numpad_decimal";
-	case KEY_DIVIDE:
+	case K_KEY_DIVIDE:
 		return "numpad_div";
 
-	case KEY_F1:
+	case K_KEY_F1:
 		return "f1";
-	case KEY_F2:
+	case K_KEY_F2:
 		return "f2";
-	case KEY_F3:
+	case K_KEY_F3:
 		return "f3";
-	case KEY_F4:
+	case K_KEY_F4:
 		return "f4";
-	case KEY_F5:
+	case K_KEY_F5:
 		return "f5";
-	case KEY_F6:
+	case K_KEY_F6:
 		return "f6";
-	case KEY_F7:
+	case K_KEY_F7:
 		return "f7";
-	case KEY_F8:
+	case K_KEY_F8:
 		return "f8";
-	case KEY_F9:
+	case K_KEY_F9:
 		return "f9";
-	case KEY_F10:
+	case K_KEY_F10:
 		return "f10";
-	case KEY_F11:
+	case K_KEY_F11:
 		return "f11";
-	case KEY_F12:
+	case K_KEY_F12:
 		return "f12";
-	case KEY_F13:
+	case K_KEY_F13:
 		return "f13";
-	case KEY_F14:
+	case K_KEY_F14:
 		return "f14";
-	case KEY_F15:
+	case K_KEY_F15:
 		return "f15";
-	case KEY_F16:
+	case K_KEY_F16:
 		return "f16";
-	case KEY_F17:
+	case K_KEY_F17:
 		return "f17";
-	case KEY_F18:
+	case K_KEY_F18:
 		return "f18";
-	case KEY_F19:
+	case K_KEY_F19:
 		return "f19";
-	case KEY_F20:
+	case K_KEY_F20:
 		return "f20";
-	case KEY_F21:
+	case K_KEY_F21:
 		return "f21";
-	case KEY_F22:
+	case K_KEY_F22:
 		return "f22";
-	case KEY_F23:
+	case K_KEY_F23:
 		return "f23";
-	case KEY_F24:
+	case K_KEY_F24:
 		return "f24";
 
-	case KEY_NUMLOCK:
+	case K_KEY_NUMLOCK:
 		return "num_lock";
-	case KEY_SCROLL:
+	case K_KEY_SCROLL:
 		return "scroll_lock";
-	case KEY_NUMPAD_EQUAL:
+	case K_KEY_NUMPAD_EQUAL:
 		return "numpad_equal";
 
-	case KEY_LSHIFT:
+	case K_KEY_LSHIFT:
 		return "l_shift";
-	case KEY_RSHIFT:
+	case K_KEY_RSHIFT:
 		return "r_shift";
-	case KEY_LCONTROL:
+	case K_KEY_LCONTROL:
 		return "l_ctrl";
-	case KEY_RCONTROL:
+	case K_KEY_RCONTROL:
 		return "r_ctrl";
-	case KEY_LALT:
+	case K_KEY_LALT:
 		return "l_alt";
-	case KEY_RALT:
+	case K_KEY_RALT:
 		return "r_alt";
 
-	case KEY_SEMICOLON:
+	case K_KEY_SEMICOLON:
 		return ";";
 
-	case KEY_APOSTROPHE:
+	case K_KEY_APOSTROPHE:
 		return "'";
-	case KEY_EQUAL:
+	case K_KEY_EQUAL:
 		return "=";
-	case KEY_COMMA:
+	case K_KEY_COMMA:
 		return ",";
-	case KEY_MINUS:
+	case K_KEY_MINUS:
 		return "-";
-	case KEY_PERIOD:
+	case K_KEY_PERIOD:
 		return ".";
-	case KEY_SLASH:
+	case K_KEY_SLASH:
 		return "/";
 
-	case KEY_GRAVE:
+	case K_KEY_GRAVE:
 		return "`";
 
-	case KEY_LBRACKET:
+	case K_KEY_LBRACKET:
 		return "[";
-	case KEY_PIPE:
+	case K_KEY_PIPE:
 		return "\\";
-	case KEY_RBRACKET:
+	case K_KEY_RBRACKET:
 		return "]";
 
 	default:

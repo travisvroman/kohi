@@ -1,0 +1,15 @@
+#SUBSYSTEM=="leds", KERNEL=="xpad*", RUN+="/usr/bin/chmod 0664 %S%p/brightness"
+# Microsoft devices
+#SUBSYSTEM=="leds", ATTRS{idVendor}=="045e", MODE="0660", TAG+="uaccess"
+# Sony devices
+#SUBSYSTEM=="leds", ATTRS{idVendor}=="054c", MODE="0660", TAG+="uaccess"
+
+# Allow LED changes for controllers (this covers xbox and playstation controllers)
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="xpad*", RUN+="/usr/bin/chmod 0666 %S%p/brightness", TAG+="uaccess"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="input*:*", RUN+="/usr/bin/chmod 0666 %S%p/brightness", TAG+="uaccess"
+# PS3 controllers
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="*:054C:0268.*::sony*", RUN+="/usr/bin/chmod 0666 %S%p/brightness"
+
+# These won't work without the chmod above having been run first.
+#ACTION=="add", SUBSYSTEM=="leds", KERNEL=="xpad*", TAG+="uaccess"
+#ACTION=="add", SUBSYSTEM=="leds", KERNEL=="input*:*", TAG+="uaccess"
