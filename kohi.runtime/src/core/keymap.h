@@ -39,6 +39,8 @@ typedef enum keymap_modifier_bits {
 	KEYMAP_MODIFIER_CONTROL_BIT = 0x2,
 	/** @brief A alt/option key must be pressed for the binding to fire. */
 	KEYMAP_MODIFIER_ALT_BIT = 0x4,
+	/** @brief No modifiers may be pressed at all for this event to fire. */
+	KEYMAP_MODIFIER_NONE_EXPLICIT = 0x8,
 } keymap_modifier_bits;
 
 /** @brief A typedef for combined keymap modifiers. */

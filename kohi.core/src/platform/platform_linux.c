@@ -898,6 +898,16 @@ b8 platform_pump_messages (void) {
 
 				// Pass to the input subsystem for processing.
 				state_ptr->process_key(key, pressed, is_repeat);
+
+				// Also pass a general "shift" key if either left or right are triggered.
+				if (key == K_KEY_LSHIFT || key == K_KEY_RSHIFT) {
+					state_ptr->process_key(K_KEY_SHIFT, pressed, is_repeat);
+				}
+
+				// Also pass a general "control" key if either left or right are triggered.
+				if (key == K_KEY_LCONTROL || key == K_KEY_RCONTROL) {
+					state_ptr->process_key(K_KEY_CONTROL, pressed, is_repeat);
+				}
 			} break;
 			case XCB_BUTTON_PRESS:
 			case XCB_BUTTON_RELEASE: {

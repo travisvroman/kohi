@@ -1,4 +1,4 @@
-Changelog
+Changelog for Kohi Game Engine
 
 - 0.14.0 IMPORTANT! If upgrading from anything older than v0.13.1, be sure to run `make setup` again before attempting to build.
   - OpenAL plugin now dynamically links OpenAL.
@@ -18,6 +18,9 @@ Changelog
   - Renamed keys enum members to be prepended with a K_ (i.e. K_KEY_A) to eliminate collisions with other headers, such as <linux/input-event-codes.h>.
   - Reworked hashtable to better handle collisions (thank you, Nyvyme!).
   - Fixed a crash due to a race condition when setting up semaphores concurrently for job threads.
+  - Added some new functions to math library, moved some heavy functions (mostly around quats) to .c file.
+  - Fixed an issue on Linux where K_KEY_SHIFT was not being sent when either left or right shift was pressed. Same for control key.
+  - Changed default keymap behaviour to allow modifier keys when not defined, unless KEYMAP_MODIFIER_NONE_EXPLICIT (new modifier option) is set.
 
 - 0.13.1 IMPORTANT! Run `make setup` again before attempting to build.
   - Contains enhancements and fixes for broken Win32 build process:

@@ -43,7 +43,7 @@ typedef struct input_state {
 // FIXME: Get rid of this static rubbish
 static input_state *state_ptr;
 
-static b8 check_modifiers (keymap_modifier modifiers);
+static b8 check_modifiers (keymap_modifier modifiers, b8 explicit);
 
 b8 input_system_initialize (u64 *memory_requirement, void *state, void *config, struct application *app) {
 	*memory_requirement = sizeof(input_state);
@@ -96,7 +96,9 @@ void input_update (const struct frame_data *p_frame_data) {
 						unset = true;
 						break;
 					} else if (binding->type == KEYMAP_BIND_TYPE_HOLD) {
-						if (binding->code && check_modifiers(binding->modifiers)) {
+						b8 explicit = FLAG_GET(binding->modifiers, KEYMAP_MODIFIER_NONE_EXPLICIT);
+
+						if (binding->code && check_modifiers(binding->modifiers, explicit)) {
 							state_ptr->app->on_action(state_ptr->app, binding->code);
 						}
 					}
@@ -116,12 +118,12 @@ void input_update (const struct frame_data *p_frame_data) {
 	kcopy_memory(&state_ptr->mouse_previous, &state_ptr->mouse_current, sizeof(mouse_state));
 }
 
-static b8 check_modifiers (keymap_modifier modifiers) {
+static b8 check_modifiers (keymap_modifier modifiers, b8 explicit) {
 	if (modifiers & KEYMAP_MODIFIER_SHIFT_BIT) {
 		if (!input_is_key_down(K_KEY_SHIFT) && !input_is_key_down(K_KEY_LSHIFT) && !input_is_key_down(K_KEY_RSHIFT)) {
 			return false;
 		}
-	} else {
+	} else if (explicit) {
 		if (input_is_key_down(K_KEY_SHIFT) || input_is_key_down(K_KEY_LSHIFT) || input_is_key_down(K_KEY_RSHIFT)) {
 			return false;
 		}
@@ -130,7 +132,7 @@ static b8 check_modifiers (keymap_modifier modifiers) {
 		if (!input_is_key_down(K_KEY_CONTROL) && !input_is_key_down(K_KEY_LCONTROL) && !input_is_key_down(K_KEY_RCONTROL)) {
 			return false;
 		}
-	} else {
+	} else if (explicit) {
 		if (input_is_key_down(K_KEY_CONTROL) || input_is_key_down(K_KEY_LCONTROL) || input_is_key_down(K_KEY_RCONTROL)) {
 			return false;
 		}
@@ -140,7 +142,7 @@ static b8 check_modifiers (keymap_modifier modifiers) {
 		if (!input_is_key_down(K_KEY_LALT) && !input_is_key_down(K_KEY_RALT)) {
 			return false;
 		}
-	} else {
+	} else if (explicit) {
 		if (input_is_key_down(K_KEY_LALT) || input_is_key_down(K_KEY_RALT)) {
 			return false;
 		}
@@ -195,13 +197,15 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 					break;
 				}
 
+				b8 explicit = FLAG_GET(binding->modifiers, KEYMAP_MODIFIER_NONE_EXPLICIT);
+
 				if (pressed && binding->type & KEYMAP_BIND_TYPE_PRESS) {
-					if (binding->code && check_modifiers(binding->modifiers)) {
+					if (binding->code && check_modifiers(binding->modifiers, explicit)) {
 						state_ptr->app->on_action(state_ptr->app, binding->code);
 					}
 				}
 				if (!pressed && binding->type & KEYMAP_BIND_TYPE_RELEASE && !is_repeat_state) {
-					if (binding->code && check_modifiers(binding->modifiers)) {
+					if (binding->code && check_modifiers(binding->modifiers, explicit)) {
 						state_ptr->app->on_action(state_ptr->app, binding->code);
 					}
 				}
