@@ -37,7 +37,13 @@ typedef struct kcamera_data {
 	vec3 position;
 	// Euler angles, but stored in radians
 	vec3 euler_rotation;
+	vec3 target;
+	vec3 target_forward;
+	f32 follow_distance;
+	f32 vertical_offset;
+
 	kcamera_type type;
+	kcamera_mode mode;
 	f32 fov;
 	f32 near_clip;
 	f32 far_clip;
@@ -51,6 +57,7 @@ typedef struct kcamera_system_state {
 
 static kcamera_system_state *state_ptr;
 
+static void process_camera (kcamera_data *data);
 static void regenerate_matrices (kcamera_data *data);
 
 static kcamera get_new_camera (kcamera_system_state *state) {
@@ -115,9 +122,11 @@ b8 kcamera_system_initialize (u64 *memory_requirement, void *state, void *config
 }
 
 void kcamera_system_shutdown (void *state) {
+	if (state) {
+		// NOTE: Nothing in the system needs shutting down as there are no
+		// dynamic allocations done, or resources held by this system.
+	}
 
-	// NOTE: Nothing in the system needs shutting down as there are no
-	// dynamic allocations done, or resources held by this system.
 	state_ptr = 0;
 }
 
@@ -140,6 +149,12 @@ kcamera kcamera_create (kcamera_type type, rect_2di vp_rect, vec3 position, vec3
 		data->near_clip = near_clip;
 		data->far_clip = far_clip;
 		data->vp_rect = vp_rect;
+		// Some reasonable defaults.
+		data->mode = KCAMERA_MODE_FREE;
+		data->target = vec3_zero();
+		data->target_forward = vec3_forward();
+		data->vertical_offset = 10;
+		data->follow_distance = 10;
 
 		// Mark transform as dirty so it gets recalculated on the next pass.
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
@@ -181,6 +196,11 @@ kcamera kcamera_clone (kcamera camera) {
 		new_data->near_clip = old_data->near_clip;
 		new_data->far_clip = old_data->far_clip;
 		new_data->vp_rect = old_data->vp_rect;
+		new_data->mode = old_data->mode;
+		new_data->target = old_data->target;
+		new_data->target_forward = old_data->target_forward;
+		new_data->follow_distance = old_data->follow_distance;
+		new_data->vertical_offset = old_data->vertical_offset;
 
 		// Mark transform as dirty so it gets recalculated on the next pass.
 		new_data->flags = FLAG_SET(new_data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
@@ -228,6 +248,21 @@ kcamera kcamera_system_get_default (void) {
 	return DEFAULT_KCAMERA; // 0 is the defualt
 }
 
+kcamera_mode kcamera_get_mode (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		return state_ptr->cameras[camera].mode;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return KCAMERA_MODE_FREE;
+}
+void kcamera_set_mode (kcamera camera, kcamera_mode mode) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data *data = &state_ptr->cameras[camera];
+		data->mode = mode;
+		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
+	}
+}
+
 vec3 kcamera_get_position (kcamera camera) {
 	if (kcamera_is_valid(camera)) {
 		return state_ptr->cameras[camera].position;
@@ -239,6 +274,36 @@ void kcamera_set_position (kcamera camera, vec3 position) {
 	if (kcamera_is_valid(camera)) {
 		kcamera_data *data = &state_ptr->cameras[camera];
 		data->position = position;
+		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
+	}
+}
+
+vec3 kcamera_get_target (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		return state_ptr->cameras[camera].target;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return vec3_zero();
+}
+void kcamera_set_target (kcamera camera, vec3 target) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data *data = &state_ptr->cameras[camera];
+		data->target = target;
+		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
+	}
+}
+
+vec3 kcamera_get_target_forward (kcamera camera) {
+	if (kcamera_is_valid(camera)) {
+		return state_ptr->cameras[camera].target_forward;
+	}
+	KWARN("%s: invalid camera passed, returning default value", __FUNCTION__);
+	return vec3_zero();
+}
+void kcamera_set_target_forward (kcamera camera, vec3 target_forward) {
+	if (kcamera_is_valid(camera)) {
+		kcamera_data *data = &state_ptr->cameras[camera];
+		data->target_forward = target_forward;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 	}
 }
@@ -321,64 +386,6 @@ void kcamera_set_vp_rect (kcamera camera, rect_2di vp_rect) {
 		kcamera_data *data = &state_ptr->cameras[camera];
 		data->vp_rect = vp_rect;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, true);
-	}
-}
-
-// Regenerate matrices, if needed.
-static void regenerate_matrices (kcamera_data *data) {
-
-	b8 needs_frustum = false;
-	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
-
-	// Regenerate transform and view, if needed.
-	if (FLAG_GET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT)) {
-		// Recalculate transform
-		mat4 rotation = mat4_euler_xyz(data->euler_rotation.x, data->euler_rotation.y, data->euler_rotation.z);
-		mat4 translation = mat4_translation(data->position);
-		data->transform = mat4_mul(rotation, translation);
-		kmatrix_system_update_by_id(matrix_system, data->transform_matrix_id, data->transform);
-
-		// View is just inverse transform.
-		data->view_matrix = mat4_inverse(data->transform);
-		kmatrix_system_update_by_id(matrix_system, data->view_matrix_id, data->view_matrix);
-
-		// Make sure to unset the dirty flag.
-		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, false);
-		needs_frustum = true;
-	}
-
-	// Recalculate the projection matrix.
-	if (FLAG_GET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT)) {
-		projection_matrix_type matrix_type;
-		switch (data->type) {
-		case KCAMERA_TYPE_2D:
-			matrix_type = PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC;
-			break;
-		case KCAMERA_TYPE_3D:
-		default:
-			matrix_type = PROJECTION_MATRIX_TYPE_PERSPECTIVE;
-			break;
-		}
-		data->projection = generate_projection_matrix(data->vp_rect, data->fov, data->near_clip, data->far_clip, matrix_type);
-		kmatrix_system_update_by_id(matrix_system, data->projection_matrix_id, data->projection);
-
-		// Make sure to unset the dirty flag.
-		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, false);
-		needs_frustum = true;
-	}
-
-	// If any matrix required regeneration, so too does the frustum.
-	if (needs_frustum) {
-		vec3 forward = mat4_forward(data->transform);
-		vec3 target = vec3_add(data->position, vec3_mul_scalar(forward, data->far_clip));
-		data->frustum = kfrustum_create(
-			data->position,
-			target,
-			vec3_up(),
-			(f32)data->vp_rect.width / data->vp_rect.height,
-			data->fov,
-			data->near_clip,
-			data->far_clip);
 	}
 }
 
@@ -546,6 +553,11 @@ void kcamera_move_down (kcamera camera, f32 amount) {
 void kcamera_yaw (kcamera camera, f32 amount) {
 	if (kcamera_is_valid(camera)) {
 		kcamera_data *data = &state_ptr->cameras[camera];
+
+		// Ignore input for modes that don't support it.
+		if (data->mode == KCAMERA_MODE_ISOMETRIC) {
+			return;
+		}
 		data->euler_rotation.y += amount;
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
 	}
@@ -554,6 +566,12 @@ void kcamera_yaw (kcamera camera, f32 amount) {
 void kcamera_pitch (kcamera camera, f32 amount) {
 	if (kcamera_is_valid(camera)) {
 		kcamera_data *data = &state_ptr->cameras[camera];
+
+		// Ignore input for modes that don't support it.
+		if (data->mode == KCAMERA_MODE_ISOMETRIC) {
+			return;
+		}
+
 		data->euler_rotation.x += amount;
 
 		// Clamp to avoid Gimball lock.
@@ -561,5 +579,105 @@ void kcamera_pitch (kcamera camera, f32 amount) {
 		data->euler_rotation.x = KCLAMP(data->euler_rotation.x, -limit, limit);
 
 		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, true);
+	}
+}
+
+void calculate_orbit_position (kcamera_data *data) {
+	data->position.x = data->target.x + data->follow_distance * kcos(data->euler_rotation.x) * ksin(data->euler_rotation.y);
+	data->position.y = data->target.y + data->follow_distance * ksin(-data->euler_rotation.x);
+	data->position.z = data->target.z + data->follow_distance * kcos(data->euler_rotation.x) * kcos(data->euler_rotation.y);
+}
+
+void calculate_follow_upwardoffset (kcamera_data *data) {
+	// Update follow camera to follow.
+	vec3 backward_offset = vec3_mul_scalar(data->target_forward, -data->follow_distance);
+	vec3 upward_offset = vec3_create(0.0f, data->vertical_offset, 0.0f);
+	data->position = vec3_add(vec3_add(data->target, backward_offset), upward_offset);
+
+	// Direction from point to focus object
+	vec3 to_obj = vec3_normalized(vec3_sub(data->target, data->position));
+
+	// pitch
+	data->euler_rotation.x = kasin(to_obj.y);
+	// yaw
+	data->euler_rotation.y = katan2(-to_obj.x, -to_obj.z);
+	// no roll
+	data->euler_rotation.z = 0;
+}
+
+void process_camera (kcamera_data *data) {
+	switch (data->mode) {
+	case KCAMERA_MODE_FREE:
+	case KCAMERA_MODE_MOUSELOOK:
+		// No processing needed for these types.
+		return;
+	case KCAMERA_MODE_ORBIT:
+		calculate_orbit_position(data);
+		break;
+	case KCAMERA_MODE_FOLLOW:
+	case KCAMERA_MODE_ISOMETRIC:
+		calculate_follow_upwardoffset(data);
+		break;
+	}
+}
+
+// Regenerate matrices, if needed.
+void regenerate_matrices (kcamera_data *data) {
+
+	b8 needs_frustum = false;
+	struct kmatrix_system_state *matrix_system = engine_systems_get()->matrix_system;
+
+	// Regenerate transform and view, if needed.
+	if (FLAG_GET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT)) {
+		// Depending on camera type, some calculations may need to be made before generating the transform.
+		process_camera(data);
+
+		// Recalculate transform
+		mat4 rotation = mat4_euler_xyz(data->euler_rotation.x, data->euler_rotation.y, data->euler_rotation.z);
+		mat4 translation = mat4_translation(data->position);
+		data->transform = mat4_mul(rotation, translation);
+		kmatrix_system_update_by_id(matrix_system, data->transform_matrix_id, data->transform);
+
+		// View is just inverse transform.
+		data->view_matrix = mat4_inverse(data->transform);
+		kmatrix_system_update_by_id(matrix_system, data->view_matrix_id, data->view_matrix);
+
+		// Make sure to unset the dirty flag.
+		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_TRANSFORM_DIRTY_BIT, false);
+		needs_frustum = true;
+	}
+
+	// Recalculate the projection matrix.
+	if (FLAG_GET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT)) {
+		projection_matrix_type matrix_type;
+		switch (data->type) {
+		case KCAMERA_TYPE_2D:
+			matrix_type = PROJECTION_MATRIX_TYPE_ORTHOGRAPHIC;
+			break;
+		case KCAMERA_TYPE_3D:
+		default:
+			matrix_type = PROJECTION_MATRIX_TYPE_PERSPECTIVE;
+			break;
+		}
+		data->projection = generate_projection_matrix(data->vp_rect, data->fov, data->near_clip, data->far_clip, matrix_type);
+		kmatrix_system_update_by_id(matrix_system, data->projection_matrix_id, data->projection);
+
+		// Make sure to unset the dirty flag.
+		data->flags = FLAG_SET(data->flags, KCAMERA_FLAG_PROJECTION_DIRTY_BIT, false);
+		needs_frustum = true;
+	}
+
+	// If any matrix required regeneration, so too does the frustum.
+	if (needs_frustum) {
+		vec3 forward = mat4_forward(data->transform);
+		vec3 target = vec3_add(data->position, vec3_mul_scalar(forward, data->far_clip));
+		data->frustum = kfrustum_create(
+			data->position,
+			target,
+			vec3_up(),
+			(f32)data->vp_rect.width / data->vp_rect.height,
+			data->fov,
+			data->near_clip,
+			data->far_clip);
 	}
 }

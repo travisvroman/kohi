@@ -754,7 +754,7 @@ KINLINE vec4 vec3_to_vec4 (vec3 vector, f32 w) {
  * 0.0f.
  */
 #define vec3_zero() \
-	(vec3){0.0f, 0.0f, 0.0f}
+	(vec3) { 0.0f, 0.0f, 0.0f }
 
 /**
  * @brief Creates and returns a 3-component vector with all components set
@@ -1866,6 +1866,23 @@ KINLINE mat4 mat4_euler_xyz (f32 x_radians, f32 y_radians, f32 z_radians) {
 	mat4 ry = mat4_euler_y(y_radians);
 	mat4 rz = mat4_euler_z(z_radians);
 	mat4 out_matrix = mat4_mul(rx, ry);
+	out_matrix = mat4_mul(out_matrix, rz);
+	return out_matrix;
+}
+
+/**
+ * @brief Creates a rotation matrix from the provided x, y and z axis rotations.
+ *
+ * @param x_radians The x rotation.
+ * @param y_radians The y rotation.
+ * @param z_radians The z rotation.
+ * @return A rotation matrix.
+ */
+KINLINE mat4 mat4_euler_yxz (f32 x_radians, f32 y_radians, f32 z_radians) {
+	mat4 rx = mat4_euler_x(x_radians);
+	mat4 ry = mat4_euler_y(y_radians);
+	mat4 rz = mat4_euler_z(z_radians);
+	mat4 out_matrix = mat4_mul(ry, rx);
 	out_matrix = mat4_mul(out_matrix, rz);
 	return out_matrix;
 }

@@ -36,6 +36,19 @@ typedef enum kcamera_type {
 	KCAMERA_TYPE_3D
 } kcamera_type;
 
+typedef enum kcamera_mode {
+	// Allows free camera movement and rotation from a 'first person' perspective, controlled by mouse/gamepad/keyboard input.
+	KCAMERA_MODE_FREE,
+	// Allows camera rotation from  a 'first person' perspective, rotated by mouse/gamepad/keyboard input.
+	KCAMERA_MODE_MOUSELOOK,
+	// Allows for camera rotation of the camera, rotating around a focus point, controlled by mouse/gamepad/keyboard input. Also can be 'zoomed', or moved closer/further away from the target.
+	KCAMERA_MODE_ORBIT,
+	// A camera that follows a target at a given height and distance offset. Can optionally be adjusted similar to an orbit camera, but reverts t ofollow position after a few seconds.
+	KCAMERA_MODE_FOLLOW,
+	// Mimics the old-schoold isometric perspective, following a target at a fixed height and distance offset. Cannot be adjusted via input.
+	KCAMERA_MODE_ISOMETRIC
+} kcamera_mode;
+
 #define DEFAULT_KCAMERA 0
 #define INVALID_KCAMERA INVALID_ID_U8
 
@@ -89,8 +102,15 @@ KAPI void kcamera_destroy (kcamera camera);
  */
 KAPI kcamera kcamera_system_get_default (void);
 
+KAPI kcamera_mode kcamera_get_mode (kcamera camera);
+KAPI void kcamera_set_mode (kcamera camera, kcamera_mode mode);
 KAPI vec3 kcamera_get_position (kcamera camera);
 KAPI void kcamera_set_position (kcamera camera, vec3 position);
+KAPI vec3 kcamera_get_target (kcamera camera);
+KAPI void kcamera_set_target (kcamera camera, vec3 target);
+// the forward vector of the target. Defaults to vec3_forward()
+KAPI vec3 kcamera_get_target_forward (kcamera camera);
+KAPI void kcamera_set_target_forward (kcamera camera, vec3 target_forward);
 KAPI vec3 kcamera_get_euler_rotation (kcamera camera);
 KAPI void kcamera_set_euler_rotation (kcamera camera, vec3 euler_rotation);
 KAPI void kcamera_set_euler_rotation_radians (kcamera camera, vec3 euler_rotation_radians);
