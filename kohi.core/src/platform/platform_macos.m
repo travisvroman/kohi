@@ -2488,6 +2488,7 @@ static void handle_modifier_key (
 	u32 ns_r_keycode,
 	u32 k_l_keycode,
 	u32 k_r_keycode,
+	keys general_key,
 	u32 modifier_flags,
 	u32 l_mod,
 	u32 r_mod,
@@ -2500,6 +2501,8 @@ static void handle_modifier_key (
 				state_ptr->modifier_key_states |= l_mod;
 				// Report the keypress
 				state_ptr->process_key(k_l_keycode, true, false);
+				// Also pass a general key if either left or right are triggered.
+				state_ptr->process_key(general_key, true, false);
 			}
 		}
 
@@ -2509,6 +2512,8 @@ static void handle_modifier_key (
 				state_ptr->modifier_key_states |= r_mod;
 				// Report the keypress
 				state_ptr->process_key(k_r_keycode, true, false);
+				// Also pass a general key if either left or right are triggered.
+				state_ptr->process_key(general_key, true, false);
 			}
 		}
 	} else {
@@ -2517,6 +2522,8 @@ static void handle_modifier_key (
 				state_ptr->modifier_key_states &= ~(l_mod);
 				// Report the release.
 				state_ptr->process_key(k_l_keycode, false, false);
+				// Also pass a general key if either left or right are triggered.
+				state_ptr->process_key(general_key, false, false);
 			}
 		}
 
@@ -2525,6 +2532,8 @@ static void handle_modifier_key (
 				state_ptr->modifier_key_states &= ~(r_mod);
 				// Report the release.
 				state_ptr->process_key(k_r_keycode, false, false);
+				// Also pass a general key if either left or right are triggered.
+				state_ptr->process_key(general_key, false, false);
 			}
 		}
 	}
@@ -2539,6 +2548,7 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		0x3C,
 		K_KEY_LSHIFT,
 		K_KEY_RSHIFT,
+		K_KEY_SHIFT,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LSHIFT,
 		MACOS_MODIFIER_KEY_RSHIFT,
@@ -2555,6 +2565,7 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		0x3E,
 		K_KEY_LCONTROL,
 		K_KEY_RCONTROL,
+		K_KEY_CONTROL,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LCTRL,
 		MACOS_MODIFIER_KEY_RCTRL,
@@ -2569,6 +2580,7 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		0x3D,
 		K_KEY_LALT,
 		K_KEY_RALT,
+		K_KEY_ALT,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LOPTION,
 		MACOS_MODIFIER_KEY_ROPTION,
@@ -2583,6 +2595,7 @@ static void handle_modifier_keys (u32 ns_keycode, u32 modifier_flags) {
 		0x36,
 		K_KEY_LSUPER,
 		K_KEY_RSUPER,
+		K_KEY_SUPER,
 		modifier_flags,
 		MACOS_MODIFIER_KEY_LCOMMAND,
 		MACOS_MODIFIER_KEY_RCOMMAND,

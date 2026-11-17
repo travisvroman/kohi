@@ -48,6 +48,8 @@ typedef enum keys {
 	K_KEY_SHIFT = 0x10,
 	/** @brief The Control/Ctrl key. */
 	K_KEY_CONTROL = 0x11,
+	/** @brief The Alt key. */
+	K_KEY_ALT = 0x12,
 
 	/** @brief The pause key. */
 	K_KEY_PAUSE = 0x13,
@@ -171,6 +173,9 @@ typedef enum keys {
 	K_KEY_RSUPER = 0x5C,
 	/** @brief The applicatons key. */
 	K_KEY_APPS = 0x5D,
+
+	/** @brief The Windows/Super key. */
+	K_KEY_SUPER = 0x5E,
 
 	/** @brief The sleep key. */
 	K_KEY_SLEEP = 0x5F,
