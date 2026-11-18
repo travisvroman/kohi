@@ -141,6 +141,8 @@ b8 vulkan_renderer_backend_initialize (renderer_backend_interface *backend, cons
 	context->api_minor = VK_VERSION_MINOR(api_version);
 	context->api_patch = VK_VERSION_PATCH(api_version);
 
+	KINFO("Vulkan Instance version: %d.%d.%d", context->api_major, context->api_minor, context->api_minor);
+
 	// Setup Vulkan instance.
 	VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
 	app_info.apiVersion = VK_MAKE_API_VERSION(0, context->api_major, context->api_minor, context->api_patch);

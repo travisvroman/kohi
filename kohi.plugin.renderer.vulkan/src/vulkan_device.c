@@ -139,6 +139,17 @@ b8 vulkan_device_create (vulkan_context *context, b8 require_discrete_gpu) {
 		ext_idx++;
 	}
 
+	// If dynamic topology isn't supported natively but *is* supported via extension,
+	// include the extension. Required for versions < 1.3.
+	if ((context->device.api_major == 1 && context->device.api_minor < 3) &&
+		((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_NATIVE_DYNAMIC_STATE_BIT) == 0) &&
+		((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_DYNAMIC_STATE_BIT) != 0)) {
+		extension_names[ext_idx] = VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME;
+		ext_idx++;
+		extension_names[ext_idx] = VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME;
+		ext_idx++;
+	}
+
 	// If smooth lines are supported, load the extension.
 	if ((context->device.support_flags & VULKAN_DEVICE_SUPPORT_FLAG_LINE_SMOOTH_RASTERISATION_BIT)) {
 		extension_names[ext_idx] = VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME;
@@ -541,7 +552,7 @@ static b8 select_physical_device (vulkan_context *context, b8 require_discrete_g
 
 			// Vulkan API version.
 			KINFO(
-				"Vulkan API version: %d.%d.%d",
+				"Vulkan GPU version: %d.%d.%d",
 				context->device.api_major,
 				context->device.api_minor,
 				context->device.api_minor);
