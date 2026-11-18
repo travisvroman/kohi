@@ -148,11 +148,11 @@ KAPI b8 engine_run (struct application *app);
 void engine_on_event_system_initialized (void);
 
 /**
- * @brief Obtains a constant pointer to the current frame data.
+ * @brief Obtains a pointer to the current frame data.
  *
- * @return A constant pointer to the current frame data.
+ * @return A pointer to the current frame data.
  */
-KAPI const struct frame_data *engine_frame_data_get (void);
+KAPI struct frame_data *engine_frame_data_get (void);
 
 /**
  * @brief Obtains a constant pointer to the collection of system states from the engine.

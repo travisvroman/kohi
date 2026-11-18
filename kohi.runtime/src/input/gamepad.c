@@ -18,6 +18,8 @@
 typedef struct gamepad {
 	u32 device_id;
 	u16 vendor_id, product_id;
+	u32 button_states;
+	u32 prev_button_states;
 } gamepad;
 
 typedef struct gamepad_system_state {
@@ -118,6 +120,7 @@ void gamepad_on_attached (u8 device_id) {
 	g->device_id = device_id;
 	g->vendor_id = (u16)vendor_id;
 	g->product_id = (u16)product_id;
+	g->button_states = 0;
 
 	const char *desc = platform_gamepad_get_device_desc(device_id);
 	KINFO(
@@ -148,8 +151,13 @@ void gamepad_on_button_pressed (u8 device_id, gamepad_button button, f32 timesta
 		return;
 	}
 	gamepad *g = &state_ptr->gamepads[slot];
+	b8 currently_pressed = FLAG_GET(g->button_states, button);
+	FLAG_SET(g->prev_button_states, button, currently_pressed);
+	FLAG_SET(g->button_states, button, true);
+#if KOHI_DEBUG
 	const char *desc = util_gamepad_get_button_desc(g->vendor_id, g->product_id, button);
-	KINFO("Gamepad (id=%hhu) button pressed - button='%s', timestamp = %f", device_id, desc, timestamp);
+	KDEBUG("Gamepad (id=%hhu) button pressed - button='%s', timestamp = %f", device_id, desc, timestamp);
+#endif
 }
 void gamepad_on_button_released (u8 device_id, gamepad_button button, f32 timestamp) {
 	/* KINFO("Gamepad (id=%hhu) button released - button_id= %hhu, timestamp = %f", device_id, button_id, timestamp); */
@@ -159,8 +167,13 @@ void gamepad_on_button_released (u8 device_id, gamepad_button button, f32 timest
 		return;
 	}
 	gamepad *g = &state_ptr->gamepads[slot];
+	b8 currently_pressed = FLAG_GET(g->button_states, button);
+	FLAG_SET(g->prev_button_states, button, currently_pressed);
+	FLAG_SET(g->button_states, button, false);
+#if KOHI_DEBUG
 	const char *desc = util_gamepad_get_button_desc(g->vendor_id, g->product_id, button);
-	KINFO("Gamepad (id=%hhu) button released - button='%s', timestamp = %f", device_id, desc, timestamp);
+	KDEBUG("Gamepad (id=%hhu) button released - button='%s', timestamp = %f", device_id, desc, timestamp);
+#endif
 }
 void gamepad_on_axis_changed (u8 device_id, gamepad_axis axis, f32 value, f32 last_value, f32 timestamp) {
 
@@ -198,7 +211,29 @@ b8 gamepad_is_button_pressed (u8 player_index, gamepad_button button) {
 
 	gamepad *g = &state_ptr->gamepads[player_index];
 	if (g->device_id != INVALID_ID_U32) {
+		// TODO: This state could be lifted out of the platform layer and tracked here instead.
 		return platform_gamepad_is_button_pressed(g->device_id, button);
+	}
+
+	return false;
+}
+
+b8 gamepad_was_button_pressed (u8 player_index, gamepad_button button) {
+	if (player_index < 4) {
+		gamepad *g = &state_ptr->gamepads[player_index];
+		if (g->device_id != INVALID_ID_U32) {
+			return FLAG_GET(g->prev_button_states, button);
+		}
+	}
+
+	return false;
+}
+b8 gamepad_is_button_just_pressed (u8 player_index, gamepad_button button) {
+	if (player_index < 4) {
+		gamepad *g = &state_ptr->gamepads[player_index];
+		if (g->device_id != INVALID_ID_U32) {
+			return (!FLAG_GET(g->prev_button_states, button) && FLAG_GET(g->button_states, button));
+		}
 	}
 
 	return false;

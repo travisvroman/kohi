@@ -45,6 +45,11 @@ void gamepad_on_axis_changed (u8 device_id, gamepad_axis axis, f32 value, f32 la
 
 KAPI b8 gamepad_is_connected (u8 player_index);
 KAPI b8 gamepad_is_button_pressed (u8 player_index, gamepad_button button);
+// Button was pressed in the previous state
+KAPI b8 gamepad_was_button_pressed (u8 player_index, gamepad_button button);
+// Previously released but now pressed.
+KAPI b8 gamepad_is_button_just_pressed (u8 player_index, gamepad_button button);
+
 KAPI f32 gamepad_get_axis_state (u8 player_index, gamepad_axis axis);
 
 KAPI b8 gamepad_get_device_info (u8 player_index, i32 *out_vendor_id, i32 *out_product_id, u32 *out_button_count, u32 *out_axis_count);
