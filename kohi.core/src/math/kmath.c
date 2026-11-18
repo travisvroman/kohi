@@ -194,10 +194,25 @@ quat quat_slerp (quat q_0, quat q_1, f32 percentage) {
 }
 
 quat quat_rotation_between_vectors (vec3 v_0, vec3 v_1) {
+	f32 len_0 = vec3_length_squared(v_0);
+	f32 len_1 = vec3_length_squared(v_1);
+
+	if (len_0 < 0.000001f || len_1 < 0.000001f) {
+		return quat_identity();
+	}
+
 	vec3_normalize(&v_0);
 	vec3_normalize(&v_1);
 
 	f32 dot = vec3_dot(v_0, v_1);
+
+	// Prevent floating point errors that might put this outside the acceptable range.
+	dot = KCLAMP(dot, -1.0f, 1.0f);
+
+	// Handle identical vectors
+	if (dot > 0.999999f) {
+		return quat_identity();
+	}
 
 	// Handle opposite vectors (180 degree rotation)
 	if (dot < -0.999999f) {
