@@ -96,7 +96,7 @@ void input_update (const struct frame_data *p_frame_data) {
 						unset = true;
 						break;
 					} else if (binding->type == KEYMAP_BIND_TYPE_HOLD) {
-						b8 explicit = FLAG_GET(binding->modifiers, KEYMAP_MODIFIER_NONE_EXPLICIT);
+						b8 explicit = FLAG_GET(binding->modifiers, KEYMAP_MODIFIER_NONE_EXPLICIT_BIT);
 
 						if (binding->code && check_modifiers(binding->modifiers, explicit)) {
 							state_ptr->app->on_action(state_ptr->app, binding->code);
@@ -197,7 +197,7 @@ void input_process_key (keys key, b8 pressed, b8 is_repeat) {
 					break;
 				}
 
-				b8 explicit = FLAG_GET(binding->modifiers, KEYMAP_MODIFIER_NONE_EXPLICIT);
+				b8 explicit = FLAG_GET(binding->modifiers, KEYMAP_MODIFIER_NONE_EXPLICIT_BIT);
 
 				if (pressed && binding->type & KEYMAP_BIND_TYPE_PRESS) {
 					if (binding->code && check_modifiers(binding->modifiers, explicit)) {

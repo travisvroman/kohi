@@ -7,7 +7,6 @@
 #include "defines.h"
 #include "input_types.h"
 #include "logger.h"
-#include "math/math_types.h"
 #include "strings/kstring.h"
 
 #include <math/kmath.h>
@@ -151,7 +150,7 @@ void gamepad_on_button_pressed (u8 device_id, gamepad_button button, f32 timesta
 		return;
 	}
 	gamepad *g = &state_ptr->gamepads[slot];
-	b8 currently_pressed = FLAG_GET(g->button_states, button);
+	b8 currently_pressed = FLAG_GET(g->button_states, (u32)button);
 	FLAG_SET(g->prev_button_states, button, currently_pressed);
 	FLAG_SET(g->button_states, button, true);
 #if KOHI_DEBUG
@@ -167,7 +166,7 @@ void gamepad_on_button_released (u8 device_id, gamepad_button button, f32 timest
 		return;
 	}
 	gamepad *g = &state_ptr->gamepads[slot];
-	b8 currently_pressed = FLAG_GET(g->button_states, button);
+	b8 currently_pressed = FLAG_GET(g->button_states, (u32)button);
 	FLAG_SET(g->prev_button_states, button, currently_pressed);
 	FLAG_SET(g->button_states, button, false);
 #if KOHI_DEBUG
@@ -222,7 +221,7 @@ b8 gamepad_was_button_pressed (u8 player_index, gamepad_button button) {
 	if (player_index < 4) {
 		gamepad *g = &state_ptr->gamepads[player_index];
 		if (g->device_id != INVALID_ID_U32) {
-			return FLAG_GET(g->prev_button_states, button);
+			return FLAG_GET(g->prev_button_states, (u32)button);
 		}
 	}
 
@@ -232,7 +231,7 @@ b8 gamepad_is_button_just_pressed (u8 player_index, gamepad_button button) {
 	if (player_index < 4) {
 		gamepad *g = &state_ptr->gamepads[player_index];
 		if (g->device_id != INVALID_ID_U32) {
-			return (!FLAG_GET(g->prev_button_states, button) && FLAG_GET(g->button_states, button));
+			return (!FLAG_GET(g->prev_button_states, (u32)button) && FLAG_GET(g->button_states, (u32)button));
 		}
 	}
 
