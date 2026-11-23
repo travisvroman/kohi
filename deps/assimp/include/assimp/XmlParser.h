@@ -2,7 +2,7 @@
 Open Asset Import Library (assimp)
 ----------------------------------------------------------------------
 
-Copyright (c) 2006-2025, assimp team
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -61,12 +61,13 @@ struct find_node_by_name_predicate {
     /// @brief The default constructor.
     find_node_by_name_predicate() = default;
 
-
-    std::string mName; ///< The name to find.
-    find_node_by_name_predicate(const std::string &name) :
-            mName(name) {
+    /// @brief Constructor with the predicate name
+    /// @param name    The name.
+    explicit find_node_by_name_predicate(const std::string &name) : mName(name) {
         // empty
     }
+
+    std::string mName; ///< The name to find.
 
     bool operator()(pugi::xml_node node) const {
         return node.name() == mName;
@@ -78,6 +79,9 @@ struct find_node_by_name_predicate {
 template <class TNodeType>
 struct NodeConverter {
 public:
+    /// @brief Will convert the attribute from the node to an int.
+    /// @param node            The XML-node.
+    /// @param attribName      The name of the attribute.
     static int to_int(TNodeType &node, const char *attribName) {
         ai_assert(nullptr != attribName);
         return node.attribute(attribName).to_int();
@@ -130,7 +134,7 @@ public:
     bool parse(IOStream *stream);
 
     /// @brief  Will parse an xml-file from a stringstream.
-    /// @param[in] str      The input istream (note: not "const" to match pugixml param)
+    /// @param[in] inStream The input istream (note: not "const" to match pugixml param)
     /// @return true, if the parsing was successful, false if not.
     bool parse(std::istream &inStream);
 
@@ -231,7 +235,7 @@ public:
 
     /// @brief Will try to get the value of the node as an integer.
     /// @param[in]  node    The node to search in.
-    /// @param[out] i       The value as a int.
+    /// @param[out] v       The value as a int.
     /// @return true, if the value can be read out.
     static inline bool getValueAsInt(XmlNode &node, int &v);
 

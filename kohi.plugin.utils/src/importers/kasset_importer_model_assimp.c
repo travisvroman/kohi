@@ -5,6 +5,12 @@
 
 #include "kasset_importer_model_assimp.h"
 
+// #if KPLATFORM_WINDOWS
+//     #define ASSIMP_DOUBLE_PRECISION 1
+// #endif
+
+#include <assimp/version.h>
+
 #include <assimp/cimport.h>
 #include <assimp/color4.h>
 #include <assimp/defs.h>
@@ -47,6 +53,10 @@ static void anim_asset_destroy (kasset_model *asset);
 b8 kasset_model_assimp_import (const char *source_path, const char *target_path, const char *material_target_dir, const char *package_name) {
 	kasset_model new_asset = {0};
 
+	u32 flags = aiGetCompileFlags();
+    b8 isDouble = (flags & 0x10) != 0; // ASSIMP_CFLAGS_DOUBLE_SUPPORT
+    KINFO("Assimp Double Precision: %s (flags: 0x%X)\n", isDouble ? "ON" : "OFF", flags);
+
 	const struct aiScene *scene = assimp_open_file(source_path);
 
 	kname pkg_name = kname_create(package_name);
@@ -81,6 +91,7 @@ b8 kasset_model_assimp_import (const char *source_path, const char *target_path,
 	}
 
 	KINFO("Import complete.");
+	success = true;
 ai_import_cleanup:
 
 	// Release all assimp resources.
@@ -442,6 +453,7 @@ static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_nam
 	// Push the root first
 	const struct aiNode *root = scene->mRootNode;
 	const struct aiNode *stack_nodes[1024];
+	kzero_memory(stack_nodes, sizeof(stack_nodes));
 	u32 stack_top = 0;
 	stack_nodes[stack_top++] = root;
 	while (stack_top) {
@@ -464,7 +476,7 @@ static b8 anim_asset_from_assimp (const struct aiScene *scene, kname package_nam
 		darray_push(node_map, &new_map_entry);
 
 		// Push children onto the stack.
-		for (u16 i = 0; i < current->mNumChildren; ++i) {
+		for (u16 i = 0; i < (u16)current->mNumChildren; ++i) {
 			stack_nodes[stack_top++] = current->mChildren[i];
 		}
 	}

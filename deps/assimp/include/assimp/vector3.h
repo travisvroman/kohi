@@ -3,7 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2025, assimp team
+Copyright (c) 2006-2026, assimp team
 
 All rights reserved.
 
@@ -69,7 +69,9 @@ template <typename TReal>
 class aiVector3t {
 public:
     /// @brief  The default class constructor.
-    aiVector3t() AI_NO_EXCEPT : x(), y(), z() {}
+    aiVector3t() AI_NO_EXCEPT : x(0), y(0), z(0) {
+        // empty
+    }
 
     /// @brief  The class constructor with the components.
     /// @param  _x  The x-component for the vector.
@@ -84,6 +86,10 @@ public:
     /// @brief  The copy constructor.
     /// @param  o The instance to copy from.
     aiVector3t( const aiVector3t& o ) = default;
+
+    /// @brief  The copy assignment operator.
+    /// @param  o The instance to copy.
+    aiVector3t& operator=(const aiVector3t& o) = default;
 
     /// @brief  combined operators
     /// @brief  The copy constructor.
